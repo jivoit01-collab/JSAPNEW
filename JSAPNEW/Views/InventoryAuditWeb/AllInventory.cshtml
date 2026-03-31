@@ -1,0 +1,2737 @@
+﻿@* @model List<JSAPNEW.Models.InventoryAuditListModel> *@
+
+@{
+    ViewData["Title"] = "Inventory Audit - All Data";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Audit - All Data</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0b2c4d;
+            --primary-light: #1a4066;
+            --primary-dark: #051a2f;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --border-radius-sm: 6px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--light-bg) 0%, #e8f4f8 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+        }
+
+        /* Modern Card Styles */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+            .card:hover {
+                box-shadow: var(--shadow-lg);
+                transform: translateY(-1px);
+            }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            border-bottom: none;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 44, 77, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-circle {
+            width: 56px;
+            height: 56px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.75rem;
+        }
+
+        .loading-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: white;
+            text-align: center;
+        }
+
+        /* Progress Circle for Excel Download */
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 44, 77, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+
+        .progress-circle {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #27ae60;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        .progress-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-subtext {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+        }
+
+        @@keyframes spin {
+            0%
+
+        {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+
+        }
+
+        /* Grid Layout */
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .grid-6 {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+            .form-label.required::after {
+                content: ' *';
+                color: var(--danger-color);
+            }
+
+        /* Custom Select Dropdown */
+        .select-container {
+            position: relative;
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            min-height: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+            .select-container:hover {
+                border-color: var(--accent-color);
+            }
+
+            .select-container:focus-within,
+            .select-container.active {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+            .select-container.loading {
+                border-color: var(--accent-color);
+                background: linear-gradient(90deg, #f0f9ff 0%, #dbeafe 50%, #f0f9ff 100%);
+                background-size: 200% 100%;
+                animation: shimmer 1.5s infinite;
+            }
+
+        @@keyframes shimmer {
+            0%
+
+        {
+            background-position: -200% 0;
+        }
+
+        100% {
+            background-position: 200% 0;
+        }
+
+        }
+
+        .select-container.disabled {
+            background-color: #f7fafc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .select-value {
+            padding: 0.6rem 2.5rem 0.6rem 0.8rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            min-height: 18px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+
+        .select-placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .select-loading {
+            color: var(--accent-color);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .select-container.active .select-arrow {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        .select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: -2px;
+            right: -2px;
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-top: none;
+            border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: var(--shadow-lg);
+        }
+
+            .select-dropdown.show {
+                display: block;
+            }
+
+        .select-option {
+            padding: 0.6rem 0.8rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+            .select-option:hover {
+                background-color: #f8fafc;
+            }
+
+            .select-option.selected {
+                background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+                color: white;
+                font-weight: 500;
+            }
+
+            .select-option.select-all {
+                background: linear-gradient(135deg, var(--success-color), #229954);
+                color: white;
+                font-weight: 600;
+                border-bottom: 2px solid #1e7e34;
+            }
+
+                .select-option.select-all:hover {
+                    background: linear-gradient(135deg, #229954, #1e7e34);
+                }
+
+            .select-option:last-child {
+                border-bottom: none;
+            }
+
+        /* Multi-select styles */
+        .multi-select-tag {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 0.1rem;
+        }
+
+            .multi-select-tag .remove-tag {
+                cursor: pointer;
+                font-weight: bold;
+                opacity: 0.8;
+            }
+
+                .multi-select-tag .remove-tag:hover {
+                    opacity: 1;
+                }
+
+        .multi-select-count {
+            background: var(--accent-color);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .select-all-tag {
+            background: linear-gradient(135deg, var(--success-color), #229954);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 0.1rem;
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .btn:hover:not(.disabled) {
+                transform: translateY(-1px);
+            }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+            .btn-primary:hover:not(.disabled) {
+                box-shadow: var(--shadow-md);
+            }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #229954);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #e67e22);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-excel {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+            .btn-excel:hover:not(.disabled) {
+                box-shadow: var(--shadow-md);
+                background: linear-gradient(135deg, #20c997, #28a745);
+            }
+
+        .btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-lg {
+            padding: 0.8rem 1.6rem;
+            font-size: 1rem;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        /* Search Section */
+        .search-section {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            overflow: visible;
+        }
+
+        .search-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+            .search-title::before {
+                content: '🔍';
+                font-size: 1.2rem;
+            }
+
+        /* Filters Grid Layout */
+        .filters-grid {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.2rem;
+            background: white;
+        }
+
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .filter-item-full {
+            grid-column: 1 / -1;
+            max-width: 33.333%;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .multi-select-badge {
+            background: var(--accent-color);
+            color: white;
+            padding: 0.15rem 0.4rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Enhanced select containers with fixed z-index */
+        .select-container {
+            position: relative;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            min-height: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+            .select-container:hover:not(.disabled) {
+                border-color: var(--accent-color);
+                box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+            }
+
+            .select-container:focus-within,
+            .select-container.active {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 2px rgba(11, 44, 77, 0.1);
+                z-index: 1000;
+            }
+
+            .select-container.loading {
+                border-color: var(--accent-color);
+                background: linear-gradient(90deg, #f0f9ff 0%, #dbeafe 50%, #f0f9ff 100%);
+                background-size: 200% 100%;
+                animation: shimmer 1.5s infinite;
+            }
+
+            .select-container.disabled {
+                background-color: #f7fafc;
+                cursor: not-allowed;
+                opacity: 0.7;
+                border-style: dashed;
+            }
+
+        .select-value {
+            padding: 0.6rem 2.5rem 0.6rem 0.8rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            min-height: 18px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+
+        .select-placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .select-loading {
+            color: var(--accent-color);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .select-error {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+
+        .select-container.active .select-arrow {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        /* FIXED: Dropdown with proper height and z-index */
+        .select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--primary-color);
+            border-top: none;
+            border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+            .select-dropdown.show {
+                display: block;
+            }
+
+        .select-option {
+            padding: 0.7rem 0.8rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #f1f5f9;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+
+            .select-option:hover {
+                background-color: #f8fafc;
+            }
+
+            .select-option.selected {
+                background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+                color: white;
+                font-weight: 500;
+            }
+
+            .select-option.select-all {
+                background: linear-gradient(135deg, var(--success-color), #229954);
+                color: white;
+                font-weight: 600;
+                border-bottom: 2px solid #1e7e34;
+            }
+
+                .select-option.select-all:hover {
+                    background: linear-gradient(135deg, #229954, #1e7e34);
+                }
+
+            .select-option:last-child {
+                border-bottom: none;
+            }
+
+        /* Search Actions */
+        .search-actions {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .search-actions-left {
+            flex: 1;
+        }
+
+        .search-actions-right {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .filter-summary {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .summary-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .summary-count {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Data Table - Added Scrollbar */
+        .data-table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Omni Search Styles */
+        .omni-search-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .omni-search-input {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius-sm);
+            padding: 0.5rem 0.8rem;
+            min-width: 300px;
+            transition: all 0.3s ease;
+        }
+
+            .omni-search-input:focus-within {
+                background: white;
+                border-color: white;
+                box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+            }
+
+            .omni-search-input input {
+                background: transparent;
+                border: none;
+                outline: none;
+                color: white;
+                font-size: 0.875rem;
+                width: 100%;
+                padding: 0;
+                margin-left: 0.5rem;
+            }
+
+                .omni-search-input input::placeholder {
+                    color: rgba(255, 255, 255, 0.7);
+                }
+
+            .omni-search-input:focus-within input {
+                color: var(--text-primary);
+            }
+
+                .omni-search-input:focus-within input::placeholder {
+                    color: var(--text-secondary);
+                }
+
+        .search-icon {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+            transition: color 0.3s ease;
+        }
+
+        .omni-search-input:focus-within .search-icon {
+            color: var(--accent-color);
+        }
+
+        .clear-search-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius-sm);
+            color: white;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+            .clear-search-btn:hover {
+                background: rgba(255, 255, 255, 0.3);
+                border-color: rgba(255, 255, 255, 0.5);
+            }
+
+            .clear-search-btn.disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+
+        /* Added scrollable table wrapper */
+        .table-wrapper {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            min-width: 1200px; /* Ensure minimum width for horizontal scroll */
+        }
+
+            .data-table thead {
+                background: #f8fafc;
+                border-bottom: 2px solid var(--border-color);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+
+            .data-table th {
+                padding: 0.8rem;
+                text-align: left;
+                font-weight: 600;
+                font-size: 0.8rem;
+                color: var(--text-primary);
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+                white-space: nowrap;
+            }
+
+            .data-table tbody tr {
+                border-bottom: 1px solid var(--border-color);
+                transition: background-color 0.2s ease;
+            }
+
+                .data-table tbody tr:hover {
+                    background-color: #f8fafc;
+                }
+
+                .data-table tbody tr:last-child {
+                    border-bottom: none;
+                }
+
+            .data-table td {
+                padding: 0.8rem;
+                font-size: 0.875rem;
+                vertical-align: middle;
+                white-space: nowrap;
+            }
+
+        /* Status badges */
+        .status-badge {
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #f6e05e;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-closed {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #b8daff;
+        }
+
+        .status-in-progress {
+            background: #cce5ff;
+            color: #004085;
+            border: 1px solid #99d6ff;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 0.8rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .alert-danger {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        .alert-close {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+            .alert-close:hover {
+                opacity: 1;
+            }
+
+        /* Difference value styling */
+        .diff-positive {
+            color: var(--success-color);
+            font-weight: 600;
+        }
+
+        .diff-negative {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+
+        .diff-zero {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Group display styling */
+        .group-list {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+            .group-list:hover {
+                white-space: normal;
+                overflow: visible;
+                position: relative;
+                z-index: 1000;
+                background: white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                padding: 0.5rem;
+                border-radius: 4px;
+            }
+
+        /* Action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        /* Search highlight */
+        .search-highlight {
+            background: yellow;
+            font-weight: bold;
+            padding: 0.1rem 0.2rem;
+            border-radius: 2px;
+        }
+
+        /* Responsive Design */
+        @@media (max-width: 1024px) {
+            .filters-grid
+
+        {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .search-actions {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .search-actions-left,
+        .search-actions-right {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .search-actions-right {
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .omni-search-container {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.5rem;
+        }
+
+        .omni-search-input {
+            min-width: auto;
+        }
+
+        }
+
+        @@media (max-width: 768px) {
+            .filters-grid
+
+        {
+            grid-template-columns: 1fr;
+        }
+
+        .search-header {
+            flex-direction: column;
+            gap: 0.8rem;
+            text-align: center;
+        }
+
+        .filters-grid {
+            padding: 1rem;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .data-table {
+            font-size: 0.8rem;
+        }
+
+            .data-table th, .data-table td {
+                padding: 0.6rem 0.4rem;
+            }
+
+        .btn {
+            width: 100%;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+            .action-buttons .btn {
+                width: 100%;
+                font-size: 0.75rem;
+                padding: 0.4rem 0.6rem;
+            }
+
+        .table-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .omni-search-container {
+            width: 100%;
+        }
+
+        .omni-search-input {
+            width: 100%;
+        }
+
+        }
+
+        @@media (max-width: 480px) {
+            .app-container
+
+        {
+            padding: 0.5rem;
+        }
+
+        .card-header, .card-body {
+            padding: 0.8rem;
+        }
+
+        .filters-grid {
+            padding: 0.8rem;
+        }
+
+        .search-actions {
+            padding: 1rem;
+        }
+
+        .filter-item .select-container {
+            min-height: 40px;
+        }
+
+        .filter-item .select-value {
+            padding: 0.6rem 2rem 0.6rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-circle"></div>
+        <div class="loading-text">Loading data...</div>
+    </div>
+
+    <!-- Progress Overlay for Excel Download -->
+    <div class="progress-overlay" id="progressOverlay">
+        <div class="progress-circle"></div>
+        <div class="progress-text">Downloading Excel Report</div>
+        <div class="progress-subtext">Please wait while we prepare your file...</div>
+    </div>
+
+    <div class="app-container">
+        <input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.company" />
+        <input type="hidden" id="UpdatedBy" name="UpdatedBy" value="@ViewBag.userId" />
+        <input type="hidden" id="CurrentUser" name="CurrentUser" value="@ViewBag.userId" />
+
+        <!-- Search Filters -->
+        <div class="search-section">
+            <div class="search-header">
+                <h3 class="search-title">Search Filters</h3>
+                <button class="btn btn-secondary btn-sm" onclick="clearAllFilters()" id="clearFiltersBtn">
+                    Clear All Filters
+                </button>
+            </div>
+
+            <!-- Filters Grid Layout -->
+            <div class="filters-grid">
+                <!-- Row 1 -->
+                <div class="filter-item">
+                    <label class="filter-label">STATUS</label>
+                    <div class="select-container" onclick="toggleSingleSelect('status-dropdown')" id="status-container">
+                        <div class="select-value" id="status-selected">
+                            <div class="select-placeholder">Select status...</div>
+                        </div>
+                        <div class="select-arrow">▼</div>
+                        <div class="select-dropdown" id="status-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">UNIT</label>
+                    <div class="select-container" onclick="toggleSingleSelect('unit-dropdown')" id="unit-container">
+                        <div class="select-value" id="unit-selected">
+                            <div class="select-loading">Loading units...</div>
+                        </div>
+                        <div class="select-arrow">▼</div>
+                        <div class="select-dropdown" id="unit-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">LOCATION</label>
+                    <div class="select-container disabled" id="location-container">
+                        <div class="select-value" id="location-selected">
+                            <div class="select-placeholder">Select unit first...</div>
+                        </div>
+                        <div class="select-arrow">▼</div>
+                        <div class="select-dropdown" id="location-dropdown"></div>
+                    </div>
+                </div>
+
+                <!-- Row 2 -->
+                <div class="filter-item">
+                    <label class="filter-label">WAREHOUSE <span class="multi-select-badge">MULTI-SELECT</span></label>
+                    <div class="select-container disabled" id="warehouse-container">
+                        <div class="select-value" id="warehouse-selected">
+                            <div class="select-placeholder">Select location first...</div>
+                        </div>
+                        <div class="select-arrow">▼</div>
+                        <div class="select-dropdown" id="warehouse-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">ITEM GROUP <span class="multi-select-badge">MULTI-SELECT</span></label>
+                    <div class="select-container" onclick="toggleMultiSelect('itemgroup-dropdown')" id="itemgroup-container">
+                        <div class="select-value" id="itemgroup-selected">
+                            <div class="select-loading">Loading groups...</div>
+                        </div>
+                        <div class="select-arrow">▼</div>
+                        <div class="select-dropdown" id="itemgroup-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">ITEM SUB GROUP <span class="multi-select-badge">MULTI-SELECT</span></label>
+                    <div class="select-container" onclick="toggleMultiSelect('subgroup-dropdown')" id="subgroup-container">
+                        <div class="select-value" id="subgroup-selected">
+                            <div class="select-loading">Loading sub groups...</div>
+                        </div>
+                        <div class="select-arrow">▼</div>
+                        <div class="select-dropdown" id="subgroup-dropdown"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Actions -->
+            <div class="search-actions">
+                <div class="search-actions-left">
+                    <div class="filter-summary" id="filterSummary">
+                        <span class="summary-text">No filters selected</span>
+                    </div>
+                </div>
+                <div class="search-actions-right">
+                    <button class="btn btn-secondary" onclick="resetFilters()" id="resetFiltersBtn">
+                        Reset Filters
+                    </button>
+                    <button class="btn btn-primary btn-lg" onclick="searchStockCountData()" id="searchButton">
+                        Search Audit Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-table-container">
+            <div class="table-header">
+                <h3 class="table-title">Stock Count Data Results</h3>
+                <div class="omni-search-container">
+                    <div class="omni-search-input">
+                        <span class="search-icon">🔍</span>
+                        <input type="text"
+                               id="lotNumberSearch"
+                               placeholder="Search by lot number..."
+                               oninput="handleLotNumberSearch(this.value)">
+                    </div>
+                    <button class="clear-search-btn disabled"
+                            id="clearSearchBtn"
+                            onclick="clearLotNumberSearch()">
+                        Clear
+                    </button>
+                </div>
+                <div style="font-size: 0.875rem;">
+                    Total Records: <span id="totalRecords">0</span>
+                    <span id="filteredRecords" style="display: none;">
+                        (Filtered: <span id="filteredCount">0</span>)
+                    </span>
+                </div>
+            </div>
+
+            <div id="dataTableContainer">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>Loading stock count data...</h3>
+                    <p>Please wait while we load the initial data</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let searchFilters = {
+            unit: null,
+            location: null,
+            warehouse: [],
+            itemGroup: [],
+            subGroup: [],
+            status: null
+        };
+
+        let apiData = {
+            units: [],
+            locations: [],
+            warehouses: [],
+            itemGroups: [],
+            subGroups: []
+        };
+
+        let currentUser = '';
+        let stockCountData = null;
+        let originalStockCountData = null; // Store original data for filtering
+        let displayedData = null; // Currently displayed data
+        let lotNumberSearchValue = ''; // Current lot number search value
+        let lotSearchTimeout = null; // Debounce timeout for lot number search
+
+        function getCompanyId() {
+            const companyId = document.getElementById('CompanyId').value;
+            console.log('Company ID:', companyId);
+            return companyId;
+        }
+
+        function getCurrentUser() {
+            const user = document.getElementById('CurrentUser').value;
+            currentUser = user || '';
+            console.log('Current User:', currentUser);
+            return currentUser;
+        }
+
+        function validateCompanyId() {
+            const companyId = getCompanyId();
+            if (!companyId || companyId.trim() === '') {
+                showGlobalError('Company ID is not set. Please ensure ViewBag.CompanyId is properly set in the controller.');
+                return false;
+            }
+            return true;
+        }
+
+        async function apiCall(url) {
+            try {
+                console.log('Making API call to:', url);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', data);
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        async function apiCallPost(url, requestData) {
+            try {
+                console.log('Making POST API call to:', url);
+                console.log('Request data:', JSON.stringify(requestData, null, 2));
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', JSON.stringify(data, null, 2));
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        function extractArrayFromResponse(data, context = '') {
+            console.log(`Extracting array from ${context} response:`, data);
+
+            if (Array.isArray(data)) {
+                return data;
+            }
+
+            if (data && typeof data === 'object') {
+                const possibleArrayProps = ['data', 'items', 'result', 'results', 'list', 'records'];
+
+                for (const prop of possibleArrayProps) {
+                    if (data[prop] && Array.isArray(data[prop])) {
+                        console.log(`Found array in property '${prop}'`);
+                        return data[prop];
+                    }
+                }
+
+                for (const key in data) {
+                    if (Array.isArray(data[key])) {
+                        console.log(`Found array in property '${key}'`);
+                        return data[key];
+                    }
+                }
+            }
+
+            console.warn(`Could not extract array from ${context} response. Using empty array.`);
+            return [];
+        }
+
+        // Load initial stock count data
+        async function loadInitialStockCountData() {
+            try {
+                if (!validateCompanyId()) return;
+
+                console.log('Loading initial stock count data...');
+
+                const requestData = {
+                    lotNumber: "",
+                    unit: "",
+                    location: "",
+                    warehouse: "",
+                    itemGroup: "",
+                    itemSubGroup: "",
+                    status: ""
+                };
+
+                const response = await apiCallPost('/api/InventoryAudit/GetStockCountDataByFilter', requestData);
+
+                if (response && response.success) {
+                    stockCountData = response.data;
+                    originalStockCountData = response.data; // Store original data
+                    displayedData = response.data; // Initially display all data
+                    displayStockCountData(response.data);
+                } else {
+                    throw new Error(response?.message || 'Failed to load initial stock count data');
+                }
+
+            } catch (error) {
+                console.error('Failed to load initial stock count data:', error);
+                showGlobalError('Failed to load initial stock count data: ' + error.message);
+                displayStockCountData({ headers: [], itemGroups: [], itemSubGroups: [], warehouse: [] });
+            }
+        }
+
+        // NEW: Handle lot number search with debouncing
+        function handleLotNumberSearch(value) {
+            // Clear previous timeout
+            if (lotSearchTimeout) {
+                clearTimeout(lotSearchTimeout);
+            }
+
+            // Set new timeout for debouncing
+            lotSearchTimeout = setTimeout(() => {
+                performLotNumberSearch(value);
+            }, 300); // 300ms debounce
+        }
+
+        // NEW: Perform lot number search
+        function performLotNumberSearch(searchValue) {
+            lotNumberSearchValue = searchValue.trim();
+
+            // Update clear button state
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (lotNumberSearchValue) {
+                clearBtn.classList.remove('disabled');
+            } else {
+                clearBtn.classList.add('disabled');
+            }
+
+            // Filter the currently displayed data
+            if (!originalStockCountData) return;
+
+            let dataToFilter = stockCountData || originalStockCountData;
+
+            if (lotNumberSearchValue) {
+                // Filter data by lot number
+                const filteredData = {
+                    headers: dataToFilter.headers.filter(header =>
+                        header.lotNumber &&
+                        header.lotNumber.toLowerCase().includes(lotNumberSearchValue.toLowerCase())
+                    ),
+                    itemGroups: dataToFilter.itemGroups.filter(group =>
+                        group.lotNumber &&
+                        group.lotNumber.toLowerCase().includes(lotNumberSearchValue.toLowerCase())
+                    ),
+                    itemSubGroups: dataToFilter.itemSubGroups.filter(subGroup =>
+                        subGroup.lotNumber &&
+                        subGroup.lotNumber.toLowerCase().includes(lotNumberSearchValue.toLowerCase())
+                    ),
+                    warehouse: dataToFilter.warehouse.filter(warehouse =>
+                        warehouse.lotNumber &&
+                        warehouse.lotNumber.toLowerCase().includes(lotNumberSearchValue.toLowerCase())
+                    )
+                };
+
+                displayedData = filteredData;
+                displayStockCountData(filteredData, true);
+            } else {
+                // Show all data when search is cleared
+                displayedData = dataToFilter;
+                displayStockCountData(dataToFilter, false);
+            }
+        }
+
+        // NEW: Clear lot number search
+        function clearLotNumberSearch() {
+            document.getElementById('lotNumberSearch').value = '';
+            lotNumberSearchValue = '';
+
+            const clearBtn = document.getElementById('clearSearchBtn');
+            clearBtn.classList.add('disabled');
+
+            // Show all data
+            const dataToShow = stockCountData || originalStockCountData;
+            displayedData = dataToShow;
+            displayStockCountData(dataToShow, false);
+        }
+
+        // UPDATED: Process and display stock count data with search highlighting
+        function displayStockCountData(data, isSearchFiltered = false) {
+            console.log('Displaying stock count data:', data);
+
+            const container = document.getElementById('dataTableContainer');
+            const totalRecords = document.getElementById('totalRecords');
+            const filteredRecords = document.getElementById('filteredRecords');
+            const filteredCount = document.getElementById('filteredCount');
+
+            if (!data || !data.headers || data.headers.length === 0) {
+                totalRecords.textContent = '0';
+                filteredRecords.style.display = 'none';
+
+                const emptyMessage = isSearchFiltered ?
+                    'No records found matching your lot number search' :
+                    'No stock count data found';
+                const emptyDescription = isSearchFiltered ?
+                    'Try adjusting your lot number search term' :
+                    'No records match your search criteria. Try adjusting your filters.';
+
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <h3>${emptyMessage}</h3>
+                        <p>${emptyDescription}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group data by lot number
+            const groupedData = groupDataByLotNumber(data);
+
+            // Update record counts
+            totalRecords.textContent = groupedData.length;
+
+            if (isSearchFiltered) {
+                filteredRecords.style.display = 'inline';
+                filteredCount.textContent = groupedData.length;
+            } else {
+                filteredRecords.style.display = 'none';
+            }
+
+            const tableHtml = `
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Lot Number</th>
+                                <th>Unit</th>
+                                <th>Location</th>
+                                <th>Warehouse</th>
+                                <th>Difference Qty</th>
+                                <th>Difference Value</th>
+                                <th>Item Groups</th>
+                                <th>Item Sub Groups</th>
+                                <th>Status</th>
+                                <th>Created By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${groupedData.map(item => {
+                                const diffValue = parseFloat(item.differenceValue || 0);
+                                const diffQty = parseFloat(item.differenceQty || 0);
+
+                                const diffValueClass = diffValue > 0 ? 'diff-positive' :
+                                                     diffValue < 0 ? 'diff-negative' : 'diff-zero';
+                                const diffQtyClass = diffQty > 0 ? 'diff-positive' :
+                                                   diffQty < 0 ? 'diff-negative' : 'diff-zero';
+
+                                const statusClass = item.status === 'Completed' ? 'status-completed' :
+                                                  item.status === 'In Progress' ? 'status-in-progress' :
+                                                  item.status === 'Closed' ? 'status-closed' : 'status-pending';
+
+                                const canEdit = canUserEdit(item.createdBy);
+                                const isClosedStatus = item.status && item.status.toLowerCase() === 'closed';
+
+                                const editButton = canEdit
+                                    ? `<button class="btn btn-warning btn-sm" onclick="editStockCount('${item.lotNumber}')" title="Edit Record">✏️ Edit</button>`
+                                    : `<button class="btn btn-secondary btn-sm disabled" disabled title="You can only edit your own records">🔒 Edit</button>`;
+
+                                const excelButton = isClosedStatus
+                                    ? `<button class="btn btn-excel btn-sm" onclick="downloadExcel('${item.lotNumber}')" title="Download Excel Report">📊 Excel</button>`
+                                    : `<button class="btn btn-secondary btn-sm disabled" disabled title="Excel download only available for closed lot numbers">📊 Excel</button>`;
+
+                                // Highlight search term in lot number
+                                const highlightedLotNumber = isSearchFiltered && lotNumberSearchValue ?
+                                    highlightSearchTerm(item.lotNumber, lotNumberSearchValue) : item.lotNumber;
+
+                                return `
+                                    <tr>
+                                        <td><strong>${highlightedLotNumber || ''}</strong></td>
+                                        <td>${item.unit || ''}</td>
+                                        <td>${item.location || ''}</td>
+                                        <td class="group-list" title="${item.warehouseNames}">${item.warehouseNames || ''}</td>
+                                        <td class="${diffQtyClass}">
+                                            ${diffQty > 0 ? '+' : ''}${diffQty.toFixed(2)}
+                                        </td>
+                                        <td class="${diffValueClass}">
+                                            ${diffValue > 0 ? '+' : ''}${diffValue.toFixed(2)}
+                                        </td>
+                                        <td class="group-list" title="${item.itemGroups}">
+                                            ${item.itemGroups || ''}
+                                        </td>
+                                        <td class="group-list" title="${item.itemSubGroups}">
+                                            ${item.itemSubGroups || ''}
+                                        </td>
+                                        <td>
+                                            <span class="status-badge ${statusClass}">
+                                                ${item.status || 'Pending'}
+                                            </span>
+                                        </td>
+                                        <td>${item.loginUser || ''}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                ${editButton}
+                                                ${excelButton}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = tableHtml;
+        }
+
+        // NEW: Highlight search term in text
+        function highlightSearchTerm(text, searchTerm) {
+            if (!text || !searchTerm) return text;
+
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            return text.replace(regex, '<span class="search-highlight">$1</span>');
+        }
+
+        // UPDATED: Group data by lot number and aggregate related information including warehouses
+        function groupDataByLotNumber(data) {
+            const grouped = {};
+
+            // Group headers by lot number
+            data.headers.forEach(header => {
+                if (!grouped[header.lotNumber]) {
+                    grouped[header.lotNumber] = {
+                        lotNumber: header.lotNumber,
+                        unit: header.unit,
+                        warehouse: header.warehouse,
+                        location: header.location,
+                        differenceQty: header.differenceQty,
+                        differenceValue: header.differenceValue,
+                        status: header.status,
+                        loginUser: header.loginUser,
+                        createdBy: header.createdBy,
+                        company: header.company,
+                        createdOn: header.createdOn,
+                        itemGroups: new Set(),
+                        itemSubGroups: new Set(),
+                        warehouses: new Set()
+                    };
+                }
+            });
+
+            // Add warehouses from warehouse array
+            if (data.warehouse) {
+                data.warehouse.forEach(wh => {
+                    if (grouped[wh.lotNumber]) {
+                        grouped[wh.lotNumber].warehouses.add(wh.warehouseName);
+                    }
+                });
+            }
+
+            // Add item groups
+            if (data.itemGroups) {
+                data.itemGroups.forEach(group => {
+                    if (grouped[group.lotNumber]) {
+                        grouped[group.lotNumber].itemGroups.add(group.itemGroupName);
+                    }
+                });
+            }
+
+            // Add item sub groups
+            if (data.itemSubGroups) {
+                data.itemSubGroups.forEach(subGroup => {
+                    if (grouped[subGroup.lotNumber]) {
+                        grouped[subGroup.lotNumber].itemSubGroups.add(subGroup.itemSubGroupName);
+                    }
+                });
+            }
+
+            // Convert sets to comma-separated strings and return array
+            return Object.values(grouped).map(item => ({
+                ...item,
+                warehouseNames: Array.from(item.warehouses).join(', '),
+                itemGroups: Array.from(item.itemGroups).join(', '),
+                itemSubGroups: Array.from(item.itemSubGroups).join(', ')
+            }));
+        }
+
+        // Check if current user can edit the record by comparing with createdBy
+        function canUserEdit(recordCreatedBy) {
+            const current = getCurrentUser();
+            return current && current == recordCreatedBy;
+        }
+
+        // Edit stock count record
+        function editStockCount(lotNumber) {
+            if (!lotNumber) {
+                alert('Invalid lot number');
+                return;
+            }
+
+            console.log('Editing stock count for lot number:', lotNumber);
+            window.location.href = `/InventoryAuditWeb/EditCountEntry?lotNumber=${encodeURIComponent(lotNumber)}`;
+        }
+
+        // Download Excel for closed lot numbers
+        async function downloadExcel(lotNumber) {
+            if (!lotNumber) {
+                alert('Invalid lot number');
+                return;
+            }
+
+            console.log('Downloading Excel for lot number:', lotNumber);
+
+            // Show progress overlay
+            showProgressOverlay();
+
+            try {
+                // Call the API to get items data
+                const response = await apiCall(`/api/InventoryAudit/GetItemsUsingLotNumber?lotNumber=${encodeURIComponent(lotNumber)}`);
+
+                if (response && response.success && response.data && response.data.items) {
+                    // Generate Excel file
+                    generateExcelReport(response.data.items, lotNumber);
+                } else {
+                    throw new Error(response?.message || 'Failed to fetch items data for Excel export');
+                }
+
+            } catch (error) {
+                console.error('Excel download failed:', error);
+                showGlobalError('Excel download failed: ' + error.message);
+            } finally {
+                hideProgressOverlay();
+            }
+        }
+
+        // Generate Excel report from items data
+        function generateExcelReport(items, lotNumber) {
+            try {
+                // Prepare data for Excel
+                const excelData = items.map(item => ({
+                    'Item ID': item.itemId || '',
+                    'Item Code': item.itemCode || '',
+                    'Item Name': item.itemName || '',
+                    'Lot Number': item.lotNumber || '',
+                    'Warehouse ID': item.warehouseId || '',
+                    'System Count': item.systemCount || 0,
+                    'Last Count': item.lastCount || 0,
+                    'Physical Count': item.physicalCount || 0,
+                    'Stock Value': item.stockValue || 0,
+                    'Item Group': item.itmsGrpNam || '',
+                    'Sub Group': item.u_Sub_Group || '',
+                    'Difference Qty': (item.physicalCount || 0) - (item.systemCount || 0),
+                    'Difference Value': ((item.physicalCount || 0) - (item.systemCount || 0)) * (item.stockValue || 0) / (item.systemCount || 1)
+                }));
+
+                // Create workbook and worksheet
+                const workbook = XLSX.utils.book_new();
+                const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+                // Set column widths
+                const columnWidths = [
+                    { wch: 10 }, // Item ID
+                    { wch: 15 }, // Item Code
+                    { wch: 40 }, // Item Name
+                    { wch: 15 }, // Lot Number
+                    { wch: 15 }, // Warehouse ID
+                    { wch: 15 }, // System Count
+                    { wch: 15 }, // Last Count
+                    { wch: 15 }, // Physical Count
+                    { wch: 15 }, // Stock Value
+                    { wch: 20 }, // Item Group
+                    { wch: 20 }, // Sub Group
+                    { wch: 15 }, // Difference Qty
+                    { wch: 15 }  // Difference Value
+                ];
+                worksheet['!cols'] = columnWidths;
+
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory Audit Report');
+
+                // Generate file name with timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const fileName = `Inventory_Audit_${lotNumber}_${timestamp}.xlsx`;
+
+                // Save file
+                XLSX.writeFile(workbook, fileName);
+
+                showTemporaryMessage(`Excel report downloaded successfully: ${fileName}`, 'success');
+
+            } catch (error) {
+                console.error('Excel generation failed:', error);
+                throw new Error('Failed to generate Excel file: ' + error.message);
+            }
+        }
+
+        // Show progress overlay
+        function showProgressOverlay() {
+            const overlay = document.getElementById('progressOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+        }
+
+        // Hide progress overlay
+        function hideProgressOverlay() {
+            const overlay = document.getElementById('progressOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+
+        // UPDATED: Search functionality without lot number parameter
+        async function searchStockCountData() {
+            console.log('=== SEARCHING STOCK COUNT DATA ===');
+            console.log('Current filters:', searchFilters);
+
+            showLoadingOverlay('Searching stock count data...');
+
+            const searchButton = document.getElementById('searchButton');
+            searchButton.disabled = true;
+            searchButton.innerHTML = '🔍 Searching...';
+
+            try {
+                if (!validateCompanyId()) {
+                    throw new Error('Company ID validation failed');
+                }
+
+                // Build request data without lot number
+                const requestData = {
+                    lotNumber: '', // Always empty since lot number is handled by omni search
+                    unit: searchFilters.unit ? searchFilters.unit.code || searchFilters.unit.name : '',
+                    location: searchFilters.location ? searchFilters.location.name : '',
+                    warehouse: isAllSelected('warehouse') ? 'ALL' :
+                        searchFilters.warehouse.length > 0 ?
+                        searchFilters.warehouse.filter(w => w.id !== 'SELECT_ALL').map(w => w.id).join(',') : '',
+                    itemGroup: isAllSelected('itemGroup') ? 'ALL' :
+                        searchFilters.itemGroup.length > 0 ?
+                        searchFilters.itemGroup.filter(g => g.id !== 'SELECT_ALL').map(g => g.id).join(',') : '',
+                    itemSubGroup: isAllSelected('subGroup') ? 'ALL' :
+                        searchFilters.subGroup.length > 0 ?
+                        searchFilters.subGroup.filter(s => s.id !== 'SELECT_ALL').map(s => s.id).join(',') : '',
+                    status: searchFilters.status ? searchFilters.status.code || searchFilters.status.name : ''
+                };
+
+                console.log('FINAL Search request data:', requestData);
+
+                // Call search API
+                const response = await apiCallPost('/api/InventoryAudit/GetStockCountDataByFilter', requestData);
+
+                if (response && response.success) {
+                    stockCountData = response.data;
+                    displayedData = response.data;
+
+                    // Apply lot number search if active
+                    if (lotNumberSearchValue) {
+                        performLotNumberSearch(lotNumberSearchValue);
+                    } else {
+                        displayStockCountData(response.data);
+                    }
+                } else {
+                    throw new Error(response?.message || 'Search failed');
+                }
+
+            } catch (error) {
+                console.error('Search failed:', error);
+                showGlobalError('Search failed: ' + error.message);
+                displayStockCountData({ headers: [], itemGroups: [], itemSubGroups: [], warehouse: [] });
+            } finally {
+                hideLoadingOverlay();
+                searchButton.disabled = false;
+                searchButton.innerHTML = '🔍 Search Audit Data';
+            }
+        }
+
+        // Load API data functions
+        async function loadUnits() {
+            if (!validateCompanyId()) return;
+            const companyId = getCompanyId();
+            setLoadingState('unit-container', 'unit-selected', 'Loading units...');
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetUnits?company=${companyId}`);
+                let units = extractArrayFromResponse(response, 'units');
+                apiData.units = units;
+                populateSingleSelect('unit-dropdown', units, 'unit');
+                setNormalState('unit-container', 'unit-selected', 'Select unit...');
+                console.log(`Loaded ${units.length} units`);
+            } catch (error) {
+                console.error('Failed to load units:', error);
+                showGlobalError('Failed to load units from API');
+            }
+        }
+
+        async function loadLocations(unitCode) {
+            if (!validateCompanyId()) return;
+            const companyId = getCompanyId();
+            setLoadingState('location-container', 'location-selected', 'Loading locations...');
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetLocation?Unit=${unitCode}&company=${companyId}`);
+                let locations = extractArrayFromResponse(response, 'locations');
+                apiData.locations = locations;
+                populateSingleSelect('location-dropdown', locations, 'location');
+                setNormalState('location-container', 'location-selected', 'Select location...');
+                enableDropdown('location-container', 'single');
+                console.log(`Loaded ${locations.length} locations for unit ${unitCode}`);
+            } catch (error) {
+                console.error('Failed to load locations:', error);
+                showGlobalError('Failed to load locations from API');
+            }
+        }
+
+        async function loadWarehouses(locationCode) {
+            if (!validateCompanyId()) return;
+            const companyId = getCompanyId();
+            setLoadingState('warehouse-container', 'warehouse-selected', 'Loading warehouses...');
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/getwarehouse?company=${companyId}&LocationCode=${locationCode}`);
+                let warehouses = extractArrayFromResponse(response, 'warehouses');
+                apiData.warehouses = warehouses;
+                populateMultiSelect('warehouse-dropdown', warehouses, 'warehouse', true);
+                setNormalState('warehouse-container', 'warehouse-selected', 'Select warehouses...');
+                enableDropdown('warehouse-container', 'multi');
+                console.log(`Loaded ${warehouses.length} warehouses for location ${locationCode}`);
+            } catch (error) {
+                console.error('Failed to load warehouses:', error);
+                showGlobalError('Failed to load warehouses from API');
+            }
+        }
+
+        async function loadItemGroups() {
+            if (!validateCompanyId()) return;
+            const companyId = getCompanyId();
+            setLoadingState('itemgroup-container', 'itemgroup-selected', 'Loading groups...');
+
+            try {
+                const response = await apiCall(`/api/ItemMaster/GetGroup?company=${companyId}`);
+                let groups = extractArrayFromResponse(response, 'groups');
+                apiData.itemGroups = groups;
+                populateMultiSelect('itemgroup-dropdown', groups, 'itemGroup', true);
+                setNormalState('itemgroup-container', 'itemgroup-selected', 'Select item groups...');
+                console.log(`Loaded ${groups.length} item groups`);
+            } catch (error) {
+                console.error('Failed to load item groups:', error);
+                showGlobalError('Failed to load item groups from API');
+            }
+        }
+
+        async function loadSubGroups() {
+            if (!validateCompanyId()) return;
+            const companyId = getCompanyId();
+            setLoadingState('subgroup-container', 'subgroup-selected', 'Loading sub groups...');
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetSubGroups?company=${companyId}`);
+                let subGroups = extractArrayFromResponse(response, 'subgroups');
+                apiData.subGroups = subGroups;
+                populateMultiSelect('subgroup-dropdown', subGroups, 'subGroup', true);
+                setNormalState('subgroup-container', 'subgroup-selected', 'Select sub groups...');
+                console.log(`Loaded ${subGroups.length} sub groups`);
+            } catch (error) {
+                console.error('Failed to load sub groups:', error);
+                showGlobalError('Failed to load sub groups from API');
+            }
+        }
+
+        // Helper functions for loading states
+        function setLoadingState(containerId, selectedId, message) {
+            const container = document.getElementById(containerId);
+            const selected = document.getElementById(selectedId);
+            container.classList.add('loading');
+            selected.innerHTML = `<div class="select-loading">${message}</div>`;
+        }
+
+        function setNormalState(containerId, selectedId, placeholder) {
+            const container = document.getElementById(containerId);
+            const selected = document.getElementById(selectedId);
+            container.classList.remove('loading');
+            const type = getTypeFromContainerId(containerId);
+
+            if (Array.isArray(searchFilters[type])) {
+                if (searchFilters[type].length === 0) {
+                    selected.innerHTML = `<div class="select-placeholder">${placeholder}</div>`;
+                }
+            } else {
+                if (!searchFilters[type]) {
+                    selected.innerHTML = `<div class="select-placeholder">${placeholder}</div>`;
+                }
+            }
+        }
+
+        function enableDropdown(containerId, type) {
+            const container = document.getElementById(containerId);
+            container.classList.remove('disabled');
+
+            if (type === 'multi') {
+                container.setAttribute('onclick', `toggleMultiSelect('${getTypeFromContainerId(containerId)}-dropdown')`);
+            } else {
+                container.setAttribute('onclick', `toggleSingleSelect('${getTypeFromContainerId(containerId)}-dropdown')`);
+            }
+        }
+
+        function disableDropdown(containerId, placeholder) {
+            const container = document.getElementById(containerId);
+            const selected = document.getElementById(containerId.replace('container', 'selected'));
+            container.classList.add('disabled');
+            container.removeAttribute('onclick');
+            selected.innerHTML = `<div class="select-placeholder">${placeholder}</div>`;
+        }
+
+        function getTypeFromContainerId(containerId) {
+            const mapping = {
+                'unit-container': 'unit',
+                'location-container': 'location',
+                'warehouse-container': 'warehouse',
+                'itemgroup-container': 'itemGroup',
+                'subgroup-container': 'subGroup',
+                'status-container': 'status'
+            };
+            return mapping[containerId];
+        }
+
+        // Dropdown population functions
+        function populateSingleSelect(dropdownId, data, type) {
+            const dropdown = document.getElementById(dropdownId);
+            dropdown.innerHTML = '';
+
+            const normalizeItem = (item, type) => {
+                switch(type) {
+                    case 'unit':
+                        return {
+                            id: item.u_Unit || item.code || item.id,
+                            name: item.u_Unit || item.name,
+                            code: item.u_Unit || item.code
+                        };
+                    case 'location':
+                        return {
+                            id: item.locationCode || item.code || item.id,
+                            name: item.locationName || item.name,
+                            code: item.locationCode || item.code
+                        };
+                    case 'status':
+                        return {
+                            id: item.status || item.code || item.id,
+                            name: item.status || item.name,
+                            code: item.status || item.code
+                        };
+                    default:
+                        return {
+                            id: item.id || item.code,
+                            name: item.name,
+                            code: item.code || item.id
+                        };
+                }
+            };
+
+            data.forEach(item => {
+                const normalizedItem = normalizeItem(item, type);
+
+                const div = document.createElement('div');
+                div.className = 'select-option';
+                div.textContent = normalizedItem.name;
+                div.setAttribute('data-value', normalizedItem.id);
+                div.setAttribute('data-name', normalizedItem.name);
+                div.setAttribute('data-code', normalizedItem.code);
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    selectSingleSelectItem(type, normalizedItem, div);
+                };
+                dropdown.appendChild(div);
+            });
+
+            console.log(`Populated ${data.length} items for ${type} dropdown`);
+        }
+
+        // Multi-select population with proper ID handling for warehouse, itemGroup, subGroup
+        function populateMultiSelect(dropdownId, data, type, enableSelectAll = false) {
+            const dropdown = document.getElementById(dropdownId);
+            dropdown.innerHTML = '';
+
+            // Add "Select All" option if enabled
+            if (enableSelectAll && data.length > 1) {
+                const selectAllDiv = document.createElement('div');
+                selectAllDiv.className = 'select-option select-all';
+                selectAllDiv.textContent = '✓ Select All';
+                selectAllDiv.setAttribute('data-value', 'SELECT_ALL');
+                selectAllDiv.setAttribute('data-name', 'Select All');
+                selectAllDiv.setAttribute('data-code', 'SELECT_ALL');
+                selectAllDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelectAll(type, selectAllDiv);
+                };
+                dropdown.appendChild(selectAllDiv);
+            }
+
+            const normalizeItem = (item, type) => {
+                switch(type) {
+                    case 'warehouse':
+                        return {
+                            id: item.warehouse || item.code || item.id,
+                            name: item.warehouse || item.name,
+                            code: item.warehouse || item.code
+                        };
+                    case 'itemGroup':
+                        return {
+                            id: item.itmsGrpNam || item.code || item.id,
+                            name: item.itmsGrpNam || item.name,
+                            code: item.itmsGrpNam || item.code
+                        };
+                    case 'subGroup':
+                        return {
+                            id: item.u_Sub_Group || item.code || item.id,
+                            name: item.u_Sub_Group || item.name,
+                            code: item.u_Sub_Group || item.code
+                        };
+                    default:
+                        return {
+                            id: item.id || item.code,
+                            name: item.name,
+                            code: item.code || item.id
+                        };
+                }
+            };
+
+            data.forEach(item => {
+                const normalizedItem = normalizeItem(item, type);
+
+                const div = document.createElement('div');
+                div.className = 'select-option';
+                div.textContent = normalizedItem.name;
+                div.setAttribute('data-value', normalizedItem.id);
+                div.setAttribute('data-name', normalizedItem.name);
+                div.setAttribute('data-code', normalizedItem.code);
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleMultiSelectItem(type, normalizedItem, div);
+                };
+                dropdown.appendChild(div);
+            });
+
+            console.log(`Populated ${data.length} items for ${type} multi-select dropdown`);
+        }
+
+        // Selection handlers
+        function selectSingleSelectItem(type, item, element) {
+            const dropdown = element.parentElement;
+            dropdown.querySelectorAll('.select-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            element.classList.add('selected');
+            searchFilters[type] = item;
+            updateSingleSelectedDisplay(type);
+            dropdown.classList.remove('show');
+
+            const container = dropdown.closest('.select-container');
+            container.classList.remove('active');
+
+            handleCascadingSelection(type, item);
+            updateFilterSummary();
+
+            console.log(`Selected ${type}:`, item);
+        }
+
+        function toggleMultiSelectItem(type, item, element) {
+            const selectedArray = searchFilters[type];
+            const existingIndex = selectedArray.findIndex(selected => selected.id === item.id);
+
+            if (existingIndex > -1) {
+                selectedArray.splice(existingIndex, 1);
+                element.classList.remove('selected');
+
+                // If unselecting an individual item, also unselect "Select All"
+                const selectAllIndex = selectedArray.findIndex(selected => selected.id === 'SELECT_ALL');
+                if (selectAllIndex > -1) {
+                    selectedArray.splice(selectAllIndex, 1);
+                    const selectAllOption = element.parentElement.querySelector('[data-value="SELECT_ALL"]');
+                    if (selectAllOption) {
+                        selectAllOption.classList.remove('selected');
+                    }
+                }
+            } else {
+                selectedArray.push(item);
+                element.classList.add('selected');
+            }
+
+            updateMultiSelectedDisplay(type);
+            updateFilterSummary();
+
+            console.log(`Toggled ${type}:`, selectedArray);
+        }
+
+        function toggleSelectAll(type, element) {
+            const dropdown = element.parentElement;
+            const selectedArray = searchFilters[type];
+            const isCurrentlySelected = element.classList.contains('selected');
+
+            if (isCurrentlySelected) {
+                // Unselect all
+                selectedArray.length = 0;
+                dropdown.querySelectorAll('.select-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+            } else {
+                // Select all
+                selectedArray.length = 0;
+
+                // Add select all marker
+                selectedArray.push({ id: 'SELECT_ALL', name: 'Select All', code: 'SELECT_ALL' });
+
+                // Add all individual items
+                const dataSource = type === 'warehouse' ? apiData.warehouses :
+                                 type === 'itemGroup' ? apiData.itemGroups :
+                                 apiData.subGroups;
+
+                dataSource.forEach(item => {
+                    const normalizedItem = normalizeSelectAllItem(item, type);
+                    selectedArray.push(normalizedItem);
+                });
+
+                dropdown.querySelectorAll('.select-option').forEach(option => {
+                    option.classList.add('selected');
+                });
+            }
+
+            updateMultiSelectedDisplay(type);
+            updateFilterSummary();
+        }
+
+        function normalizeSelectAllItem(item, type) {
+            switch(type) {
+                case 'warehouse':
+                    return {
+                        id: item.warehouse || item.code || item.id,
+                        name: item.warehouse || item.name,
+                        code: item.warehouse || item.code
+                    };
+                case 'itemGroup':
+                    return {
+                        id: item.itmsGrpCod || item.code || item.id,
+                        name: item.itmsGrpNam || item.name,
+                        code: item.itmsGrpCod || item.code
+                    };
+                case 'subGroup':
+                    return {
+                        id: item.u_Sub_Group || item.code || item.id,
+                        name: item.u_Sub_Group || item.name,
+                        code: item.u_Sub_Group || item.code
+                    };
+                default:
+                    return item;
+            }
+        }
+
+        function updateSingleSelectedDisplay(type) {
+            const mappedId = {
+                'unit': 'unit-selected',
+                'location': 'location-selected',
+                'status': 'status-selected'
+            };
+
+            const containerId = mappedId[type];
+            const container = document.getElementById(containerId);
+
+            if (!searchFilters[type]) {
+                const placeholderText = {
+                    unit: 'Select unit...',
+                    location: 'Select location...',
+                    status: 'Select status...'
+                };
+                container.innerHTML = `<div class="select-placeholder">${placeholderText[type]}</div>`;
+                return;
+            }
+
+            container.innerHTML = searchFilters[type].name;
+        }
+
+        function updateMultiSelectedDisplay(type) {
+            const mappedId = {
+                'warehouse': 'warehouse-selected',
+                'itemGroup': 'itemgroup-selected',
+                'subGroup': 'subgroup-selected'
+            };
+
+            const containerId = mappedId[type];
+            const container = document.getElementById(containerId);
+            const selectedArray = searchFilters[type];
+
+            if (selectedArray.length === 0) {
+                const placeholderText = {
+                    warehouse: 'Select warehouses...',
+                    itemGroup: 'Select item groups...',
+                    subGroup: 'Select sub groups...'
+                };
+                container.innerHTML = `<div class="select-placeholder">${placeholderText[type]}</div>`;
+                return;
+            }
+
+            // Check if "Select All" is selected
+            const hasSelectAll = selectedArray.some(item => item.id === 'SELECT_ALL');
+
+            if (hasSelectAll) {
+                container.innerHTML = '<span class="select-all-tag">✓ All Selected</span>';
+            } else if (selectedArray.length <= 2) {
+                const tagsHtml = selectedArray.map(item =>
+                    `<span class="multi-select-tag">
+                        ${item.name}
+                        <span class="remove-tag" onclick="removeMultiSelectItem('${type}', '${item.id}')">&times;</span>
+                    </span>`
+                ).join('');
+                container.innerHTML = tagsHtml;
+            } else {
+                container.innerHTML = `<span class="multi-select-count">${selectedArray.length} selected</span>`;
+            }
+        }
+
+        function removeMultiSelectItem(type, itemId) {
+            const selectedArray = searchFilters[type];
+            const itemIndex = selectedArray.findIndex(item => item.id === itemId);
+
+            if (itemIndex > -1) {
+                selectedArray.splice(itemIndex, 1);
+
+                // If removing "Select All", unselect all items
+                if (itemId === 'SELECT_ALL') {
+                    selectedArray.length = 0;
+                    const mappedId = {
+                        'warehouse': 'warehouse-dropdown',
+                        'itemGroup': 'itemgroup-dropdown',
+                        'subGroup': 'subgroup-dropdown'
+                    };
+                    const dropdown = document.getElementById(mappedId[type]);
+                    dropdown.querySelectorAll('.select-option').forEach(option => {
+                        option.classList.remove('selected');
+                    });
+                } else {
+                    // Also remove "Select All" if it exists
+                    const selectAllIndex = selectedArray.findIndex(item => item.id === 'SELECT_ALL');
+                    if (selectAllIndex > -1) {
+                        selectedArray.splice(selectAllIndex, 1);
+                    }
+
+                    const mappedId = {
+                        'warehouse': 'warehouse-dropdown',
+                        'itemGroup': 'itemgroup-dropdown',
+                        'subGroup': 'subgroup-dropdown'
+                    };
+                    const dropdown = document.getElementById(mappedId[type]);
+                    const option = dropdown.querySelector(`[data-value="${itemId}"]`);
+                    if (option) {
+                        option.classList.remove('selected');
+                    }
+                    const selectAllOption = dropdown.querySelector('[data-value="SELECT_ALL"]');
+                    if (selectAllOption) {
+                        selectAllOption.classList.remove('selected');
+                    }
+                }
+
+                updateMultiSelectedDisplay(type);
+                updateFilterSummary();
+            }
+        }
+
+        function handleCascadingSelection(type, item) {
+            if (type === 'unit') {
+                searchFilters.location = null;
+                searchFilters.warehouse = [];
+                updateSingleSelectedDisplay('location');
+                updateMultiSelectedDisplay('warehouse');
+                disableDropdown('warehouse-container', 'Select location first...');
+
+                if (item && (item.code || item.name)) {
+                    loadLocations(item.code || item.name);
+                } else {
+                    disableDropdown('location-container', 'Select unit first...');
+                }
+            }
+
+            if (type === 'location') {
+                searchFilters.warehouse = [];
+                updateMultiSelectedDisplay('warehouse');
+
+                if (item && (item.code || item.name)) {
+                    loadWarehouses(item.code || item.name);
+                } else {
+                    disableDropdown('warehouse-container', 'Select location first...');
+                }
+            }
+        }
+
+        function isAllSelected(type) {
+            if (Array.isArray(searchFilters[type])) {
+                return searchFilters[type].some(item => item.id === 'SELECT_ALL');
+            }
+            return false;
+        }
+
+        // Dropdown toggle functions
+        function toggleSingleSelect(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            const container = dropdown.closest('.select-container');
+
+            if (container.classList.contains('disabled')) {
+                return;
+            }
+
+            const allDropdowns = document.querySelectorAll('.select-dropdown');
+            const allContainers = document.querySelectorAll('.select-container');
+
+            allDropdowns.forEach(d => {
+                if (d.id !== dropdownId) {
+                    d.classList.remove('show');
+                }
+            });
+
+            allContainers.forEach(c => {
+                if (c !== container) {
+                    c.classList.remove('active');
+                }
+            });
+
+            dropdown.classList.toggle('show');
+            container.classList.toggle('active');
+        }
+
+        function toggleMultiSelect(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            const container = dropdown.closest('.select-container');
+
+            if (container.classList.contains('disabled')) {
+                return;
+            }
+
+            const allDropdowns = document.querySelectorAll('.select-dropdown');
+            const allContainers = document.querySelectorAll('.select-container');
+
+            allDropdowns.forEach(d => {
+                if (d.id !== dropdownId) {
+                    d.classList.remove('show');
+                }
+            });
+
+            allContainers.forEach(c => {
+                if (c !== container) {
+                    c.classList.remove('active');
+                }
+            });
+
+            dropdown.classList.toggle('show');
+            container.classList.toggle('active');
+        }
+
+        // Utility functions
+        function showLoadingOverlay(message = 'Loading...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const text = overlay.querySelector('.loading-text');
+            if (overlay) {
+                text.textContent = message;
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function showGlobalError(message) {
+            const existingError = document.querySelector('.global-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger global-error';
+            errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            errorDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 10000);
+        }
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Inventory Audit List page...');
+            showLoadingOverlay('Loading initial data...');
+            loadInitialData();
+        });
+
+        async function loadInitialData() {
+            try {
+                console.log('Loading initial API data...');
+                getCurrentUser(); // Initialize current user
+
+                // Load filters and initial stock count data in parallel
+                await Promise.all([
+                    loadUnits(),
+                    loadItemGroups(),
+                    loadSubGroups(),
+                    loadInitialStockCountData()
+                ]);
+
+                // Initialize status dropdown
+                initializeStatusDropdown();
+
+                console.log('Initial API data loaded successfully');
+                updateFilterSummary();
+                hideLoadingOverlay();
+
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                showGlobalError('Failed to load some initial data. Please refresh the page and try again.');
+                hideLoadingOverlay();
+            }
+        }
+
+        function initializeStatusDropdown() {
+            const statusOptions = [
+                { id: 'Pending', name: 'Pending', code: 'Pending' },
+                { id: 'Completed', name: 'Completed', code: 'Completed' },
+                { id: 'Closed', name: 'Closed', code: 'Closed' }
+            ];
+
+            populateSingleSelect('status-dropdown', statusOptions, 'status');
+            setNormalState('status-container', 'status-selected', 'Select status...');
+        }
+
+        // Click outside to close dropdowns
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.select-container')) {
+                document.querySelectorAll('.select-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('show');
+                });
+                document.querySelectorAll('.select-container').forEach(container => {
+                    container.classList.remove('active');
+                });
+            }
+        });
+
+        // Make functions globally available
+        window.removeMultiSelectItem = removeMultiSelectItem;
+        window.searchStockCountData = searchStockCountData;
+        window.editStockCount = editStockCount;
+        window.downloadExcel = downloadExcel;
+        window.toggleSingleSelect = toggleSingleSelect;
+        window.toggleMultiSelect = toggleMultiSelect;
+        window.clearAllFilters = clearAllFilters;
+        window.resetFilters = resetFilters;
+        window.handleLotNumberSearch = handleLotNumberSearch;
+        window.clearLotNumberSearch = clearLotNumberSearch;
+
+        // UPDATED: Filter management functions without lot number
+        function clearAllFilters() {
+            console.log('Clearing all filters...');
+
+            // Reset all filter objects (excluding lot number)
+            searchFilters = {
+                unit: null,
+                location: null,
+                warehouse: [],
+                itemGroup: [],
+                subGroup: [],
+                status: null
+            };
+
+            // Reset all UI elements
+            resetFilterUI();
+            updateFilterSummary();
+
+            // Clear lot number search as well
+            clearLotNumberSearch();
+
+            // Reload data from API after clearing filters
+            displayStockCountData(originalStockCountData);
+
+            showTemporaryMessage('All filters cleared and data reloaded', 'info');
+        }
+
+        function resetFilters() {
+            console.log('Resetting filters to default...');
+            clearAllFilters();
+        }
+
+        function resetFilterUI() {
+            // Reset single select dropdowns
+            document.getElementById('unit-selected').innerHTML = '<div class="select-placeholder">Select unit...</div>';
+            document.getElementById('location-selected').innerHTML = '<div class="select-placeholder">Select unit first...</div>';
+            document.getElementById('status-selected').innerHTML = '<div class="select-placeholder">Select status...</div>';
+
+            // Reset multi-select dropdowns
+            document.getElementById('warehouse-selected').innerHTML = '<div class="select-placeholder">Select location first...</div>';
+            document.getElementById('itemgroup-selected').innerHTML = '<div class="select-placeholder">Select item groups...</div>';
+            document.getElementById('subgroup-selected').innerHTML = '<div class="select-placeholder">Select sub groups...</div>';
+
+            // Remove selected classes from all options
+            document.querySelectorAll('.select-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+
+            // Reset dependencies
+            disableDropdown('location-container', 'Select unit first...');
+            disableDropdown('warehouse-container', 'Select location first...');
+
+            // Close all dropdowns
+            document.querySelectorAll('.select-dropdown').forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+            document.querySelectorAll('.select-container').forEach(container => {
+                container.classList.remove('active');
+            });
+        }
+
+        function updateFilterSummary() {
+            const summaryElement = document.querySelector('.summary-text');
+            const filterCounts = [];
+
+            // Count selected filters (excluding lot number)
+            if (searchFilters.unit) filterCounts.push('Unit');
+            if (searchFilters.location) filterCounts.push('Location');
+            if (searchFilters.warehouse.length > 0) {
+                const warehouseCount = isAllSelected('warehouse') ? 'All Warehouses' : `${searchFilters.warehouse.length} Warehouse(s)`;
+                filterCounts.push(warehouseCount);
+            }
+            if (searchFilters.itemGroup.length > 0) {
+                const groupCount = isAllSelected('itemGroup') ? 'All Item Groups' : `${searchFilters.itemGroup.length} Item Group(s)`;
+                filterCounts.push(groupCount);
+            }
+            if (searchFilters.subGroup.length > 0) {
+                const subGroupCount = isAllSelected('subGroup') ? 'All Sub Groups' : `${searchFilters.subGroup.length} Sub Group(s)`;
+                filterCounts.push(subGroupCount);
+            }
+            if (searchFilters.status) filterCounts.push('Status');
+
+            if (filterCounts.length === 0) {
+                summaryElement.innerHTML = 'No filters selected';
+            } else {
+                summaryElement.innerHTML = `Active filters: <span class="summary-count">${filterCounts.length}</span> - ${filterCounts.join(', ')}`;
+            }
+
+            // Update button states
+            const clearBtn = document.getElementById('clearFiltersBtn');
+            const resetBtn = document.getElementById('resetFiltersBtn');
+
+            if (filterCounts.length > 0) {
+                clearBtn.classList.remove('disabled');
+                resetBtn.classList.remove('disabled');
+            } else {
+                clearBtn.classList.add('disabled');
+                resetBtn.classList.add('disabled');
+            }
+        }
+
+        function showTemporaryMessage(message, type = 'info') {
+            const existingMessage = document.querySelector('.temp-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const alertClass = type === 'success' ? 'alert-success' :
+                             type === 'warning' ? 'alert-warning' :
+                             type === 'danger' ? 'alert-danger' : 'alert-info';
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert ${alertClass} temp-message`;
+            messageDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; max-width: 500px;';
+            messageDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(messageDiv);
+
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 3000);
+        }
+
+        console.log('✅ Inventory Audit List page loaded successfully with Lot Number Omni Search functionality');
+    </script>
+</body>
+</html>

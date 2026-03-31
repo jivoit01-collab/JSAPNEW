@@ -1,0 +1,449 @@
+﻿@model List<JSAPNEW.Models.GetAllUserModel>
+
+@{
+    ViewData["Title"] = "All Users";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .card-title {
+        color: #0b2c4d;
+    }
+
+    .action-buttons {
+        text-align: right;
+    }
+
+    .action-buttons select {
+        display: inline-block;
+        width: auto;
+        margin-right: 10px;
+    }
+
+    .thead-dark th {
+        background-color: #0b2c4d !important;
+        color: white !important;
+        border-color: #0b2c4d !important;
+    }
+
+    .pagination .page-item .page-link {
+        color: #0b2c4d;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0b2c4d;
+        border-color: #0b2c4d;
+        color: white;
+    }
+    /* The switch container */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+    }
+
+        /* Hide default checkbox */
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    /* The slider */
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 34px;
+    }
+
+        /* The round slider */
+        .slider.round {
+            border-radius: 24px;
+        }
+
+        /* The circle inside the slider */
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+    /* Checked (ON) styles */
+    input:checked + .slider {
+        background-color: green; /* Default green, overridden below */
+    }
+
+        /* Move the circle when checked */
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+    /* Green variant for active */
+    .slider.green {
+        background-color: #28a745; /* green */
+    }
+
+    input:checked + .slider.green {
+        background-color: #28a745; /* green */
+    }
+
+    /* Red variant for inactive */
+    .slider.red {
+        background-color: #dc3545; /* red */
+    }
+
+    input:checked + .slider.red {
+        background-color: #dc3545; /* red */
+    }
+
+</style>
+
+<h2 class="mt-4 mb-3">Users Overview</h2>
+<input type="hidden" id="UpdatedBy" name="UpdatedBy" value="@ViewBag.UserId" />
+<input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.CompanyId" />
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Users</h5>
+                <p class="card-text display-6">@Model.Count</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h5 class="card-title">Active Users</h5>
+                <p class="card-text display-6">@Model.Count(u => u.status == 1)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h5 class="card-title">Super Users</h5>
+                <p class="card-text display-6">@Model.Count(u => u.role != null && u.role.ToLower() == "super user")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h5 class="card-title">Departments</h5>
+                <p class="card-text display-6">@Model.Select(u => u.department).Distinct().Count()</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <input type="text" id="userSearch" class="form-control" placeholder="Search by Name, Employee ID, User Type, Department">
+    </div>
+    <div class="col-md-6 d-flex justify-content-end">
+        <div class="d-flex gap-2">
+            <select id="sortBy" class="form-select w-auto">
+                <option value="">Sort By</option>
+                <option value="name">Name</option>
+                <option value="empId">Employee ID</option>
+            </select>
+            <a href="@Url.Action("UserRegistration", "UserManagement")" class="btn text-white" style="background-color: #0b2c4d;margin-left:10px;">
+                + Add User
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-striped" id="usersTable">
+        <thead class="thead-dark">
+            <tr>
+                <th>Name</th>
+                <th>Employee Id</th>
+                <th>User Type</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Edit</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                foreach (var user in Model)
+                {
+                    <tr class="user-row">
+                        <td class="user-name">@user.
+</td>
+                        <td class="user-empid">@user.empId</td>
+                        <td>@user.role</td>
+                        <td>@user.department</td>
+                        <td>
+                           <label class="switch">
+                               <input type="checkbox"
+                                      class="status-toggle"
+                                      data-userid="@user.userId"
+                                      @(user.status == 1 ? "checked" : "") >
+                               <span class="slider round @(user.status == 1 ? "green" : "red")"></span>
+                           </label>
+                        </td>
+                        <td>
+                            <a href="@Url.Action("EditUser", "UserManagement", new { userId = user.userId })" title="Edit User">
+                                <i class="fas fa-edit text-primary"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No users found.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<nav>
+    <ul class="pagination justify-content-end" id="pagination"></ul>
+</nav>
+
+<script>
+    // Wait for the document to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // -------- PAGINATION SETUP --------
+        var rowsPerPage = 10;
+        var allRows = document.querySelectorAll('.user-row');
+        var currentPage = 1;
+
+        // Initialize all rows to be visible in our data structure
+        allRows.forEach(function(row) {
+            row.dataset.visible = 'true';
+        });
+
+        // Calculate total pages based on visible rows
+        function calculateTotalPages() {
+            var visibleRowCount = Array.from(allRows).filter(function(row) {
+                return row.dataset.visible === 'true';
+            }).length;
+
+            return Math.ceil(visibleRowCount / rowsPerPage);
+        }
+
+        // Create pagination
+        function setupPagination() {
+            var totalPages = calculateTotalPages();
+            var paginationElement = document.getElementById('pagination');
+            paginationElement.innerHTML = '';
+
+            // Don't show pagination if no pages or only one page
+            if (totalPages <= 1) {
+                return;
+            }
+
+            // Previous button
+            var prevLi = document.createElement('li');
+            prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+            var prevLink = document.createElement('a');
+            prevLink.className = 'page-link';
+            prevLink.href = '#';
+            prevLink.textContent = 'Previous';
+            prevLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (currentPage > 1) {
+                    currentPage--;
+                    showPage(currentPage);
+                    setupPagination();
+                }
+            });
+            prevLi.appendChild(prevLink);
+            paginationElement.appendChild(prevLi);
+
+            // Page numbers
+            for (var i = 1; i <= totalPages; i++) {
+                var li = document.createElement('li');
+                li.className = 'page-item' + (i === currentPage ? ' active' : '');
+                var link = document.createElement('a');
+                link.className = 'page-link';
+                link.href = '#';
+                link.textContent = i;
+
+                // Use closure to capture the correct page number
+                (function(pageNum) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        currentPage = pageNum;
+                        showPage(currentPage);
+                        setupPagination();
+                    });
+                })(i);
+
+                li.appendChild(link);
+                paginationElement.appendChild(li);
+            }
+
+            // Next button
+            var nextLi = document.createElement('li');
+            nextLi.className = 'page-item' + (currentPage === totalPages ? ' disabled' : '');
+            var nextLink = document.createElement('a');
+            nextLink.className = 'page-link';
+            nextLink.href = '#';
+            nextLink.textContent = 'Next';
+            nextLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    showPage(currentPage);
+                    setupPagination();
+                }
+            });
+            nextLi.appendChild(nextLink);
+            paginationElement.appendChild(nextLi);
+        }
+
+        // Show specified page
+        function showPage(page) {
+            // Get only visible rows
+            var visibleRows = Array.from(allRows).filter(function(row) {
+                return row.dataset.visible === 'true';
+            });
+
+            var start = (page - 1) * rowsPerPage;
+            var end = start + rowsPerPage;
+
+            // First hide all rows
+            allRows.forEach(function(row) {
+                row.style.display = 'none';
+            });
+
+            // Then show only the rows for current page that are also visible
+            visibleRows.forEach(function(row, index) {
+                if (index >= start && index < end) {
+                    row.style.display = '';
+                }
+            });
+        }
+
+        // -------- SEARCH FUNCTIONALITY --------
+        var searchInput = document.getElementById('userSearch');
+        searchInput.addEventListener('keyup', function() {
+            var searchValue = this.value.toLowerCase();
+
+            // Mark rows as visible or not based on search
+            allRows.forEach(function(row) {
+                var rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchValue)) {
+                    row.dataset.visible = 'true';
+                } else {
+                    row.dataset.visible = 'false';
+                }
+            });
+
+            // Reset to first page when searching
+            currentPage = 1;
+            showPage(currentPage);
+            setupPagination();
+        });
+
+        // -------- SORTING FUNCTIONALITY --------
+        var sortSelect = document.getElementById('sortBy');
+        sortSelect.addEventListener('change', function() {
+            var sortValue = this.value;
+            if (!sortValue) return;
+
+            var rows = Array.from(allRows);
+            rows.sort(function(rowA, rowB) {
+                var valueA, valueB;
+
+                if (sortValue === 'name') {
+                    valueA = rowA.querySelector('.user-name').textContent.trim().toLowerCase();
+                    valueB = rowB.querySelector('.user-name').textContent.trim().toLowerCase();
+                } else if (sortValue === 'empId') {
+                    valueA = rowA.querySelector('.user-empid').textContent.trim().toLowerCase();
+                    valueB = rowB.querySelector('.user-empid').textContent.trim().toLowerCase();
+                }
+
+                return valueA.localeCompare(valueB);
+            });
+
+            // Reorder the rows in the DOM
+            var tbody = document.querySelector('#usersTable tbody');
+            rows.forEach(function(row) {
+                tbody.appendChild(row);
+            });
+
+            // Reset to first page after sorting
+            currentPage = 1;
+            // Update allRows reference after DOM change
+            allRows = document.querySelectorAll('.user-row');
+            showPage(currentPage);
+            setupPagination();
+        });
+
+        // Initialize pagination on page load
+        showPage(currentPage);
+        setupPagination();
+
+
+    });
+
+        document.querySelectorAll('.status-toggle').forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+            var userId = parseInt(this.getAttribute('data-userid'));
+            var isChecked = this.checked;
+            var updatedBy = parseInt(document.getElementById('UpdatedBy').value);
+            var companyId = parseInt(document.getElementById('CompanyId').value);
+
+            fetch('/api/auth/changelockprofile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    UserId: userId,
+                    UpdatedBy: updatedBy,
+                    CompanyId: companyId,
+                    Status: isChecked
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update status');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Status updated:', data);
+
+                // Optional: Change toggle color
+                var slider = this.nextElementSibling;
+                if (isChecked) {
+                    slider.classList.add('green');
+                    slider.classList.remove('red');
+                } else {
+                    slider.classList.add('red');
+                    slider.classList.remove('green');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Status update failed.');
+                this.checked = !isChecked; // Revert toggle
+            });
+        });
+    });
+
+</script>

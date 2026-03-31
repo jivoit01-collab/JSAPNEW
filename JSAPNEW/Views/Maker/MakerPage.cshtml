@@ -1,0 +1,527 @@
+﻿@{
+    ViewData["Title"] = "Marker Page";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+    #suggestionBox {
+        position: absolute;
+        top: 70px; /* adjust if needed */
+        width: 100%;
+        z-index: 1000;
+        background: white;
+       /*border: 1px solid #ccc;*/
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .suggest-item {
+        padding: 8px;
+        cursor: pointer;
+    }
+
+        .suggest-item:hover {
+            background-color: #f1f1f1;
+        }
+</style>
+<div class="container-fluid mt-4">
+
+    <h3 class="mb-4">Bill Verification - Maker</h3>
+
+    <div class="card p-3 shadow-sm">
+     
+
+        <div class="row">
+
+            <div class="col-md-3">
+                <label>From Date</label>
+                <input type="date" id="fromDate" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <label>To Date</label>
+                <input type="date" id="toDate" class="form-control">
+            </div>
+
+            
+            <div class="col-md-3 position-relative">
+                <label>Account Name</label>
+
+                <input type="text"
+                       id="accountName"
+                       class="form-control"
+                       placeholder="Search Account"
+                       autocomplete="off">
+
+                 
+                <div id="suggestionBox" class="list-group"></div>
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" id="searchBtn">
+                    Search
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="card mt-4 shadow-sm">
+
+        <div class="card-header bg-primary text-white">
+            Bill Details
+        </div>
+
+        <div class="card-body">
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-striped">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Account</th>
+                            <th>Voucher</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Supplier Ref</th>
+                            <th>Ref Date</th>
+                            <th>Due Date</th>
+                            <th>Attachment</th>
+                            <th>Maker Remark</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                            <th>Total Qty</th>
+                            <th>Total Amount</th>
+                            <th>Total Items</th>
+                            <th>Payment Status</th>
+                            <th>Payment Date</th>
+
+                        </tr>
+                    </thead>
+                    
+
+                    <tbody id="billTable"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+<script>
+/*
+    //------------------------------------
+    // ✅ LOAD DATA (ONLY WHEN USER CLICKS)
+    //------------------------------------
+    function loadData() {
+
+    let fromDate = $("#fromDate").val();
+    let toDate = $("#toDate").val();
+    let accountName = $("#accountName").val().trim() || null;
+
+    if (!fromDate || !toDate) {
+    alert("Select both dates");
+    return;
+    }
+
+    if (fromDate > toDate) {
+    alert("From Date cannot be greater than To Date");
+    return;
+    }
+
+    $("#billTable").html(`<tr><
+    
+    
+    colspan="7">Loading...</td></tr>`);
+
+    $.get("/Maker/GetBillDetails",
+    { fromDate, toDate, accountName: accountName || null },
+    function (data) {
+    renderTable(data || []);
+    }
+    ).fail(function () {
+    $("#billTable").html(`<tr><td colspan="7">Error loading data</td></tr>`);
+    });
+    }
+
+
+    function renderTable(data) {
+
+    if (!data || data.length === 0) {
+    $("#billTable").html(`<tr><td colspan="8">No Data Found</td></tr>`);
+    return;
+    }
+
+    let html = "";
+    let uniqueMap = new Map(); // ✅ prevents duplicate vouchers
+
+    data.forEach(item => {
+
+    // ✅ Skip duplicate voucher
+    if (uniqueMap.has(item.vchNumber)) return;
+
+    uniqueMap.set(item.vchNumber, true);
+
+    let statusBadge =
+    item.status === "Approved" ? `<span class="badge bg-success">Approved</span>` :
+    item.status === "Rejected" ? `<span class="badge bg-danger">Rejected</span>` :
+    item.status === "Submitted" ? `<span class="badge bg-primary">Submitted</span>` :
+    `<span class="badge bg-warning text-dark">Pending</span>`;
+
+    html += `
+    <tr>
+    <td>${item.accountName ?? ""}</td>
+    <td>${item.vchNumber ?? ""}</td>
+    <td>${formatDate(item.voucherDate)}</td>
+    <td>${item.billAmount ?? ""}</td>
+
+    <!-- Attachment -->
+    <td>
+    ${
+    item.attachmentPath
+    ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">👁 View</a>`
+    : `<input type="file" class="fileInput form-control form-control-sm">`
+    }
+    </td>
+
+    <!-- Remark -->
+    <td>
+    ${
+    item.attachmentPath
+    ? (item.makerRemark ?? "-")
+    : `<input type="text" class="remarkInput form-control form-control-sm" placeholder="Enter remark">`
+    }
+    </td>
+
+    <!-- Status -->
+    <td>${statusBadge}</td>
+
+    <!-- Action -->
+    <td>
+    ${
+    item.attachmentPath
+    ? `<span class="text-success">Uploaded</span>`
+    : `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`
+    }
+    </td>
+    </tr>`;
+    });
+
+    $("#billTable").html(html);
+    }
+    }
+    //------------------------------------
+    // ✅ OMNI SEARCH (VERY SIMPLE)
+    //------------------------------------
+    $("#accountName").on("keyup", function () {
+
+    let searchText = $(this).val().trim();
+
+    if (searchText.length < 2) {
+    $("#suggestionBox").empty();
+    return;
+    }
+
+    $.get("/Maker/GetAccountSuggestions",
+    { term: searchText },
+    function (data) {
+
+    let html = "";
+
+    if (!data || data.length === 0) {
+    html = `<div class="suggest-item">No result</div>`;
+    } else {
+    data.forEach(x => {
+    html += `<div class="suggest-item">${x}</div>`;
+    });
+    }
+
+    $("#suggestionBox").html(html);
+    });
+    });
+
+
+    //------------------------------------
+    // ✅ SELECT SUGGESTION
+    //------------------------------------
+    $(document).on("click", ".suggest-item", function () {
+
+    let text = $(this).text();
+
+    if (text === "No result") return;
+
+    $("#accountName").val(text);
+    $("#suggestionBox").empty();
+    });
+
+
+    //------------------------------------
+    // ✅ EVENTS
+    //------------------------------------
+    $(document).ready(function () {
+
+    // ❌ NO AUTO LOAD (prevents freeze)
+    // loadData();
+
+    // ❌ NO AUTO DATE CALL
+    // $("#fromDate, #toDate").change(loadData);
+
+    // ✅ ONLY BUTTON
+    $("#searchBtn").click(loadData);
+
+    });
+    //------------------------------------
+    // ✅ STEP 1: SUBMIT BUTTON CLICK
+    //------------------------------------
+    $(document).on("click", ".submitBtn", function () {
+
+    let row = $(this).closest("tr");
+
+    let vchNumber = $(this).data("vch");
+    let fileInput = row.find(".fileInput")[0];
+    let remark = row.find(".remarkInput").val();
+
+    // ✅ Validation
+    if (!fileInput.files.length) {
+    alert("Please select a file");
+    return;
+    }
+
+    let file = fileInput.files[0];
+
+    let formData = new FormData();
+
+    // ✅ IMPORTANT (names must match controller)
+    formData.append("vchNumber", vchNumber);
+    formData.append("file", file);
+    formData.append("makerRemark", remark);
+
+    $.ajax({
+    url: "/Maker/SubmitBill",   // ✅ correct API
+    type: "POST",
+    data: formData,
+    contentType: false,
+    processData: false,
+
+    success: function (res) {
+    if (res.success) {
+    alert("✅ Uploaded Successfully");
+    loadData(); // refresh table
+    } else {
+    alert("❌ Upload failed");
+    }
+    },
+    error: function () {
+    alert("❌ Error occurred");
+    }
+    });
+    });
+*/
+    $(document).ready(function () {
+
+    $("#searchBtn").click(loadData);
+
+    $("#accountName").on("keyup", function () {
+
+    let searchText = $(this).val().trim();
+
+    if (searchText.length < 2) {
+    $("#suggestionBox").empty();
+    return;
+    }
+
+    $.get("/Maker/GetAccountSuggestions",
+    { term: searchText },
+    function (data) {
+
+    let html = "";
+
+    if (!data || data.length === 0) {
+    html = `<div class="suggest-item">No result</div>`;
+    } else {
+    data.forEach(x => {
+    html += `<div class="suggest-item">${x}</div>`;
+    });
+    }
+
+    $("#suggestionBox").html(html);
+    });
+    });
+
+    });
+
+
+    // ---------------- LOAD DATA ----------------
+    function loadData() {
+
+    let fromDate = $("#fromDate").val();
+    let toDate = $("#toDate").val();
+    let accountName = $("#accountName").val().trim() || null;
+
+    if (!fromDate || !toDate) {
+    alert("Select both dates");
+    return;
+    }
+
+    if (fromDate > toDate) {
+    alert("From Date cannot be greater than To Date");
+    return;
+    }
+
+    console.log("Calling API...");
+
+    $("#billTable").html(`<tr><td colspan="8">Loading...</td></tr>`);
+
+    $.get("/Maker/GetBillDetails",
+    { fromDate, toDate, accountName },
+    function (data) {
+    console.log("API DATA:", data);
+    renderTable(data || []);
+    }
+    ).fail(function (err) {
+    console.log("ERROR:", err);
+    $("#billTable").html(`<tr><td colspan="8">Error loading data</td></tr>`);
+    });
+    }
+
+
+    // ---------------- RENDER TABLE ----------------
+    function renderTable(data) {
+
+    if (!data || data.length === 0) {
+    $("#billTable").html(`<tr><td colspan="8">No Data Found</td></tr>`);
+    return;
+    }
+
+    let html = "";
+
+    data.forEach(item => {
+
+    let statusBadge = `<span class="badge bg-warning text-dark">Pending</span>`;
+
+    if (item.status === "Approved") {
+    statusBadge = `<span class="badge bg-success">Approved</span>`;
+    } else if (item.status === "Rejected") {
+    statusBadge = `<span class="badge bg-danger">Rejected</span>`;
+    } else if (item.status === "Submitted") {
+    statusBadge = `<span class="badge bg-primary">Submitted</span>`;
+    }
+
+    html += `
+    <tr>
+    <td>${item.accountName || ""}</td>
+    <td>${item.vchNumber || ""}</td>
+    <td>${formatDate(item.voucherDate)}</td>
+    <td>${item.billAmount || ""}</td>
+
+    <td>${item.supplierRef || '-'}</td>
+    <td>${item.supplierRefDate || '-'}</td>
+    <td>${item.dueDate || '-'}</td>
+
+    <td>
+    ${item.attachmentPath
+    ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
+    : `<input type="file" class="fileInput form-control form-control-sm">`
+    }
+    </td>
+
+    <td>
+    ${item.attachmentPath
+    ? (item.makerRemark || "-")
+    : `<input type="text" class="remarkInput form-control form-control-sm" placeholder="Enter remark">`
+    }
+    </td>
+
+    <td>${statusBadge}</td>
+
+    <td>
+    ${item.attachmentPath
+    ? `<span class="text-success">Uploaded</span>`
+    : `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`
+    }
+    </td>
+
+    <td>${item.totalQuantity ?? 0}</td>
+    <td>${item.totalItemValue ?? 0}</td>
+    <td>${item.totalItems ?? 0}</td>
+
+    <td>
+    ${item.paymentStatus === "Paid"
+    ? `<span class="badge bg-success">Paid</span>`
+    : `<span class="badge bg-danger">UnPaid</span>`
+    }
+    </td>
+
+    <td>${item.paymentDate ? formatDate(item.paymentDate) : "-"}</td>
+
+    </tr>`;
+    });
+
+    $("#billTable").html(html);
+    }
+
+
+    // ---------------- FORMAT DATE ----------------
+    function formatDate(dateString) {
+    if (!dateString) return "";
+    let d = new Date(dateString);
+    return d.toISOString().split('T')[0];
+    }
+    // ✅ STEP 1: SUBMIT BUTTON CLICK
+    //------------------------------------
+    $(document).on("click", ".submitBtn", function () {
+
+    let row = $(this).closest("tr");
+
+    let vchNumber = $(this).data("vch");
+    let fileInput = row.find(".fileInput")[0];
+    let remark = row.find(".remarkInput").val();
+
+    // ✅ Validation
+    if (!fileInput.files.length) {
+    alert("Please select a file");
+    return;
+    }
+
+    let file = fileInput.files[0];
+
+    let formData = new FormData();
+
+    // ✅ IMPORTANT (names must match controller)
+    formData.append("vchNumber", vchNumber);
+    formData.append("file", file);
+    formData.append("makerRemark", remark);
+
+    $.ajax({
+    url: "/Maker/SubmitBill",   // ✅ correct API
+    type: "POST",
+    data: formData,
+    contentType: false,
+    processData: false,
+
+    success: function (res) {
+    if (res.success) {
+    alert("✅ Uploaded Successfully");
+    loadData(); // refresh table
+    } else {
+    alert("❌ Upload failed");
+    }
+    },
+    error: function () {
+    alert("❌ Error occurred");
+    }
+    });
+    });
+   
+</script>
+

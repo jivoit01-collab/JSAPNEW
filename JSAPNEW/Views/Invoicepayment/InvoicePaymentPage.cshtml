@@ -1,0 +1,225 @@
+﻿@{
+    ViewData["Title"] = "InvoicePaymentPage";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+    #suggestionBox {
+        position: absolute;
+        top: 70px;
+        width: 100%;
+        background: white;
+        /*border: 1px solid #ccc;*/
+        z-index: 1000;
+    }
+
+    .suggest-item {
+        padding: 8px;
+        cursor: pointer;
+    }
+
+        .suggest-item:hover {
+            background: #f1f1f1;
+        }
+       .soft-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.badge-approved {
+    background: rgba(25, 135, 84, 0.1);
+    color: #198754;
+    border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+.badge-rejected {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.badge-pending {
+    background: rgba(255, 193, 7, 0.15);
+    color: #b8860b;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+</style>
+<div class="container-fluid mt-4">
+
+    <h3 class="mb-4">Bill Verification - Invoice  Payment </h3>
+    
+
+
+<div class="container-fluid mt-3">
+
+    <!-- FILTER -->
+    <div class="card p-3 mb-3">
+        <div class="row">
+            <div class="col-md-3">
+                <label>From Date</label>
+                <input type="date" id="fromDate" class="form-control" />
+            </div>
+
+            <div class="col-md-3">
+                <label>To Date</label>
+                <input type="date" id="toDate" class="form-control" />
+            </div>
+
+            <div class="col-md-4">
+                <label>Account Name</label>
+                <input type="text" id="accountName" class="form-control" placeholder="Search Account" />
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end">
+                <button id="searchBtn" class="btn btn-primary w-100">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card p-3">
+        <h5 class="mb-3">Invoice Monitoring</h5>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+                
+                <!-- HEADER -->
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        <th>Voucher</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Supplier Ref</th>
+                         <th>Ref Date</th>
+                        <th>Due Date</th>
+                        <th>Attachment</th>
+                        <th>Maker Remark</th>
+                        <th>Checker Remark</th>
+                        <th>Checker Status</th>
+                        <th>Payment Status</th>
+                    </tr>
+                </thead>
+
+                <!-- BODY -->
+                <tbody id="PaymentTable">
+                    <tr>
+                        <td colspan="9" class="text-center">Loading...</td>
+                    </tr>
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+//------------------------------------
+// LOAD DATA
+//------------------------------------
+function loadData() {
+
+    let fromDate = $("#fromDate").val();
+    let toDate = $("#toDate").val();
+    let accountName = $("#accountName").val().trim() || null;
+
+    $("#PaymentTable").html(`<tr><td colspan="9">Loading...</td></tr>`);
+$.get("/InvoicePayment/GetBillDetails", {
+        fromDate: fromDate,
+        toDate: toDate,
+        accountName: accountName
+    }, function (data) {
+
+        renderTable(data || []);
+
+    }).fail(function () {
+        $("#PaymentTable").html(`<tr><td colspan="9">Error loading data</td></tr>`);
+    });
+}
+
+
+//------------------------------------
+// RENDER TABLE (FIXED ALIGNMENT)
+//------------------------------------
+function renderTable(data) {
+
+    if (!data || data.length === 0) {
+        $("#PaymentTable").html(`<tr><td colspan="9">No Data Found</td></tr>`);
+        return;
+    }
+
+    let html = "";
+
+    data.forEach(item => {
+
+        let checkerBadge =
+            item.checkerStatus === "Approved"
+                ? `<span class="badge bg-success">Approved</span>`
+                : item.checkerStatus === "Rejected"
+                ? `<span class="badge bg-danger">Rejected</span>`
+                : `<span class="badge bg-secondary">Pending</span>`;
+
+        let paymentBadge =
+            item.paymentStatus === "Paid"
+                ? `<span class="badge bg-success">Paid</span>`
+                : `<span class="badge bg-warning text-dark">UnPaid</span>`;
+
+        html += `
+        <tr>
+            <td>${item.accountName ?? ""}</td>
+            <td>${item.vchNumber ?? ""}</td>
+            <td>${formatDate(item.voucherDate)}</td>
+            <td>${item.billAmount ?? ""}</td>
+            <td>${item.supplierRef || '-'}</td>
+<td>${item.supplierRefDate || '-'}</td>
+<td>${item.dueDate || '-'}</td>
+
+            <td>
+                ${
+                    item.attachmentPath
+                    ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
+                    : `No File`
+                }
+            </td>
+
+            <td>${item.makerRemark ?? "-"}</td>
+
+            <!-- ✅ CORRECT ORDER -->
+            <td>${item.checkerRemark ?? "-"}</td>
+            <td>${checkerBadge}</td>
+            <td>${paymentBadge}</td>
+        </tr>`;
+    });
+
+    $("#PaymentTable").html(html);
+}
+
+
+//------------------------------------
+// SEARCH BUTTON
+//------------------------------------
+$("#searchBtn").click(loadData);
+
+
+//------------------------------------
+// INIT
+//------------------------------------
+$(document).ready(function () {
+    loadData();
+});
+
+
+//------------------------------------
+// DATE FORMAT
+//------------------------------------
+function formatDate(dateString) {
+    if (!dateString) return "";
+    let d = new Date(dateString);
+    return d.toISOString().split('T')[0];
+}
+</script>

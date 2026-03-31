@@ -1,0 +1,905 @@
+﻿@{
+    ViewData["Title"] = "User Active Sessions";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Active Sessions</title>
+    <style>
+        :root {
+            --primary-color: #0b2c4d;
+            --primary-light: #1a4066;
+            --primary-dark: #051a2f;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --border-radius-sm: 6px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--light-bg) 0%, #e8f4f8 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 1rem;
+            position: relative;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 44, 77, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-circle {
+            width: 56px;
+            height: 56px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.75rem;
+        }
+
+        .loading-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: white;
+            text-align: center;
+        }
+
+        @@keyframes spin {
+            0%
+
+        {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+
+        }
+
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .page-header-left {
+            flex: 1;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .page-header-right {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .toggle-inactive-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+            .toggle-inactive-btn:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+
+            .toggle-inactive-btn.active {
+                background: var(--success-color);
+                border-color: var(--success-color);
+            }
+
+        /* Sessions Container */
+        .sessions-container {
+            background: transparent;
+            margin-top: 15px;
+        }
+
+            .sessions-container.hidden {
+                display: none;
+            }
+
+        .sessions-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 12px 16px;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .sessions-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+            .refresh-btn:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+
+        /* Table Styles */
+        .table-wrapper {
+            background: white;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+            .sessions-table thead {
+                background: linear-gradient(135deg, #5e7993, #4a6277);
+                color: white;
+            }
+
+                .sessions-table thead th {
+                    padding: 12px 16px;
+                    text-align: left;
+                    font-weight: 600;
+                    font-size: 0.8rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    border-bottom: 2px solid var(--border-color);
+                }
+
+            .sessions-table tbody tr {
+                border-bottom: 1px solid var(--border-color);
+                transition: background-color 0.2s ease;
+            }
+
+                .sessions-table tbody tr:hover {
+                    background-color: #f7fafc;
+                }
+
+                .sessions-table tbody tr.inactive-row {
+                    background-color: #f9fafb;
+                    opacity: 0.9;
+                }
+
+                    .sessions-table tbody tr.inactive-row:hover {
+                        background-color: #f3f4f6;
+                    }
+
+            .sessions-table tbody td {
+                padding: 12px 16px;
+                color: var(--text-primary);
+            }
+
+        /* Status Badge */
+        .status-badge {
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .edit-btn, .view-btn, .excel-btn {
+            border: none;
+            border-radius: 4px;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            white-space: nowrap;
+        }
+
+        .edit-btn {
+            background: var(--accent-color);
+            color: white;
+        }
+
+            .edit-btn:hover {
+                background: #2176bd;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            }
+
+        .view-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+            .view-btn:hover {
+                background: #5a6268;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            }
+
+        .excel-btn {
+            background: var(--success-color);
+            color: white;
+        }
+
+            .excel-btn:hover {
+                background: #229954;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+            background: white;
+            border-radius: var(--border-radius);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .empty-state p {
+            font-size: 0.95rem;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius-sm);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+        }
+
+        .alert-danger {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2c5282;
+            border: 1px solid #90cdf4;
+        }
+
+        .alert-warning {
+            background: #feebc8;
+            color: #744210;
+            border: 1px solid #fbd38d;
+        }
+
+        .alert-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+            .alert-close:hover {
+                opacity: 1;
+            }
+
+        /* Responsive Adjustments */
+        @@media (max-width: 768px) {
+            .app-container
+
+        {
+            padding: 1rem 0.5rem;
+        }
+
+        .page-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .page-header-right {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .sessions-table {
+            font-size: 0.75rem;
+        }
+
+            .sessions-table thead th,
+            .sessions-table tbody td {
+                padding: 8px 10px;
+            }
+
+        .action-buttons {
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .edit-btn, .view-btn, .excel-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-circle"></div>
+        <div class="loading-text">Loading sessions...</div>
+    </div>
+
+    <div class="app-container">
+        <input type="hidden" id="UserId" name="UserId" value="@ViewBag.userId" />
+        <input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.company" />
+
+        <!-- Page Header with Toggle Button -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1 class="page-title">📋 User Sessions</h1>
+                <p class="page-subtitle">Manage your active and inactive sessions</p>
+            </div>
+            <div class="page-header-right">
+                <button class="toggle-inactive-btn" id="toggleInactiveBtn" onclick="toggleInactiveSessions()">
+                    <span id="toggleIcon">👁️</span>
+                    <span id="toggleText">Show Inactive Sessions</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sessions Container -->
+        <div id="sessionsContent">
+            <div class="empty-state">
+                <div class="empty-state-icon">⏳</div>
+                <h3>Loading sessions...</h3>
+                <p>Please wait while we fetch your active sessions</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+
+    <script>
+        let sessionsData = null;
+        let inactiveSessionsVisible = false;
+
+        function getUserId() {
+            const userId = document.getElementById('UserId').value;
+            console.log('User ID:', userId);
+            return userId;
+        }
+
+        function validateUserId() {
+            const userId = getUserId();
+            if (!userId || userId.trim() === '') {
+                showAlert('User ID is not set. Please ensure ViewBag.userId is properly set in the controller.', 'danger');
+                return false;
+            }
+            return true;
+        }
+
+        async function apiCall(url) {
+            try {
+                console.log('Making API call to:', url);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', data);
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        async function loadUserSessions() {
+            if (!validateUserId()) return;
+
+            const userId = document.getElementById('UserId').value || '@ViewBag.userId';
+            showLoadingOverlay();
+
+            try {
+                // Fetch active + inactive in parallel
+                const [activeRes, inactiveRes] = await Promise.allSettled([
+                    apiCall(`/api/InventoryAudit/GetUserActiveSessions?userId=${encodeURIComponent(userId)}`),
+                    apiCall(`/api/InventoryAudit/GetUserInactiveSessions?userId=${encodeURIComponent(userId)}`)
+                ]);
+
+                // Safely extract arrays, even if one API fails
+                const activeSessions =
+                    activeRes.status === "fulfilled"
+                        ? (activeRes.value?.data?.sessions || activeRes.value?.data || [])
+                        : [];
+                const inactiveSessions =
+                    inactiveRes.status === "fulfilled"
+                        ? (inactiveRes.value?.data?.sessions || inactiveRes.value?.data || [])
+                        : [];
+
+                // Store sessions data globally
+                sessionsData = {
+                    active: activeSessions,
+                    inactive: inactiveSessions
+                };
+
+                // Show sections (inactive hidden by default)
+                displayBothSections(activeSessions, inactiveSessions);
+
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+                showAlert('Error loading sessions. Please refresh.', 'danger');
+            } finally {
+                hideLoadingOverlay();
+            }
+        }
+
+        function toggleInactiveSessions() {
+            inactiveSessionsVisible = !inactiveSessionsVisible;
+
+            const inactiveSection = document.getElementById('inactiveSessionsSection');
+            const toggleBtn = document.getElementById('toggleInactiveBtn');
+            const toggleIcon = document.getElementById('toggleIcon');
+            const toggleText = document.getElementById('toggleText');
+
+            if (inactiveSection) {
+                if (inactiveSessionsVisible) {
+                    inactiveSection.classList.remove('hidden');
+                    toggleBtn.classList.add('active');
+                    toggleIcon.textContent = '🙈';
+                    toggleText.textContent = 'Hide Inactive Sessions';
+                } else {
+                    inactiveSection.classList.add('hidden');
+                    toggleBtn.classList.remove('active');
+                    toggleIcon.textContent = '👁️';
+                    toggleText.textContent = 'Show Inactive Sessions';
+                }
+            }
+        }
+
+        function displayBothSections(activeSessions, inactiveSessions) {
+            const container = document.getElementById('sessionsContent');
+
+            const noActive = !activeSessions || activeSessions.length === 0;
+            const noInactive = !inactiveSessions || inactiveSessions.length === 0;
+
+            // ✅ If both are empty → No session access
+            if (noActive && noInactive) {
+                displayEmptyState('No Session Access', 'You currently have no active or inactive sessions assigned.');
+                return;
+            }
+
+            let html = '';
+
+            // ✅ Render active sessions
+            if (!noActive) {
+                html += sectionHtml('Active Sessions', activeSessions, false, 'activeSessionsSection');
+            } else {
+                html += `
+                    <div class="sessions-container" id="activeSessionsSection">
+                        <div class="sessions-header">
+                            <div class="sessions-title">📂 Active Sessions</div>
+                        </div>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <h3>No active sessions</h3>
+                            <p>Nothing to show here</p>
+                        </div>
+                    </div>`;
+            }
+
+            // ✅ Render inactive sessions (hidden by default)
+            if (!noInactive) {
+                html += sectionHtml('Inactive Sessions', inactiveSessions, true, 'inactiveSessionsSection');
+            }
+
+            container.innerHTML = html;
+
+            // Hide inactive section by default
+            const inactiveSection = document.getElementById('inactiveSessionsSection');
+            if (inactiveSection && !inactiveSessionsVisible) {
+                inactiveSection.classList.add('hidden');
+            }
+        }
+
+        function sectionHtml(title, sessions, isInactive, sectionId) {
+            if (!sessions || sessions.length === 0) {
+                return `
+                    <div class="sessions-container" id="${sectionId}">
+                        <div class="sessions-header">
+                            <div class="sessions-title">📂 ${title}</div>
+                        </div>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <h3>No ${title.toLowerCase()}</h3>
+                            <p>Nothing to show here</p>
+                        </div>
+                    </div>`;
+            }
+
+            return `
+                <div class="sessions-container" id="${sectionId}">
+                    <div class="sessions-header">
+                        <div class="sessions-title">📂 ${title} (${sessions.length})</div>
+                        <button class="refresh-btn" onclick="loadUserSessions()">↻ Refresh</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="sessions-table">
+                            <thead>
+                                <tr>
+                                    <th>Session ID</th>
+                                    <th>Lot Number</th>
+                                    <th>Session Name</th>
+                                    <th>Created Date</th>
+                                    <th>Assigned By</th>
+                                    <th>Duration (Days)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sessions.map(session => sessionRowHtml(session, isInactive)).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        function sessionRowHtml(session, isInactive) {
+            const apiStatus = (session.sessionStatus || '').toString();
+            const normalized = apiStatus.toLowerCase() === 'deactivated' ? 'Inactive' : apiStatus;
+            const statusClass = normalized === 'Active' ? 'status-active'
+                : normalized === 'Inactive' ? 'status-inactive'
+                : 'status-pending';
+
+            const createdDate = formatDate(session.createdDate);
+            const duration = session.sessionDurationDays || 'N/A';
+            const lotNumber = session.lotNumber || 'N/A';
+            const sessionId = session.sessionId;
+            const rowClass = isInactive ? 'inactive-row' : '';
+
+            // Build action buttons
+            let actionButtons = '';
+            if (isInactive) {
+                // Show View button and Excel button for inactive sessions
+                actionButtons = `
+                    <div class="action-buttons">
+                        <button class="view-btn" onclick="event.stopPropagation(); handleViewSession('${sessionId}', '${lotNumber}')">
+                            👁️ View
+                        </button>
+                        <!-- In sessionRowHtml function, update Excel button: -->
+                        <button class="excel-btn" onclick="event.stopPropagation(); downloadExcelReport('${lotNumber}')">
+                            📥 Excel
+                        </button>
+                    </div>`;
+            } else {
+                // Show Edit button for active sessions
+                actionButtons = `
+                    <div class="action-buttons">
+                        <button class="edit-btn" onclick="event.stopPropagation(); handleEditSession('${sessionId}', '${lotNumber}')">
+                            ✏️ Edit
+                        </button>
+                    </div>`;
+            }
+
+            return `
+                <tr class="${rowClass}">
+                    <td>${sessionId}</td>
+                    <td>${lotNumber}</td>
+                    <td>${session.sessionName || 'N/A'}</td>
+                    <td>${createdDate.date}</td>
+                    <td>${session.assignedByUsername || 'N/A'}</td>
+                    <td>${duration}</td>
+                    
+                    <td>${actionButtons}</td>
+                </tr>`;
+        }
+
+        function handleEditSession(sessionId, lotNumber) {
+            console.log('Edit clicked:', { sessionId, lotNumber });
+
+            // Build the URL with query parameters for editing
+            const url = `/InventoryAuditWeb/CountEntry?sessionId=${encodeURIComponent(sessionId)}&lotNumber=${encodeURIComponent(lotNumber)}`;
+
+            console.log('Navigating to:', url);
+            window.location.href = url;
+        }
+
+        function handleViewSession(sessionId, lotNumber) {
+            console.log('View clicked:', { sessionId, lotNumber });
+
+            // Build the URL with query parameters for viewing (read-only mode)
+            // You can add a parameter like &readOnly=true or &mode=view if your backend supports it
+            const url = `/InventoryAuditWeb/CountEntry?sessionId=${encodeURIComponent(sessionId)}&lotNumber=${encodeURIComponent(lotNumber)}&readOnly=true`;
+
+            console.log('Navigating to view:', url);
+            window.location.href = url;
+        }
+
+        function displayEmptyState(title, message) {
+            const container = document.getElementById('sessionsContent');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <h3>${title}</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return { date: 'N/A', time: '' };
+
+            try {
+                const date = new Date(dateString);
+                const dateFormatted = date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const timeFormatted = date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                return { date: dateFormatted, time: timeFormatted };
+            } catch (error) {
+                return { date: 'Invalid Date', time: '' };
+            }
+        }
+
+        async function downloadExcelReport(lotNumber) {
+            if (!lotNumber || lotNumber === 'N/A') {
+                alert('Lot number is missing.');
+                return;
+            }
+
+            const userId = getUserId();
+
+            // Show loading
+            showLoadingOverlay();
+
+            try {
+                const response = await fetch(`/api/InventoryAudit/DownloadInventoryReport?lotNumber=${encodeURIComponent(lotNumber)}&userId=${encodeURIComponent(userId)}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.data && result.data.length > 0) {
+                    console.log('Report Data:', result.data);
+
+                    // ✅ Download as Excel using XLSX library
+                    exportToExcel(result.data, `Inventory_Report_${lotNumber}.xlsx`);
+
+                    showAlert('Report downloaded successfully!', 'success');
+                } else {
+                    showAlert('No data found for this report.', 'warning');
+                }
+            } catch (error) {
+                console.error('Error downloading report:', error);
+                showAlert('Error downloading report. Please try again.', 'danger');
+            } finally {
+                hideLoadingOverlay();
+            }
+        }
+
+        // ✅ Fixed Excel Export using XLSX library (already loaded in your page)
+        function exportToExcel(data, filename) {
+            if (!data || data.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            try {
+                // Create a new workbook
+                const wb = XLSX.utils.book_new();
+
+                // Convert JSON data to worksheet
+                const ws = XLSX.utils.json_to_sheet(data);
+
+                // Auto-size columns (optional but recommended)
+                const colWidths = [];
+                const headers = Object.keys(data[0]);
+                headers.forEach((header, idx) => {
+                    const maxLength = Math.max(
+                        header.length,
+                        ...data.map(row => String(row[header] || '').length)
+                    );
+                    colWidths.push({ wch: Math.min(maxLength + 2, 50) }); // Max 50 chars width
+                });
+                ws['!cols'] = colWidths;
+
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, 'Inventory Report');
+
+                // Generate Excel file and trigger download
+                XLSX.writeFile(wb, filename);
+
+                console.log('✅ Excel file generated:', filename);
+            } catch (error) {
+                console.error('Error creating Excel file:', error);
+                alert('Error creating Excel file: ' + error.message);
+            }
+        }
+
+        function showLoadingOverlay() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const existingAlert = document.querySelector('.alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            const alertClass = type === 'danger' ? 'alert-danger' :
+                type === 'warning' ? 'alert-warning' :
+                    'alert-info';
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${alertClass}`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            const container = document.querySelector('.app-container');
+            container.insertBefore(alertDiv, container.firstChild);
+
+            setTimeout(() => {
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
+            }, 8000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Initializing User Sessions page...');
+            loadUserSessions();
+        });
+
+        console.log('✅ User Sessions page loaded successfully');
+    </script>
+</body>
+</html>

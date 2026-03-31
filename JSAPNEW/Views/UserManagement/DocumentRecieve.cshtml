@@ -1,0 +1,1658 @@
+﻿@{
+    ViewData["Title"] = "Document Reciever";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Receiver</title>
+    <link rel="stylesheet" href="~/css/bosystyle.css">
+    <style>
+        /* FIXED: Pending Mode Layout - Now matches All Data layout */
+        .pending-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        .pending-left-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        .pending-right-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        /* FIXED: Updated Pending Filters to match All Data styling */
+        .pending-filters {
+            display: block;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .pending-filters-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+
+        .pending-search-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .pending-bundle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-with-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .search-input {
+            padding: 12px 16px 12px 42px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            font-size: 15px;
+            background: #ffffff;
+            color: #495057;
+            transition: all 0.3s ease;
+            height: 48px;
+            font-weight: 500;
+            width: 100%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+            .search-input:focus {
+                outline: none;
+                border-color: #0b2c4d;
+                box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+                transform: translateY(-1px);
+            }
+
+        .clear-search-btn {
+            background: linear-gradient(135deg, #ffff, #ffff);
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+            .clear-search-btn:hover {
+                background: linear-gradient(135deg, #ffff, #ffff);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px white;
+            }
+
+        .pending-results-info {
+            font-size: 14px;
+            color: #6c757d;
+            font-weight: 500;
+            white-space: nowrap;
+            margin-top: 10px;
+        }
+
+        .bundle-status-dropdown {
+            padding: 12px 20px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #495057;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            height: 48px;
+            min-width: 200px;
+        }
+
+            .bundle-status-dropdown:focus {
+                outline: none;
+                border-color: #0b2c4d;
+                box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+                transform: translateY(-1px);
+            }
+
+        /* All Data Mode - Search and Status Buttons Layout */
+        .all-data-filters {
+            display: none;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .all-data-filters-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+
+        .all-data-search-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .all-data-status-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-btn {
+            padding: 8px 20px;
+            border: 2px solid #dee2e6;
+            background: #ffffff;
+            color: #6c757d;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+            .status-btn:hover {
+                background: #f8f9fa;
+                border-color: #0b2c4d;
+                color: #0b2c4d;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+            }
+
+            .status-btn.active {
+                background: #0b2c4d;
+                color: #ffffff;
+                border-color: #0b2c4d;
+                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            }
+
+                .status-btn.active:hover {
+                    background: #0b2c4d;
+                    border-color: #0b2c4d;
+                }
+
+            .status-btn[data-status=""] {
+                background: #0b2c4d;
+                color: white;
+                border-color: #0b2c4d;
+            }
+
+                .status-btn[data-status=""].active {
+                    background: #0b2c4d;
+                    border-color: #0b2c4d;
+                }
+
+            .status-btn[data-status="Pending"] {
+                border-color: #f39c12;
+            }
+
+                .status-btn[data-status="Pending"].active {
+                    background: #f39c12;
+                    border-color: #f39c12;
+                    color: white;
+                }
+
+            .status-btn[data-status="Received"] {
+                border-color: #27ae60;
+            }
+
+                .status-btn[data-status="Received"].active {
+                    background: #27ae60;
+                    border-color: #27ae60;
+                    color: white;
+                }
+
+            .status-btn[data-status="Not Received"] {
+                border-color: #e74c3c;
+            }
+
+                .status-btn[data-status="Not Received"].active {
+                    background: #e74c3c;
+                    border-color: #e74c3c;
+                    color: white;
+                }
+
+            .status-btn[data-status="InActive"] {
+                border-color: #a6a4a4;
+            }
+
+                .status-btn[data-status="InActive"].active {
+                    background: #a6a4a4;
+                    border-color: #a6a4a4;
+                    color: white;
+                }
+
+        .all-data-results-info {
+            font-size: 14px;
+            color: #6c757d;
+            font-weight: 500;
+            white-space: nowrap;
+            margin-top: 10px;
+        }
+
+        .select-all-btn {
+            background: linear-gradient(135deg, #0b2c4d, #0b2c4d);
+            color: #ffffff;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(23, 162, 184, 0.3);
+        }
+
+            .select-all-btn:hover {
+                background: linear-gradient(135deg, #0b2c4d, #0b2c4d);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(23, 162, 184, 0.4);
+            }
+
+        .pending-count {
+            font-weight: 700 !important;
+            color: #2c3e50 !important;
+            font-size: 16px;
+            background: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        /* FIXED: Better Action Button Styling */
+        .action-toggle-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            background: #ffffff;
+            color: #6c757d;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 45px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+            .action-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                background: #f8f9fa;
+                border-color: #dee2e6;
+                color: #6c757d;
+            }
+
+            .action-btn:not(:disabled):hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+        /* FIXED: Clear Accept Button Active State */
+        .accept-btn.active {
+            background: linear-gradient(135deg, #28a745, #20c997) !important;
+            color: #ffffff !important;
+            border-color: #28a745 !important;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4) !important;
+            transform: translateY(-1px);
+        }
+
+            .accept-btn.active:hover {
+                background: linear-gradient(135deg, #20c997, #17a2b8) !important;
+                border-color: #20c997 !important;
+            }
+
+        /* FIXED: Clear Reject Button Active State */
+        .reject-btn.active {
+            background: linear-gradient(135deg, #dc3545, #c82333) !important;
+            color: #ffffff !important;
+            border-color: #dc3545 !important;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4) !important;
+            transform: translateY(-1px);
+        }
+
+            .reject-btn.active:hover {
+                background: linear-gradient(135deg, #c82333, #bd2130) !important;
+                border-color: #c82333 !important;
+            }
+
+        /* Update Button Below Table */
+        .update-button-section {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            border: 2px solid #dee2e6;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        #updateSelectedBtn {
+            background: linear-gradient(135deg, #0b2c4d, #0b2c4d) !important;
+            color: #ffffff;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3) !important;
+        }
+
+            #updateSelectedBtn:hover {
+                background: linear-gradient(135deg, ##0b2c4d, #0b2c4d) !important;
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4) !important;
+            }
+
+        /* Mode Switcher */
+        .mode-switcher {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            padding: 15px 35px;
+            border: 2px solid #dee2e6;
+            background: #ffffff;
+            color: #6c757d;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 200px;
+            justify-content: center;
+            white-space: nowrap;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+
+            .mode-btn:hover {
+                background: #f8f9fa;
+                border-color: #0b2c4d;
+                color: #0b2c4d;
+                transform: translateY(-3px);
+                box-shadow: 0 6px 20px rgba(52, 152, 219, 0.2);
+            }
+
+            .mode-btn.active {
+                background: linear-gradient(135deg, #0b2c4d, #0b2c4d);
+                color: #ffffff;
+                border-color: #0b2c4d;
+                box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+                transform: translateY(-2px);
+            }
+
+        /* Responsive Design */
+        @@media (max-width: 1200px) {
+            .pending-filters-row
+
+        {
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .all-data-filters-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 20px;
+        }
+
+        .all-data-search-group {
+            min-width: auto;
+        }
+
+        .all-data-status-buttons {
+            justify-content: center;
+        }
+
+        .pending-controls {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 15px;
+        }
+
+        .pending-left-controls {
+            justify-content: center;
+        }
+
+        .pending-right-controls {
+            justify-content: center;
+        }
+
+        .pending-search-group {
+            min-width: auto;
+        }
+
+        .pending-bundle-group {
+            justify-content: center;
+        }
+
+        }
+
+        @@media (max-width: 768px) {
+            .pending-bundle-group
+
+        {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .bundle-status-dropdown {
+            width: 100%;
+        }
+
+        .clear-search-btn {
+            width: 100%;
+            height: 40px;
+        }
+
+        .all-data-status-buttons {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .status-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .all-data-filters-row {
+            gap: 15px;
+        }
+
+        .search-with-icon {
+            max-width: none;
+        }
+
+        .mode-switcher {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .mode-btn {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Hidden inputs for user data -->
+        <input type="hidden" id="CompanyId" name="CompanyId" value="1" />
+        <input type="hidden" id="UpdatedBy" name="UpdatedBy" value="67" />
+
+        <!-- Mode Switcher -->
+        <div class="mode-switcher">
+            <button id="pendingBtn" class="mode-btn active">
+                ⏳ Pending Documents
+            </button>
+            <button id="allDataBtn" class="mode-btn">
+                📋 All Data
+            </button>
+        </div>
+
+        <!-- Pending Mode Controls -->
+        <div class="pending-controls" id="pendingControls">
+            <div class="pending-left-controls">
+                <button id="selectAllBtn" class="select-all-btn">
+                    ☑️ Select All
+                </button>
+               @*  <button id="acceptAllBtn" class="select-all-btn" onclick="acceptAllSelected()" style="background: linear-gradient(135deg, #28a745, #20c997); margin-left: 15px;">
+                    ✅ Accept All Selected
+                </button>
+                <button id="rejectAllBtn" class="select-all-btn" onclick="rejectAllSelected()" style="background: linear-gradient(135deg, #dc3545, #c82333); margin-left: 10px;">
+                    ❌ Reject All Selected
+                </button> *@
+            </div>
+            <div class="pending-right-controls">
+                <div id="pendingCount" class="pending-count">
+                    Total Pending: <span id="countValue">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- FIXED: Pending Filters Row - Now matches All Data layout -->
+        <div class="pending-filters" id="pendingFilters">
+            <div class="pending-filters-row">
+                <div class="pending-search-group">
+                    <div class="search-with-icon">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="searchInput" class="search-input"
+                               placeholder="Search by Bundle ID or Doc ID..."
+                               onkeyup="filterTable()" />
+                    </div>
+                    <button type="button" class="clear-search-btn" onclick="clearSearch()">❌</button>
+                    <div id="searchResults" class="pending-results-info"></div>
+                </div>
+                <div class="pending-bundle-group">
+                    <select id="globalBundleStatus" class="bundle-status-dropdown">
+                        <option value="">📊 Bundle Status (Apply to selected rows)</option>
+                        <option value="Pre-Audit Stage">Pre-Audit Stage</option>
+                        <option value="Data Entry Stage">Data Entry Stage</option>
+                        <option value="Audit Stage">Audit Stage</option>
+                        <option value="Close">Close</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Data Mode: Search and Status Buttons Row -->
+        <div class="all-data-filters" id="allDataFilters">
+            <div class="all-data-filters-row">
+                <div class="all-data-search-group">
+                    <div class="search-with-icon">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="allDataSearchInput" class="search-input"
+                               placeholder="Search documents..."
+                               oninput="filterAllDataTable()" />
+                    </div>
+                    <div id="allDataSearchResults" class="all-data-results-info"></div>
+                </div>
+                <div class="all-data-status-buttons">
+                    <button class="status-btn active" data-status="" onclick="setStatusFilter('')">
+                        📋 All
+                    </button>
+                    <button class="status-btn" data-status="Pending" onclick="setStatusFilter('Pending')">
+                        ⏳ Pending
+                    </button>
+                    <button class="status-btn" data-status="Received" onclick="setStatusFilter('Received')">
+                        ✅ Received
+                    </button>
+                    <button class="status-btn" data-status="Not Received" onclick="setStatusFilter('Not Received')">
+                        ❌ Not Received
+                    </button>
+                    <button class="status-btn" data-status="InActive" onclick="setStatusFilter('InActive')">
+                        InActive
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Section -->
+        <div id="tableSection">
+            <div class="table-wrapper">
+                <table class="styled-table" id="receiverTable">
+                    <thead class="thead-dark">
+                        <tr class="user-row" id="pendingTableHeader">
+                            <th scope="col" role="columnheader">☑️ Select</th>
+                            <th scope="col" role="columnheader">🏢 Branch</th>
+                            <th scope="col" role="columnheader">🆔 Bundle ID</th>
+                            <th scope="col" role="columnheader">📄 Doc ID</th>
+                            <th scope="col" role="columnheader">📋 Doc Type</th>
+                            <th scope="col" role="columnheader">🔄 Status</th>
+                            <th scope="col" role="columnheader">👤 Created By</th>
+                            <th scope="col" role="columnheader">📅 Created On</th>
+                            <th scope="col" role="columnheader">⏰ Days Pending</th>
+                            <th scope="col" role="columnheader">📎 Attachment</th>
+                            <th scope="col" role="columnheader">✅❌ Action</th>
+                            <th scope="col" role="columnheader">📊 Bundle Status</th>
+                            <th scope="col" role="columnheader">❌ Reject Reason</th>
+                        </tr>
+                        <tr class="user-row" id="allDataTableHeader" style="display: none;">
+                            <th scope="col" role="columnheader">🏢 Branch</th>
+                            <th scope="col" role="columnheader">🆔 Bundle ID</th>
+                            <th scope="col" role="columnheader">📄 Doc ID</th>
+                            <th scope="col" role="columnheader">📋 Doc Type</th>
+                            <th scope="col" role="columnheader">🔄 Status</th>
+                            <th scope="col" role="columnheader">❌ Rejected Reason</th>
+                            <th scope="col" role="columnheader">👤 Created By</th>
+                            <th scope="col" role="columnheader">📅 Created On</th>
+                            <th scope="col" role="columnheader">👥 Received By</th>
+                            <th scope="col" role="columnheader">📅 Received On</th>
+                            <th scope="col" role="columnheader">📎 Attachment</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Update Button Section (Below Table) -->
+        <div class="update-button-section" id="updateButtonSection" style="display: none;">
+            <button id="updateSelectedBtn" onclick="updateSelectedRows()">
+                💾 Update Documents
+            </button>
+        </div>
+
+        <div id="loading">Loading Data...</div>
+    </div>
+
+    <script>
+        let currentMode = 'pending';
+        let allReceiverData = [];
+        let currentStatusFilter = ''; // For All Data mode status filter
+
+        // Initialize page
+        document.addEventListener("DOMContentLoaded", function() {
+            loadPendingData();
+        });
+
+        // Mode switching
+        document.getElementById('pendingBtn').addEventListener('click', function() {
+            switchMode('pending');
+        });
+
+        document.getElementById('allDataBtn').addEventListener('click', function() {
+            switchMode('allData');
+        });
+
+        function switchMode(mode) {
+            currentMode = mode;
+
+            // Toggle button active state
+            document.getElementById('pendingBtn').classList.toggle('active', mode === 'pending');
+            document.getElementById('allDataBtn').classList.toggle('active', mode === 'allData');
+
+            // Toggle headers
+            document.getElementById('pendingTableHeader').style.display = mode === 'pending' ? '' : 'none';
+            document.getElementById('allDataTableHeader').style.display = mode === 'allData' ? '' : 'none';
+
+            // Show/hide sections
+            document.getElementById('pendingControls').style.display = mode === 'pending' ? 'flex' : 'none';
+            document.getElementById('pendingFilters').style.display = mode === 'pending' ? 'block' : 'none';
+            document.getElementById('allDataFilters').style.display = mode === 'allData' ? 'block' : 'none';
+            document.getElementById('updateButtonSection').style.display = mode === 'pending' ? 'flex' : 'none';
+
+            // Clear search inputs when switching modes
+            if (mode === 'pending') {
+                const searchInput = document.getElementById('searchInput');
+                const searchResults = document.getElementById('searchResults');
+                if (searchInput) searchInput.value = '';
+                if (searchResults) searchResults.textContent = '';
+            } else {
+                const allDataSearchInput = document.getElementById('allDataSearchInput');
+                const allDataSearchResults = document.getElementById('allDataSearchResults');
+                if (allDataSearchInput) allDataSearchInput.value = '';
+                if (allDataSearchResults) allDataSearchResults.textContent = '';
+
+                // Reset status filter to "All"
+                currentStatusFilter = '';
+                resetStatusButtons();
+            }
+
+            // Clear table
+            document.querySelector('#receiverTable tbody').innerHTML = '';
+
+            // Load appropriate data
+            if (mode === 'pending') {
+                loadPendingData();
+            } else {
+                loadAllData();
+            }
+        }
+
+        // Set status filter for All Data mode
+        function setStatusFilter(status) {
+            currentStatusFilter = status;
+
+            // Update button active states
+            const statusButtons = document.querySelectorAll('.status-btn');
+            statusButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-status') === status);
+            });
+
+            // Apply filter
+            filterAllDataTable();
+        }
+
+        // Reset status buttons to "All" active
+        function resetStatusButtons() {
+            const statusButtons = document.querySelectorAll('.status-btn');
+            statusButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-status') === '');
+            });
+        }
+
+        // Load pending data
+        function loadPendingData() {
+            document.getElementById("loading").style.display = "block";
+
+            const companyId = parseInt(document.getElementById('CompanyId').value);
+
+            fetch(`/api/DocumentDispatch/GetRecieverPendingData?company=${companyId}&status=S`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!Array.isArray(data)) throw new Error("Invalid data format");
+                    allReceiverData = data;
+                    renderPendingTable(data);
+                    updatePendingCount(data.length);
+                })
+                .catch(err => {
+                    console.error("API error", err);
+                    alert(`Failed to load pending data: ${err.message}`);
+                })
+                .finally(() => {
+                    document.getElementById("loading").style.display = "none";
+                });
+        }
+
+        // Load all data
+        function loadAllData() {
+            document.getElementById("loading").style.display = "block";
+
+            const companyId = parseInt(document.getElementById('CompanyId').value);
+
+            fetch(`/api/DocumentDispatch/GetRecieverActionData?company=${companyId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!Array.isArray(data)) throw new Error("Invalid data format");
+                    allReceiverData = data;
+
+                    // Reset status filter to "All" when loading data
+                    currentStatusFilter = '';
+                    resetStatusButtons();
+
+                    renderAllDataTable(data);
+                })
+                .catch(err => {
+                    console.error("API error", err);
+                    alert(`Failed to load all data: ${err.message}`);
+                })
+                .finally(() => {
+                    document.getElementById("loading").style.display = "none";
+                });
+        }
+
+        // Render pending table
+        function renderPendingTable(data) {
+            const tbody = document.querySelector('#receiverTable tbody');
+            tbody.innerHTML = '';
+
+            const rows = data.map((item, index) => {
+                const daysPending = calculateDaysPending(item.createdOn);
+                const daysPendingClass = getDaysPendingClass(daysPending);
+                const statusClass = `status-${item.status || 'S'}`;
+
+                const filePath = item.attachment || '';
+                const fileName = filePath.split('/').pop();
+                const fileIcon = getFileIcon(fileName);
+                const attachmentLink = filePath
+                    ? `<a href="#" onclick="previewFile('${filePath}')" title="${fileName}" class="file-icon">${fileIcon}</a>`
+                    : '<i>No attachment</i>';
+
+                return `
+                    <tr data-id="${item.id}">
+                        <td><input type="checkbox" name="selectRow" value="${index}" onchange="updateSelectAll()" /></td>
+                        <td>${item.branch}</td>
+                        <td>${item.bundleId}</td>
+                        <td>${item.docId}</td>
+                        <td>${item.docType}</td>
+                        <td><span class="status-badge ${statusClass}">${getStatusText(item.status)}</span></td>
+                        <td>${item.loginUser}</td>
+                        <td>${formatDate(item.createdOn)}</td>
+                        <td><span class="days-pending ${daysPendingClass}">${daysPending} days</span></td>
+                        <td>${attachmentLink}</td>
+                        <td>
+                            <div class="action-toggle-group">
+                                <button type="button" class="action-btn accept-btn" onclick="toggleAction(${index}, 'accept')" disabled>
+                                    ✅
+                                </button>
+                                <button type="button" class="action-btn reject-btn" onclick="toggleAction(${index}, 'reject')" disabled>
+                                    ❌
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <select class="table-bundle-status" onchange="updateRowBundleStatus(${index}, this.value)" disabled>
+                                <option value="">Select Status</option>
+                                <option value="Pre-Audit Stage">Pre-Audit Stage</option>
+                                <option value="Data Entry Stage">Data Entry Stage</option>
+                                <option value="Audit Stage">Audit Stage</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="reject-reason-input" placeholder="Enter reject reason..."
+                                   onchange="updateRowRejectReason(${index}, this.value)" disabled
+                                   style="width: 200px; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;" />
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = rows;
+
+            // Set initial state for all rows (deselected by default)
+            setTimeout(() => {
+                updateRowStates();
+            }, 100);
+
+            // Show update button section
+            document.getElementById('updateButtonSection').style.display = 'flex';
+        }
+
+        // Render all data table
+        function renderAllDataTable(data) {
+            const tbody = document.querySelector('#receiverTable tbody');
+            tbody.innerHTML = '';
+
+            const rows = data.map((item, index) => {
+                const statusClass = `status-${item.status || 'S'}`;
+
+                const filePath = item.attachment || '';
+                const fileName = filePath.split('/').pop();
+                const fileIcon = getFileIcon(fileName);
+                const attachmentLink = filePath
+                    ? `<a href="#" onclick="previewFile('${filePath}')" title="${fileName}" class="file-icon">${fileIcon}</a>`
+                    : '<i>No attachment</i>';
+
+                return `
+                    <tr data-id="${item.id}" data-status="${getStatusText(item.status)}">
+                        <td>${item.branch}</td>
+                        <td>${item.bundleId}</td>
+                        <td>${item.docId}</td>
+                        <td>${item.docType}</td>
+                        <td><span class="status-badge ${statusClass}">${getStatusText(item.status)}</span></td>
+                        <td>${item.rejectedReason || '-'}</td>
+                        <td>${item.loginUser}</td>
+                        <td>${formatDate(item.createdOn)}</td>
+                        <td>${item.receivedBy || '-'}</td>
+                        <td>${formatDate(item.receivedOn)}</td>
+                        <td>${attachmentLink}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = rows;
+
+            // Apply current filters after rendering
+            if (currentMode === 'allData') {
+                filterAllDataTable();
+            }
+        }
+
+        // Pending mode search functionality
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const tableRows = document.querySelectorAll('#receiverTable tbody tr');
+            let visibleCount = 0;
+            let totalCount = tableRows.length;
+
+            tableRows.forEach(row => {
+                if (!searchTerm) {
+                    row.style.display = '';
+                    visibleCount++;
+                    return;
+                }
+
+                // Get Bundle ID and Doc ID from the row
+                const cells = row.querySelectorAll('td');
+                const bundleId = cells[2] ? cells[2].textContent.toLowerCase() : '';
+                const docId = cells[3] ? cells[3].textContent.toLowerCase() : '';
+
+                // Check if search term matches Bundle ID or Doc ID
+                const matchesBundleId = bundleId.includes(searchTerm);
+                const matchesDocId = docId.includes(searchTerm);
+
+                if (matchesBundleId || matchesDocId) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Update search results
+            updateSearchResults(searchTerm, visibleCount, totalCount, 'searchResults');
+
+            // Update select all button and counts
+            updateSelectAllButton();
+            updatePendingCount(visibleCount);
+        }
+
+        // All data mode search and filter functionality
+        function filterAllDataTable() {
+            const searchTerm = document.getElementById('allDataSearchInput').value.toLowerCase().trim();
+            const statusFilter = currentStatusFilter;
+            const tableRows = document.querySelectorAll('#receiverTable tbody tr');
+            let visibleCount = 0;
+            let totalCount = tableRows.length;
+
+            tableRows.forEach(row => {
+                let showRow = true;
+
+                // Search filter
+                if (searchTerm) {
+                    const cells = row.querySelectorAll('td');
+                    const bundleId = cells[1] ? cells[1].textContent.toLowerCase() : '';
+                    const docId = cells[2] ? cells[2].textContent.toLowerCase() : '';
+
+                    const matchesBundleId = bundleId.includes(searchTerm);
+                    const matchesDocId = docId.includes(searchTerm);
+
+                    if (!matchesBundleId && !matchesDocId) {
+                        showRow = false;
+                    }
+                }
+
+                // Status filter
+                if (statusFilter && showRow) {
+                    const rowStatus = row.getAttribute('data-status');
+                    if (rowStatus !== statusFilter) {
+                        showRow = false;
+                    }
+                }
+
+                if (showRow) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Update search results
+            updateAllDataSearchResults(searchTerm, statusFilter, visibleCount, totalCount);
+        }
+
+        function updateAllDataSearchResults(searchTerm, statusFilter, visibleCount, totalCount) {
+            const resultsDiv = document.getElementById('allDataSearchResults');
+
+            if (!resultsDiv) return;
+
+            // If no filters are applied, show total count
+            if (!searchTerm && !statusFilter) {
+                resultsDiv.textContent = `Showing ${totalCount} documents`;
+                resultsDiv.style.color = '#6c757d';
+                return;
+            }
+
+            // Build filter description
+            const filterText = [];
+            if (searchTerm) filterText.push(`"${searchTerm}"`);
+            if (statusFilter) filterText.push(`Status: ${statusFilter}`);
+
+            if (visibleCount === 0) {
+                resultsDiv.innerHTML = `<span style="color: #e74c3c;">No documents found</span>`;
+            } else {
+                const filterDescription = filterText.length > 0 ? ` matching ${filterText.join(' + ')}` : '';
+                resultsDiv.innerHTML = `<span style="color: #3498db;">Showing ${visibleCount} of ${totalCount} documents${filterDescription}</span>`;
+            }
+        }
+
+        function updateSearchResults(searchTerm, visibleCount, totalCount, elementId) {
+            const resultsDiv = document.getElementById(elementId);
+
+            if (!searchTerm) {
+                resultsDiv.textContent = '';
+                return;
+            }
+
+            if (visibleCount === 0) {
+                resultsDiv.innerHTML = `<span style="color: #e74c3c;">❌ No documents found</span>`;
+            } else if (visibleCount === totalCount) {
+                resultsDiv.innerHTML = `<span style="color: #28a745;">✅ Showing all ${totalCount} documents</span>`;
+            } else {
+                resultsDiv.innerHTML = `<span style="color: #3498db;">📊 Showing ${visibleCount} of ${totalCount} documents</span>`;
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            filterTable();
+            document.getElementById('searchInput').focus();
+        }
+
+        function clearAllDataSearch() {
+            document.getElementById('allDataSearchInput').value = '';
+            currentStatusFilter = '';
+            resetStatusButtons();
+            filterAllDataTable();
+            document.getElementById('allDataSearchInput').focus();
+        }
+
+        // Add keyboard shortcut for search (Ctrl+F or Cmd+F)
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                if (currentMode === 'pending') {
+                    document.getElementById('searchInput').focus();
+                } else if (currentMode === 'allData') {
+                    document.getElementById('allDataSearchInput').focus();
+                }
+            }
+        });
+
+        // Select All functionality
+        document.getElementById('selectAllBtn').addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('input[name="selectRow"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+            checkboxes.forEach(cb => {
+                cb.checked = !allChecked;
+            });
+
+            updateSelectAllButton();
+            updateRowStates();
+            validateSelectedRows();
+        });
+
+        function updateSelectAll() {
+            updateSelectAllButton();
+            updateRowStates();
+            validateSelectedRows();
+        }
+
+        function updateSelectAllButton() {
+            const checkboxes = document.querySelectorAll('input[name="selectRow"]');
+            const checkedCount = document.querySelectorAll('input[name="selectRow"]:checked').length;
+            const totalCount = checkboxes.length;
+
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            if (checkedCount === 0) {
+                selectAllBtn.textContent = '☑️ Select All';
+            } else if (checkedCount === totalCount) {
+                selectAllBtn.textContent = '☐ Deselect All';
+            } else {
+                selectAllBtn.textContent = `☑️ Select All (${checkedCount}/${totalCount})`;
+            }
+        }
+
+        // FIXED: Toggle Accept/Reject action with better visual feedback
+        function toggleAction(index, action) {
+            const row = document.querySelector(`input[name="selectRow"][value="${index}"]`).closest('tr');
+            const acceptBtn = row.querySelector('.accept-btn');
+            const rejectBtn = row.querySelector('.reject-btn');
+            const bundleStatusSelect = row.querySelector('.table-bundle-status');
+            const rejectReasonInput = row.querySelector('.reject-reason-input');
+
+            // Clear previous selections
+            acceptBtn.classList.remove('active');
+            rejectBtn.classList.remove('active');
+
+            if (action === 'accept') {
+                acceptBtn.classList.add('active');
+                // Enable bundle status, disable reject reason
+                bundleStatusSelect.disabled = false;
+                rejectReasonInput.disabled = true;
+                rejectReasonInput.value = '';
+                rejectReasonInput.style.borderColor = '#ddd';
+                rejectReasonInput.style.borderWidth = '1px';
+
+                // Mark bundle status as required
+                if (!bundleStatusSelect.value) {
+                    bundleStatusSelect.style.borderColor = '#e74c3c';
+                    bundleStatusSelect.style.borderWidth = '2px';
+                }
+            } else if (action === 'reject') {
+                rejectBtn.classList.add('active');
+                // Enable reject reason, disable bundle status
+                rejectReasonInput.disabled = false;
+                bundleStatusSelect.disabled = true;
+                bundleStatusSelect.value = '';
+                bundleStatusSelect.style.borderColor = '#ddd';
+                bundleStatusSelect.style.borderWidth = '1px';
+
+                // Mark reject reason as required
+                if (!rejectReasonInput.value.trim()) {
+                    rejectReasonInput.style.borderColor = '#e74c3c';
+                    rejectReasonInput.style.borderWidth = '2px';
+                }
+
+                // Focus on reject reason input for user convenience
+                rejectReasonInput.focus();
+            }
+
+            validateSelectedRows();
+        }
+
+        // Update row states based on selection
+        function updateRowStates() {
+            const allRows = document.querySelectorAll('#receiverTable tbody tr');
+
+            allRows.forEach(row => {
+                const checkbox = row.querySelector('input[name="selectRow"]');
+                const acceptBtn = row.querySelector('.accept-btn');
+                const rejectBtn = row.querySelector('.reject-btn');
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+                const rejectReasonInput = row.querySelector('.reject-reason-input');
+
+                if (checkbox.checked) {
+                    // Row is selected - enable action buttons
+                    acceptBtn.disabled = false;
+                    rejectBtn.disabled = false;
+
+                    // If no action selected yet, disable both bundle status and reject reason
+                    if (!acceptBtn.classList.contains('active') && !rejectBtn.classList.contains('active')) {
+                        bundleStatusSelect.disabled = true;
+                        rejectReasonInput.disabled = true;
+                        bundleStatusSelect.value = '';
+                        rejectReasonInput.value = '';
+                        bundleStatusSelect.style.borderColor = '#ddd';
+                        bundleStatusSelect.style.borderWidth = '1px';
+                        rejectReasonInput.style.borderColor = '#ddd';
+                        rejectReasonInput.style.borderWidth = '1px';
+                    }
+                } else {
+                    // Row is not selected - disable everything
+                    acceptBtn.disabled = true;
+                    rejectBtn.disabled = true;
+                    acceptBtn.classList.remove('active');
+                    rejectBtn.classList.remove('active');
+
+                    bundleStatusSelect.disabled = true;
+                    bundleStatusSelect.value = '';
+                    bundleStatusSelect.style.borderColor = '#ddd';
+                    bundleStatusSelect.style.borderWidth = '1px';
+
+                    // Also disable reject reason for unselected rows
+                    rejectReasonInput.disabled = true;
+                    rejectReasonInput.value = '';
+                    rejectReasonInput.style.borderColor = '#ddd';
+                    rejectReasonInput.style.borderWidth = '1px';
+                }
+            });
+        }
+
+        // Validate selected rows
+        function validateSelectedRows() {
+            const allRows = document.querySelectorAll('#receiverTable tbody tr');
+
+            allRows.forEach(row => {
+                const checkbox = row.querySelector('input[name="selectRow"]');
+                const acceptBtn = row.querySelector('.accept-btn');
+                const rejectBtn = row.querySelector('.reject-btn');
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+                const rejectReasonInput = row.querySelector('.reject-reason-input');
+
+                if (checkbox.checked) {
+                    // Selected row - validate action choice and corresponding field
+                    if (acceptBtn.classList.contains('active')) {
+                        // Accept selected - validate bundle status
+                        if (!bundleStatusSelect.value) {
+                            bundleStatusSelect.style.borderColor = '#e74c3c';
+                            bundleStatusSelect.style.borderWidth = '2px';
+                        } else {
+                            bundleStatusSelect.style.borderColor = '#28a745';
+                            bundleStatusSelect.style.borderWidth = '2px';
+                        }
+                    } else if (rejectBtn.classList.contains('active')) {
+                        // Reject selected - validate reject reason
+                        if (!rejectReasonInput.value.trim()) {
+                            rejectReasonInput.style.borderColor = '#e74c3c';
+                            rejectReasonInput.style.borderWidth = '2px';
+                        } else {
+                            rejectReasonInput.style.borderColor = '#28a745';
+                            rejectReasonInput.style.borderWidth = '2px';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Global Bundle Status (only affects accepted rows)
+        document.getElementById('globalBundleStatus').addEventListener('change', function() {
+            const selectedStatus = this.value;
+            if (!selectedStatus) return;
+
+            const checkedRows = document.querySelectorAll('input[name="selectRow"]:checked');
+            checkedRows.forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const acceptBtn = row.querySelector('.accept-btn');
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+
+                // Only apply to rows with Accept selected
+                if (acceptBtn.classList.contains('active') && !bundleStatusSelect.disabled) {
+                    bundleStatusSelect.value = selectedStatus;
+                    bundleStatusSelect.style.borderColor = '#28a745';
+                    bundleStatusSelect.style.borderWidth = '2px';
+                }
+            });
+
+            // Reset global dropdown
+            this.value = '';
+        });
+
+        function updateRowBundleStatus(index, status) {
+            const row = document.querySelector(`input[name="selectRow"][value="${index}"]`).closest('tr');
+            const rowId = row.getAttribute('data-id');
+            const checkbox = row.querySelector('input[name="selectRow"]');
+            const acceptBtn = row.querySelector('.accept-btn');
+
+            // If row is selected, accept is chosen, and status is provided, update border to green
+            if (checkbox.checked && acceptBtn.classList.contains('active') && status) {
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+                bundleStatusSelect.style.borderColor = '#28a745';
+                bundleStatusSelect.style.borderWidth = '2px';
+            }
+
+            console.log(`Row ID ${rowId} bundle status updated to: ${status}`);
+        }
+
+        function updateRowRejectReason(index, reason) {
+            const row = document.querySelector(`input[name="selectRow"][value="${index}"]`).closest('tr');
+            const rowId = row.getAttribute('data-id');
+            const checkbox = row.querySelector('input[name="selectRow"]');
+            const rejectBtn = row.querySelector('.reject-btn');
+
+            // If row is selected, reject is chosen, and reason is provided, update border to green
+            if (checkbox.checked && rejectBtn.classList.contains('active') && reason.trim()) {
+                const rejectReasonInput = row.querySelector('.reject-reason-input');
+                rejectReasonInput.style.borderColor = '#28a745';
+                rejectReasonInput.style.borderWidth = '2px';
+            }
+
+            console.log(`Row ID ${rowId} reject reason updated to: ${reason}`);
+        }
+
+        // Update selected rows function
+        function updateSelectedRows() {
+            const selectedRows = document.querySelectorAll('input[name="selectRow"]:checked');
+
+            if (selectedRows.length === 0) {
+                alert('❌ Please select at least one row to update.');
+                return;
+            }
+
+            // Validate only selected rows
+            let hasError = false;
+            const updateData = [];
+
+            selectedRows.forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const rowId = row.getAttribute('data-id');
+                const acceptBtn = row.querySelector('.accept-btn');
+                const rejectBtn = row.querySelector('.reject-btn');
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+                const rejectReasonInput = row.querySelector('.reject-reason-input');
+
+                // Validate that an action is selected
+                if (!acceptBtn.classList.contains('active') && !rejectBtn.classList.contains('active')) {
+                    hasError = true;
+                    acceptBtn.style.borderColor = '#e74c3c';
+                    rejectBtn.style.borderColor = '#e74c3c';
+                    acceptBtn.classList.add('error');
+                    rejectBtn.classList.add('error');
+                } else if (acceptBtn.classList.contains('active')) {
+                    // Accept selected - validate bundle status
+                    if (!bundleStatusSelect || !bundleStatusSelect.value) {
+                        hasError = true;
+                        if (bundleStatusSelect) {
+                            bundleStatusSelect.style.borderColor = '#e74c3c';
+                            bundleStatusSelect.style.borderWidth = '2px';
+                            bundleStatusSelect.classList.add('error');
+                            bundleStatusSelect.focus();
+                        }
+                    } else {
+                        updateData.push({
+                            id: parseInt(rowId),
+                            action: 'accept',
+                            bundleStatus: bundleStatusSelect.value,
+                            rejectReason: null
+                        });
+                    }
+                } else if (rejectBtn.classList.contains('active')) {
+                    // Reject selected - validate reject reason
+                    if (!rejectReasonInput || !rejectReasonInput.value.trim()) {
+                        hasError = true;
+                        if (rejectReasonInput) {
+                            rejectReasonInput.style.borderColor = '#e74c3c';
+                            rejectReasonInput.style.borderWidth = '2px';
+                            rejectReasonInput.classList.add('error');
+                            rejectReasonInput.focus();
+                        }
+                    } else {
+                        updateData.push({
+                            id: parseInt(rowId),
+                            action: 'reject',
+                            bundleStatus: null,
+                            rejectReason: rejectReasonInput.value.trim()
+                        });
+                    }
+                }
+            });
+
+            if (hasError) {
+                alert('❌ Please fix the following issues:\n• Selected rows must have either Accept or Reject chosen\n• Accepted rows must have Bundle Status selected\n• Rejected rows must have Reject Reason entered\n\n(Issues highlighted in red)');
+                return;
+            }
+
+            if (updateData.length === 0) {
+                alert('❌ No valid rows to update.');
+                return;
+            }
+
+            // Show confirmation
+            const acceptedCount = updateData.filter(item => item.action === 'accept').length;
+            const rejectedCount = updateData.filter(item => item.action === 'reject').length;
+
+            const confirmation = confirm(`✅ Are you sure you want to update ${updateData.length} selected rows?\n\n• Accepted: ${acceptedCount} rows\n• Rejected: ${rejectedCount} rows`);
+            if (!confirmation) return;
+
+            // Call API to update
+            updateDocumentStatusAPI(updateData);
+        }
+
+        // API call to update document status
+        function updateDocumentStatusAPI(updateData) {
+            const receivedBy = parseInt(document.getElementById('UpdatedBy').value);
+
+            // Prepare data for API - get docId from table row
+            const apiData = updateData.map(item => {
+                // Find the row to get docId
+                const row = document.querySelector(`tr[data-id="${item.id}"]`);
+                const docIdCell = row.querySelector('td:nth-child(4)'); // 4th column is Doc ID in pending mode
+                const docId = docIdCell ? docIdCell.textContent.trim() : '';
+
+                return {
+                    id: item.id,
+                    docId: docId,
+                    status: item.action === 'accept' ? 'R' : 'NR', // R = Received/Accepted, NR = Not Received/Rejected
+                    receivedBy: receivedBy,
+                    rejectedReason: item.rejectReason || "",
+                    BundleStatus: item.bundleStatus || ""
+                };
+            });
+
+            console.log('Updating document status:', apiData);
+
+            // Show loading state
+            const updateBtn = document.getElementById('updateSelectedBtn');
+            const originalBtnText = updateBtn.innerHTML;
+            updateBtn.innerHTML = '⏳ Updating...';
+            updateBtn.disabled = true;
+
+            // Make API call
+            fetch("/api/DocumentDispatch/UpdateDocumentStatus", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(apiData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(result => {
+                console.log('API Response:', result);
+
+                // Show success message with detailed breakdown
+                const acceptedItems = updateData.filter(item => item.action === 'accept');
+                const rejectedItems = updateData.filter(item => item.action === 'reject');
+
+                let message = '✅ Document status updated successfully!\n\n';
+                message += `📊 Summary:\n`;
+                message += `• Accepted: ${acceptedItems.length} documents\n`;
+                message += `• Rejected: ${rejectedItems.length} documents\n\n`;
+
+                if (acceptedItems.length > 0) {
+                    message += `✅ Accepted Documents:\n`;
+                    acceptedItems.forEach(item => {
+                        const row = document.querySelector(`tr[data-id="${item.id}"]`);
+                        const docIdCell = row.querySelector('td:nth-child(4)');
+                        const docId = docIdCell ? docIdCell.textContent.trim() : '';
+                        message += `   - Doc ID ${docId}: ${item.bundleStatus}\n`;
+                    });
+                    message += '\n';
+                }
+
+                if (rejectedItems.length > 0) {
+                    message += `❌ Rejected Documents:\n`;
+                    rejectedItems.forEach(item => {
+                        const row = document.querySelector(`tr[data-id="${item.id}"]`);
+                        const docIdCell = row.querySelector('td:nth-child(4)');
+                        const docId = docIdCell ? docIdCell.textContent.trim() : '';
+                        message += `   - Doc ID ${docId}: ${item.rejectReason}\n`;
+                    });
+                }
+
+                alert(message);
+
+                // Reload data to refresh the table
+                if (currentMode === 'pending') {
+                    loadPendingData();
+                } else {
+                    loadAllData();
+                }
+            })
+            .catch(error => {
+                console.error('API Error:', error);
+                alert(`❌ Failed to update document status: ${error.message}`);
+            })
+            .finally(() => {
+                // Restore button state
+                updateBtn.innerHTML = originalBtnText;
+                updateBtn.disabled = false;
+            });
+        }
+
+        // Helper functions
+        function calculateDaysPending(createdDate) {
+            const created = new Date(createdDate);
+            const today = new Date();
+            const timeDiff = today.getTime() - created.getTime();
+            return Math.ceil(timeDiff / (1000 * 3600 * 24));
+        }
+
+        function getDaysPendingClass(days) {
+            if (days <= 3) return 'days-1-3';
+            if (days <= 7) return 'days-4-7';
+            return 'days-8-plus';
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'S': 'Pending',
+                'R': 'Received',
+                'NR': 'Not Received',
+                'ok': 'OK'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getFileIcon(fileName) {
+            if (!fileName) return '📁';
+            const ext = fileName.split('.').pop().toLowerCase();
+            const iconMap = {
+                pdf: '📄',
+                doc: '📝', docx: '📝',
+                xls: '📊', xlsx: '📊', csv: '📊',
+                jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️',
+                zip: '🗜️', rar: '🗜️',
+                txt: '📄', log: '📄'
+            };
+            return iconMap[ext] || '📁';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString || dateString === '0001-01-01T00:00:00') return '-';
+            const date = new Date(dateString);
+            return date.toISOString().split('T')[0];
+        }
+
+        function updatePendingCount(count) {
+            document.getElementById('countValue').textContent = count;
+        }
+
+        function previewFile(filePath) {
+            if (!filePath) {
+                alert("No attachment available");
+                return;
+            }
+            // Open file in new tab
+            window.open(filePath, '_blank');
+        }
+    </script>
+    <script>
+         // Accept All Selected Rows
+        function acceptAllSelected() {
+            const selectedRows = document.querySelectorAll('input[name="selectRow"]:checked');
+
+            if (selectedRows.length === 0) {
+                alert('❌ Please select at least one row to accept.');
+                return;
+            }
+
+            selectedRows.forEach(checkbox => {
+                const index = checkbox.value;
+                const row = checkbox.closest('tr');
+                const acceptBtn = row.querySelector('.accept-btn');
+                const rejectBtn = row.querySelector('.reject-btn');
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+                const rejectReasonInput = row.querySelector('.reject-reason-input');
+
+                // Set to accept state
+                acceptBtn.classList.add('active');
+                rejectBtn.classList.remove('active');
+
+                // Enable bundle status, disable reject reason
+                bundleStatusSelect.disabled = false;
+                rejectReasonInput.disabled = true;
+                rejectReasonInput.value = '';
+                rejectReasonInput.style.borderColor = '#ddd';
+                rejectReasonInput.style.borderWidth = '1px';
+
+                // Mark bundle status as required
+                if (!bundleStatusSelect.value) {
+                    bundleStatusSelect.style.borderColor = '#e74c3c';
+                    bundleStatusSelect.style.borderWidth = '2px';
+                }
+            });
+
+            alert(`✅ ${selectedRows.length} rows set to Accept. Please select Bundle Status for each row.`);
+        }
+
+        // Reject All Selected Rows
+        function rejectAllSelected() {
+            const selectedRows = document.querySelectorAll('input[name="selectRow"]:checked');
+
+            if (selectedRows.length === 0) {
+                alert('❌ Please select at least one row to reject.');
+                return;
+            }
+
+            selectedRows.forEach(checkbox => {
+                const index = checkbox.value;
+                const row = checkbox.closest('tr');
+                const acceptBtn = row.querySelector('.accept-btn');
+                const rejectBtn = row.querySelector('.reject-btn');
+                const bundleStatusSelect = row.querySelector('.table-bundle-status');
+                const rejectReasonInput = row.querySelector('.reject-reason-input');
+
+                // Set to reject state
+                rejectBtn.classList.add('active');
+                acceptBtn.classList.remove('active');
+
+                // Enable reject reason, disable bundle status
+                rejectReasonInput.disabled = false;
+                bundleStatusSelect.disabled = true;
+                bundleStatusSelect.value = '';
+                bundleStatusSelect.style.borderColor = '#ddd';
+                bundleStatusSelect.style.borderWidth = '1px';
+
+                // Mark reject reason as required
+                if (!rejectReasonInput.value.trim()) {
+                    rejectReasonInput.style.borderColor = '#e74c3c';
+                    rejectReasonInput.style.borderWidth = '2px';
+                }
+            });
+
+            alert(`❌ ${selectedRows.length} rows set to Reject. Please enter Reject Reason for each row.`);
+        }
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                if (currentMode === 'pending') {
+                    document.getElementById('searchInput').focus();
+                } else if (currentMode === 'allData') {
+                    document.getElementById('allDataSearchInput').focus();
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

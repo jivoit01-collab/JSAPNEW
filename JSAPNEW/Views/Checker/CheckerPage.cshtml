@@ -1,0 +1,332 @@
+﻿@{
+    ViewData["Title"] = "Checker Page";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .soft-btn {
+    background: rgba(13, 110, 253, 0.08); /* soft blue */
+    color: #0d6efd;
+    border: 1px solid rgba(13, 110, 253, 0.2);
+    backdrop-filter: blur(6px);
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.soft-btn:hover {
+    background: rgba(13, 110, 253, 0.15);
+    border-color: rgba(13, 110, 253, 0.4);
+    color: #084298;
+}
+    #suggestionBox {
+        position: absolute;
+        top: 70px;
+        width: 100%;
+        background: white;
+        z-index: 1000;
+    }
+
+    .suggest-item {
+        padding: 8px;
+        cursor: pointer;
+    }
+
+        .suggest-item:hover {
+            background: #f1f1f1;
+        }
+
+    td, th {
+        text-align: center;
+        vertical-align: middle !important;
+    }
+</style>
+
+<div class="container-fluid mt-4">
+
+    <h3 class="mb-4">Bill Verification - Checker</h3>
+
+    <!-- FILTER -->
+    <div class="card p-3 shadow-sm">
+        <div class="row">
+
+            <div class="col-md-3">
+                <label>From Date</label>
+                <input type="date" id="fromDate" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <label>To Date</label>
+                <input type="date" id="toDate" class="form-control">
+            </div>
+
+            <div class="col-md-3 position-relative">
+                <label>Account Name</label>
+                <input type="text" id="accountName" class="form-control" placeholder="Search Account" autocomplete="off">
+                <div id="suggestionBox"></div>
+            </div>
+
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-primary w-100" id="searchBtn">Search</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card mt-4 shadow-sm">
+
+        <div class="card-header bg-primary text-white">
+            Bills (Reject Approve)
+        </div>
+
+        <div class="card-body">
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-striped">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Account</th>
+                            <th>Voucher</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Supplier Ref</th>
+                            <th>Due Date</th>
+                            <th>Attachment</th>
+                            <th>Maker Remark</th>
+                            <th>Status</th>
+                            <th>Checker Remark</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="checkerTable"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+
+//------------------------------------
+// LOAD DATA
+//------------------------------------
+function loadData() {
+
+    let fromDate = $("#fromDate").val();
+    let toDate = $("#toDate").val();
+    let accountName = $("#accountName").val().trim() || null;
+
+    // ✅ FIXED LINE
+    $("#checkerTable").html(`<tr><td colspan="11">Loading...</td></tr>`);
+
+    $.get("/Checker/GetBillDetails", {
+        fromDate: fromDate || null,
+        toDate: toDate || null,
+        accountName: accountName
+    }, function (data) {
+
+        console.log("DATA:", data);
+
+        renderTable(data || []);
+
+    }).fail(function (err) {
+        console.log("ERROR:", err);
+
+        // ✅ FIXED LINE
+        $("#checkerTable").html(`<tr><td colspan="11">Error loading data</td></tr>`);
+    });
+}
+
+//------------------------------------
+// RENDER TABLE
+//------------------------------------
+function renderTable(data) {
+
+    if (!data || data.length === 0) {
+        $("#checkerTable").html(`<tr><td colspan="12">No Data Found</td></tr>`);
+        return;
+    }
+
+    let html = "";
+
+    data.forEach(item => {
+
+        let statusBadge =
+            item.checkerStatus === "Approved"
+                ? `<span class="badge bg-success">Approved</span>`
+                : item.checkerStatus === "Rejected"
+                ? `<span class="badge bg-danger">Rejected</span>`
+                : `<span class="badge bg-primary">Pending</span>`;
+
+        html += `
+        <tr>
+            <td>${item.accountName ?? ""}</td>
+            <td>${item.vchNumber ?? ""}</td>
+            <td>${formatDate(item.voucherDate)}</td>
+            <td>${item.billAmount ?? ""}</td>
+
+          <td>${item.supplierRef || '-'}</td>
+<td>${formatDate(item.dueDate)}</td>
+
+<td>
+    ${
+        item.attachmentPath
+        ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
+        : `<span class="text-muted">No File</span>`
+    }
+</td>
+
+<td>${item.makerRemark ?? "-"}</td>
+
+            <td>${statusBadge}</td>
+
+            <td>
+                <input type="text"
+                       class="form-control form-control-sm checkerRemark"
+                       placeholder="Enter remark"
+                       value="${item.checkerRemark ?? ""}">
+            </td>
+
+            <td>
+                ${
+                    item.checkerStatus === "Approved"
+                    ? `<span class="badge bg-success">Approved ✔</span>`
+                    : item.checkerStatus === "Rejected"
+                    ? `<span class="badge bg-danger">Rejected ❌</span>`
+                    : `
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success btn-sm approveBtn" data-vch="${item.vchNumber}">Approve</button>
+                            <button class="btn btn-danger btn-sm rejectBtn" data-vch="${item.vchNumber}">Reject</button>
+                        </div>
+                    `
+                }
+            </td>
+        </tr>`;
+    });
+
+    $("#checkerTable").html(html);
+}
+
+
+//------------------------------------
+// APPROVE
+//------------------------------------
+$(document).on("click", ".approveBtn", function () {
+
+    let vch = $(this).data("vch");
+    let remark = $(this).closest("tr").find(".checkerRemark").val();
+
+    $.post("/Checker/UpdateCheckerStatus", {
+        vchNumber: vch,
+        status: "Approved",
+        remark: remark
+    }).done(function () {
+        alert("Approved ✅");
+        loadData();
+    }).fail(function () {
+        alert("Error ❌");
+    });
+});
+
+
+//------------------------------------
+// REJECT
+//------------------------------------
+$(document).on("click", ".rejectBtn", function () {
+
+    let vch = $(this).data("vch");
+    let remark = $(this).closest("tr").find(".checkerRemark").val();
+
+    $.post("/Checker/UpdateCheckerStatus", {
+        vchNumber: vch,
+        status: "Rejected",
+        remark: remark
+    }).done(function () {
+        alert("Rejected ❌");
+        loadData();
+    }).fail(function () {
+        alert("Error ❌");
+    });
+});
+
+
+//------------------------------------
+// OMNI SEARCH
+//------------------------------------
+$("#accountName").on("keyup", function () {
+
+    let searchText = $(this).val().trim();
+
+    if (searchText.length < 2) {
+        $("#suggestionBox").empty();
+        return;
+    }
+
+    $.get("/Checker/GetAccountSuggestions",
+        { term: searchText },
+        function (data) {
+
+            let html = "";
+
+            if (!data || data.length === 0) {
+                html = `<div class="suggest-item">No result</div>`;
+            } else {
+                data.forEach(x => {
+                    html += `<div class="suggest-item">${x}</div>`;
+                });
+            }
+
+            $("#suggestionBox").html(html);
+        });
+});
+
+
+//------------------------------------
+// SELECT SUGGESTION
+//------------------------------------
+$(document).on("click", ".suggest-item", function () {
+
+    let text = $(this).text();
+
+    if (text === "No result") return;
+
+    $("#accountName").val(text);
+    $("#suggestionBox").empty();
+});
+
+
+//------------------------------------
+// SEARCH BUTTON
+//------------------------------------
+$("#searchBtn").click(loadData);
+
+
+//------------------------------------
+// INIT
+//------------------------------------
+$(document).ready(function () {
+    console.log("Checker JS Loaded ✔");
+    loadData();
+});
+
+
+//------------------------------------
+// DATE FORMAT
+//------------------------------------
+function formatDate(dateString) {
+    if (!dateString) return "";
+    let d = new Date(dateString);
+    return d.toISOString().split('T')[0];
+}
+
+</script>

@@ -1,0 +1,180 @@
+﻿@{
+    ViewData["Title"] = "Task Manager";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+    <link rel="stylesheet" href="~/css/task-management.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Loader -->
+    <div id="loaderOverlay" style="display: none;">
+        <div class="loader"></div>
+    </div>
+
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-tasks"></i> Task Management
+                </h1>
+                <p class="page-subtitle">Manage and track all your tasks</p>
+            </div>
+            <button class="btn btn-primary" onclick="openAddTaskModal()">
+                <i class="fas fa-plus"></i> Create New Task
+            </button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-container">
+            <div class="stat-card stat-total">
+                <div class="stat-icon"><i class="fas fa-list-check"></i></div>
+                <div class="stat-details">
+                    <h3 id="totalTasks">0</h3>
+                    <p>Total Tasks</p>
+                </div>
+            </div>
+            <div class="stat-card stat-progress">
+                <div class="stat-icon"><i class="fas fa-spinner"></i></div>
+                <div class="stat-details">
+                    <h3 id="inProgressTasks">0</h3>
+                    <p>In Progress</p>
+               
+                </div>
+            </div>
+            <div class="stat-card stat-completed">
+                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-details">
+                    <h3 id="completedTasks">0</h3>
+                    <p>Completed</p>
+                </div>
+            </div>
+            <div class="stat-card stat-overdue">
+                <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="stat-details">
+                    <h3 id="overdueTasks">0</h3>
+                    <p>Overdue</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="completion-container">
+            <h1>Task Progress</h1>
+            <div class="bar-container">
+                <div class="bar">
+                    <span class="percentage-text">0%</span>
+                </div>
+            <div class="task-info"></div> 
+            </div>
+        </div>
+
+        <!-- Task Cards Container -->
+        <div class="task-container">
+            <!-- Tasks will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div id="addTaskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-plus-circle"></i> Create New Task</h2>
+                <span class="close" onclick="closeAddTaskModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="taskForm" onsubmit="createNewTask(event)">
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="taskName">
+                                <i class="fas fa-heading"></i> Task Name <span class="required">*</span>
+                            </label>
+                            <input type="text" id="taskName" required maxlength="255" placeholder="Enter task name" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="description">
+                                <i class="fas fa-align-left"></i> Description
+                            </label>
+                            <textarea id="description" rows="4" maxlength="4000" placeholder="Enter task description"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectName">
+                                <i class="fas fa-project-diagram"></i> Project Name <span class="required">*</span>
+                            </label>
+                            <input type="text" id="projectName" required maxlength="255" placeholder="e.g., Website Redesign" />
+                        </div>
+                        <div class="form-group">
+                            <label for="moduleName">
+                                <i class="fas fa-cube"></i> Module Name <span class="required">*</span>
+                            </label>
+                            <input type="text" id="moduleName" required maxlength="255" placeholder="e.g., Frontend" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dept">
+                                <i class="fas fa-building"></i> Department <span class="required">*</span>
+                            </label>
+                            <select id="dept" required class="user-select" placeholder="Select Department" onchange="getUsers(this)"></select>
+                        </div>
+                        <div class="form-group disabled-group user-group">
+                            <label for="assignedTo">
+                                <i class="fas fa-user"></i> Assigned To <span class="required">*</span>
+                            </label>
+                            <select id="assignedTo" required class="user-select " placeholder="Select User"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="priority">
+                                <i class="fas fa-flag"></i> Priority <span class="required">*</span>
+                            </label>
+                            <select id="priority" required>
+                                <option value="LOW">Low</option>
+                                <option value="MEDIUM" selected>Medium</option>
+                                <option value="HIGH">High</option>
+                                <option value="CRITICAL">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="startDate">
+                                <i class="fas fa-calendar-plus"></i> Start Date <span class="required">*</span>
+                            </label>
+                            <input type="date" id="startDate" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="expectedEndDate">
+                                <i class="fas fa-calendar-check"></i> Expected End Date <span class="required">*</span>
+                            </label>
+                            <input type="date" id="expectedEndDate" required />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeAddTaskModal()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        var companyId = @ViewBag.CompanyId;
+        var userId = @ViewBag.userId;
+
+        console.log('Company ID:', companyId);
+        console.log('User ID:', userId);
+    </script>
+    <script src="~/js/task-management.js"></script>
+

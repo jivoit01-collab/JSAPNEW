@@ -1,0 +1,1542 @@
+﻿@* @model JSAPNEW.Models.InventoryAuditEditModel *@
+
+@{
+    ViewData["Title"] = "Edit Inventory Audit";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Inventory Audit</title>
+    <style>
+        :root {
+            --primary-color: #0b2c4d;
+            --primary-light: #1a4066;
+            --primary-dark: #051a2f;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --border-radius-sm: 6px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--light-bg) 0%, #e8f4f8 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+        }
+
+        /* Modern Card Styles */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+            .card:hover {
+                box-shadow: var(--shadow-lg);
+                transform: translateY(-1px);
+            }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            border-bottom: none;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 44, 77, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-circle {
+            width: 56px;
+            height: 56px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.75rem;
+        }
+
+        .loading-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: white;
+            text-align: center;
+        }
+
+        /* Progress Circle */
+        .progress-circle-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+        }
+
+        .progress-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(#ffffff 0deg, rgba(255, 255, 255, 0.2) 0deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+            .progress-circle::before {
+                content: '';
+                position: absolute;
+                width: 64px;
+                height: 64px;
+                background: rgba(11, 44, 77, 0.9);
+                border-radius: 50%;
+            }
+
+        .progress-text {
+            position: relative;
+            z-index: 1;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .progress-details {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        @@keyframes spin {
+            0%
+
+        {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+
+        }
+
+        /* Grid Layout */
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .grid-6 {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+        }
+
+        /* Read-only sections */
+        .readonly-section {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+            .readonly-section::before {
+                content: '🔒 Read Only - Cannot be modified';
+                position: absolute;
+                top: -12px;
+                left: 20px;
+                background: var(--warning-color);
+                color: white;
+                padding: 0.2rem 0.8rem;
+                border-radius: var(--border-radius-sm);
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+        .readonly-field {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: var(--border-radius-sm);
+            padding: 0.8rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .readonly-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        /* Data Table */
+        .data-table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+            .items-table thead {
+                background: #f8fafc;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+            .items-table th {
+                padding: 0.8rem;
+                text-align: left;
+                font-weight: 600;
+                font-size: 0.8rem;
+                color: var(--text-primary);
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            }
+
+            .items-table tbody tr {
+                border-bottom: 1px solid var(--border-color);
+                transition: background-color 0.2s ease;
+            }
+
+                .items-table tbody tr:hover {
+                    background-color: #f8fafc;
+                }
+
+                .items-table tbody tr:last-child {
+                    border-bottom: none;
+                }
+
+            .items-table td {
+                padding: 0.8rem;
+                font-size: 0.875rem;
+                vertical-align: middle;
+            }
+
+        /* Readonly table cells */
+        .readonly-cell {
+            background: #f8fafc;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .system-count-cell {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            font-weight: 600;
+            text-align: center;
+            border-radius: var(--border-radius-sm);
+        }
+
+        .stock-value-cell {
+            background: linear-gradient(135deg, #e1f5fe, #b3e5fc);
+            color: #01579b;
+            font-weight: 600;
+            text-align: center;
+            border-radius: var(--border-radius-sm);
+        }
+
+        /* Editable input */
+        .editable-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid var(--accent-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+            .editable-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+                background: #f0f9ff;
+            }
+
+            .editable-input:disabled {
+                background: #f8fafc;
+                border-color: #e2e8f0;
+                color: var(--text-secondary);
+                cursor: not-allowed;
+            }
+
+        /* Difference cells */
+        .diff-positive {
+            color: var(--success-color);
+            font-weight: 600;
+            background: #f0f9ff;
+        }
+
+        .diff-negative {
+            color: var(--danger-color);
+            font-weight: 600;
+            background: #fef2f2;
+        }
+
+        .diff-zero {
+            color: var(--text-secondary);
+            font-weight: 500;
+            background: #f8fafc;
+        }
+
+        /* Summary Stats */
+        .summary-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            padding: 0.8rem 1rem;
+            text-align: center;
+            min-width: 140px;
+            flex: 1;
+        }
+
+        .summary-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.3rem;
+        }
+
+        .summary-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .btn:hover:not(.disabled) {
+                transform: translateY(-1px);
+            }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #229954);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-lg {
+            padding: 0.8rem 1.6rem;
+            font-size: 1rem;
+        }
+
+        /* Action Bar */
+        .action-bar {
+            padding: 1rem 1.5rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Navigation bar */
+        .nav-bar {
+            background: linear-gradient(135deg, #e3f2fd, #f8f9ff);
+            border: 2px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-danger {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        .alert-warning {
+            background: #fef5e7;
+            color: #975a16;
+            border: 1px solid #f6e05e;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+
+        .alert-close {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+            .alert-close:hover {
+                opacity: 1;
+            }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 0.8rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        /* Closed status styling */
+        .status-closed {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 0.4rem 0.8rem;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid #feb2b2;
+        }
+
+        .status-pending {
+            background: #fef5e7;
+            color: #975a16;
+            padding: 0.4rem 0.8rem;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid #f6e05e;
+        }
+
+        /* Responsive Design */
+        @@media (max-width: 1024px) {
+            .grid-6, .grid-4
+
+        {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        }
+
+        @@media (max-width: 768px) {
+            .grid-6, .grid-4
+
+        {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .nav-bar {
+            flex-direction: column;
+            gap: 0.8rem;
+            text-align: center;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .items-table {
+            font-size: 0.8rem;
+        }
+
+            .items-table th, .items-table td {
+                padding: 0.6rem 0.4rem;
+            }
+
+        .action-bar {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+
+        .summary-stats {
+            flex-direction: column;
+        }
+
+        }
+
+        @@media (max-width: 480px) {
+            .grid-6, .grid-4
+
+        {
+            grid-template-columns: 1fr;
+        }
+
+        .app-container {
+            padding: 0.5rem;
+        }
+
+        .card-header, .card-body {
+            padding: 0.8rem;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-circle"></div>
+        <div class="loading-text">Loading audit data...</div>
+    </div>
+
+    <div class="app-container">
+        <input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.company" />
+        <input type="hidden" id="UserId" name="UserId" value="@ViewBag.userId" />
+        <input type="hidden" id="LotNumber" name="LotNumber" value="@ViewBag.lotNumber" />
+
+        <!-- Navigation -->
+        <div class="nav-bar">
+            <div class="nav-title">Edit Inventory Audit - <span id="displayLotNumber">@ViewBag.lotNumber</span></div>
+            <div>
+                <button class="btn btn-secondary" onclick="goBackToList()">⬅️ Back to List</button>
+            </div>
+        </div>
+
+        <!-- Audit Information Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Audit Information</h2>
+            </div>
+            <div class="card-body">
+                <div class="grid-4">
+                    <div>
+                        <div class="readonly-label">Lot Number</div>
+                        <div class="readonly-field" id="auditLotNumber">-</div>
+                    </div>
+                    <div>
+                        <div class="readonly-label">Created By</div>
+                        <div class="readonly-field" id="auditCreatedBy">-</div>
+                    </div>
+                    <div>
+                        <div class="readonly-label">Created On</div>
+                        <div class="readonly-field" id="auditCreatedOn">-</div>
+                    </div>
+                    <div>
+                        <div class="readonly-label">Status</div>
+                        <div class="readonly-field" id="auditStatus">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Count Parameters (Read-only) -->
+        <div class="readonly-section">
+            <h3 style="margin-bottom: 1.5rem; color: var(--primary-color); font-weight: 600;">Count Parameters</h3>
+
+            <div class="grid-6">
+                <div>
+                    <div class="readonly-label">Unit</div>
+                    <div class="readonly-field" id="paramUnit">-</div>
+                </div>
+                <div>
+                    <div class="readonly-label">Location</div>
+                    <div class="readonly-field" id="paramLocation">-</div>
+                </div>
+                <div>
+                    <div class="readonly-label">Warehouses</div>
+                    <div class="readonly-field" id="paramWarehouses">-</div>
+                </div>
+                <div>
+                    <div class="readonly-label">Item Groups</div>
+                    <div class="readonly-field" id="paramItemGroups">-</div>
+                </div>
+                <div>
+                    <div class="readonly-label">Item Sub Groups</div>
+                    <div class="readonly-field" id="paramSubGroups">-</div>
+                </div>
+                <div>
+                    <div class="readonly-label">Total Items</div>
+                    <div class="readonly-field" id="paramTotalItems">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="data-table-container">
+            <div class="table-header">
+                <h3 class="table-title">Items Data (Physical Count Editable Only)</h3>
+                <div style="font-size: 0.875rem;">
+                    Items with Physical Count: <span id="itemsWithCount">0</span> / <span id="totalItems">0</span>
+                </div>
+            </div>
+
+            <!-- Summary Statistics -->
+            <div class="summary-stats" id="summaryStats" style="padding: 1rem 1.5rem; display: none;">
+                <div class="summary-card">
+                    <div class="summary-label">Total Qty Difference</div>
+                    <div class="summary-value" id="totalQtyDifference">0</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Total Value Difference</div>
+                    <div class="summary-value" id="totalValueDifference">0.00</div>
+                </div>
+            </div>
+
+            <div id="itemsTableContainer">
+                <div class="empty-state" id="emptyTable">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>Loading audit data...</h3>
+                    <p>Please wait while we load the audit data for this lot number</p>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="action-bar" id="itemsActions" style="display: none;">
+                <button class="btn btn-danger btn-lg" onclick="closeAudit()" id="closeButton">🔒 Closed</button>
+                <button class="btn btn-success btn-lg" onclick="updateAudit()" id="updateButton">💾 Update</button>
+                <button class="btn btn-secondary btn-lg" onclick="clearChanges()" id="clearButton">🔄 Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let auditData = null;
+        let itemsData = [];
+        let originalItemsData = [];
+        let hasUnsavedChanges = false;
+        let isAuditClosed = false;
+
+        function getLotNumber() {
+            // Try to get from URL parameter first, then from hidden field
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlLotNumber = urlParams.get('lotNumber');
+            const hiddenLotNumber = document.getElementById('LotNumber').value;
+
+            const lotNumber = urlLotNumber || hiddenLotNumber || '@ViewBag.lotNumber';
+            console.log('Lot Number:', lotNumber);
+            return lotNumber;
+        }
+
+        function getCompanyId() {
+            const companyId = document.getElementById('CompanyId').value;
+            console.log('Company ID:', companyId);
+            return companyId;
+        }
+
+        function getUserId() {
+            const userId = document.getElementById('UserId').value;
+            console.log('User ID:', userId);
+            return userId;
+        }
+
+        function validateRequired() {
+            const lotNumber = getLotNumber();
+
+            if (!lotNumber || lotNumber.trim() === '') {
+                showGlobalError('Lot Number is not set. Please ensure it is passed as a URL parameter or ViewBag.');
+                return false;
+            }
+
+            return true;
+        }
+
+        // Load audit data by lot number using the new API endpoint
+        async function loadAuditData() {
+            console.log('=== LOADING AUDIT DATA BY LOT NUMBER ===');
+
+            if (!validateRequired()) {
+                hideLoadingOverlay();
+                return;
+            }
+
+            const lotNumber = getLotNumber();
+
+            try {
+                showLoadingOverlay('Loading audit data...');
+
+                console.log('Loading audit data for lot number:', lotNumber);
+
+                // Call the new API endpoint using GET method
+                const response = await fetch(`/api/InventoryAudit/GetItemsUsingLotNumber?lotNumber=${encodeURIComponent(lotNumber)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', JSON.stringify(data, null, 2));
+
+                if (data && data.success && data.data) {
+                    // Extract data from the new response structure
+                    auditData = data.data.headers && data.data.headers.length > 0 ? data.data.headers[0] : {};
+                    itemsData = data.data.items || [];
+
+                    // Add warehouse, itemGroup, and itemSubGroup lists to auditData for comma-separated display
+                    auditData.warehouseList = data.data.warehouses || [];
+                    auditData.itemGroupList = data.data.itemGroups || [];
+                    auditData.itemSubGroupList = data.data.itemSubGroups || [];
+
+                    // Check if audit is closed
+                    //isAuditClosed = auditData.status && (auditData.status.toLowerCase() === 'closed' || auditData.status.toLowerCase() === 'completed');
+                    isAuditClosed = auditData.status && (auditData.status.toLowerCase() === 'closed');
+
+                    // Store original data for reset functionality
+                    originalItemsData = JSON.parse(JSON.stringify(itemsData));
+
+                    console.log('Loaded audit data:', auditData);
+                    console.log('Loaded items data:', itemsData.length, 'items');
+                    console.log('Is audit closed:', isAuditClosed);
+
+                    // Display the data
+                    displayAuditInfo();
+                    displayCountParameters();
+                    displayItemsTable();
+
+                } else {
+                    throw new Error(data?.message || 'Failed to load audit data or invalid response structure');
+                }
+
+            } catch (error) {
+                console.error('Failed to load audit data:', error);
+                showGlobalError('Failed to load audit data: ' + error.message);
+                showEmptyState('Failed to load audit data. Please check the lot number and try again.');
+            } finally {
+                hideLoadingOverlay();
+            }
+        }
+
+        function displayAuditInfo() {
+            console.log('Displaying audit info:', auditData);
+
+            // Update display elements
+            document.getElementById('displayLotNumber').textContent = auditData.lotNumber || getLotNumber();
+            document.getElementById('auditLotNumber').textContent = auditData.lotNumber || getLotNumber();
+            document.getElementById('auditCreatedBy').textContent = auditData.loginUser || auditData.createdBy || '-';
+            document.getElementById('auditCreatedOn').textContent = auditData.createdOn ?
+                new Date(auditData.createdOn).toLocaleDateString() : '-';
+
+            const statusElement = document.getElementById('auditStatus');
+            const status = auditData.status || 'Pending';
+            statusElement.textContent = status;
+
+            // Apply status-specific styling
+            if (status.toLowerCase() === 'completed') {
+                statusElement.className = 'readonly-field status-closed';
+            } else {
+                statusElement.className = 'readonly-field status-pending';
+            }
+        }
+
+        function displayCountParameters() {
+            console.log('Displaying count parameters:', auditData);
+
+            document.getElementById('paramUnit').textContent = auditData.unit || '-';
+            document.getElementById('paramLocation').textContent = auditData.location || '-';
+
+            // Display warehouses as comma-separated values
+            const warehouses = auditData.warehouseList.map(w => w.warehouseName).join(', ');
+            document.getElementById('paramWarehouses').textContent = warehouses || auditData.warehouse || '-';
+
+            // Display item groups as comma-separated values
+            const itemGroups = auditData.itemGroupList.map(ig => ig.itemGroupName).join(', ');
+            document.getElementById('paramItemGroups').textContent = itemGroups || '-';
+
+            // Display item sub groups as comma-separated values
+            const subGroups = auditData.itemSubGroupList.map(sg => sg.itemSubGroupName).join(', ');
+            document.getElementById('paramSubGroups').textContent = subGroups || '-';
+
+            document.getElementById('paramTotalItems').textContent = itemsData.length || 0;
+        }
+
+        function displayItemsTable() {
+            console.log('Displaying items table with', itemsData.length, 'items');
+            console.log('Is audit closed:', isAuditClosed);
+
+            const tableContainer = document.getElementById('itemsTableContainer');
+            const itemsActions = document.getElementById('itemsActions');
+            const totalItemsSpan = document.getElementById('totalItems');
+
+            totalItemsSpan.textContent = itemsData.length;
+
+            if (itemsData.length === 0) {
+                showEmptyState('No items found for this audit. The audit may be empty or the lot number may be invalid.');
+                itemsActions.style.display = 'none';
+                document.getElementById('summaryStats').style.display = 'none';
+                return;
+            }
+
+            // Always show actions as per requirement
+            itemsActions.style.display = 'flex';
+
+            const tableHtml = `
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item Code</th>
+                            <th>Item Name</th>
+                            <th>Warehouse</th>
+                            <th>Item Group Name</th>
+                            <th>Item Sub Group</th>
+                            <th>System Count</th>
+                            <th>Last Count</th>
+                            <th>Physical Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsData.map((item, index) => {
+                            const systemCount = parseFloat(item.systemCount || 0);
+                            const lastCount = parseFloat(item.lastCount || 0);
+
+                            return `
+                                <tr data-index="${index}">
+                                    <td class="readonly-cell">
+                                        <strong>${item.itemCode || ''}</strong>
+                                    </td>
+                                    <td class="readonly-cell">
+                                        ${item.itemName || 'N/A'}
+                                    </td>
+                                    <td class="readonly-cell">
+                                        <strong style="color: var(--primary-color);">${item.warehouseId || ''}</strong>
+                                    </td>
+                                    <td class="readonly-cell">
+                                        ${item.itmsGrpNam || 'N/A'}
+                                    </td>
+                                    <td class="readonly-cell">
+                                        ${item.u_Sub_Group || 'N/A'}
+                                    </td>
+                                    <td class="system-count-cell">
+                                        ${systemCount.toFixed(2)}
+                                    </td>
+                                    <td class="readonly-cell">
+                                        ${lastCount.toFixed(2)}
+                                    </td>
+                                    <td>
+                                        <input type="number" class="editable-input"
+                                               data-index="${index}"
+                                               placeholder="0.00"
+                                               min="0"
+                                               step="0.01"
+                                               value="${item.physicalCount || ''}"
+                                               onchange="updatePhysicalCount(${index}, this.value)"
+                                               ${isAuditClosed ? 'disabled' : ''}
+                                               title="${isAuditClosed ? 'Cannot edit - Audit is closed' : 'Enter physical count - this is the only editable field'}">
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            tableContainer.innerHTML = tableHtml;
+            updateSummaryStats();
+            updateButtonStates();
+
+            // Show closed status message
+            if (isAuditClosed) {
+                showTemporaryMessage('This audit is CLOSED. No changes can be made.', 'warning');
+            }
+        }
+
+        function updatePhysicalCount(index, value) {
+            if (isAuditClosed) {
+                showTemporaryMessage('Cannot edit - Audit is closed', 'warning');
+                // Reset the input value to original
+                const input = document.querySelector(`input[data-index="${index}"]`);
+                if (input) {
+                    input.value = itemsData[index].physicalCount || '';
+                }
+                return;
+            }
+
+            console.log(`Updating physical count for item ${index}: ${value}`);
+
+            const numericValue = parseFloat(value) || 0;
+
+            // Update the data
+            itemsData[index].physicalCount = value === '' ? '' : numericValue.toString();
+            hasUnsavedChanges = true;
+
+            // Update the specific row calculations
+            updateRowCalculations(index);
+
+            // Update summary statistics
+            updateSummaryStats();
+
+            // Update save button state
+            updateButtonStates();
+        }
+
+        function updateRowCalculations(index) {
+            const item = itemsData[index];
+            const systemCount = parseFloat(item.systemCount || 0);
+            const stockValue = parseFloat(item.stockValue || 0);
+            const physicalCount = parseFloat(item.physicalCount || 0);
+
+            const qtyDiff = physicalCount - systemCount;
+            const unitRate = systemCount > 0 ? stockValue / systemCount : 0;
+            const valueDiff = qtyDiff * unitRate;
+
+            // Update difference cells
+            const qtyDiffCell = document.querySelector(`[data-qty-diff="${index}"]`);
+            const valueDiffCell = document.querySelector(`[data-value-diff="${index}"]`);
+
+            if (qtyDiffCell) {
+                qtyDiffCell.textContent = (qtyDiff > 0 ? '+' : '') + qtyDiff.toFixed(2);
+                qtyDiffCell.className = qtyDiff > 0 ? 'diff-positive' :
+                                       qtyDiff < 0 ? 'diff-negative' : 'diff-zero';
+            }
+
+            if (valueDiffCell) {
+                valueDiffCell.textContent = (valueDiff > 0 ? '+' : '') + valueDiff.toFixed(2);
+                valueDiffCell.className = valueDiff > 0 ? 'diff-positive' :
+                                        valueDiff < 0 ? 'diff-negative' : 'diff-zero';
+            }
+
+            console.log(`Row ${index} updated - Qty Diff: ${qtyDiff}, Value Diff: ${valueDiff}`);
+        }
+
+        function updateSummaryStats() {
+            console.log('Updating summary statistics...');
+
+            let totalQtyDiff = 0;
+            let totalValueDiff = 0;
+            let itemsCounted = 0;
+
+            itemsData.forEach(item => {
+                const systemCount = parseFloat(item.systemCount || 0);
+                const stockValue = parseFloat(item.stockValue || 0);
+                const physicalCount = parseFloat(item.physicalCount || 0);
+
+                if (item.physicalCount !== '' && item.physicalCount !== null && item.physicalCount !== undefined) {
+                    itemsCounted++;
+                }
+
+                const qtyDiff = physicalCount - systemCount;
+                const unitRate = systemCount > 0 ? stockValue / systemCount : 0;
+                const valueDiff = qtyDiff * unitRate;
+
+                totalQtyDiff += qtyDiff;
+                totalValueDiff += valueDiff;
+            });
+
+            // Update display elements
+            const totalQtyElement = document.getElementById('totalQtyDifference');
+            const totalValueElement = document.getElementById('totalValueDifference');
+            const itemsWithCountSpan = document.getElementById('itemsWithCount');
+
+            totalQtyElement.textContent = (totalQtyDiff > 0 ? '+' : '') + totalQtyDiff.toFixed(2);
+            totalValueElement.textContent = (totalValueDiff > 0 ? '+' : '') + totalValueDiff.toFixed(2);
+            itemsWithCountSpan.textContent = itemsCounted;
+
+            // Set colors for differences
+            totalQtyElement.style.color = totalQtyDiff > 0 ? 'var(--success-color)' :
+                                        totalQtyDiff < 0 ? 'var(--danger-color)' : 'var(--text-secondary)';
+            totalValueElement.style.color = totalValueDiff > 0 ? 'var(--success-color)' :
+                                          totalValueDiff < 0 ? 'var(--danger-color)' : 'var(--text-secondary)';
+
+            document.getElementById('summaryStats').style.display = 'flex';
+
+            console.log(`Summary: Qty Diff = ${totalQtyDiff}, Value Diff = ${totalValueDiff}, Counted = ${itemsCounted}/${itemsData.length}`);
+        }
+
+        function updateButtonStates() {
+            const updateButton = document.getElementById('updateButton');
+            const closeButton = document.getElementById('closeButton');
+            const clearButton = document.getElementById('clearButton');
+
+            if (isAuditClosed) {
+                // If audit is closed, disable all buttons and show appropriate messages
+                updateButton.classList.add('disabled');
+                closeButton.classList.add('disabled');
+                clearButton.classList.add('disabled');
+
+                updateButton.innerHTML = '💾 Audit Closed';
+                closeButton.innerHTML = '🔒 Already Closed';
+                clearButton.innerHTML = '🔄 Cannot Clear';
+                return;
+            }
+
+            // If audit is not closed, keep buttons active as per requirement
+            updateButton.classList.remove('disabled');
+            closeButton.classList.remove('disabled');
+            clearButton.classList.remove('disabled');
+
+            if (hasUnsavedChanges) {
+                updateButton.innerHTML = '💾 Update *';
+            } else {
+                updateButton.innerHTML = '💾 Update';
+            }
+
+            closeButton.innerHTML = '🔒 Close Audit';
+            clearButton.innerHTML = '🔄 Clear Changes';
+        }
+
+        // Calculate summary differences for API
+        function calculateSummaryDifferences() {
+            let totalQtyDiff = 0;
+            let totalValueDiff = 0;
+
+            itemsData.forEach(item => {
+                const systemCount = parseFloat(item.systemCount || 0);
+                const stockValue = parseFloat(item.stockValue || 0);
+                const physicalCount = item.physicalCount === '' || item.physicalCount === null || item.physicalCount === undefined
+                    ? 0 : parseFloat(item.physicalCount || 0);
+
+                const qtyDiff = physicalCount - systemCount;
+                const unitRate = systemCount > 0 ? stockValue / systemCount : 0;
+                const valueDiff = qtyDiff * unitRate;
+
+                totalQtyDiff += qtyDiff;
+                totalValueDiff += valueDiff;
+            });
+
+            return {
+                totalQtyDifference: totalQtyDiff,
+                totalValueDifference: totalValueDiff
+            };
+        }
+
+        async function apiCallPost(url, requestData) {
+            try {
+                console.log('Making POST API call to:', url);
+                console.log('Request data:', JSON.stringify(requestData, null, 2));
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', JSON.stringify(data, null, 2));
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        async function updateAudit() {
+            console.log('=== UPDATING AUDIT ===');
+
+            showLoadingOverlay('Preparing to update audit...');
+
+            const updateButton = document.getElementById('updateButton');
+            updateButton.disabled = true;
+            updateButton.innerHTML = '💾 Updating...';
+
+            try {
+                const userId = getUserId() || auditData.createdBy;
+                const currentStatus = auditData.status || 'Pending'; // Keep existing status
+                const summaryDiffs = calculateSummaryDifferences();
+
+                // Make individual API calls for each item
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                for (let i = 0; i < itemsData.length; i++) {
+                    const item = itemsData[i];
+
+                    // Show progress
+                    showProgressOverlay('Updating audit...', i + 1, itemsData.length);
+
+                    const physicalCount = item.physicalCount === '' || item.physicalCount === null || item.physicalCount === undefined
+                        ? 0 : parseFloat(item.physicalCount || 0);
+
+                    const updateRequest = {
+                        ItemId: item.itemId || item.itemCode, // Use itemId if available, otherwise itemCode
+                        NewPhysicalCount: physicalCount,
+                        HeaderDifferenceQty: summaryDiffs.totalQtyDifference,
+                        HeaderDifferenceValue: summaryDiffs.totalValueDifference,
+                        UpdatedBy: userId,
+                        Notes: "",
+                        status: currentStatus // Keep existing status
+                    };
+
+                    try {
+                        console.log(`Updating item ${i + 1}/${itemsData.length}:`, updateRequest);
+                        const response = await apiCallPost('/api/InventoryAudit/UpdatePhysicalCount', updateRequest);
+
+                        if (response && response.success) {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                            errors.push(`Item ${item.itemCode || i + 1}: ${response?.message || 'Update failed'}`);
+                        }
+                    } catch (itemError) {
+                        errorCount++;
+                        errors.push(`Item ${item.itemCode || i + 1}: ${itemError.message}`);
+                        console.error(`Failed to update item ${item.itemCode}:`, itemError);
+                    }
+
+                    // Small delay to show progress (optional, can be removed if too slow)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                // Report results
+                if (successCount === itemsData.length) {
+                    // All items updated successfully
+                    originalItemsData = JSON.parse(JSON.stringify(itemsData));
+                    hasUnsavedChanges = false;
+                    updateButtonStates();
+                    showTemporaryMessage(`All ${successCount} items updated successfully!`, 'success');
+                    console.log('All items updated successfully');
+                } else if (successCount > 0) {
+                    // Partial success
+                    showTemporaryMessage(`${successCount} items updated, ${errorCount} failed. Check console for details.`, 'warning');
+                    console.warn('Partial update completed:', { successCount, errorCount, errors });
+                } else {
+                    // All failed
+                    throw new Error(`All updates failed. First error: ${errors[0] || 'Unknown error'}`);
+                }
+
+            } catch (error) {
+                console.error('Update failed:', error);
+                showGlobalError('Update failed: ' + error.message);
+            } finally {
+                hideLoadingOverlay();
+                updateButton.disabled = false;
+                updateButton.innerHTML = '💾 Update';
+            }
+        }
+
+        async function closeAudit() {
+            const confirmClose = confirm(
+                'Are you sure you want to CLOSE this inventory audit?\n\n' +
+                'This action will:\n' +
+                '• Save all current changes\n' +
+                '• Mark the audit as "Closed"\n\n' +
+                'Click OK to proceed with closing.'
+            );
+
+            if (!confirmClose) return;
+
+            console.log('=== CLOSING AUDIT ===');
+
+            showLoadingOverlay('Preparing to close audit...');
+
+            const closeButton = document.getElementById('closeButton');
+            closeButton.disabled = true;
+            closeButton.innerHTML = '🔒 Closing...';
+
+            try {
+                const userId = getUserId() || auditData.createdBy;
+                const summaryDiffs = calculateSummaryDifferences();
+
+                // Make individual API calls for each item with Closed status
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                for (let i = 0; i < itemsData.length; i++) {
+                    const item = itemsData[i];
+
+                    // Show progress
+                    showProgressOverlay('Closing audit...', i + 1, itemsData.length);
+
+                    const physicalCount = item.physicalCount === '' || item.physicalCount === null || item.physicalCount === undefined
+                        ? 0 : parseFloat(item.physicalCount || 0);
+
+                    const updateRequest = {
+                        ItemId: item.itemId || item.itemCode, // Use itemId if available, otherwise itemCode
+                        NewPhysicalCount: physicalCount,
+                        HeaderDifferenceQty: summaryDiffs.totalQtyDifference,
+                        HeaderDifferenceValue: summaryDiffs.totalValueDifference,
+                        UpdatedBy: userId,
+                        Notes: "",
+                        status: "Closed" // Set status to Closed
+                    };
+
+                    try {
+                        console.log(`Closing item ${i + 1}/${itemsData.length}:`, updateRequest);
+                        const response = await apiCallPost('/api/InventoryAudit/UpdatePhysicalCount', updateRequest);
+
+                        if (response && response.success) {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                            errors.push(`Item ${item.itemCode || i + 1}: ${response?.message || 'Close failed'}`);
+                        }
+                    } catch (itemError) {
+                        errorCount++;
+                        errors.push(`Item ${item.itemCode || i + 1}: ${itemError.message}`);
+                        console.error(`Failed to close item ${item.itemCode}:`, itemError);
+                    }
+
+                    // Small delay to show progress (optional, can be removed if too slow)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                // Report results
+                if (successCount === itemsData.length) {
+                    // All items closed successfully
+                    showTemporaryMessage(`Audit closed successfully! All ${successCount} items processed. Redirecting to list...`, 'success');
+
+                    // Update local state
+                    isAuditClosed = true;
+                    auditData.status = 'Closed';
+                    hasUnsavedChanges = false;
+
+                    // Refresh display
+                    displayAuditInfo();
+                    displayItemsTable(); // Refresh table to disable inputs
+                    updateButtonStates();
+
+                    // Redirect to list after short delay
+                    setTimeout(() => {
+                        goBackToList();
+                    }, 3000);
+
+                    console.log('Audit closed successfully');
+                } else if (successCount > 0) {
+                    // Partial success
+                    showTemporaryMessage(`${successCount} items closed, ${errorCount} failed. Check console for details.`, 'warning');
+                    console.warn('Partial close completed:', { successCount, errorCount, errors });
+                } else {
+                    // All failed
+                    throw new Error(`All close operations failed. First error: ${errors[0] || 'Unknown error'}`);
+                }
+
+            } catch (error) {
+                console.error('Close failed:', error);
+                showGlobalError('Close failed: ' + error.message);
+            } finally {
+                hideLoadingOverlay();
+                closeButton.disabled = false;
+                closeButton.innerHTML = '🔒 Closed';
+            }
+        }
+
+        function clearChanges() {
+            const confirmClear = confirm(
+                'Are you sure you want to clear all changes?\n\n' +
+                'This will restore all physical counts to their original values.\n' +
+                'Any unsaved changes will be lost.\n\n' +
+                'Click OK to proceed with clearing.'
+            );
+
+            if (!confirmClear) return;
+
+            console.log('=== CLEARING CHANGES ===');
+
+            // Restore original data
+            itemsData = JSON.parse(JSON.stringify(originalItemsData));
+            hasUnsavedChanges = false;
+
+            // Refresh the display
+            displayItemsTable();
+            updateButtonStates();
+
+            showTemporaryMessage('All changes have been cleared to original values', 'info');
+            console.log('Changes cleared successfully');
+        }
+
+        function goBackToList() {
+            if (hasUnsavedChanges && !isAuditClosed) {
+                const confirmLeave = confirm(
+                    'You have unsaved changes.\n\n' +
+                    'Are you sure you want to leave this page?\n' +
+                    'Any unsaved changes will be lost.'
+                );
+
+                if (!confirmLeave) return;
+            }
+
+            window.location.href = '/InventoryAuditWeb/AllInventory';
+        }
+
+        function showEmptyState(message) {
+            const tableContainer = document.getElementById('itemsTableContainer');
+            tableContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>No audit data available</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        // Utility functions
+        function showLoadingOverlay(message = 'Loading...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const text = overlay.querySelector('.loading-text');
+            if (overlay) {
+                text.textContent = message;
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function showProgressOverlay(message = 'Processing...', current = 0, total = 0) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (!overlay) return;
+
+            const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+
+            overlay.innerHTML = `
+                <div class="progress-circle-container">
+                    <div class="progress-circle" style="background: conic-gradient(#ffffff ${percentage * 3.6}deg, rgba(255, 255, 255, 0.2) 0deg)">
+                        <div class="progress-text">${percentage}%</div>
+                    </div>
+                </div>
+                <div class="loading-text">${message}</div>
+                <div class="progress-details">Processing item ${current} of ${total}</div>
+            `;
+            overlay.style.display = 'flex';
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                // Reset to original structure
+                overlay.innerHTML = `
+                    <div class="loading-circle"></div>
+                    <div class="loading-text">Loading...</div>
+                `;
+            }
+        }
+
+        function showGlobalError(message) {
+            const existingError = document.querySelector('.global-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger global-error';
+            errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            errorDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 10000);
+        }
+
+        function showTemporaryMessage(message, type = 'info') {
+            const existingMessage = document.querySelector('.temp-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const alertClass = type === 'success' ? 'alert-success' :
+                             type === 'warning' ? 'alert-warning' :
+                             type === 'danger' ? 'alert-danger' : 'alert-info';
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert ${alertClass} temp-message`;
+            messageDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; max-width: 500px;';
+            messageDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(messageDiv);
+
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 4000);
+        }
+
+        // Prevent accidental navigation away with unsaved changes
+        window.addEventListener('beforeunload', function (e) {
+            if (hasUnsavedChanges && !isAuditClosed) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Inventory Audit Edit page...');
+            console.log('Lot Number from URL/ViewBag:', getLotNumber());
+
+            loadAuditData();
+        });
+
+        // Make functions globally available
+        window.updatePhysicalCount = updatePhysicalCount;
+        window.updateAudit = updateAudit;
+        window.closeAudit = closeAudit;
+        window.clearChanges = clearChanges;
+        window.goBackToList = goBackToList;
+
+        console.log('✅ Inventory Audit Edit page loaded successfully');
+    </script>
+</body>
+</html>

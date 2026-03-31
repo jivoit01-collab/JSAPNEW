@@ -1,0 +1,252 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSAP Login</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+        }
+
+        .container-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .left-section {
+            width: 50%;
+            position: relative;
+            overflow: hidden;
+            background-color: #002147;
+        }
+
+        .slider {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+            .slider img {
+                position: absolute;
+                object-fit: cover;
+                transition: opacity 1s ease-in-out;
+            }
+
+                .slider img:first-child {
+                    opacity: 1;
+                }
+
+        .right-section {
+            width: 50%;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #002147;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+            .btn:hover {
+                background: #001b36;
+            }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .quote-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #002147;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: justify;
+            max-width: 80%;
+        }
+
+        blockquote {
+            color: #f9bd7c;
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .flex-container {
+            display: flex;
+            align-items: center; /* Ensure everything is centered vertically */
+            gap: 10px; /* Space between image and text */
+            margin-top: 20px; /* Space between quote and citation */
+        }
+
+        .image-container {
+            flex-shrink: 0;
+            width: 60px; /* Set a fixed width */
+            height: 60px; /* Set a fixed height */
+        }
+
+        .baba-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .text-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .name, .designation {
+            margin: 0;
+            color: #f9bd7c;
+            line-height: 1.3; /* Improve line spacing */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container-wrapper">
+        <div class="left-section">
+            <div class="slider">
+                <div class="quote-container">
+                    <blockquote>
+                        <p><b>Adoption of renewable sources of energy not only helps in enhancing the sustainability of academies but also contributes a lot to the mother planet.</b></p>
+
+                        <div class="flex-container">
+                            <div class="image-container">
+                                <img src="/images/baba-iqbal-singh-ji.png" alt="Baba Iqbal Singh Ji" class="baba-img">
+                            </div>
+                            <div class="text-container">
+                                <h5 class="name" style="font-size:12px">Baba Iqbal Singh Ji</h5>
+                                <h5 class="designation" style="font-size:12px">Former Director, Agricultural (HP)</h5>
+                            </div>
+                        </div>
+
+                    </blockquote>
+                </div>
+            </div>
+        </div>
+        <div class="right-section">
+            <div class="text-center mb-4">
+                <img src="~/images/JSAP-LOGO.png" alt="JSAP Logo" width="80">
+                <h2 style="color:#002147"><b>Welcome to Jivo Infotech</b></h2>
+            </div>
+
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" name="Username" class="input-field" placeholder="Enter your username" required />
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="Password" class="input-field" placeholder="Enter your password" required />
+                </div>
+
+                <button type="submit" class="btn">Sign In</button>
+                <p id="error" style="color:red;"></p>
+            </form>
+
+            @if (!string.IsNullOrEmpty(ViewBag.ErrorMessage))
+            {
+                <p class="error-message">@ViewBag.ErrorMessage</p>
+            }
+        </div>
+    </div>
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const loginUser = document.getElementById("username").value;
+            const loginPassword = document.getElementById("password").value;
+
+            try {
+                const loginRes = await fetch('/api/auth/Login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ loginUser: loginUser, password: loginPassword }) // 🔧 fixed key
+                });
+
+
+                if (!loginRes.ok) throw new Error("Invalid login");
+
+                const loginData = await loginRes.json();
+                console.log("Login Response:", loginData);
+
+                const userId = loginData.user.userId;
+                const userName = loginData.user.userName;
+
+                const companyRes = await fetch(`/api/auth/getcompanies?userId=${userId}`);
+                const companyData = await companyRes.json();
+                console.log(userId);
+                if (!companyData.success) throw new Error("Company fetch failed");
+
+                // Store data temporarily in sessionStorage
+                sessionStorage.setItem("userId", userId);
+                sessionStorage.setItem("userName", userName);
+                sessionStorage.setItem("companies", JSON.stringify(companyData.data));
+
+                // Store login info temporarily
+                sessionStorage.setItem("userId", userId);
+                sessionStorage.setItem("userName", userName);
+                sessionStorage.setItem("companies", JSON.stringify(companyData.data));
+
+                // 🔸 Call WebSession API to store session
+                await fetch('/websession/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        userName: userName,
+                        companies: companyData.data
+                    })
+                });
+
+                // ✅ Redirect after session is set
+                window.location.href = "/DashboardWeb/Index";
+
+            } catch (err) {
+                document.getElementById("error").innerText = err.message;
+            }
+        });
+    </script>
+</body>
+</html>

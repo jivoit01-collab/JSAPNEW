@@ -1,0 +1,2667 @@
+﻿@{
+    ViewData["Title"] = "Gate In";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gate Inward Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="~/css/GIGO.css" />
+    <style>
+        /* Uppercase text styling */
+        .uppercase-input {
+            text-transform: uppercase !important;
+        }
+
+        .save-bottom-section {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 2px solid #e5e7eb;
+            padding: 15px 20px;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .main-container {
+            padding-bottom: 80px; /* Space for fixed bottom section */
+        }
+
+        .attachment-view-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+            .attachment-view-btn:hover {
+                background: #138496;
+            }
+
+        .attachment-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .attachment-modal-content {
+            background: white;
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .attachment-modal-header {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .attachment-modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <input type="hidden" id="UpdatedBy" name="UpdatedBy" value="@ViewBag.UserId" />
+    <input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.CompanyId" />
+
+    <!-- Full Page Progress Overlay -->
+    <div id="fullPageProgress" class="full-page-progress">
+        <div class="progress-content">
+            <div class="progress-spinner"></div>
+            <div class="progress-text">
+                <h3>Processing Gate Entry...</h3>
+                <p id="progressMessage">Validating data...</p>
+            </div>
+        </div>
+    </div>
+    <!-- BP Loading Overlay (using existing CSS classes) -->
+    <div id="bpLoadingOverlay" class="full-page-progress">
+        <div class="progress-content">
+            <div class="progress-spinner"></div>
+            <div class="progress-text">
+                <h3>Loading Business Partners...</h3>
+                <p id="bpLoadingMessage">Please wait while we fetch the data</p>
+            </div>
+        </div>
+    </div>
+    <!-- Success Message Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content success-modal">
+            <div class="success-header">
+                <div class="success-icon">✅</div>
+                <h3>Gate Entry Successfully Created!</h3>
+            </div>
+            <div class="success-body">
+                <div class="success-details">
+                    <div class="detail-row">
+                        <span class="label">Entry Type:</span>
+                        <span class="value" id="successEntryType">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Vehicle:</span>
+                        <span class="value" id="successVehicle">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Contents:</span>
+                        <span class="value" id="successContents">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="success-footer">
+                <button class="btn btn-primary" onclick="closeSuccessModal()">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachment Viewer Modal -->
+    <div id="attachmentModal" class="attachment-modal">
+        <div class="attachment-modal-content">
+            <div class="attachment-modal-header">
+                <h4 id="attachmentModalTitle">View Attachment</h4>
+                <button class="close-btn" onclick="closeAttachmentModal()">&times;</button>
+            </div>
+            <div class="attachment-modal-body" id="attachmentModalBody">
+                <!-- Attachment content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Page Title -->
+        <div style="background: white; margin: 8px; padding: 12px 16px; border-radius: 4px; border-bottom: 2px solid #e5e7eb;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 30px; font-weight: 600; color: var(--gray-800); margin: 0;">
+                    <span style="font-size: 20px;">📋</span>
+                    Gate Inward Management System
+                </h2>
+                <div style="display: flex; gap: 20px; font-size: 13px; color: var(--gray-600);">
+                    <span>Gate Entry No: <strong style="color: var(--gray-800);">GI-2024-001</strong></span>
+                    <span>Status: <strong style="color: var(--gray-800);">Open</strong></span>
+                    <span>Date: <strong style="color: var(--gray-800);" id="currentDate"></strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validation Summary -->
+        <div id="validationSummary" class="validation-summary">
+            <h4 style="margin: 0 0 8px 0; color: #dc2626;">⚠️ Please fix the following errors:</h4>
+            <ul id="validationList"></ul>
+        </div>
+
+        <!-- Improved Form Section -->
+        <div class="form-section">
+            <h4 class="section-title">📝 Inward Details</h4>
+
+            <div class="inward-details-grid">
+                <!-- Business Partner Information -->
+                <div style="grid-column: 1 / -1;">
+                    <h5 style="color: #0b2c4d; font-weight: 600; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                        🏢 Business Partner Information
+                    </h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                        <div class="form-group">
+                            <label class="mandatory">Company</label>
+                            <select id="gatecompany" class="uppercase-input" required>
+                                <option value="">Select Company</option>
+                                <option value="1">OIL</option>
+                                <option value="2">BEVERAGES</option>
+                            </select>
+                            <div class="error-message" id="company-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="mandatory">Card Type</label>
+                            <select id="cardType" class="docType uppercase-input" onchange="updateCardTypeAndReloadBP()">
+                                <option value="">Select Card Type</option>
+                                <option value="VENDOR">VENDOR</option>
+                                <option value="CUSTOMER">CUSTOMER</option>
+                                <option value="BST">BST</option>
+                            </select>
+                            <div class="error-message" id="cardType-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="mandatory" for="CardCode">BP Code</label>
+                            <div class="omnisearch-input">
+                                <input type="text" id="cardCode" class="uppercase-input" value="" required
+                                       placeholder="Search card code to load POs" autocomplete="off">
+                            </div>
+                            <div class="error-message" id="cardCode-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="mandatory" for="CardName">BP Name</label>
+                            <div class="omnisearch-input">
+                                <input type="text" id="cardName" class="uppercase-input" placeholder="Search card name to load POs" autocomplete="off"
+                                       style="background-color: #f8f9fa;">
+                            </div>
+                            <div class="error-message" id="cardName-error"></div>
+                        </div>
+                        <div class="form-group" id="poNumberGroup" style="display: none;">
+                            <label>PO Number</label>
+                            <input type="text" id="poNumber" class="uppercase-input" placeholder="PO Numbers will appear here" readonly
+                                   style="background-color: #f8f9fa; cursor: not-allowed; color: #6c757d; font-weight: 600;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Information -->
+                <div style="grid-column: 1 / -1;">
+                    <h5 style="color: #0b2c4d; font-weight: 600; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                        📄 Document Information
+                    </h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                        <div class="form-group">
+                            <label class="mandatory">Posting Date</label>
+                            <input type="date" id="postingDate" required>
+                            <div class="error-message" id="postingDate-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="mandatory">Gate Pass Type</label>
+                            <select id="gatePassType" class="uppercase-input" required>
+                                <option value="">Select Gate Pass Type</option>
+                                <option value="RETURNABLE">RETURNABLE</option>
+                                <option value="NON-RETURNABLE">NON-RETURNABLE</option>
+                            </select>
+                            <div class="error-message" id="gatePassType-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="mandatory">Received By</label>
+                            <input type="text" id="receivedBy" class="uppercase-input" placeholder="Employee name" value="" readonly required>
+                            <div class="error-message" id="receivedBy-error"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BP Selection Toast -->
+        <div id="bpSelectionToast" class="bp-selection-toast">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>✅</span>
+                <span id="bpToastMessage">Business Partner Selected</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('contents', this)">Contents</button>
+                <button class="tab" onclick="switchTab('logistics', this)">Logistics</button>
+                <button class="tab" onclick="switchTab('attachments', this)">Attachments</button>
+            </div>
+        </div>
+
+        <!-- Table Section -->
+        <div class="table-section">
+            <!-- Contents Tab -->
+            <div id="contents-tab" class="tab-content active">
+                <div class="table-wrapper">
+                    <table class="data-table" id="contentsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px; background-color: #f8f9fa;">#</th>
+                                <th style="width: 150px; background-color: #f8f9fa;">
+                                    Item Name
+                                    <small style="color: #666;"></small>
+                                </th>
+                                <th style="width: 100px; background-color: #f8f9fa;">
+                                    Item Code
+                                    <small style="color: #666;"></small>
+                                </th>
+                                <th style="width: 150px; background-color: #f8f9fa;">
+                                    Item Remarks
+                                    <small style="color: #666;"></small>
+                                </th>
+                                <th style="width: 100px; background-color: #f8f9fa;">
+                                    PO Quantity
+                                    <small style="color: #666;"></small>
+                                </th>
+                                <th style="width: 100px; background-color: #f8f9fa;">
+                                    Open Quantity
+                                    <small style="color: #666;"></small>
+                                </th>
+                                <th style="width: 80px; background-color: #f8f9fa;">
+                                    UoM
+                                    <small style="color: #666;"></small>
+                                </th>
+                                <th style="width: 100px; background-color: #f8f9fa;">
+                                    Quantity Received
+                                    <small style="color: #f8f9fa;"></small>
+                                </th>
+                                <th style="width: 100px; background-color: #f8f9fa;">
+                                    User Remarks
+                                    <small style="color: #f8f9fa;"></small>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows will be added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Logistics Tab -->
+            <div id="logistics-tab" class="tab-content">
+                <div class="logistics-container">
+                    <div class="logistics-left">
+                        <div class="logistics-form">
+                            <div class="logistics-group">
+                                <h4 style="color: #0b2c4d; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">🚛 Transport Details</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; padding: 16px 0;">
+                                    <div class="form-group">
+                                        <label class="mandatory">Transporter Name</label>
+                                        <input type="text" id="transporterNameLogistics" class="uppercase-input" placeholder="Enter Transporter Name" autocomplete="off" required>
+                                        <div class="error-message" id="transporterNameLogistics-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Driver Name</label>
+                                        <input type="text" id="driverNameLogistics" class="uppercase-input" placeholder="Enter Driver Name" autocomplete="off" required>
+                                        <div class="error-message" id="driverNameLogistics-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Driver Mobile</label>
+                                        <input type="tel" id="driverMobile" placeholder="Enter Driver Mobile" autocomplete="off" required>
+                                        <div class="error-message" id="driverMobile-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Vehicle No.</label>
+                                        <div class="input-with-button">
+                                            <button type="button" class="icon-btn vehicle-attachment-btn" onclick="triggerVehicleAttachment()" title="Upload Vehicle Documents (MANDATORY)">
+                                                <i class="fas fa-paperclip"></i>
+                                                <span class="attachment-status" id="vehicleAttachmentStatus">📎 Required</span>
+                                            </button>
+                                            <input type="text" id="vehicleNoLogistics" class="uppercase-input" placeholder="Enter Vehicle No." autocomplete="off" required>
+                                        </div>
+                                        <div id="vehicle-attachment-display" class="vehicle-attachment-display"></div>
+                                        <div class="error-message" id="vehicleNoLogistics-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Bilty No.</label>
+                                        <input type="text" id="biltyNo" class="uppercase-input" placeholder="Enter Bilty No." autocomplete="off" required>
+                                        <div class="error-message" id="biltyNo-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Challan No./Bill No.</label>
+                                        <input type="text" id="challanNo" class="uppercase-input" autocomplete="off" required>
+                                        <div class="error-message" id="challanNo-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Challan Date/Bill Date </label>
+                                        <input type="date" id="challanDate" autocomplete="off" required>
+                                        <div class="error-message" id="challanDate-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Ship From</label>
+                                        <input type="text" id="shipFrom" class="uppercase-input" placeholder="Enter Ship from" autocomplete="off">
+                                        <div class="error-message" id="shipFrom-error"></div>
+                                    </div>
+                                </div>
+                                <input type="file" id="vehicleAttachment" accept=".pdf,.jpg,.jpeg,.png" hidden>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logistics-right">
+                        <div class="logistics-group">
+                            <h4 style="color: #0b2c4d; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">⚖️ Weight Details</h4>
+                            <div class="weight-details">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 16px 0;">
+                                    <div class="form-group">
+                                        <label class="mandatory">Time</label>
+                                        <input type="time" id="inTime" required>
+                                        <div class="error-message" id="inTime-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Gross Weight (kg)</label>
+                                        <input type="number" id="grossWeight" step="0.01" value="0.00" min="0" required>
+                                        <div class="error-message" id="grossWeight-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="mandatory">Tare Weight (kg)</label>
+                                        <input type="number" id="tareWeight" step="0.01" value="0.00" min="0" required>
+                                        <div class="error-message" id="tareWeight-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Net Weight (kg)</label>
+                                        <input type="number" id="netWeight" step="0.01" value="0.00" readonly style="background-color: #f8f9fa;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachments Tab -->
+            <div id="attachments-tab" class="tab-content">
+                <div style="padding: 20px;">
+                    <h3 style="margin-bottom: 20px;">📎 Document Attachments <small style="color: #6b7280;">(Optional - General Documents)</small></h3>
+                    <div class="card">
+                        <div class="upload-box" onclick="triggerAttachmentsInput()">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
+                            <p style="font-weight: bold; margin-bottom: 8px;">Click to upload general documents</p>
+                            <p style="font-size: 14px; color: #666; margin-bottom: 4px;">Supported: PDF, JPG, PNG, DOC, DOCX</p>
+                            <p style="font-size: 12px; color: #999;">Max file size: 512KB per file</p>
+                            <input type="file" id="attachmentsInput" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" hidden>
+                        </div>
+
+                        <div id="fileListContainer" style="margin-top: 20px;">
+                            <h4 style="margin-bottom: 10px;">Selected Files:</h4>
+                            <ul id="fileList" class="file-list">
+                                <li style="color: #999; font-style: italic; background: none; border: none;">No files selected</li>
+                            </ul>
+                        </div>
+
+                        <!-- Upload Progress Bar -->
+                        <div id="upload-progress" class="upload-progress" style="display: none;">
+                            <div id="upload-progress-bar" class="upload-progress-bar"></div>
+                        </div>
+
+                        <!-- Messages -->
+                        <div id="upload-error" class="error-msg" style="display: none;"></div>
+                        <div id="upload-success" class="success-msg" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:45px">
+            <label style="font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block;">General Remarks</label>
+            <textarea id="docRemarks" class="uppercase-input" style="width: 100%; min-height: 100px; padding: 12px; border: 2px solid #d1d5db; border-radius: 6px; font-size: 14px; resize: vertical; font-family: inherit;" placeholder="Enter any remarks, notes, or special instructions for this gate entry..."></textarea>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <button class="btn" onclick="addRow()">
+                <span>➕</span>
+                Add Item
+            </button>
+            <button class="btn" onclick="deleteRow()">
+                <span>🗑️</span>
+                Delete
+            </button>
+            <button class="btn" onclick="copyToClipboard()">
+                <span>📋</span>
+                Copy From
+            </button>
+            <button class="btn" onclick="printGatePass()">
+                <span>🖨️</span>
+                Print
+            </button>
+            <button class="btn" onclick="cancelInward()">
+                <span>❌</span>
+                Cancel
+            </button>
+            <button class="btn btn-primary" onclick="saveInward()" style="font-size: 16px; padding: 12px 30px;">
+                <span>💾</span>
+                Save Entry
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div class="modal" id="addItemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Item</h3>
+                <button class="close-btn" onclick="closeModal('addItemModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Item Code</label>
+                        <input type="text" id="modalItemCode" class="uppercase-input" placeholder="ITEM001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Item Description</label>
+                        <input type="text" id="modalItemName" class="uppercase-input" placeholder="ITEM DESCRIPTION" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Received Quantity</label>
+                        <input type="number" id="modalRecQuantity" step="0.0001" value="1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>PO Quantity</label>
+                        <input type="number" id="modalPOQuantity" step="0.01" value="1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Open Quantity</label>
+                        <input type="number" id="modalOpenQuantity" step="0.01" value="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>UoM Code</label>
+                        <select id="modalUoM" class="uppercase-input">
+                            <option>PCS</option>
+                            <option>KG</option>
+                            <option>MTR</option>
+                            <option>LTR</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Remarks</label>
+                        <input type="text" id="modalRemarks" class="uppercase-input" placeholder="ITEM REMARKS">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('addItemModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveItem()">Add Item</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Order Popup Modal -->
+    <div id="poPopupModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; width: 95%;">
+            <div class="modal-header">
+                <h3>📋 Select Purchase Orders</h3>
+                <span class="close-btn" onclick="closeModal('poPopupModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <button id="selectAllPOs" class="btn btn-primary" onclick="toggleSelectAllPOs()">Select All</button>
+                    <div style="color: #666; font-size: 14px;">
+                        <strong>Note:</strong> Selecting POs will auto-populate Card Name and import all line items
+                    </div>
+                </div>
+
+                <div class="table-wrapper" style="max-height: 450px; overflow-y: auto;">
+                    <table class="data-table" id="poPopupTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Select</th>
+                                <th style="width: 140px;">PO Number</th>
+                                <th style="width: 250px;">Vendor</th>
+                                <th style="width: 150px;">PO Date <small>(from API)</small></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: #999; padding: 20px;">
+                                    Enter CardCode to load Purchase Orders
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px; padding: 12px; background: #e8f4fd; border-radius: 6px; border-left: 4px solid #17a2b8;">
+                    <p style="font-size: 12px; color: #0c5460; margin: 0;">
+                        <strong>💡 How it works:</strong>
+                        Each selected PO will import all its line items into the contents table.
+                        Only "Quantity Received" and "Remarks" will be editable.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('poPopupModal')">Cancel</button>
+                <button class="btn btn-success" onclick="selectPurchaseOrders()">
+                    <span>✅</span>
+                    Import Selected POs
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // NEW: Add vehicle attachment tracking
+        let vehicleAttachmentFile = null;
+        let selectedGeneralFiles = []; // Renamed from selectedFiles for clarity
+        let savedAttachments = []; // Store saved attachment info for viewing
+
+        function triggerVehicleAttachment() {
+            document.getElementById('vehicleAttachment').click();
+        }
+
+        // NEW: Vehicle attachment handler (separate from general attachments)
+        document.getElementById('vehicleAttachment').addEventListener('change', function(event) {
+            const files = event.target.files;
+            const attachmentDisplay = document.getElementById('vehicle-attachment-display');
+            const statusIndicator = document.getElementById('vehicleAttachmentStatus');
+
+            attachmentDisplay.innerHTML = '';
+
+            if (files.length > 0) {
+                vehicleAttachmentFile = files[0];
+                const fileName = files[0].name;
+
+                const attachmentItem = document.createElement('div');
+                attachmentItem.classList.add('vehicle-attachment-item');
+
+                // UPDATED: Make attachment name clickable for preview
+                const attachmentName = document.createElement('span');
+                attachmentName.classList.add('attachment-name');
+                attachmentName.style.cursor = 'pointer';
+                attachmentName.style.color = '#007bff';
+                attachmentName.style.textDecoration = 'underline';
+                attachmentName.textContent = `🚛 ${fileName}`;
+                attachmentName.title = 'Click to preview file';
+
+                // Add click handler for preview
+                attachmentName.addEventListener('click', function() {
+                    previewFile(vehicleAttachmentFile, fileName);
+                });
+
+                const deleteButton = document.createElement('button');
+                deleteButton.classList.add('attachment-delete');
+                deleteButton.textContent = '❌';
+                deleteButton.title = 'Remove vehicle attachment';
+
+                deleteButton.addEventListener('click', function() {
+                    attachmentDisplay.innerHTML = '';
+                    vehicleAttachmentFile = null;
+                    document.getElementById('vehicleAttachment').value = '';
+                    statusIndicator.textContent = '📎 Required';
+                    statusIndicator.style.color = '#dc2626';
+                });
+
+                attachmentItem.appendChild(attachmentName);
+                attachmentItem.appendChild(deleteButton);
+                attachmentDisplay.appendChild(attachmentItem);
+
+                // Update status indicator
+                statusIndicator.textContent = '✅ Attached';
+                statusIndicator.style.color = '#10b981';
+
+                // Clear any validation errors
+                ValidationManager.clearFieldError('vehicleNoLogistics');
+
+                console.log('Vehicle attachment selected:', fileName);
+            } else {
+                vehicleAttachmentFile = null;
+                statusIndicator.textContent = '📎 Required';
+                statusIndicator.style.color = '#dc2626';
+            }
+        });
+
+        let bpList = [];
+        let isLoadingBP = false;
+        let selectedBP = null;
+        var createdBy = parseInt(document.getElementById('UpdatedBy').value);
+        //var companyId = parseInt(document.getElementById('CompanyId').value);
+        var CardType = parseInt(document.getElementById('cardType').value);
+        let allSelected = false;
+        let fullPOData = [];
+        let isLoadingPOs = false;
+
+        function getSelectedCompany() {
+            const companyDropdown = document.getElementById('gatecompany');
+            return companyDropdown ? companyDropdown.value : '';
+        }
+        // UPDATED: Enhanced validation object with proper vehicle attachment validation and new fields
+        const ValidationManager = {
+            errors: [],
+
+            mandatoryFields: {
+                // Inward Details - All Mandatory (Updated with new fields)
+                'gatecompany': { name: 'Company', section: 'Inward Details' },
+                'cardType': { name: 'Card Type', section: 'Inward Details' },
+                'cardCode': { name: 'BP Code', section: 'Inward Details', minLength: 3 },
+                'cardName': { name: 'BP Name', section: 'Inward Details', minLength: 2 },
+                'postingDate': { name: 'Posting Date', section: 'Inward Details', type: 'date' },
+                'gatePassType': { name: 'Gate Pass Type', section: 'Inward Details' },
+                'receivedBy': { name: 'Received By', section: 'Inward Details', minLength: 2 },
+
+                // Logistics - Mandatory fields (removed transporterCode and inDate)
+                'transporterNameLogistics': { name: 'Transporter Name', section: 'Logistics', minLength: 2 },
+                'driverNameLogistics': { name: 'Driver Name', section: 'Logistics', minLength: 2 },
+                'driverMobile': { name: 'Driver Mobile', section: 'Logistics', pattern: /^\d{10}$/ },
+                'vehicleNoLogistics': { name: 'Vehicle No', section: 'Logistics', pattern: /^[A-Z]{2}[-\s]?[0-9]{1,2}[-\s]?[A-Z]{1,2}[-\s]?[0-9]{4}$/i },
+                'biltyNo': { name: 'Bilty No', section: 'Logistics' },
+                'challanNo': { name: 'Challan No', section: 'Logistics' },
+                'challanDate': { name: 'Challan Date', section: 'Logistics', type: 'date' },
+                'inTime': { name: 'In Time', section: 'Logistics', type: 'time' },
+                'grossWeight': { name: 'Gross Weight', section: 'Logistics', type: 'number', min: 0 },
+                'tareWeight': { name: 'Tare Weight', section: 'Logistics', type: 'number', min: 0 }
+            },
+
+            validateField(fieldId) {
+                const fieldConfig = this.mandatoryFields[fieldId];
+                if (!fieldConfig) return true;
+
+                const element = document.getElementById(fieldId);
+                if (!element) return true;
+
+                const value = element.value.trim();
+                let isValid = true;
+                let errorMessage = '';
+
+                this.clearFieldError(fieldId);
+
+                if (!value) {
+                    errorMessage = `${fieldConfig.name} is required`;
+                    isValid = false;
+                } else {
+                    switch (fieldConfig.type) {
+                        case 'date':
+                            const selectedDate = new Date(value);
+                            const today = new Date();
+                            const maxDate = new Date();
+                            maxDate.setDate(today.getDate() + 7);
+
+                            if (selectedDate > maxDate) {
+                                errorMessage = `${fieldConfig.name} cannot be more than 7 days in the future`;
+                                isValid = false;
+                            }
+                            break;
+
+                        case 'number':
+                            const numValue = parseFloat(value);
+                            if (isNaN(numValue)) {
+                                errorMessage = `${fieldConfig.name} must be a valid number`;
+                                isValid = false;
+                            } else if (fieldConfig.min !== undefined && numValue < fieldConfig.min) {
+                                errorMessage = `${fieldConfig.name} cannot be less than ${fieldConfig.min}`;
+                                isValid = false;
+                            }
+                            break;
+
+                        default:
+                            if (fieldConfig.pattern && !fieldConfig.pattern.test(value)) {
+                                if (fieldId === 'driverMobile') {
+                                    errorMessage = `${fieldConfig.name} must be a 10-digit number`;
+                                } else if (fieldId === 'vehicleNoLogistics') {
+                                    errorMessage = `${fieldConfig.name} invalid format (e.g., MH-12-AB-1234)`;
+                                } else {
+                                    errorMessage = `${fieldConfig.name} format is invalid`;
+                                }
+                                isValid = false;
+                            } else if (fieldConfig.minLength && value.length < fieldConfig.minLength) {
+                                errorMessage = `${fieldConfig.name} must be at least ${fieldConfig.minLength} characters`;
+                                isValid = false;
+                            }
+                            break;
+                    }
+                }
+
+                if (!isValid) {
+                    this.showFieldError(fieldId, errorMessage);
+                    return false;
+                }
+
+                if (fieldId === 'grossWeight' || fieldId === 'tareWeight') {
+                    return this.validateWeights();
+                }
+
+                return true;
+            },
+
+            validateWeights() {
+                const grossWeight = parseFloat(document.getElementById('grossWeight')?.value) || 0;
+                const tareWeight = parseFloat(document.getElementById('tareWeight')?.value) || 0;
+
+                if (grossWeight < tareWeight) {
+                    this.showFieldError('grossWeight', 'Gross weight cannot be less than tare weight');
+                    return false;
+                }
+
+                return true;
+            },
+
+            // UPDATED: Proper vehicle attachment validation with debug info
+            validateVehicleAttachment() {
+                const vehicleNo = document.getElementById('vehicleNoLogistics')?.value?.trim();
+
+                console.log("🔍 VEHICLE VALIDATION:");
+                console.log("- Vehicle number entered:", vehicleNo || 'None');
+                console.log("- Vehicle file selected:", vehicleAttachmentFile ? vehicleAttachmentFile.name : 'None');
+
+                if (vehicleNo) {
+                    if (!vehicleAttachmentFile) {
+                        this.errors.push('🚛 Vehicle attachment is MANDATORY when vehicle number is provided. Please upload vehicle documents in the Logistics tab.');
+
+                        // Highlight the vehicle field
+                        const vehicleInput = document.getElementById('vehicleNoLogistics');
+                        if (vehicleInput) {
+                            this.showFieldError('vehicleNoLogistics', 'Vehicle attachment is required');
+                        }
+
+                        // Update status indicator
+                        const statusIndicator = document.getElementById('vehicleAttachmentStatus');
+                        if (statusIndicator) {
+                            statusIndicator.textContent = '❌ REQUIRED';
+                            statusIndicator.style.color = '#dc2626';
+                        }
+
+                        // Switch to logistics tab to show the issue
+                        setTimeout(() => {
+                            switchTab('logistics', document.querySelector('.tab[onclick*="logistics"]'));
+                        }, 100);
+
+                        console.log("❌ VALIDATION FAILED: Vehicle number exists but no attachment");
+                        return false;
+                    } else {
+                        // Clear any previous highlighting
+                        this.clearFieldError('vehicleNoLogistics');
+                        console.log("✅ VALIDATION PASSED: Vehicle number and attachment both exist");
+                    }
+                } else {
+                    console.log("ℹ️ No vehicle number entered, vehicle attachment not required");
+                }
+
+                return true;
+            },
+
+            validateContentsTable() {
+                const table = document.getElementById('contentsTable');
+                if (!table) return { isValid: true, errors: [] };
+
+                const tbody = table.getElementsByTagName('tbody')[0];
+                const rows = tbody.getElementsByTagName('tr');
+                const errors = [];
+
+                if (rows.length === 0) {
+                    errors.push('At least one item must be added to contents table');
+                    return { isValid: false, errors };
+                }
+
+                for (let i = 0; i < rows.length; i++) {
+                    const cells = rows[i].cells;
+                    if (cells.length >= 8) {
+                        const quantityInput = cells[7].querySelector('input');
+
+                        if (quantityInput) {
+                            const quantityReceived = parseFloat(quantityInput.value) || 0;
+
+                            if (quantityReceived < 0) {
+                                errors.push(`Item ${i + 1}: Received quantity cannot be negative`);
+                            }
+
+                            const poQtyInput = cells[4].querySelector('input');
+                            const poQuantity = poQtyInput ? parseFloat(poQtyInput.value) || 0 : 0;
+
+                            if (quantityReceived > poQuantity) {
+                                errors.push(`Item ${i + 1}: Received quantity (${quantityReceived}) exceeds PO quantity (${poQuantity})`);
+                            }
+                        }
+                    }
+                }
+
+                return { isValid: errors.length === 0, errors };
+            },
+
+            validateAll() {
+                this.errors = [];
+                let isValid = true;
+
+                this.hideValidationSummary();
+
+                // Validate all mandatory fields
+                Object.keys(this.mandatoryFields).forEach(fieldId => {
+                    if (!this.validateField(fieldId)) {
+                        isValid = false;
+                    }
+                });
+
+                // UPDATED: Validate vehicle attachment (separate from general attachments)
+                if (!this.validateVehicleAttachment()) {
+                    isValid = false;
+                }
+
+                // Validate contents table
+                const contentsValidation = this.validateContentsTable();
+                if (!contentsValidation.isValid) {
+                    this.errors.push(...contentsValidation.errors);
+                    isValid = false;
+                }
+
+                // Show validation summary if there are errors
+                if (!isValid) {
+                    this.showValidationSummary(this.errors);
+                }
+
+                return isValid;
+            },
+
+            showFieldError(fieldId, message) {
+                const field = document.getElementById(fieldId);
+                if (!field) return;
+
+                field.classList.add('error');
+                const errorElement = document.getElementById(`${fieldId}-error`);
+                if (errorElement) {
+                    errorElement.textContent = message;
+                    errorElement.style.display = 'block';
+                }
+            },
+
+            clearFieldError(fieldId) {
+                const field = document.getElementById(fieldId);
+                if (!field) return;
+
+                field.classList.remove('error');
+                const errorElement = document.getElementById(`${fieldId}-error`);
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+            },
+
+            showValidationSummary(errors) {
+                const summary = document.getElementById('validationSummary');
+                const list = document.getElementById('validationList');
+
+                if (summary && list) {
+                    list.innerHTML = errors.map(error => `<li>${error}</li>`).join('');
+                    summary.classList.add('show');
+                    summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            },
+
+            hideValidationSummary() {
+                const summary = document.getElementById('validationSummary');
+                if (summary) {
+                    summary.classList.remove('show');
+                }
+            }
+        };
+
+        // NEW: Full page progress functions
+        function showFullPageProgress(message = 'Processing...') {
+            const progress = document.getElementById('fullPageProgress');
+            const messageEl = document.getElementById('progressMessage');
+            if (progress && messageEl) {
+                messageEl.textContent = message;
+                progress.style.display = 'flex';
+            }
+        }
+
+        function hideFullPageProgress() {
+            const progress = document.getElementById('fullPageProgress');
+            if (progress) {
+                progress.style.display = 'none';
+            }
+        }
+
+        function updateProgressMessage(message) {
+            const messageEl = document.getElementById('progressMessage');
+            if (messageEl) {
+                messageEl.textContent = message;
+            }
+        }
+
+        // NEW: Success modal functions with attachment viewing
+        function showSuccessModal(data) {
+            const modal = document.getElementById('successModal');
+            const entryType = document.getElementById('successEntryType');
+            const vehicle = document.getElementById('successVehicle');
+            const contents = document.getElementById('successContents');
+            const attachments = document.getElementById('successAttachments');
+
+            if (modal && entryType && vehicle && contents && attachments) {
+                entryType.textContent = data.entryType || 'N/A';
+                vehicle.textContent = data.vehicle || 'N/A';
+                contents.textContent = data.contents || '0 items';
+                attachments.textContent = data.attachments || '0 files';
+
+                // Store attachment data for viewing
+                savedAttachments = data.attachmentData || [];
+
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeSuccessModal() {
+            const modal = document.getElementById('successModal');
+            if (modal) {
+                modal.style.display = 'none';
+                resetForm();
+            }
+        }
+
+        // NEW: Attachment viewing functions
+        function viewSavedAttachments() {
+            if (savedAttachments.length === 0) {
+                showAlert('No attachments to view', 'info');
+                return;
+            }
+
+            const attachmentList = savedAttachments.map((att, index) => {
+                const category = att.category === 'VEHICLE_DOCUMENT' ? '🚛 Vehicle' : '📎 General';
+                return `<div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div><strong>${category}: ${att.fileName}</strong></div>
+                    <div style="font-size: 12px; color: #666;">Size: ${(att.fileSize / 1024).toFixed(2)} KB</div>
+                    <button class="attachment-view-btn" onclick="viewAttachment(${index})">View</button>
+                </div>`;
+            }).join('');
+
+            showAttachmentModal('Saved Attachments', attachmentList);
+        }
+
+        function viewAttachment(index) {
+            const attachment = savedAttachments[index];
+            if (!attachment) return;
+
+            // For demo purposes, show attachment info
+            // In real implementation, this would fetch and display the actual file
+            const content = `
+                <div style="text-align: center; padding: 20px;">
+                    <h4>📄 ${attachment.fileName}</h4>
+                    <p><strong>Type:</strong> ${attachment.fileType}</p>
+                    <p><strong>Size:</strong> ${(attachment.fileSize / 1024).toFixed(2)} KB</p>
+                    <p><strong>Category:</strong> ${attachment.category === 'VEHICLE_DOCUMENT' ? 'Vehicle Document' : 'General Document'}</p>
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+                        <p>📋 <strong>Note:</strong> In a real implementation, this would display the actual file content or provide a download link.</p>
+                        <p>💡 File path: <code>/uploads/${attachment.category}/${attachment.fileName}</code></p>
+                    </div>
+                </div>
+            `;
+            showAttachmentModal(`View: ${attachment.fileName}`, content);
+        }
+
+        function showAttachmentModal(title, content) {
+            const modal = document.getElementById('attachmentModal');
+            const titleEl = document.getElementById('attachmentModalTitle');
+            const bodyEl = document.getElementById('attachmentModalBody');
+
+            if (modal && titleEl && bodyEl) {
+                titleEl.textContent = title;
+                bodyEl.innerHTML = content;
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeAttachmentModal() {
+            const modal = document.getElementById('attachmentModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // BP Loading functions using existing CSS classes
+        function showBPLoadingOverlay(message = 'Please wait while we fetch the data') {
+            const overlay = document.getElementById('bpLoadingOverlay');
+            const messageEl = document.getElementById('bpLoadingMessage');
+
+            if (overlay && messageEl) {
+                messageEl.textContent = message;
+                overlay.style.display = 'flex';
+
+                // Disable company and card type dropdowns during loading
+                document.getElementById('gatecompany').disabled = true;
+                document.getElementById('cardType').disabled = true;
+
+                // Add visual indication that dropdowns are disabled
+                document.getElementById('gatecompany').style.opacity = '0.6';
+                document.getElementById('cardType').style.opacity = '0.6';
+            }
+        }
+
+        function hideBPLoadingOverlay() {
+            const overlay = document.getElementById('bpLoadingOverlay');
+
+            if (overlay) {
+                overlay.style.display = 'none';
+
+                // Re-enable company and card type dropdowns
+                document.getElementById('gatecompany').disabled = false;
+                document.getElementById('cardType').disabled = false;
+
+                // Remove visual indication
+                document.getElementById('gatecompany').style.opacity = '1';
+                document.getElementById('cardType').style.opacity = '1';
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+            setupEventListeners();
+        });
+
+        function initializePage() {
+            try {
+                if (typeof ViewBag !== 'undefined' && ViewBag.CreatedBy) {
+                    createdBy = ViewBag.CreatedBy;
+                }
+            } catch (e) {
+                console.warn('ViewBag.CreatedBy not available, using default value');
+            }
+
+            const currentDateElement = document.getElementById('currentDate');
+            if (currentDateElement) {
+                currentDateElement.textContent = new Date().toLocaleDateString('en-GB');
+            }
+
+            const postingDateElement = document.getElementById('postingDate');
+            if (postingDateElement) {
+                postingDateElement.value = new Date().toISOString().split('T')[0];
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const currentTime = new Date().toLocaleTimeString('en-GB', { hour12: false }).slice(0, 5);
+
+            // Only challanDate now (removed inDate)
+            const challanDateElement = document.getElementById('challanDate');
+            if (challanDateElement) challanDateElement.value = today;
+
+            const timeElement = document.getElementById('inTime');
+            if (timeElement) timeElement.value = currentTime;
+
+            calculateNetWeight();
+            loadBusinessPartners();
+
+            const receivedByField = document.getElementById('receivedBy');
+            if (receivedByField) {
+                const userName = sessionStorage.getItem("userName");
+                receivedByField.value = userName || 'ADMIN';
+            }
+        }
+
+        function setupEventListeners() {
+                // Company dropdown change handler
+            const companyDropdown = document.getElementById('gatecompany');
+            if (companyDropdown) {
+                companyDropdown.addEventListener('change', function() {
+                    clearDependentFields();
+                    ValidationManager.clearFieldError('gatecompany');
+
+                    // Auto-load if both company and card type are selected
+                    checkAndLoadBusinessPartners();
+                });
+            }
+
+            // Card type dropdown change handler
+            const cardTypeDropdown = document.getElementById('cardType');
+            if (cardTypeDropdown) {
+                cardTypeDropdown.addEventListener('change', function() {
+                    clearDependentFields();
+                    ValidationManager.clearFieldError('cardType');
+
+                    // Auto-load if both company and card type are selected
+                    checkAndLoadBusinessPartners();
+                });
+            }
+
+            // Setup validation listeners for all mandatory fields
+            Object.keys(ValidationManager.mandatoryFields).forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('blur', () => ValidationManager.validateField(fieldId));
+                    field.addEventListener('input', () => ValidationManager.clearFieldError(fieldId));
+                }
+            });
+
+            // Weight calculation listeners
+            ['grossWeight', 'tareWeight'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', calculateNetWeight);
+                }
+            });
+
+            setupCardCodeListener();
+
+            // UPDATED: General attachments file input listener (renamed)
+            const fileInput = document.getElementById("attachmentsInput");
+            if (fileInput) {
+                fileInput.addEventListener("change", handleAttachmentsChange);
+            }
+
+            // Row selection for contents table
+            const tbody = document.querySelector('#contentsTable tbody');
+            if (tbody) {
+                tbody.addEventListener('click', function(e) {
+                    const row = e.target.closest('tr');
+                    if (row && !e.target.classList.contains('table-input')) {
+                        row.classList.toggle('selected');
+                    }
+                });
+            }
+        }
+
+        // Helper function to clear dependent fields
+        function clearDependentFields() {
+            document.getElementById('cardCode').value = '';
+            document.getElementById('cardName').value = '';
+            const poNumberField = document.getElementById('poNumber');
+            const poNumberGroup = document.getElementById('poNumberGroup');
+            if (poNumberField && poNumberGroup) {
+                poNumberGroup.style.display = 'none';
+                poNumberField.value = '';
+            }
+            selectedBP = null;
+
+            // Clear contents table
+            const tbody = document.querySelector('#contentsTable tbody');
+            if (tbody) tbody.innerHTML = '';
+        }
+
+        // Helper function to check and auto-load business partners
+        function checkAndLoadBusinessPartners() {
+            const selectedCompany = getSelectedCompany();
+            const cardType = document.getElementById('cardType').value;
+
+            if (selectedCompany && cardType) {
+                // Small delay to make the loading feel more natural
+                setTimeout(() => {
+                    loadBusinessPartners();
+                }, 300);
+            }
+        }
+        // UPDATED: Main save function with enhanced progress and validation
+        function saveInward() {
+            ValidationManager.hideValidationSummary();
+
+            if (!ValidationManager.validateAll()) {
+                showAlert('Please fix the validation errors shown above', 'error');
+                return;
+            }
+
+            // Start the progress
+            showFullPageProgress('Validating data...');
+
+            setTimeout(() => {
+                updateProgressMessage('Processing attachments...');
+
+                setTimeout(() => {
+                    updateProgressMessage('Saving gate entry...');
+                    submitGateEntryMaster();
+                }, 800);
+            }, 500);
+        }
+
+        // Calculate net weight
+        function calculateNetWeight() {
+            const grossWeight = parseFloat(document.getElementById('grossWeight')?.value) || 0;
+            const tareWeight = parseFloat(document.getElementById('tareWeight')?.value) || 0;
+            const netWeight = grossWeight - tareWeight;
+
+            const netWeightElement = document.getElementById('netWeight');
+            if (netWeightElement) netWeightElement.value = netWeight.toFixed(2);
+
+            if (netWeight < 0) {
+                showAlert('⚠️ Warning: Net weight is negative. Please check your weights.', 'warning');
+            }
+        }
+
+        // Enhanced alert function
+        function showAlert(message, type = 'info') {
+            const icons = {
+                'info': 'ℹ️',
+                'success': '✅',
+                'warning': '⚠️',
+                'error': '❌'
+            };
+
+            const icon = icons[type] || 'ℹ️';
+            alert(`${icon} ${message}`);
+        }
+
+        // All business partner and PO functions remain the same...
+        function loadBusinessPartners() {
+            if (isLoadingBP) return;
+
+            const cardType = document.getElementById('cardType').value;
+            const selectedCompany = getSelectedCompany();
+
+            if (!cardType) {
+                console.log('No card type selected');
+                return;
+            }
+
+            if (!selectedCompany) {
+                console.log('No company selected');
+                showAlert('Please select a company first', 'error');
+                return;
+            }
+
+            isLoadingBP = true;
+
+            // Show loading overlay with your existing CSS classes
+            showBPLoadingOverlay(`Loading business partners for ${cardType} in selected company...`);
+            showBPLoadingState(true); // Keep the existing input loading state too
+
+            fetch(`/api/AdvanceRequest/GetBusinessPartners?company=${encodeURIComponent(selectedCompany)}&type=${encodeURIComponent(cardType)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                bpList = data || [];
+                setupOmnisearch();
+                isLoadingBP = false;
+                showBPLoadingState(false);
+                hideBPLoadingOverlay(); // Hide the overlay
+                console.log(`Loaded ${bpList.length} Business Partners for ${cardType}`);
+
+                // Show success message
+                if (bpList.length > 0) {
+                    showAlert(`Successfully loaded ${bpList.length} business partners`, 'success');
+                } else {
+                    showAlert('No business partners found for selected criteria', 'warning');
+                }
+            })
+            .catch(err => {
+                isLoadingBP = false;
+                showBPLoadingState(false);
+                hideBPLoadingOverlay(); // Hide the overlay on error
+                console.error('Error loading Business Partners:', err);
+                showAlert(`Failed to load Business Partners: ${err.message}`, 'error');
+                bpList = [];
+            });
+        }
+
+        function updateCardTypeAndReloadBP() {
+            document.getElementById('cardCode').value = '';
+            document.getElementById('cardName').value = '';
+
+            const poNumberField = document.getElementById('poNumber');
+            const poNumberGroup = document.getElementById('poNumberGroup');
+            if (poNumberField && poNumberGroup) {
+                poNumberGroup.style.display = 'none';
+                poNumberField.value = '';
+            }
+            selectedBP = null;
+
+            const tbody = document.querySelector('#contentsTable tbody');
+            if (tbody) tbody.innerHTML = '';
+
+            // Only load business partners if company is also selected
+            const selectedCompany = getSelectedCompany();
+
+            if (selectedCompany) {
+
+                loadBusinessPartners();
+            }
+        }
+
+        function showBPLoadingState(show) {
+            const cardCodeInput = document.getElementById('cardCode');
+            const cardNameInput = document.getElementById('cardName');
+            const cardCodeWrapper = cardCodeInput.closest('.omnisearch-input');
+            const cardNameWrapper = cardNameInput.closest('.omnisearch-input');
+
+            if (show) {
+                cardCodeWrapper.classList.add('loading');
+                cardNameWrapper.classList.add('loading');
+                cardCodeInput.placeholder = 'Loading Business Partners...';
+                cardNameInput.placeholder = 'Loading Business Partners...';
+                cardCodeInput.disabled = true;
+                cardNameInput.disabled = true;
+            } else {
+                cardCodeWrapper.classList.remove('loading');
+                cardNameWrapper.classList.remove('loading');
+                cardCodeInput.placeholder = 'Search Card code';
+                cardNameInput.placeholder = 'Search Card Name';
+                cardCodeInput.disabled = false;
+                cardNameInput.disabled = false;
+            }
+        }
+
+        function setupOmnisearch() {
+            if (bpList.length === 0) {
+                console.log('⚠️ No Business Partners loaded for omnisearch');
+                return;
+            }
+
+            setupAutocomplete('cardCode', 'code');
+            setupAutocomplete('cardName', 'name');
+            console.log(`✅ Omnisearch setup complete for ${bpList.length} Business Partners`);
+        }
+
+        function setupAutocomplete(inputId, searchType) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            const wrapper = input.closest('.omnisearch-input');
+            if (!wrapper) return;
+
+            let dropdown = wrapper.querySelector('.autocomplete-dropdown');
+            if (!dropdown) {
+                dropdown = document.createElement('div');
+                dropdown.className = 'autocomplete-dropdown';
+                wrapper.appendChild(dropdown);
+            }
+
+            let currentHighlight = -1;
+            let debounceTimer = null;
+
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+
+            newInput.addEventListener('input', function() {
+                const query = this.value.trim().toLowerCase();
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (query.length >= 2) {
+                        showSuggestions(query, dropdown, searchType, newInput);
+                    } else {
+                        hideSuggestions(dropdown);
+                    }
+                }, 300);
+            });
+
+            newInput.addEventListener('keydown', function(e) {
+                const items = dropdown.querySelectorAll('.autocomplete-item');
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentHighlight = Math.min(currentHighlight + 1, items.length - 1);
+                    updateHighlight(items, currentHighlight);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentHighlight = Math.max(currentHighlight - 1, -1);
+                    updateHighlight(items, currentHighlight);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentHighlight >= 0 && items[currentHighlight]) {
+                        const bpData = JSON.parse(items[currentHighlight].dataset.bp);
+                        selectBusinessPartner(bpData, searchType);
+                        hideSuggestions(dropdown);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideSuggestions(dropdown);
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!wrapper.contains(e.target)) {
+                    hideSuggestions(dropdown);
+                }
+            });
+
+            dropdown.addEventListener('mouseenter', function() {
+                currentHighlight = -1;
+                updateHighlight(dropdown.querySelectorAll('.autocomplete-item'), -1);
+            });
+        }
+
+        function showSuggestions(query, dropdown, searchType, input) {
+            const matches = bpList.filter(bp => {
+                if (searchType === 'code') {
+                    return bp.cardCode.toLowerCase().includes(query) ||
+                           bp.cardName.toLowerCase().includes(query);
+                } else {
+                    return bp.cardName.toLowerCase().includes(query) ||
+                           bp.cardCode.toLowerCase().includes(query);
+                }
+            }).slice(0, 15);
+
+            if (matches.length === 0) {
+                hideSuggestions(dropdown);
+                return;
+            }
+
+            dropdown.innerHTML = '';
+
+            matches.forEach(bp => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.dataset.bp = JSON.stringify(bp);
+
+                item.innerHTML = `
+                    <div>
+                        <div class="autocomplete-main">${bp.cardName}</div>
+                        <div class="autocomplete-sub">Type: ${bp.cardType || 'N/A'}</div>
+                    </div>
+                    <div class="autocomplete-code">${bp.cardCode}</div>
+                `;
+
+                item.addEventListener('click', function() {
+                    selectBusinessPartner(bp, searchType);
+                    hideSuggestions(dropdown);
+                });
+
+                item.addEventListener('mouseenter', function() {
+                    const items = dropdown.querySelectorAll('.autocomplete-item');
+                    updateHighlight(items, Array.from(items).indexOf(this));
+                });
+
+                dropdown.appendChild(item);
+            });
+
+            dropdown.style.display = 'block';
+        }
+
+        function hideSuggestions(dropdown) {
+            dropdown.style.display = 'none';
+        }
+
+        function updateHighlight(items, index) {
+            items.forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('highlighted');
+                } else {
+                    item.classList.remove('highlighted');
+                }
+            });
+        }
+
+        function selectBusinessPartner(bp, source) {
+            selectedBP = bp;
+
+            document.getElementById('cardCode').value = bp.cardCode.toUpperCase();
+            document.getElementById('cardName').value = bp.cardName.toUpperCase();
+
+            const dropdowns = document.querySelectorAll('.autocomplete-dropdown');
+            dropdowns.forEach(dropdown => dropdown.style.display = 'none');
+
+            ValidationManager.clearFieldError('cardCode');
+            ValidationManager.clearFieldError('cardName');
+
+            showBPSelectionToast(bp, source);
+
+            setTimeout(() => {
+                if (bp.cardCode && bp.cardCode.length >= 3) {
+                    // Call without full page progress (showProgress = false)
+                    showPurchaseOrderPopup(bp.cardCode, true);
+                }
+            }, 500);
+
+            console.log(`✅ Business Partner selected: ${bp.cardCode} - ${bp.cardName}`);
+        }
+
+        function showBPSelectionToast(bp, source) {
+            const toast = document.getElementById('bpSelectionToast');
+            const message = document.getElementById('bpToastMessage');
+
+            const sourceText = source === 'code' ? 'by Code' : 'by Name';
+            message.textContent = `${bp.cardCode} - ${bp.cardName} (Selected ${sourceText})`;
+
+            toast.style.display = 'block';
+
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        function setupCardCodeListener() {
+            const cardCodeField = document.getElementById("cardCode");
+            if (cardCodeField) {
+                cardCodeField.addEventListener('blur', function() {
+                    const cardCode = this.value.trim();
+                    if (cardCode && cardCode.length >= 3 && !isLoadingPOs && !selectedBP) {
+                        const matchedBP = bpList.find(bp => bp.cardCode.toLowerCase() === cardCode.toLowerCase());
+                        if (matchedBP) {
+                            selectBusinessPartner(matchedBP, 'code');
+                        } else {
+                            // Call without full page progress (showProgress = false)
+                            showPurchaseOrderPopup(cardCode, true);
+                        }
+                    }
+                });
+
+                cardCodeField.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const cardCode = this.value.trim();
+                        if (cardCode && !isLoadingPOs) {
+                            const matchedBP = bpList.find(bp => bp.cardCode.toLowerCase() === cardCode.toLowerCase());
+                            if (matchedBP) {
+                                selectBusinessPartner(matchedBP, 'code');
+                            } else {
+                                // Call without full page progress (showProgress = false)
+                                showPurchaseOrderPopup(cardCode, true);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function lockFormFields(lock) {
+            const fieldsToLock = [
+                'cardName', 'postingDate', 'gatePassType',
+                'receivedBy', 'vehicleNoLogistics', 'driverNameLogistics', 'driverMobile', 'transporterNameLogistics', 'biltyNo'
+            ];
+
+            fieldsToLock.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.disabled = lock;
+                    if (lock) {
+                        field.style.backgroundColor = '#f5f5f5';
+                        field.style.cursor = 'not-allowed';
+                    } else {
+                        field.style.backgroundColor = '';
+                        field.style.cursor = '';
+                    }
+                }
+            });
+
+            showFormLoadingState(lock);
+        }
+
+        function showFormLoadingState(show) {
+            let loadingDiv = document.getElementById('formLoadingIndicator');
+
+            if (show && !loadingDiv) {
+                loadingDiv = document.createElement('div');
+                loadingDiv.id = 'formLoadingIndicator';
+                loadingDiv.innerHTML = `
+                    <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; padding: 12px; margin: 8px; display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 20px; height: 20px; border: 2px solid #2196f3; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <span style="color: #1976d2; font-weight: 500;">Loading Purchase Orders... Please wait</span>
+                    </div>
+                    <style>
+                        @@keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style>
+                `;
+
+                const formSection = document.querySelector('.form-section');
+                if (formSection) {
+                    formSection.insertAdjacentElement('afterend', loadingDiv);
+                }
+            } else if (!show && loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        function showPurchaseOrderPopup(cardCode, showProgress = true) {
+            if (!cardCode) {
+                showAlert("Please enter a valid CardCode", 'warning');
+                lockFormFields(false);
+                return;
+            }
+
+            if (!ValidationManager.validateField('cardCode')) {
+                showAlert("Please enter a valid CardCode before loading POs", 'error');
+                lockFormFields(false);
+                return;
+            }
+
+            const selectedCompany = getSelectedCompany();
+            if (!selectedCompany) {
+                showAlert("Please select a company first", 'error');
+                lockFormFields(false);
+                return;
+            }
+
+            isLoadingPOs = true;
+
+            // Show different loading states based on showProgress parameter
+            if (showProgress) {
+                // Show full page progress for "Copy From" button
+                showFullPageProgress('Loading Purchase Orders...');
+            } else {
+                // Show only form loading state for dropdown selection
+                lockFormFields(true);
+            }
+
+            fetch(`/api/AdvanceRequest/GetPurchaseOrders?CardCode=${encodeURIComponent(cardCode)}&company=${encodeURIComponent(selectedCompany)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                isLoadingPOs = false;
+
+                // Hide appropriate loading state
+                if (showProgress) {
+                    hideFullPageProgress();
+                } else {
+                    lockFormFields(false);
+                }
+
+                fullPOData = data;
+                populatePOPopupTable(data);
+                document.getElementById("poPopupModal").style.display = "flex";
+            })
+            .catch(err => {
+                isLoadingPOs = false;
+
+                // Hide appropriate loading state
+                if (showProgress) {
+                    hideFullPageProgress();
+                } else {
+                    lockFormFields(false);
+                }
+
+                showAlert(`❌ Error loading Purchase Orders: ${err.message}`, 'error');
+            });
+        }
+
+        // UPDATED: PO popup table without Doc Entry column
+        function populatePOPopupTable(poData) {
+            const tbody = document.querySelector("#poPopupTable tbody");
+            tbody.innerHTML = "";
+
+            if (!poData || poData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;">No Purchase Orders found for this CardCode</td></tr>';
+                return;
+            }
+
+            poData.forEach((po, index) => {
+                const lineCount = po.documentLines ? po.documentLines.length : 0;
+                const totalAmount = po.docTotal || 0;
+
+                let formattedDate = '';
+                if (po.docDate) {
+                    try {
+                        const dateObj = new Date(po.docDate);
+                        formattedDate = dateObj.toISOString().split('T')[0];
+                    } catch (e) {
+                        formattedDate = new Date().toISOString().split('T')[0];
+                    }
+                } else {
+                    formattedDate = new Date().toISOString().split('T')[0];
+                }
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><input type="checkbox" class="po-row-checkbox"
+                        data-docentry="${po.docEntry || ''}"
+                        data-docnum="${po.docNum || ''}" /></td>
+                    <td>${po.docNum || ""}<br><small style="color: #666;">${lineCount} items</small></td>
+                    <td>${(po.cardName || "").toUpperCase()}<br><small style="color: #666;">₹${totalAmount.toLocaleString()}</small></td>
+                    <td><input type="date" class="table-input po-date-input"
+                        value="${formattedDate}"
+                        title="PO Date from API" readonly
+                        style="background-color: #f8f9fa; cursor: not-allowed;" /></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const modalHeader = document.querySelector("#poPopupModal .modal-header h3");
+            const totalLineItems = poData.reduce((total, po) => total + (po.documentLines ? po.documentLines.length : 0), 0);
+            if (modalHeader) {
+                modalHeader.innerHTML = `📋 Select Purchase Orders <small style="color: #666;">(${poData.length} POs, ${totalLineItems} total items)</small>`;
+            }
+        }
+
+        function selectPurchaseOrders() {
+            const selectedCheckboxes = document.querySelectorAll(".po-row-checkbox:checked");
+
+            if (selectedCheckboxes.length === 0) {
+                showAlert('Please select at least one Purchase Order', 'warning');
+                return;
+            }
+
+            const selectedLineItems = [];
+            let selectedCardName = '';
+            let selectedPONumbers = [];
+
+            selectedCheckboxes.forEach(checkbox => {
+                const docEntry = checkbox.getAttribute('data-docentry');
+                const docNum = checkbox.getAttribute('data-docnum');
+
+                const selectedPO = fullPOData.find(po => po.docEntry.toString() === docEntry);
+
+                if (selectedPO) {
+                    if (!selectedCardName) {
+                        selectedCardName = selectedPO.cardName;
+                    }
+
+                    if (selectedPO.docNum) {
+                        selectedPONumbers.push(selectedPO.docNum);
+                    }
+
+                    if (selectedPO.documentLines && selectedPO.documentLines.length > 0) {
+                        selectedPO.documentLines.forEach(line => {
+                            const lineItem = {
+                                docEntry: selectedPO.docEntry,
+                                docNum: selectedPO.docNum,
+                                cardName: selectedPO.cardName,
+                                lineNum: line.lineNum,
+                                itemCode: line.itemCode || '',
+                                itemDescription: line.itemDescription || '',
+                                quantity: line.quantity || 0,
+                                remainingOpenQuantity: line.remainingOpenQuantity || 0,
+                                measureUnit: line.measureUnit || 'PCS',
+                                remarks: line.u_Remarks || '',
+                                rate: line.rate || 0,
+                                lineTotal: line.lineTotal || 0
+                            };
+                            selectedLineItems.push(lineItem);
+                        });
+                    }
+                }
+            });
+
+            if (selectedLineItems.length === 0) {
+                showAlert('No line items found in selected Purchase Orders', 'warning');
+                return;
+            }
+
+            if (selectedCardName) {
+                const cardNameField = document.getElementById('cardName');
+                if (cardNameField) {
+                    cardNameField.value = selectedCardName.toUpperCase();
+                    ValidationManager.clearFieldError('cardName');
+                }
+            }
+
+            if (selectedPONumbers.length > 0) {
+                const poNumberField = document.getElementById('poNumber');
+                const poNumberGroup = document.getElementById('poNumberGroup');
+
+                if (poNumberField && poNumberGroup) {
+                    poNumberGroup.style.display = 'block';
+                    poNumberField.value = selectedPONumbers.join(', ').toUpperCase();
+                }
+            }
+
+            populateContentsTableFromLineItems(selectedLineItems);
+            closeModal('poPopupModal');
+            switchTab('contents', document.querySelector('.tab'));
+        }
+
+        function populateContentsTableFromLineItems(lineItems) {
+            const table = document.getElementById('contentsTable');
+            const tbody = table.getElementsByTagName('tbody')[0];
+
+            tbody.innerHTML = '';
+
+            lineItems.forEach((lineItem, index) => {
+                const newRow = tbody.insertRow();
+                const rowNumber = index + 1;
+                const defaultReceivedQty = 0;
+
+                newRow.innerHTML = `
+                    <td style="text-align: center; background-color: #f8f9fa;">${rowNumber}</td>
+                    <td><input class="table-input uppercase-input" type="text" value="${lineItem.itemDescription.toUpperCase()}"
+                        readonly style="background-color: #f8f9fa; cursor: not-allowed;"
+                        title="Item Description "></td>
+                    <td><input class="table-input uppercase-input" type="text" value="${lineItem.itemCode.toUpperCase()}"
+                        readonly style="background-color: #f8f9fa; cursor: not-allowed;"
+                        title="Item Code "></td>
+                    <td><input class="table-input uppercase-input" type="text" value="${lineItem.remarks.toUpperCase()}"
+                        placeholder="Enter remarks" title="Remarks "
+                        readonly style="background-color: #e8f4fd; border-color: #17a2b8;"></td>
+                    <td><input class="table-input" type="number" value="${lineItem.quantity}" step="0.0001" min="0"
+                        readonly style="background-color: #f8f9fa; cursor: not-allowed;"
+                        title="PO Quantity "></td>
+                    <td><input class="table-input" type="number" value="${lineItem.remainingOpenQuantity}" step="0.0001" min="0"
+                        readonly style="background-color: #f8f9fa; cursor: not-allowed;"
+                        title="Open Quantity (readonly)"></td>
+                    <td><input class="table-input uppercase-input" type="text" value="${lineItem.measureUnit.toUpperCase()}"
+                        readonly style="background-color: #f8f9fa; cursor: not-allowed;"
+                        title="Unit of Measure "></td>
+                    <td><input class="table-input editable-field" type="number" value="${defaultReceivedQty}" step="0.0001" min="0"
+                        placeholder="Enter received qty" title="Quantity Received "
+                        style="background-color: #fff3cd; border-color: #ffc107;"></td>
+                    <td><input class="table-input editable-field uppercase-input" type="text" value=""
+                        placeholder="Enter user remarks" title="User Remarks "
+                        style="background-color: #fff3cd; border-color: #ffc107;"></td>
+                `;
+
+                newRow.setAttribute('data-po-docentry', lineItem.docEntry);
+                newRow.setAttribute('data-po-docnum', lineItem.docNum);
+                newRow.setAttribute('data-po-linenum', lineItem.lineNum);
+            });
+
+            const editableFields = tbody.querySelectorAll('.editable-field');
+            editableFields.forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (this.type === 'number') {
+                        this.style.backgroundColor = '#fff3cd';
+                        this.style.borderColor = '#ffc107';
+                    } else {
+                        this.style.backgroundColor = '#e8f4fd';
+                        this.style.borderColor = '#17a2b8';
+                    }
+                });
+
+                input.addEventListener('blur', function() {
+                    if (this.type === 'number') {
+                        if (parseFloat(this.value) > 0) {
+                            this.style.backgroundColor = '#d4edda';
+                            this.style.borderColor = '#28a745';
+                        } else {
+                            this.style.backgroundColor = '#fff3cd';
+                            this.style.borderColor = '#ffc107';
+                        }
+                    }
+                });
+            });
+        }
+
+        function toggleSelectAllPOs() {
+            const selectAllBtn = document.getElementById("selectAllPOs");
+            const checkboxes = document.querySelectorAll(".po-row-checkbox");
+            const isSelectAll = selectAllBtn.textContent === "Select All";
+
+            checkboxes.forEach(cb => cb.checked = isSelectAll);
+            selectAllBtn.textContent = isSelectAll ? "Unselect All" : "Select All";
+        }
+
+        function switchTab(tabName, tabElement) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+
+            if (tabElement) {
+                tabElement.classList.add('active');
+            }
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            const targetTab = document.getElementById(tabName + '-tab');
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+        }
+
+        function collectContentsTableData() {
+            const table = document.getElementById('contentsTable');
+            if (!table) {
+                console.log("❌ Contents table not found");
+                return [];
+            }
+
+            const tbody = table.getElementsByTagName('tbody')[0];
+            if (!tbody) {
+                console.log("❌ Contents table tbody not found");
+                return [];
+            }
+
+            const rows = tbody.getElementsByTagName('tr');
+            const contentsData = [];
+
+            console.log(`📋 Processing ${rows.length} rows from contents table`);
+
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].cells;
+                if (cells.length >= 9) {
+                    const itemNameInput = cells[1].querySelector('input');
+                    const itemCodeInput = cells[2].querySelector('input');
+                    const remarksInput = cells[3].querySelector('input');
+                    const poQtyInput = cells[4].querySelector('input');
+                    const openQtyInput = cells[5].querySelector('input');
+                    const uomInput = cells[6].querySelector('input');
+                    const quantityInput = cells[7].querySelector('input');
+                    const userRemarksInput = cells[8].querySelector('input');
+
+                    const itemData = {
+                        rowNumber: i + 1,
+                        itemName: itemNameInput ? itemNameInput.value.trim().toUpperCase() : '',
+                        itemCode: itemCodeInput ? itemCodeInput.value.trim().toUpperCase() : '',
+                        remarks: remarksInput ? remarksInput.value.trim().toUpperCase() : '',
+                        poQuantity: poQtyInput ? parseFloat(poQtyInput.value) || 0 : 0,
+                        openQuantity: openQtyInput ? parseFloat(openQtyInput.value) || 0 : 0,
+                        uom: uomInput ? uomInput.value.trim().toUpperCase() : 'PCS',
+                        quantityReceived: quantityInput ? parseFloat(quantityInput.value) || 0 : 0,
+                        userRemarks: userRemarksInput ? userRemarksInput.value.trim().toUpperCase() : '',
+
+                        poDocEntry: rows[i].getAttribute('data-po-docentry') || '',
+                        poDocNum: rows[i].getAttribute('data-po-docnum') || '',
+                        poLineNum: rows[i].getAttribute('data-po-linenum') || ''
+                    };
+
+                    console.log(`📋 Row ${i + 1}: ${itemData.itemCode} - ${itemData.itemName} (Qty: ${itemData.quantityReceived})`);
+                    contentsData.push(itemData);
+                }
+            }
+
+            console.log(`✅ Collected ${contentsData.length} items from contents table`);
+            return contentsData;
+        }
+
+        function buildDocumentArrays() {
+            const contentsData = collectContentsTableData();
+            const cardType = document.getElementById("cardType")?.value || 'VENDOR';
+
+            console.log(`📊 Building document arrays for ${cardType} with ${contentsData.length} items`);
+
+            const customerDocs = [];
+            const vendorDocs = [];
+            const bstDocs = [];
+
+            contentsData.forEach((item, index) => {
+                const baseDoc = {
+                    ItemCode: item.itemCode || "",
+                    ItemName: item.itemName || "",
+                    Remarks: item.userRemarks || "",
+                    CreatedBy: parseInt(createdBy) || 67
+                };
+
+                if (cardType.toUpperCase() === 'CUSTOMER') {
+                    const generatedDocId = item.poDocEntry ? `CU${item.poDocEntry}` : `CU${Date.now()}${index}`;
+
+                    customerDocs.push({
+                        ...baseDoc,
+                        DocType: 'CUSTOMER',
+                        DocId: generatedDocId,
+                        Qty: item.poQuantity || 0,
+                        ReceivedQty: item.quantityReceived || 0,
+                        OpenQty: item.openQuantity || 0
+                    });
+                } else if (cardType.toUpperCase() === 'VENDOR') {
+                    const generatedPONumber = item.poDocNum ? item.poDocNum : `PO${Date.now()}${index}`;
+
+                    const vendorDoc = {
+                        ...baseDoc,
+                        DocType: 'VENDOR',
+                        PONumber: generatedPONumber,
+                        POQty: item.poQuantity || 0,
+                        ReceivedQty: item.quantityReceived || 0,
+                        OpenQty: item.openQuantity || 0
+                    };
+
+                    console.log(`📋 Created vendor doc: ${vendorDoc.ItemCode}, PO: ${vendorDoc.PONumber}, ReceivedQty: ${vendorDoc.ReceivedQty}`);
+                    vendorDocs.push(vendorDoc);
+                } else if (cardType.toUpperCase() === 'BST') {
+                    const generatedDocId = item.poDocEntry ? `BST${item.poDocEntry}` : `BST${Date.now()}${index}`;
+
+                    bstDocs.push({
+                        ...baseDoc,
+                        DocType: 'BST',
+                        DocId: generatedDocId,
+                        FromLocation: 'LOCA',
+                        FromWarehouse: 'WH-BH',
+                        ToWarehouse: 'WH-HP',
+                        Qty: item.poQuantity || 0,
+                        QtyReceived: item.quantityReceived || 0
+                    });
+                }
+            });
+
+            console.log(`✅ Document arrays built:`);
+            console.log(`   - Customer Docs: ${customerDocs.length}`);
+            console.log(`   - Vendor Docs: ${vendorDocs.length}`);
+            console.log(`   - BST Docs: ${bstDocs.length}`);
+
+            return { customerDocs, vendorDocs, bstDocs };
+        }
+
+        // FIXED: Submit function with proper attachment separation and attachment info for viewing
+        async function submitGateEntryMaster() {
+            try {
+                updateProgressMessage('Collecting form data...');
+
+                const contentsData = collectContentsTableData();
+                if (contentsData.length === 0) {
+                    hideFullPageProgress();
+                    showAlert("❌ No items found in contents table. Please add items before saving.", 'error');
+                    return;
+                }
+
+                const logisticsData = collectLogisticsData();
+                const documentArrays = buildDocumentArrays();
+
+                // Check if document arrays have data based on card type
+                const cardType = document.getElementById("cardType")?.value || 'VENDOR';
+                let hasDocuments = false;
+
+                if (cardType.toUpperCase() === 'VENDOR' && documentArrays.vendorDocs.length > 0) {
+                    hasDocuments = true;
+                } else if (cardType.toUpperCase() === 'CUSTOMER' && documentArrays.customerDocs.length > 0) {
+                    hasDocuments = true;
+                } else if (cardType.toUpperCase() === 'BST' && documentArrays.bstDocs.length > 0) {
+                    hasDocuments = true;
+                }
+
+                if (!hasDocuments) {
+                    hideFullPageProgress();
+                    showAlert(`❌ No ${cardType} documents were generated from contents table. Please check your data.`, 'error');
+                    return;
+                }
+
+                updateProgressMessage('Building request data...');
+
+                const currentDateText = document.getElementById("currentDate")?.textContent;
+                let entryDate = new Date().toISOString().split('T')[0];
+
+                if (currentDateText) {
+                    const dateParts = currentDateText.split('/');
+                    if (dateParts.length === 3) {
+                        entryDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    }
+                }
+
+                // COMPLETELY FIXED: Separate vehicle and general attachments properly
+                const gateEntryData = {
+                    EntryType: cardType.toUpperCase(),
+                    Company: getSelectedCompany() || '',
+                    EntryDate: entryDate,
+                    PartyID: document.getElementById("cardCode")?.value?.trim().toUpperCase() || '',
+                    DocumentType: 'PO',
+                    Remarks: document.getElementById("docRemarks")?.value?.trim().toUpperCase() || '',
+                    CreatedBy: parseInt(createdBy) || 67,
+
+                    VehicleNo: logisticsData.vehicleNo || '',
+                    VRefNo: logisticsData.challanNo || 'VREF' + Date.now(),
+                    DriverName: logisticsData.driverName || '',
+                    DriverNumber: logisticsData.driverMobile || '',
+                    VendorBiltyNo: logisticsData.biltyNo || '',
+                    TransporterName: logisticsData.transporterName || '',
+                    DocumentRemarks: document.getElementById("docRemarks")?.value?.trim().toUpperCase() || '',
+
+                    CustomerDocuments: documentArrays.customerDocs,
+                    VendorDocuments: documentArrays.vendorDocs,
+                    BSTDocuments: documentArrays.bstDocs
+
+                    // REMOVED: No attachment info in JSON data - only files in FormData
+                };
+
+                console.log("🔍 DEBUG INFO:");
+                console.log("Vehicle file exists:", !!vehicleAttachmentFile);
+                console.log("Vehicle file name:", vehicleAttachmentFile ? vehicleAttachmentFile.name : 'None');
+                console.log("General files count:", selectedGeneralFiles.length);
+                console.log("General files:", selectedGeneralFiles.map(f => f.name));
+
+                updateProgressMessage('Preparing files for upload...');
+
+                const formData = new FormData();
+                formData.append("gateEntry", JSON.stringify(gateEntryData));
+
+                // IMPORTANT: Use COMPLETELY different keys for different purposes
+                let vehicleFileAdded = false;
+                let generalFilesAdded = 0;
+
+                // Prepare attachment data for viewing after save
+                const attachmentData = [];
+
+                // VEHICLE ATTACHMENT - SEPARATE KEY AND METADATA
+                if (vehicleAttachmentFile) {
+                    // Use unique key for vehicle attachment
+                    formData.append("vehicle_attachment", vehicleAttachmentFile);
+
+                    // Add vehicle metadata separately
+                    const vehicleMetadata = {
+                        fileName: vehicleAttachmentFile.name,
+                        fileSize: vehicleAttachmentFile.size,
+                        fileType: vehicleAttachmentFile.type || 'application/octet-stream',
+                        attachmentCategory: 'VEHICLE_DOCUMENT',
+                        uploadedBy: parseInt(createdBy) || 67
+                    };
+
+                    formData.append("vehicle_metadata", JSON.stringify(vehicleMetadata));
+                    attachmentData.push({...vehicleMetadata, category: 'VEHICLE_DOCUMENT'});
+
+                    vehicleFileAdded = true;
+                    console.log("🚛 VEHICLE ATTACHMENT added with key 'vehicle_attachment':", vehicleAttachmentFile.name);
+                } else {
+                    console.log("❌ No vehicle attachment to add");
+                }
+
+                // GENERAL ATTACHMENTS - COMPLETELY SEPARATE KEY AND METADATA
+                if (selectedGeneralFiles.length > 0) {
+                    selectedGeneralFiles.forEach((file, index) => {
+                        // Use unique key for general attachments
+                        formData.append(`general_attachment_${index}`, file);
+
+                        // Add to attachment data for viewing
+                        attachmentData.push({
+                            fileName: file.name,
+                            fileSize: file.size,
+                            fileType: file.type || 'application/octet-stream',
+                            category: 'GENERAL_DOCUMENT'
+                        });
+                    });
+
+                    // Add general files metadata separately
+                    formData.append("general_metadata", JSON.stringify(
+                        selectedGeneralFiles.map((file, index) => ({
+                            fileName: file.name,
+                            fileSize: file.size,
+                            fileType: file.type || 'application/octet-stream',
+                            attachmentCategory: 'GENERAL_DOCUMENT',
+                            uploadedBy: parseInt(createdBy) || 67,
+                            index: index
+                        }))
+                    ));
+
+                    generalFilesAdded = selectedGeneralFiles.length;
+                    console.log("📎 GENERAL ATTACHMENTS added:", selectedGeneralFiles.map(f => f.name));
+                } else {
+                    console.log("❌ No general attachments to add");
+                }
+
+                // FINAL DEBUG: Show exactly what's being sent
+                console.log("🔍 FINAL CHECK - FormData Keys:");
+                const formDataEntries = [];
+                for (let [key, value] of formData.entries()) {
+                    const entry = `${key}: ${value instanceof File ? `FILE(${value.name})` : 'JSON_DATA'}`;
+                    formDataEntries.push(entry);
+                    console.log(`- ${entry}`);
+                }
+
+                // Add summary counts to FormData for backend processing
+                formData.append("attachment_summary", JSON.stringify({
+                    vehicleAttachmentCount: vehicleFileAdded ? 1 : 0,
+                    generalAttachmentCount: generalFilesAdded,
+                    totalAttachments: (vehicleFileAdded ? 1 : 0) + generalFilesAdded
+                }));
+
+                updateProgressMessage('Submitting to server...');
+
+                const response = await fetch("/api/GIGO/InsertGateEntryMaster", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success || result.Success) {
+                    hideFullPageProgress();
+
+                    // Show success modal with CORRECT attachment counts and viewing capability
+                    const totalDocs = documentArrays.customerDocs.length + documentArrays.vendorDocs.length + documentArrays.bstDocs.length;
+
+                    showSuccessModal({
+                        entryType: `${gateEntryData.EntryType} Entry`,
+                        vehicle: `${gateEntryData.VehicleNo} (${gateEntryData.DriverName})`,
+                        contents: `${contentsData.length} items, ${totalDocs} records`,
+                        attachments: `Vehicle: ${vehicleFileAdded ? 1 : 0}, General: ${generalFilesAdded}`,
+                        attachmentData: attachmentData // Pass attachment data for viewing
+                    });
+
+                } else {
+                    throw new Error(result.message || result.Message || 'Unknown save error');
+                }
+
+            } catch (err) {
+                hideFullPageProgress();
+                showAlert(`❌ Save failed: ${err.message}`, 'error');
+                console.error("Full error details:", err);
+            }
+        }
+
+        function collectLogisticsData() {
+            const logisticsData = {
+                transporterName: document.getElementById("transporterNameLogistics")?.value?.trim().toUpperCase() || '',
+                driverName: document.getElementById("driverNameLogistics")?.value?.trim().toUpperCase() || '',
+                driverMobile: document.getElementById("driverMobile")?.value?.trim() || '',
+                vehicleNo: document.getElementById("vehicleNoLogistics")?.value?.trim().toUpperCase() || '',
+                challanNo: document.getElementById("challanNo")?.value?.trim().toUpperCase() || '',
+                challanDate: document.getElementById("challanDate")?.value || '',
+                shipFrom: document.getElementById("shipFrom")?.value?.trim().toUpperCase() || '',
+                biltyNo: document.getElementById("biltyNo")?.value?.trim().toUpperCase() || '',
+
+                inTime: document.getElementById("inTime")?.value || '',
+                grossWeight: parseFloat(document.getElementById("grossWeight")?.value) || 0,
+                tareWeight: parseFloat(document.getElementById("tareWeight")?.value) || 0,
+                netWeight: parseFloat(document.getElementById("netWeight")?.value) || 0
+            };
+
+            return logisticsData;
+        }
+
+        function addRow() {
+            document.getElementById('addItemModal').style.display = 'flex';
+        }
+
+        function saveItem() {
+            const itemCode = document.getElementById('modalItemCode')?.value?.trim().toUpperCase();
+            const itemName = document.getElementById('modalItemName')?.value?.trim().toUpperCase();
+
+            if (!itemCode || !itemName) {
+                showAlert('❗ Please fill in Item Code and Item Description', 'warning');
+                return;
+            }
+
+            if (itemCode.length < 2) {
+                showAlert('❗ Item Code must be at least 2 characters', 'error');
+                return;
+            }
+
+            if (itemName.length < 2) {
+                showAlert('❗ Item Description must be at least 2 characters', 'error');
+                return;
+            }
+
+            const table = document.getElementById('contentsTable');
+            const tbody = table.getElementsByTagName('tbody')[0];
+            const newRow = tbody.insertRow();
+            const rowCount = tbody.rows.length;
+
+            const recQuantity = document.getElementById('modalRecQuantity')?.value || '1';
+            const poQuantity = document.getElementById('modalPOQuantity')?.value || '1';
+            const openQuantity = document.getElementById('modalOpenQuantity')?.value || '0';
+            const uom = document.getElementById('modalUoM')?.value.toUpperCase() || 'PCS';
+            const remarks = document.getElementById('modalRemarks')?.value?.trim().toUpperCase() || '';
+
+            if (parseFloat(recQuantity) <= 0) {
+                showAlert('❗ Received quantity must be greater than 0', 'error');
+                return;
+            }
+
+            if (parseFloat(poQuantity) <= 0) {
+                showAlert('❗ PO quantity must be greater than 0', 'error');
+                return;
+            }
+
+            newRow.innerHTML = `
+                <td>${rowCount}</td>
+                <td><input class="table-input uppercase-input" type="text" value="${itemName}" readonly style="background-color: #f8f9fa; cursor: not-allowed;"></td>
+                <td><input class="table-input uppercase-input" type="text" value="${itemCode}" readonly style="background-color: #f8f9fa; cursor: not-allowed;"></td>
+                <td><input class="table-input uppercase-input" type="text" value="${remarks}" readonly style="background-color: #f8f9fa; cursor: not-allowed;"></td>
+                <td><input class="table-input" type="number" value="${poQuantity}" readonly style="background-color: #f8f9fa; cursor: not-allowed;"></td>
+                <td><input class="table-input" type="number" value="${openQuantity}" readonly style="background-color: #f8f9fa; cursor: not-allowed;"></td>
+                <td><input class="table-input uppercase-input" type="text" value="${uom}" readonly style="background-color: #f8f9fa; cursor: not-allowed;"></td>
+                <td><input class="table-input editable-field" type="number" value="${recQuantity}" step="0.0001" min="0" style="background-color: #fff3cd; border-color: #ffc107;"></td>
+                <td><input class="table-input editable-field uppercase-input" type="text" value="" placeholder="USER REMARKS" style="background-color: #e8f4fd; border-color: #17a2b8;"></td>
+            `;
+
+            closeModal('addItemModal');
+            clearModalFields();
+        }
+
+        function deleteRow() {
+            const table = document.getElementById('contentsTable');
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+            let deletedCount = 0;
+            for (let i = rows.length - 1; i >= 0; i--) {
+                if (rows[i].classList.contains('selected')) {
+                    rows[i].remove();
+                    deletedCount++;
+                }
+            }
+
+            if (deletedCount > 0) {
+                updateRowNumbers();
+                showAlert(`🗑️ Deleted ${deletedCount} row(s)`, 'success');
+            } else {
+                showAlert('Please select a row to delete', 'warning');
+            }
+        }
+
+        function updateRowNumbers() {
+            const rows = document.querySelectorAll('#contentsTable tbody tr');
+            rows.forEach((row, index) => {
+                row.cells[0].textContent = index + 1;
+            });
+        }
+
+        function clearModalFields() {
+            ['modalItemCode', 'modalItemName', 'modalRecQuantity', 'modalPOQuantity', 'modalOpenQuantity', 'modalRemarks'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.value = '';
+            });
+        }
+
+        function triggerAttachmentsInput() {
+            document.getElementById('attachmentsInput')?.click();
+        }
+
+        // UPDATED: Handle general attachments (renamed from selectedFiles to selectedGeneralFiles)
+        function handleAttachmentsChange(event) {
+            const newFiles = Array.from(event.target.files);
+            const maxSize = 512 * 1024; // 512KB
+            const allowedTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
+
+            clearMessages();
+
+            for (let file of newFiles) {
+                if (file.size > maxSize) {
+                    showAlert(`❌ File "${file.name}" exceeds 512KB limit`, 'error');
+                    return;
+                }
+
+                const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+                if (!allowedTypes.includes(fileExt)) {
+                    showAlert(`❌ File "${file.name}" format not supported`, 'error');
+                    return;
+                }
+
+                const isDuplicate = selectedGeneralFiles.some(existingFile =>
+                    existingFile.name === file.name && existingFile.size === file.size
+                );
+                if (isDuplicate) {
+                    showAlert(`❌ File "${file.name}" is already selected`, 'warning');
+                    return;
+                }
+            }
+
+            selectedGeneralFiles = selectedGeneralFiles.concat(newFiles);
+            updateFileList();
+            event.target.value = '';
+        }
+
+        function updateFileList() {
+            const fileList = document.getElementById("fileList");
+            if (!fileList) return;
+
+            fileList.innerHTML = "";
+
+            if (selectedGeneralFiles.length === 0) {
+                fileList.innerHTML = '<li style="color: #999; font-style: italic; background: none; border: none;">No files selected</li>';
+                return;
+            }
+
+            selectedGeneralFiles.forEach((file, index) => {
+                const li = document.createElement("li");
+
+                // Create clickable filename for preview
+                const fileNameSpan = document.createElement("span");
+                fileNameSpan.style.cursor = "pointer";
+                fileNameSpan.style.color = "#007bff";
+                fileNameSpan.style.textDecoration = "underline";
+                fileNameSpan.title = "Click to preview file";
+                fileNameSpan.innerHTML = `<strong>${file.name.toUpperCase()}</strong> <small>(${(file.size / 1024).toFixed(2)} KB)</small>`;
+
+                // Add click handler for preview
+                fileNameSpan.addEventListener('click', function() {
+                    previewFile(file, file.name);
+                });
+
+                const removeButton = document.createElement("button");
+                removeButton.textContent = "Remove";
+                removeButton.title = "Remove file";
+                removeButton.onclick = () => removeFile(index);
+
+                li.appendChild(fileNameSpan);
+                li.appendChild(removeButton);
+                fileList.appendChild(li);
+            });
+        }
+
+        function removeFile(index) {
+            const removedFile = selectedGeneralFiles[index];
+            selectedGeneralFiles.splice(index, 1);
+            updateFileList();
+            showAlert(`🗑️ Removed file: ${removedFile.name}`, 'info');
+        }
+
+        function clearMessages() {
+            ['upload-error', 'upload-success'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.style.display = 'none';
+            });
+        }
+
+        // UPDATED: Reset form including vehicle attachment
+        function resetForm() {
+            const allInputs = document.querySelectorAll('input:not([type="file"]), select, textarea');
+            allInputs.forEach(input => {
+                if (input.type === 'date') {
+                    if (input.id === 'postingDate') {
+                        input.value = new Date().toISOString().split('T')[0];
+                    } else {
+                        input.value = new Date().toISOString().split('T')[0];
+                    }
+                } else if (input.type === 'time') {
+                    input.value = new Date().toLocaleTimeString('en-GB', { hour12: false }).slice(0, 5);
+                } else if (input.type === 'number') {
+                    input.value = '0.00';
+                } else if (input.tagName === 'SELECT') {
+                    input.selectedIndex = 0; // No default selection
+                } else {
+                    input.value = '';
+                }
+                ValidationManager.clearFieldError(input.id);
+            });
+
+            const poNumberGroup = document.getElementById('poNumberGroup');
+            if (poNumberGroup) {
+                poNumberGroup.style.display = 'none';
+            }
+
+            document.querySelector('#contentsTable tbody').innerHTML = '';
+
+            // Reset both types of attachments
+            vehicleAttachmentFile = null;
+            selectedGeneralFiles = [];
+            savedAttachments = []; // Clear saved attachments
+            updateFileList();
+
+            // Clear file inputs
+            document.getElementById("attachmentsInput").value = '';
+            document.getElementById("vehicleAttachment").value = '';
+
+            // Clear vehicle attachment display
+            document.getElementById('vehicle-attachment-display').innerHTML = '';
+
+            // Reset vehicle attachment status
+            const statusIndicator = document.getElementById('vehicleAttachmentStatus');
+            if (statusIndicator) {
+                statusIndicator.textContent = '📎 Required';
+                statusIndicator.style.color = '#dc2626';
+            }
+
+            // Reset user name
+            const receivedByField = document.getElementById('receivedBy');
+            if (receivedByField) {
+                const userName = sessionStorage.getItem("userName");
+                receivedByField.value = userName || 'ADMIN';
+            }
+
+            switchTab('contents', document.querySelector('.tab'));
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function copyToClipboard() {
+            const cardCode = document.getElementById("cardCode")?.value?.trim();
+
+            if (!cardCode) {
+                showAlert('❗ Please enter CardCode first', 'warning');
+                document.getElementById("cardCode").focus();
+                return;
+            }
+
+            if (!ValidationManager.validateField('cardCode')) {
+                showAlert('❗ Please enter a valid CardCode', 'error');
+                return;
+            }
+
+            // Call WITH full page progress (showProgress = true)
+            showPurchaseOrderPopup(cardCode, true);
+        }
+
+        function previewFile(file, fileName) {
+            if (!file) {
+                showAlert('File not available for preview', 'error');
+                return;
+            }
+
+            const fileType = file.type.toLowerCase();
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+
+            // Create file URL for preview
+            const fileURL = URL.createObjectURL(file);
+
+            let content = '';
+
+            if (fileType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
+                // Image preview
+                content = `
+                    <div style="text-align: center;">
+                        <h4>📷 Image Preview: ${fileName}</h4>
+                        <div style="margin: 20px 0;">
+                            <img src="${fileURL}" alt="${fileName}" style="max-width: 100%; max-height: 60vh; border: 2px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+                            <strong>File Size:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                            <strong>File Type:</strong> ${file.type || 'Unknown'}
+                        </div>
+                    </div>
+                `;
+            } else if (fileType.includes('pdf')) {
+                // PDF preview using iframe
+                content = `
+                    <div style="text-align: center;">
+                        <h4>📄 PDF Preview: ${fileName}</h4>
+                        <div style="margin: 20px 0;">
+                            <iframe src="${fileURL}" width="100%" height="500px" style="border: 2px solid #ddd; border-radius: 8px;"></iframe>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+                            <strong>File Size:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                            <strong>Note:</strong> If PDF doesn't display, your browser may not support inline PDF viewing.
+                        </div>
+                    </div>
+                `;
+            } else if (fileType.includes('text') || ['txt', 'log', 'csv'].includes(fileExtension)) {
+                // Text file preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const textContent = e.target.result;
+                    const preview = textContent.length > 2000 ? textContent.substring(0, 2000) + '...' : textContent;
+
+                    const textPreviewContent = `
+                        <div>
+                            <h4>📝 Text Preview: ${fileName}</h4>
+                            <div style="margin: 20px 0;">
+                                <pre style="background: #f5f5f5; padding: 15px; border-radius: 8px; max-height: 400px; overflow: auto; text-align: left; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12px;">${preview}</pre>
+                            </div>
+                            <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+                                <strong>File Size:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                                ${textContent.length > 2000 ? '<strong>Note:</strong> Preview truncated. Full content will be uploaded.' : ''}
+                            </div>
+                        </div>
+                    `;
+                    showAttachmentModal(`Preview: ${fileName}`, textPreviewContent);
+                };
+                reader.readAsText(file);
+                return; // Exit early since we're handling this async
+            } else {
+                // Generic file info for unsupported types
+                content = `
+                    <div style="text-align: center;">
+                        <h4>📎 File Information: ${fileName}</h4>
+                        <div style="margin: 40px 0;">
+                            <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
+                            <p style="font-size: 18px; color: #666; margin-bottom: 10px;">Preview not available for this file type</p>
+                            <p style="font-size: 16px; color: #333;"><strong>${fileName}</strong></p>
+                        </div>
+                        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: left;">
+                            <div style="font-size: 14px; color: #666;">
+                                <strong>File Type:</strong> ${file.type || 'Unknown'}<br>
+                                <strong>File Size:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                                <strong>File Extension:</strong> .${fileExtension}<br>
+                                <strong>Status:</strong> Ready for upload
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 13px; color: #1976d2;">
+                            💡 <strong>Supported Preview Types:</strong> Images, PDFs, Text files
+                        </div>
+                    </div>
+                `;
+            }
+
+            showAttachmentModal(`Preview: ${fileName}`, content);
+
+            // Clean up the URL after showing (with delay to allow viewing)
+            setTimeout(() => {
+                URL.revokeObjectURL(fileURL);
+            }, 30000); // Clean up after 30 seconds
+        }
+
+        function printGatePass() {
+            if (ValidationManager.validateAll()) {
+                showAlert('🖨️ Printing Gate Pass...', 'info');
+                window.print();
+            }
+        }
+
+        function cancelInward() {
+            if (confirm('⚠️ Are you sure you want to cancel this entry? All data will be lost.')) {
+                resetForm();
+                showAlert('Gate inward cancelled', 'info');
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal, .attachment-modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = "none";
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,3475 @@
+﻿@model List<JSAPNEW.Models.GetAllUserModel>
+
+@{
+    ViewData["Title"] = "Inventory Audit";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Audit</title>
+
+    <style>
+        :root {
+            --primary-color: #0b2c4d;
+            --primary-light: #1a4066;
+            --primary-dark: #051a2f;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --border-radius-sm: 6px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--light-bg) 0%, #e8f4f8 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+        }
+
+        /* Modern Card Styles */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+            .card:hover {
+                box-shadow: var(--shadow-lg);
+                transform: translateY(-1px);
+            }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            border-bottom: none;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        .card-compact .card-body {
+            padding: 1rem;
+        }
+
+        /* Progress Overlay */
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 44, 77, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .progress-circle {
+            width: 56px;
+            height: 56px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.75rem;
+        }
+
+        .progress-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: white;
+            text-align: center;
+        }
+
+        @@keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Grid Layout */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .grid-auto {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Session Info Cards */
+        .session-info-grid {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 0;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            padding: 5px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+            .info-card:hover {
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-sm);
+            }
+
+        .info-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+            .info-value.highlight {
+                background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+                color: white;
+                padding: 0.6rem;
+                border-radius: var(--border-radius-sm);
+                font-size: 1.1rem;
+            }
+
+        /* Locked state for count parameters */
+        .locked-section {
+            opacity: 0.6;
+            pointer-events: none;
+            position: relative;
+        }
+
+            .locked-section::after {
+                content: '🔒 Parameters locked after adding items';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 255, 255, 0.95);
+                padding: 0.5rem 1rem;
+                border-radius: var(--border-radius-sm);
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: var(--warning-color);
+                border: 2px solid var(--warning-color);
+                z-index: 10;
+            }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+            .form-label.required::after {
+                content: ' *';
+                color: var(--danger-color);
+            }
+
+        /* Custom Select Dropdown */
+        .select-container {
+            position: relative;
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            min-height: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+            .select-container:hover {
+                border-color: var(--accent-color);
+            }
+
+            .select-container:focus-within,
+            .select-container.active {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+            .select-container.loading {
+                border-color: var(--accent-color);
+                background: linear-gradient(90deg, #f0f9ff 0%, #dbeafe 50%, #f0f9ff 100%);
+                background-size: 200% 100%;
+                animation: shimmer 1.5s infinite;
+            }
+
+        @@keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .select-container.disabled {
+            background-color: #f7fafc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .select-value {
+            padding: 0.6rem 2.5rem 0.6rem 0.8rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            min-height: 18px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+
+        .select-placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .select-loading {
+            color: var(--accent-color);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .select-error {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .select-container.active .select-arrow {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        .select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: -2px;
+            right: -2px;
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-top: none;
+            border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: var(--shadow-lg);
+        }
+
+            .select-dropdown.show {
+                display: block;
+            }
+
+        .select-option {
+            padding: 0.6rem 0.8rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+            .select-option:hover {
+                background-color: #f8fafc;
+            }
+
+            .select-option.selected {
+                background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+                color: white;
+                font-weight: 500;
+            }
+
+            .select-option.select-all {
+                background: linear-gradient(135deg, var(--success-color), #229954);
+                color: white;
+                font-weight: 600;
+                border-bottom: 2px solid #1e7e34;
+            }
+
+                .select-option.select-all:hover {
+                    background: linear-gradient(135deg, #229954, #1e7e34);
+                }
+
+            .select-option:last-child {
+                border-bottom: none;
+            }
+
+        /* Multi-select specific styles */
+        .multi-select-tag {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 0.1rem;
+        }
+
+            .multi-select-tag .remove-tag {
+                cursor: pointer;
+                font-weight: bold;
+                opacity: 0.8;
+            }
+
+                .multi-select-tag .remove-tag:hover {
+                    opacity: 1;
+                }
+
+        .multi-select-count {
+            background: var(--accent-color);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .select-all-tag {
+            background: linear-gradient(135deg, var(--success-color), #229954);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 0.1rem;
+        }
+
+        /* Item Input Bar */
+        .item-input-bar {
+            background: linear-gradient(135deg, #e3f2fd, #f8f9ff);
+            border: 2px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            display: grid;
+            grid-template-columns: 2fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .item-search-container {
+            position: relative;
+        }
+
+        .item-search-input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+            .item-search-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+        .quantity-input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            text-align: center;
+            font-weight: 600;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+            .quantity-input:focus {
+                outline: none;
+                border-color: var(--success-color);
+                box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+            }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .btn:hover:not(.disabled) {
+                transform: translateY(-1px);
+            }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+            .btn-primary:hover:not(.disabled) {
+                box-shadow: var(--shadow-md);
+            }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #229954);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+            .btn-success:hover:not(.disabled) {
+                box-shadow: var(--shadow-md);
+            }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #c0392b);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+            .btn-outline:hover:not(.disabled) {
+                background: var(--primary-color);
+                color: white;
+            }
+
+        .btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-lg {
+            padding: 0.8rem 1.6rem;
+            font-size: 1rem;
+        }
+
+        /* Enhanced Count Parameters Modal */
+        .modal-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: rgba(0, 0, 0, 0.8) !important;
+            display: none !important;
+            justify-content: center !important;
+            align-items: center !important;
+            z-index: 99999 !important;
+            backdrop-filter: blur(3px);
+        }
+
+            .modal-overlay.show {
+                display: flex !important;
+            }
+
+        .modal {
+            background: white !important;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6) !important;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative !important;
+            z-index: 100000 !important;
+            border: 3px solid var(--primary-color) !important;
+            animation: modalFadeIn 0.4s ease-out;
+        }
+
+        @@keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.85) translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.8rem;
+            text-align: center;
+        }
+
+        .modal-item-info {
+            margin-bottom: 10px;
+            padding: 5px;
+            background: linear-gradient(135deg, #f8fafc, #e3f2fd);
+            border-radius: var(--border-radius);
+            border-left: 5px solid var(--primary-color);
+        }
+
+            .modal-item-info h4 {
+                color: var(--primary-color);
+                font-weight: 600;
+                margin-bottom: 0.8rem;
+                font-size: 1.1rem;
+            }
+
+        .modal-item-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+            margin-bottom: 2px;
+        }
+
+        .modal-item-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+            .modal-item-detail strong {
+                color: var(--text-primary);
+                font-size: 0.85rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 0.2rem;
+            }
+
+            .modal-item-detail span {
+                color: var(--text-secondary);
+                font-weight: 500;
+            }
+
+        .modal-parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2px;
+        }
+
+        .modal-form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-form-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .modal-select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            background: white;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+            .modal-select:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+            .modal-select:hover {
+                border-color: var(--accent-color);
+            }
+
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: center;
+        }
+
+        .modal-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+            .modal-close-btn:hover {
+                background: #c0392b;
+                transform: scale(1.1);
+            }
+
+        .modal-warning {
+            background: #fff3cd;
+            border: 1px solid #f6e05e;
+            color: #975a16;
+            padding: 1rem;
+            border-radius: var(--border-radius-sm);
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* Items Table Card */
+        .table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Summary Stats */
+        .summary-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            padding: 0.8rem 1rem;
+            text-align: center;
+            min-width: 140px;
+            flex: 1;
+        }
+
+        .summary-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.3rem;
+        }
+
+        .summary-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+            .items-table thead {
+                background: #f8fafc;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+            .items-table th {
+                padding: 0.8rem;
+                text-align: left;
+                font-weight: 600;
+                font-size: 0.8rem;
+                color: var(--text-primary);
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            }
+
+            .items-table tbody tr {
+                border-bottom: 1px solid var(--border-color);
+                transition: background-color 0.2s ease;
+            }
+
+                .items-table tbody tr:hover {
+                    background-color: #f8fafc;
+                }
+
+                .items-table tbody tr:last-child {
+                    border-bottom: none;
+                }
+
+            .items-table td {
+                padding: 0.8rem;
+                font-size: 0.875rem;
+                vertical-align: middle;
+            }
+
+        .system-count-cell {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            font-weight: 600;
+            text-align: center;
+            border-radius: var(--border-radius-sm);
+        }
+
+        .last-count-cell {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            color: #856404;
+            font-weight: 600;
+            text-align: center;
+            border-radius: var(--border-radius-sm);
+        }
+
+        .manual-entry-row {
+            background-color: #f8f9ff;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        /* Form Inputs */
+        .form-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+            .form-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+            .form-input.text-center {
+                text-align: center;
+                font-weight: 600;
+            }
+
+        /* Search Dropdown */
+        .search-container {
+            position: relative;
+        }
+
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-top: none;
+            border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: var(--shadow-lg);
+        }
+
+            .search-dropdown.show {
+                display: block;
+            }
+
+        .search-option {
+            padding: 0.8rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.2s ease;
+        }
+
+            .search-option:hover {
+                background-color: #f8fafc;
+            }
+
+            .search-option:last-child {
+                border-bottom: none;
+            }
+
+        .search-option-code {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 0.875rem;
+        }
+
+        .search-option-name {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 0.2rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 0.8rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        /* Action Bar */
+        .action-bar {
+            padding: 1rem 1.5rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Alerts and Messages */
+        .alert {
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .alert-danger {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        .alert-warning {
+            background: #fef5e7;
+            color: #975a16;
+            border: 1px solid #f6e05e;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+
+        .alert-close {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+            .alert-close:hover {
+                opacity: 1;
+            }
+
+        /* Lot Selection */
+        .lot-selection {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .lot-select {
+            flex: 1;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+
+            .lot-select:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+        /* Responsive Design */
+        @@media (max-width: 1024px) {
+            .app-container {
+                padding: 0.8rem;
+            }
+
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .session-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .item-input-bar {
+                grid-template-columns: 1fr 1fr auto;
+            }
+
+            .modal-parameters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-item-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .app-container {
+                padding: 0.6rem;
+            }
+
+            .grid-2, .grid-3, .grid-4, .session-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .items-table {
+                font-size: 0.8rem;
+            }
+
+                .items-table th, .items-table td {
+                    padding: 0.6rem 0.4rem;
+                }
+
+            .action-bar {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .summary-stats {
+                flex-direction: column;
+            }
+
+            .item-input-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .modal {
+                width: 95%;
+                padding: 1.5rem;
+            }
+
+            .modal-parameters-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            .app-container {
+                padding: 0.5rem;
+            }
+
+            .card-header, .card-body {
+                padding: 0.8rem;
+            }
+
+            .table-header {
+                padding: 0.8rem;
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+        }
+
+        .modal-parameters-section {
+            margin-bottom: 10px;
+            padding: 5px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f7fa);
+            border-radius: var(--border-radius);
+            border-left: 5px solid var(--accent-color);
+        }
+
+        .modal-warehouse-section {
+            margin-bottom: 10px;
+            padding: 5px;
+            background: linear-gradient(135deg, #f8fafc, #e3f2fd);
+            border-radius: var(--border-radius);
+            border-left: 5px solid var(--success-color);
+        }
+
+        .modal-readonly-field {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: var(--border-radius-sm);
+            padding: 0.8rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .modal-parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        @@media (max-width: 768px) {
+            .modal-parameters-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .readonly-count {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: #f6f6f6;
+            border: 1px solid #e6e6e6;
+            font-weight: 600;
+        }
+        /* Back Button */
+        .back-button-container {
+            margin-bottom: 1rem;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+            .btn-back:hover {
+                background: linear-gradient(135deg, #5a6268, #4e555b);
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-md);
+            }
+
+        /* Count Parameters Section - Normal Height */
+        .count-parameters-wrapper {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            background: white;
+            margin-bottom: 1.5rem;
+        }
+
+            /* Grid Layout */
+            .count-parameters-wrapper .grid-auto {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 1rem;
+            }
+
+            /* Form Group */
+            .count-parameters-wrapper .form-group {
+                margin-bottom: 0;
+            }
+
+            /* Form Labels */
+            .count-parameters-wrapper .form-label {
+                font-size: 0.75rem;
+                margin-bottom: 0.5rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                color: var(--text-secondary);
+                letter-spacing: 0.05em;
+            }
+
+        /* ✅ Readonly Fields with Fixed Height and Individual Scroll */
+        .readonly-field {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: var(--border-radius-sm);
+            padding: 0.6rem 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            /* ✅ Fixed height with scroll */
+            min-height: 42px;
+            max-height: 120px; /* Maximum height - adjust as needed */
+            overflow-y: auto;
+            overflow-x: hidden;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+            /* ✅ Scrollbar for Individual Fields */
+            .readonly-field::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .readonly-field::-webkit-scrollbar-track {
+                background: #e2e8f0;
+                border-radius: 4px;
+            }
+
+            .readonly-field::-webkit-scrollbar-thumb {
+                background: var(--primary-color);
+                border-radius: 4px;
+                border: 2px solid #e2e8f0;
+            }
+
+                .readonly-field::-webkit-scrollbar-thumb:hover {
+                    background: var(--primary-dark);
+                }
+
+        /* Firefox Scrollbar */
+        .readonly-field {
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) #e2e8f0;
+        }
+
+        /* Responsive */
+        @@media (max-width: 1200px) {
+            .count-parameters-wrapper .grid-auto {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .count-parameters-wrapper .grid-auto {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.8rem;
+            }
+
+            .readonly-field {
+                max-height: 100px;
+                font-size: 0.75rem;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            .count-parameters-wrapper .grid-auto {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* Individual Field Scrolling - Add this entire block */
+        .readonly-field {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            min-height: 42px;
+            max-height: 120px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+            .readonly-field::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .readonly-field::-webkit-scrollbar-track {
+                background: #e9ecef;
+                border-radius: 4px;
+                margin: 2px 0;
+            }
+
+            .readonly-field::-webkit-scrollbar-thumb {
+                background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+                border-radius: 4px;
+                border: 2px solid #e9ecef;
+            }
+
+                .readonly-field::-webkit-scrollbar-thumb:hover {
+                    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+                }
+
+        .readonly-field {
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) #e9ecef;
+        }
+    </style>
+
+</head>
+<body>
+    <!-- Progress Overlay -->
+    <div class="progress-overlay" id="progressOverlay">
+        <div class="progress-circle"></div>
+        <div class="progress-text">Loading Application...</div>
+    </div>
+    <!-- near other hidden inputs -->
+    <input type="hidden" id="SessionId" name="SessionId" value="" />
+
+    <!-- Enhanced Count Parameters Selection Modal -->
+    <div class="modal-overlay" id="countParametersModal" onclick="handleModalOverlayClick(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="cancelParameterSelection()">×</button>
+
+            <h3 class="modal-title">Select Warehouse for Item</h3>
+
+            <!-- Item Information Section -->
+            <div class="modal-item-info" id="modalItemInfo">
+                <div class="modal-item-details" id="modalItemDetails">
+                    <div class="modal-item-detail">
+                        <strong>Item Code:</strong>
+                        <span id="modalItemCode">-</span>
+                    </div>
+                    <div class="modal-item-detail">
+                        <strong>Item Name:</strong>
+                        <span id="modalItemName">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selected Parameters Section (Read-only) -->
+            <div class="modal-parameters-section">
+                <div class="modal-parameters-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Selected Unit</label>
+                        <div class="modal-readonly-field" id="modalSelectedUnit">-</div>
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Selected Location</label>
+                        <div class="modal-readonly-field" id="modalSelectedLocation">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warehouse Selection Section -->
+            <div class="modal-warehouse-section">
+                <h4 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.1rem;">Select Warehouse</h4>
+
+                <div class="modal-form-group">
+                    <label class="modal-form-label required">Warehouse</label>
+                    <select class="modal-select" id="modalWarehouseSelect">
+                        <option value="">Loading warehouses...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="cancelParameterSelection()">Cancel</button>
+                <button class="btn btn-success" onclick="confirmParameterSelection()" id="confirmParameterBtn">
+                    Confirm & Add Item
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <input type="hidden" id="UpdatedBy" name="UpdatedBy" value="@ViewBag.userId" />
+        <input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.company" />
+
+        <!-- Back Button -->
+        <div class="back-button-container">
+            <a href="/InventoryAuditWeb/MyAllSession" class="btn-back">
+                ← Back to My Sessions
+            </a>
+        </div>
+
+        <!-- Main Header -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Inventory Audit</h2>
+            </div>
+            <div class="card-body">
+                <!-- Session Information -->
+                <div class="session-info-grid">
+                    <div class="info-card">
+                        <div class="info-label">Current User</div>
+                        <div class="info-value" id="currentUser">
+                            @ViewBag.UserName (@ViewBag.empId.ToString().ToUpper())
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="info-label">Lot Number</div>
+                        <div class="info-value" id="lotNumberDisplay">Loading...</div>
+                    </div>
+
+                    <input type="hidden" id="LotNumber" name="LotNumber" value="" />
+
+                    <div class="info-card">
+                        <div class="info-label">Session Name</div>
+                        <div class="info-value" id="sessionName">@ViewBag.LotNumber</div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="info-label">Items in Table</div>
+                        <div class="info-value highlight" id="itemsCountedDisplay">0 Items</div>
+                    </div>
+                </div>
+
+                <!-- Count Parameters (Read-only display) -->
+                <h3 style="margin: 2rem 0 1rem 0; color: var(--text-primary); font-weight: 600;">Count Parameters</h3>
+                <div class="grid-auto" id="countParametersSection">
+                    <div class="form-group">
+                        <label class="form-label">Unit</label>
+                        <div class="readonly-field" id="unitDisplay">Loading...</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Location</label>
+                        <div class="readonly-field" id="locationDisplay">Loading...</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Warehouses</label>
+                        <div class="readonly-field" id="warehousesDisplay">Loading...</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Item Groups</label>
+                        <div class="readonly-field" id="itemGroupsDisplay">Loading...</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Item Sub Groups</label>
+                        <div class="readonly-field" id="subGroupsDisplay">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Item Input Bar -->
+                <div class="item-input-bar">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Search Item Code or Name</label>
+                        <div class="item-search-container">
+                            <input type="text" class="item-search-input" id="itemSearchInput"
+                                   placeholder="Type item code or name..." autocomplete="off">
+                            <div class="search-dropdown" id="itemSearchDropdown"></div>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Physical Quantity</label>
+                        <input type="number" class="quantity-input" id="physicalQuantityInput"
+                               placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <button class="btn btn-success btn-lg" id="addItemButton" onclick="processAddItem()" disabled>
+                        + Add Item
+                    </button>
+                </div>
+
+                <!-- Items Table -->
+                <div style="margin-top: 2rem;">
+                    <div class="table-header">
+                        <h3 class="table-title">Items Table</h3>
+                    </div>
+
+                    <div id="itemsTableContainer">
+                        <div class="empty-state" id="emptyTable">
+                            <div class="empty-state-icon">📦</div>
+                            <h3>No items in table</h3>
+                            <p>Search for an item and enter quantity, then click "Add Item"</p>
+                        </div>
+                    </div>
+
+                    <div class="action-bar" id="itemsActions" style="display: none;">
+                        <button class="btn btn-success btn-lg" onclick="saveAllItems('Pending')">💾 Save</button>
+                        <button class="btn btn-primary btn-lg" onclick="saveAllItems('Closed')">✅ Close</button>
+                        <button class="btn btn-secondary btn-lg" onclick="clearAllItems()">🗑️ Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isReadOnlySession = false;
+        let tableItems = [];
+        let itemCounter = 0;
+        let omniSearchItems = [];
+        let loadedAuditData = null;
+        let countParametersLocked = false;
+        let pendingItemData = null;
+        let globalStockData = {};
+
+        let selectedItems = {
+            unit: null,
+            location: null,
+            warehouse: [],
+            itemgroup: [],
+            subgroup: []
+        };
+
+        let apiData = {
+            units: [],
+            locations: [],
+            warehouses: [],
+            itemGroups: [],
+            subGroups: [],
+            omniItems: []
+        };
+
+        function getCompanyId() {
+            const companyId = document.getElementById('CompanyId').value;
+            console.log('Company ID:', companyId);
+            return companyId;
+        }
+
+        function validateCompanyId() {
+            const companyId = getCompanyId();
+            if (!companyId || companyId.trim() === '') {
+                const errorMsg = 'Company ID is not set. Please ensure ViewBag.CompanyId is properly set in the controller.';
+                console.error(errorMsg);
+                showGlobalError(errorMsg);
+                return false;
+            }
+            return true;
+        }
+
+        async function apiCall(url) {
+            try {
+                console.log('Making API call to:', url);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', data);
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        async function apiCallPost(url, requestData) {
+            try {
+                console.log('Making POST API call to:', url);
+                console.log('Request data:', JSON.stringify(requestData, null, 2));
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', JSON.stringify(data, null, 2));
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        function extractArrayFromResponse(data, context = '') {
+            console.log(`Extracting array from ${context} response:`, data);
+
+            if (Array.isArray(data)) {
+                return data;
+            }
+
+            if (data && typeof data === 'object') {
+                const possibleArrayProps = ['data', 'items', 'result', 'results', 'list', 'records'];
+
+                for (const prop of possibleArrayProps) {
+                    if (data[prop] && Array.isArray(data[prop])) {
+                        console.log(`Found array in property '${prop}'`);
+                        return data[prop];
+                    }
+                }
+
+                for (const key in data) {
+                    if (Array.isArray(data[key])) {
+                        console.log(`Found array in property '${key}'`);
+                        return data[key];
+                    }
+                }
+            }
+
+            console.warn(`Could not extract array from ${context} response. Using empty array.`);
+            return [];
+        }
+
+        function getUserId() {
+          return (document.getElementById('UpdatedBy')?.value || '').trim();
+        }
+
+        // Get URL parameter
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Initialize page with URL parameters
+        async function initializePage() {
+            const lotNumber = getUrlParameter('lotNumber');
+
+            if (!lotNumber) {
+                showGlobalError('Lot Number not provided in URL');
+                hideProgressOverlay();
+                document.getElementById('unitDisplay').textContent = 'No lot number';
+                document.getElementById('locationDisplay').textContent = 'No lot number';
+                document.getElementById('warehousesDisplay').textContent = 'No lot number';
+                document.getElementById('itemGroupsDisplay').textContent = 'No lot number';
+                document.getElementById('subGroupsDisplay').textContent = 'No lot number';
+                return;
+            }
+
+            // Store lot number in hidden input for later use
+            document.getElementById('LotNumber').value = lotNumber;
+
+            // Update lot number display
+            document.getElementById('lotNumberDisplay').textContent = lotNumber.toUpperCase();
+
+            showProgressOverlay('Loading audit session...');
+
+            try {
+                await loadAuditData(lotNumber);
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showGlobalError('Failed to initialize page: ' + error.message);
+                hideProgressOverlay();
+            }
+        }
+
+        // Session se isActive nikaalna (prefer current user)
+        const pickSessionIsActive = (sessionArr) => {
+          if (!Array.isArray(sessionArr) || sessionArr.length === 0) return null;
+          const userIdStr = (document.getElementById('UpdatedBy')?.value ?? '').trim();
+          const userId = userIdStr ? Number(userIdStr) : null;
+
+          let row = null;
+          if (Number.isFinite(userId)) {
+            row = sessionArr.find(s => Number(s.userId) === userId) || null;
+          }
+          if (!row) row = sessionArr[0];
+
+          const n = Number(row?.isActive);
+          return Number.isFinite(n) ? n : null;
+        };
+
+        // UPDATED: Load audit data from API
+        async function loadAuditData(lotNumber) {
+            if (!lotNumber || lotNumber.trim() === '') {
+                throw new Error('Invalid lot number');
+            }
+
+            // helper (local): safely pull a status string from header
+            const pickHeaderStatus = (header) => {
+                const cands = [
+                    'status', 'Status',
+                    'sessionStatus', 'SessionStatus',
+                    'state', 'State',
+                    'currentStatus', 'CurrentStatus'
+                ];
+                for (const k of cands) {
+                    if (header && header[k] != null && header[k] !== '') {
+                        return String(header[k]);
+                    }
+                }
+                return '';
+            };
+
+            // helper (local): set hidden SessionId if available
+            const setSessionIdHidden = (header) => {
+                const sessionIdEl = document.getElementById('SessionId');
+                if (!sessionIdEl) return;
+
+                const sid = header?.sessionId ?? header?.SessionId ?? header?.id ?? header?.Id ?? '';
+                sessionIdEl.value = (sid ?? '').toString();
+            };
+
+            try {
+                console.log('Loading audit data for lot number:', lotNumber);
+
+                const userId = getUserId(); // e.g. 84
+                const url = `/api/InventoryAudit/GetItemsUsingLotNumber?lotNumber=${encodeURIComponent(lotNumber)}&userId=${encodeURIComponent(userId)}`;
+
+                 console.log('API URL:', url);
+
+                const response = await apiCall(url);      // expects { success: true, data: {...} }
+                console.log('Raw API response:', response);
+
+                if (!(response && response.success && response.data)) {
+                    console.error('API returned unsuccessful response:', response);
+                    throw new Error(response?.message || 'Failed to load audit data');
+                }
+
+                // 1) Keep the payload for global access
+                loadedAuditData = response.data;
+                console.log('✅ Loaded audit data successfully:', loadedAuditData);
+
+                // 2) Header-driven session/config
+                const header = (loadedAuditData?.headers && loadedAuditData.headers[0]) ? loadedAuditData.headers[0] : {};
+                console.log('Header object:', header);
+
+                // 2a) SessionId → hidden input
+                setSessionIdHidden(header);
+
+                // 2b) Status → read-only mode
+                const sessionIsActive = pickSessionIsActive(loadedAuditData?.session);
+                isReadOnlySession = !(sessionIsActive === 1);
+
+                console.log('session.isActive:', sessionIsActive, '=> readOnly:', isReadOnlySession);
+                // Apply read-only UI (hides add/save/clear, disables inputs, etc.)
+                applyReadOnlyMode(isReadOnlySession, {
+                    reason: (sessionIsActive === 1) ? '' : 'Your session is inactive (view only).'
+                });
+
+                // 2c) Session name (and optional status hint)
+                const sessionNameEl = document.getElementById('sessionName');
+                if (sessionNameEl) {
+                    const baseName = header.sessionName ?? header.SessionName ?? sessionNameEl.textContent;
+                    sessionNameEl.textContent = isReadOnlySession ? `${baseName} (Closed - Read Only)` : baseName;
+                }
+
+                // 3) Populate read-only “Count Parameters” blocks from API (unit/location/whs/groups/subgroups)
+                populateCountParametersFromAPI(loadedAuditData);
+
+                // 4) Load existing item rows into the table (mark them for UPDATE)
+                if (Array.isArray(loadedAuditData.items) && loadedAuditData.items.length > 0) {
+                    // Ensure loadExistingItemsIntoTable marks rows as UPDATE + carries ItemId
+                    loadExistingItemsIntoTable(loadedAuditData);
+                } else {
+                    console.log('No existing items in this lot/session.');
+                }
+
+                // 5) Update top session info (if you use it elsewhere)
+                updateSessionInfo();
+
+                // 6) Preload search + stock datasets (omni items + global stock base)
+                await loadStockDataFromParameters();
+
+                console.log('✅ Audit data loading completed');
+            } catch (error) {
+                console.error('Error loading audit data:', error);
+
+                // Set error text in parameter boxes (keeps UI informative)
+                const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+                setText('unitDisplay',        'Error loading data');
+                setText('locationDisplay',    'Error loading data');
+                setText('warehousesDisplay',  'Error loading data');
+                setText('itemGroupsDisplay',  'Error loading data');
+                setText('subGroupsDisplay',   'Error loading data');
+
+                showGlobalError('Failed to load audit data: ' + error.message);
+                throw error; // rethrow so callers can handle if they need
+            } finally {
+                // Always hide overlay if the caller showed it
+                hideProgressOverlay();
+            }
+        }
+
+
+        function getHeaderStatus(header) {
+          // Try the common field names you might have
+          const candidates = [
+            'status',          // e.g. "Closed", "Pending"
+            'sessionStatus',   // often used by APIs
+            'SessionStatus',   // PascalCase variant
+            'state',
+            'State',
+            'currentStatus'
+          ];
+          for (const k of candidates) {
+            if (header && header[k] != null && header[k] !== '') {
+              return String(header[k]);
+            }
+          }
+          return '';
+        }
+
+        function applyReadOnlyMode(readOnly, meta = {}) {
+            const search = document.getElementById('itemSearchInput');
+            const qty    = document.getElementById('physicalQuantityInput');
+            const addBtn = document.getElementById('addItemButton');
+
+            if (search)  search.disabled = readOnly;
+            if (qty)     qty.disabled    = readOnly;
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.style.display = readOnly ? 'none' : 'inline-flex';
+            }
+
+            // ✅ IMPORTANT: Hide action buttons when read-only
+            const actions = document.getElementById('itemsActions');
+            if (actions) {
+                if (readOnly) {
+                    actions.style.display = 'none';  // Always hide when read-only
+                } else {
+                    actions.style.display = tableItems.length > 0 ? 'flex' : 'none';
+                }
+            }
+
+            const bar = document.querySelector('.item-input-bar');
+            if (bar) bar.style.opacity = readOnly ? '0.6' : '1';
+
+            updateItemsTable();
+
+            const reason = meta.reason || (readOnly ? 'This session is read-only.' : '');
+            const existing = document.getElementById('readonlyBanner');
+            if (readOnly) {
+                if (!existing) {
+                    const cardBody = document.querySelector('.card-body');
+                    if (cardBody) {
+                        const div = document.createElement('div');
+                        div.id = 'readonlyBanner';
+                        div.className = 'alert alert-info';
+                        div.style.marginBottom = '12px';
+                        div.textContent = reason;
+                        cardBody.insertBefore(div, cardBody.firstChild);
+                    }
+                } else {
+                    existing.textContent = reason;
+                }
+            } else if (existing) {
+                existing.remove();
+            }
+        }
+        // NEW: Load existing items from API into table
+        function loadExistingItemsIntoTable(data) {
+            console.log('=== LOADING EXISTING ITEMS INTO TABLE ===');
+
+            if (!data.items || data.items.length === 0) {
+                console.log('No existing items to load');
+                return;
+            }
+
+            console.log(`Loading ${data.items.length} existing items`);
+
+            data.items.forEach(apiItem => {
+                const newItemId = getNextItemNumber();
+
+                // Create a selectedItem object compatible with your structure
+                const selectedItem = {
+                    itemCode: apiItem.itemCode,
+                    itemName: apiItem.itemName
+                };
+
+                const newItem = {
+                    id: newItemId,
+                    selectedItem: selectedItem,
+                    systemCount: parseFloat(apiItem.systemCount) || 0,
+                    lastCount: parseFloat(apiItem.lastCount) || 0,
+                    physicalCount: (parseFloat(apiItem.physicalCount) || 0).toString(),
+                    notes: '',
+                    warehouse: apiItem.warehouseId,
+                    itemCode: apiItem.itemCode,
+                    stockValue: parseFloat(apiItem.stockValue) || 0,
+                    unitRate: 0,
+                    isMultiWarehouse: false,
+                    warehouseIndex: 0,
+                    totalWarehouses: 1,
+                    isManualEntry: false,
+                    // ✅ NEW:
+                    ActionType: 'UPDATE',
+                    // the item id you’ll need for UpdatePhysicalCount (adjust field name to your API)
+                    ItemId: apiItem.itemId ?? apiItem.id ?? null,
+                    itemDetails: {
+                      u_Sub_Group: apiItem.u_Sub_Group || '',
+                      itmsGrpCod: 0,
+                      itmsGrpNam: apiItem.itmsGrpNam || ''
+                    },
+                    warehouseEntry: {
+                      warehouse: apiItem.warehouseId,
+                      warehouseName: apiItem.warehouseId,
+                      onHand: parseFloat(apiItem.systemCount) || 0,
+                      stockValue: parseFloat(apiItem.stockValue) || 0
+                    }
+                };
+
+                tableItems.push(newItem);
+            });
+
+            console.log(`✅ Loaded ${tableItems.length} items into table`);
+            updateItemsTable();
+        }
+        // NEW: Populate count parameters from API data
+        function populateCountParametersFromAPI(data) {
+            console.log('=== POPULATING COUNT PARAMETERS FROM API ===');
+            console.log('Received data:', data);
+
+            if (!data.headers || data.headers.length === 0) {
+                console.error('No headers found in data');
+                showGlobalError('Invalid audit data - no headers found');
+                return;
+            }
+
+            const header = data.headers[0];
+            console.log('Header data:', header);
+            console.log('Warehouses:', data.warehouses);
+            console.log('Item Groups:', data.itemGroups);
+            console.log('Item Sub Groups:', data.itemSubGroups);
+
+            // Store loaded parameters
+            selectedItems = {
+                unit: {
+                    code: header.unit,
+                    name: header.unit
+                },
+                location: {
+                    code: header.locationCode,
+                    name: header.location
+                },
+                warehouse: (data.warehouses || []).map(w => ({
+                    code: w.warehouseName,
+                    name: w.warehouseName,
+                    id: w.warehouseName
+                })),
+                itemgroup: (data.itemGroups || []).map(g => ({
+                    code: g.itemGroupCode,
+                    name: g.itemGroupName,
+                    id: g.itemGroupCode
+                })),
+                subgroup: (data.itemSubGroups || []).map(s => ({
+                    code: s.itemSubGroupName,
+                    name: s.itemSubGroupName,
+                    id: s.itemSubGroupName
+                }))
+            };
+
+            console.log('Selected items populated:', selectedItems);
+
+            // Display count parameters
+            displayCountParameters();
+        }
+
+
+        // NEW: Display count parameters as read-only
+        function displayCountParameters() {
+            console.log('=== DISPLAYING COUNT PARAMETERS ===');
+
+            // Unit
+            const unitText = selectedItems.unit ? selectedItems.unit.name : 'Not available';
+            document.getElementById('unitDisplay').textContent = unitText;
+            console.log('Unit displayed:', unitText);
+
+            // Location
+            const locationText = selectedItems.location ? selectedItems.location.name : 'Not available';
+            document.getElementById('locationDisplay').textContent = locationText;
+            console.log('Location displayed:', locationText);
+
+            // Warehouses
+            const warehousesList = selectedItems.warehouse && selectedItems.warehouse.length > 0
+                ? selectedItems.warehouse.map(w => w.name).join(', ')
+                : 'No warehouses';
+            document.getElementById('warehousesDisplay').textContent = warehousesList;
+            console.log('Warehouses displayed:', warehousesList);
+
+            // Item Groups
+            const itemGroupsList = selectedItems.itemgroup && selectedItems.itemgroup.length > 0
+                ? selectedItems.itemgroup.map(g => g.name).join(', ')
+                : 'No item groups';
+            document.getElementById('itemGroupsDisplay').textContent = itemGroupsList;
+            console.log('Item groups displayed:', itemGroupsList);
+
+            // Sub Groups
+            const subGroupsList = selectedItems.subgroup && selectedItems.subgroup.length > 0
+                ? selectedItems.subgroup.map(s => s.name).join(', ')
+                : 'No sub groups';
+            document.getElementById('subGroupsDisplay').textContent = subGroupsList;
+            console.log('Sub groups displayed:', subGroupsList);
+
+            console.log('✅ All count parameters displayed successfully');
+        }
+
+
+        // NEW: Load stock data based on parameters
+        async function loadStockDataFromParameters() {
+            if (!selectedItems.unit || !selectedItems.location) return;
+
+            try {
+                showProgressOverlay('Loading stock data...');
+
+                // Load omni search items
+                await loadOmniSearchItems();
+
+                // Load global stock data
+                await loadGlobalStockData();
+
+                hideProgressOverlay();
+                console.log('Stock data loaded successfully');
+            } catch (error) {
+                console.error('Error loading stock data:', error);
+                showGlobalError('Failed to load stock data');
+                hideProgressOverlay();
+            }
+        }
+
+        // NEW: Update session info
+        function updateSessionInfo() {
+          if (loadedAuditData?.headers?.length) {
+            const header = loadedAuditData.headers[0];
+            const sessionNameEl = document.getElementById('sessionName');
+            const sessionIsActive = pickSessionIsActive(loadedAuditData?.session);
+
+            if (sessionNameEl) {
+              let suffix = (sessionIsActive === 1) ? ' (Active)' : ' (Inactive - Read Only)';
+              sessionNameEl.textContent = `${header.sessionName}${suffix}`;
+            }
+            document.getElementById('SessionId').value = header.sessionId;
+          }
+        }
+
+
+        async function loadOmniSearchItems() {
+            if (!validateCompanyId()) return;
+            const companyId = getCompanyId();
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetOITMitems?company=${companyId}`);
+                let items = extractArrayFromResponse(response, 'omni items');
+                apiData.omniItems = items;
+                omniSearchItems = items;
+                console.log(`Loaded ${items.length} omni search items`);
+            } catch (error) {
+                console.error('Failed to load omni search items:', error);
+                showGlobalError('Failed to load omni search items from API');
+            }
+        }
+
+        // IMPROVED: Better handling of empty data response
+        async function getItemStockDetails(itemCode = null, selectedWarehouse = null) {
+            if (!validateCompanyId()) return null;
+            const companyId = getCompanyId();
+
+            let warehousesToQuery = '';
+            if (selectedWarehouse) {
+                warehousesToQuery = selectedWarehouse;
+            } else {
+                warehousesToQuery = selectedItems.warehouse.map(w => w.code).join(',');
+            }
+
+            const selectedItemGroups = selectedItems.itemgroup.map(g => g.code).join(',');
+            const selectedSubGroups = selectedItems.subgroup.map(s => s.code).join(',');
+            const selectedLocation = selectedItems.location ? String(selectedItems.location.code) : '';
+            const selectedUnit = selectedItems.unit ? String(selectedItems.unit.code) : '';
+
+            const requestData = {
+                p_warehouses: String(warehousesToQuery),
+                p_units: String(selectedUnit),
+                p_itemGroups: String(selectedItemGroups),
+                p_subGroups: String(selectedSubGroups),
+                p_Locations: String(selectedLocation),
+                p_ItemCodes: String(itemCode || ''),
+                company: parseInt(companyId)
+            };
+
+            try {
+                console.log(`🔍 Getting stock details for item ${itemCode || 'ALL'}:`, requestData);
+                const response = await apiCallPost('/api/InventoryAudit/GetItemStockDetails', requestData);
+                console.log('📦 Stock details API response:', response);
+
+                // Check if response has data
+                if (response && response.success && response.data && response.data.length > 0) {
+                    const sortedData = response.data.sort((a, b) =>
+                        parseFloat(b.onHand || 0) - parseFloat(a.onHand || 0)
+                    );
+                    console.log(`✅ Found ${sortedData.length} warehouse entries with stock`);
+                    return {
+                        isEmpty: false,
+                        warehouseEntries: sortedData,
+                        totalOnHand: sortedData.reduce((sum, entry) => sum + parseFloat(entry.onHand || 0), 0)
+                    };
+                }
+
+                // IMPORTANT: Check for success with empty data array
+                if (itemCode && response && response.success && Array.isArray(response.data) && response.data.length === 0) {
+                    console.log('⚠️ API returned {success: true, data: []} - Trying fallback API...');
+                    return await getItemDetailsFallback(itemCode);
+                }
+
+                console.warn(`⚠️ No stock data found for the given parameters`);
+                return { isEmpty: true, warehouseEntries: [], totalOnHand: 0 };
+            } catch (error) {
+                console.error(`❌ Failed to get stock details:`, error);
+
+                if (itemCode) {
+                    console.log('🔄 First API failed, trying fallback API...');
+                    return await getItemDetailsFallback(itemCode);
+                }
+
+                return { isEmpty: true, warehouseEntries: [], totalOnHand: 0 };
+            }
+        }
+
+        async function getItemDetailsFallback(itemCode) {
+            if (!validateCompanyId()) return { isEmpty: true, warehouseEntries: [], totalOnHand: 0 };
+            const companyId = getCompanyId();
+            const UserId = getUserId();
+
+            const selectedLocation = selectedItems.location ? String(selectedItems.location.code) : '';
+            const selectedUnit = selectedItems.unit ? String(selectedItems.unit.code) : '';
+
+            const fallbackRequestData = {
+                p_warehouses: "",
+                p_units: String(selectedUnit),
+                p_itemGroups: "",
+                p_subGroups: "",
+                p_Locations: "",
+                p_ItemCodes: String(itemCode),
+                company: parseInt(companyId)
+            };
+
+            try {
+                console.log(`🔄 Fallback API call for item ${itemCode}:`, fallbackRequestData);
+                const response = await apiCallPost('/api/InventoryAudit/GetItemStockDetails', fallbackRequestData);
+                console.log('📋 Fallback API response:', response);
+
+                // ✅ CHECK FOR EMPTY DATA ARRAY
+                if (response && response.success && Array.isArray(response.data) && response.data.length === 0) {
+                    console.warn(`⚠️ Item ${itemCode} not found in any warehouse`);
+                    return {
+                        isEmpty: true,
+                        warehouseEntries: [],
+                        totalOnHand: 0,
+                        notFound: true  // ✅ Add flag for not found
+                    };
+                }
+
+                if (response && response.success && response.data && response.data.length > 0) {
+                    const firstItem = response.data[0];
+
+                    const itemDetails = {
+                        itemCode: firstItem.itemCode || itemCode,
+                        itemName: firstItem.itemName || 'N/A',
+                        u_Sub_Group: firstItem.u_Sub_Group || '',
+                        itmsGrpCod: firstItem.itmsGrpCod || '',
+                        itmsGrpNam: firstItem.itmsGrpNam || '',
+                        onHand: parseFloat(firstItem.onHand || 0),
+                        stockValue: parseFloat(firstItem.stockValue || 0),
+                        UserId : UserId,
+                        isLitre : firstItem.u_IsLitre,
+                        salPackUn : firstItem.salPackUn  // ✅ Keep consistent naming
+                    };
+
+                    const availableWarehouses = response.data.map(item => ({
+                        code: item.warehouse,
+                        name: item.warehouse,
+                        onHand: parseFloat(item.onHand || 0),
+                        stockValue: parseFloat(item.stockValue || 0)
+                    }));
+
+                    console.log('✅ Extracted item details from fallback API:', itemDetails);
+                    console.log('✅ Available warehouses from API:', availableWarehouses);
+
+                    return {
+                        isEmpty: false,
+                        warehouseEntries: [],
+                        totalOnHand: 0,
+                        itemDetails: itemDetails,
+                        availableWarehouses: availableWarehouses,
+                        requiresWarehouseSelection: true
+                    };
+                }
+
+                console.warn(`⚠️ Fallback API also returned no data for item ${itemCode}`);
+                return { isEmpty: true, warehouseEntries: [], totalOnHand: 0, notFound: true };
+            } catch (error) {
+                console.error(`❌ Fallback API failed for item ${itemCode}:`, error);
+                return { isEmpty: true, warehouseEntries: [], totalOnHand: 0 };
+            }
+        }
+
+        async function processAddItem() {
+            if (isReadOnlySession) { showTemporaryMessage('Session is closed. Adding items is disabled.', 'info'); return; }
+            console.log('\n=== 🚀 PROCESS ADD ITEM STARTED ===');
+
+            const searchInput = document.getElementById('itemSearchInput');
+            const quantityInput = document.getElementById('physicalQuantityInput');
+
+            const itemCode = searchInput.getAttribute('data-selected-item-code');
+            const searchQuery = searchInput.value.trim();
+            const physicalQuantity = parseFloat(quantityInput.value) || 0;
+
+            console.log('📝 Step 1 - Input Values:');
+            console.log('  - Selected Item Code:', itemCode);
+            console.log('  - Search Display:', searchQuery);
+            console.log('  - Physical Quantity:', physicalQuantity);
+
+            if (!itemCode || !searchQuery) {
+                console.error('❌ VALIDATION FAILED: No item selected');
+                alert('Please search for an item first');
+                searchInput.focus();
+                return;
+            }
+
+            if (physicalQuantity <= 0) {
+                console.error('❌ VALIDATION FAILED: Invalid quantity');
+                alert('Please enter a valid physical quantity');
+                quantityInput.focus();
+                return;
+            }
+
+            console.log('✅ Step 2 - Basic validation passed');
+
+            const selectedItem = omniSearchItems.find(item =>
+                item.itemCode.toLowerCase() === itemCode.toLowerCase()
+            );
+
+            if (!selectedItem) {
+                console.error('❌ VALIDATION FAILED: Item not found in omniSearchItems');
+                alert('Please select a valid item from the search dropdown');
+                searchInput.focus();
+                return;
+            }
+
+            console.log('✅ Step 3 - Item found in omniSearchItems:', selectedItem);
+
+            const addButton = document.getElementById('addItemButton');
+            addButton.textContent = 'Adding...';
+            addButton.disabled = true;
+
+            try {
+                console.log('📞 Step 4 - Calling getItemStockDetails...');
+
+                if (tableItems.length === 0) {
+                    await loadGlobalStockData();
+                }
+
+                console.log('🔍 Step 5 - Getting stock details for item:', itemCode);
+                const stockDetails = await getItemStockDetails(itemCode);
+                console.log('📦 Step 6 - Stock details received:', stockDetails);
+
+                // ✅ CHECK IF ITEM NOT FOUND
+                if (stockDetails.isEmpty && stockDetails.notFound) {
+                    alert(`Item ${itemCode} is not available in the system.`);
+
+                    // ✅ CLEAR INPUTS AND RESET
+                    searchInput.value = '';
+                    searchInput.removeAttribute('data-selected-item-code');
+                    quantityInput.value = '';
+                    hideSearchDropdown();
+
+                    addButton.textContent = '+ Add Item';
+                    addButton.disabled = false;
+
+                    searchInput.focus();
+                    return;
+                }
+
+                // Stock found with warehouse entries
+                if (!stockDetails.isEmpty && stockDetails.warehouseEntries && stockDetails.warehouseEntries.length > 0) {
+                    console.log('✅ Step 7 - Stock found with warehouse entries, adding directly');
+                    await addItemWithStockDetails(selectedItem, physicalQuantity, stockDetails);
+
+                    searchInput.value = '';
+                    searchInput.removeAttribute('data-selected-item-code');
+                    quantityInput.value = '';
+                    hideSearchDropdown();
+
+                    console.log('✅ Step 8 - Item added successfully with stock details');
+                }
+                // Item found but needs warehouse selection
+                else if (!stockDetails.isEmpty && stockDetails.requiresWarehouseSelection && stockDetails.itemDetails) {
+                    console.log('🔔 Step 7 - Item found but requires warehouse selection, showing modal');
+                    showCountParametersModalWithItemDetails(
+                        selectedItem,
+                        physicalQuantity,
+                        stockDetails.itemDetails,
+                        stockDetails.availableWarehouses
+                    );
+                    console.log('✅ Step 8 - Warehouse selection modal displayed');
+                    return; // Don't clear inputs yet - user needs to complete modal
+                }
+                // No stock found anywhere
+                else {
+                    console.log('⚠️ Step 7 - No stock found, creating entries from count parameters');
+                    await createItemEntriesFromCountParameters(selectedItem, physicalQuantity, stockDetails);
+
+                    searchInput.value = '';
+                    searchInput.removeAttribute('data-selected-item-code');
+                    quantityInput.value = '';
+                    hideSearchDropdown();
+
+                    console.log('✅ Step 8 - Item added with count parameter warehouses');
+                }
+
+            } catch (error) {
+                console.error('❌ ERROR in processAddItem:', error);
+                alert('Error adding item: ' + error.message);
+            } finally {
+                addButton.textContent = '+ Add Item';
+                addButton.disabled = false;
+                console.log('🏁 Step 9 - Process Close, button restored');
+            }
+        }
+
+        async function createItemEntriesFromCountParameters(selectedItem, physicalQuantity, stockDetails) {
+            console.log('=== CREATING ITEM ENTRIES FROM COUNT PARAMETERS ===');
+            console.log('Selected Item:', selectedItem);
+            console.log('Physical Quantity:', physicalQuantity);
+            console.log('Selected Warehouses:', selectedItems.warehouse);
+
+            let warehousesToUse = selectedItems.warehouse.map(warehouse => ({
+                warehouse: warehouse.code || warehouse.id,
+                warehouseName: warehouse.name || warehouse.code || warehouse.id
+            }));
+
+            console.log('Using warehouses from count parameters:', warehousesToUse.length);
+
+            if (warehousesToUse.length === 0) {
+                throw new Error('No warehouses available from count parameters');
+            }
+
+            let itemDetailsForStock;
+            if (stockDetails && !stockDetails.isEmpty && stockDetails.itemDetails) {
+                console.log('Using item details from fallback API');
+                itemDetailsForStock = {
+                    itemCode: stockDetails.itemDetails.itemCode,
+                    itemName: stockDetails.itemDetails.itemName,
+                    u_Sub_Group: stockDetails.itemDetails.u_Sub_Group,
+                    itmsGrpCod: stockDetails.itemDetails.itmsGrpCod,
+                    itmsGrpNam: stockDetails.itemDetails.itmsGrpNam
+                };
+            } else {
+                console.log('Using basic item details from GetOITMitems API');
+                itemDetailsForStock = {
+                    itemCode: selectedItem.itemCode,
+                    itemName: selectedItem.itemName || 'N/A',
+                    u_Sub_Group: '',
+                    itmsGrpCod: '',
+                    itmsGrpNam: ''
+                };
+            }
+
+            const warehouseEntries = warehousesToUse.map(warehouse => ({
+                warehouse: warehouse.warehouse,
+                warehouseName: warehouse.warehouseName,
+                onHand: 0,
+                stockValue: 0,
+                locationCode: selectedItems.location.code,
+                locationName: selectedItems.location.name,
+                salPackMsr: '',
+                u_Unit: selectedItems.unit.code,
+                isManualEntry: true,
+                reason: 'Created from count parameters - item not found in stock data',
+                ...itemDetailsForStock
+            }));
+
+            const countParameterStockDetails = {
+                isEmpty: false,
+                warehouseEntries: warehouseEntries,
+                totalOnHand: 0
+            };
+
+            console.log('Created stock details from count parameters:', countParameterStockDetails);
+
+            await addItemWithStockDetails(selectedItem, physicalQuantity, countParameterStockDetails);
+
+            const warehouseNames = warehousesToUse.map(w => w.warehouseName).join(', ');
+            // showTemporaryMessage(
+            //     `Item ${selectedItem.itemCode} added successfully in warehouses: ${warehouseNames} with System Count = 0`,
+            //     'success'
+            // );
+        }
+
+        async function loadGlobalStockData() {
+            console.log('=== LOADING GLOBAL STOCK DATA ===');
+
+            try {
+                const globalStock = await getItemStockDetails();
+
+                if (!globalStock.isEmpty) {
+                    globalStockData = {};
+                    globalStock.warehouseEntries.forEach(entry => {
+                        const key = `${entry.itemCode}_${entry.warehouse}`;
+                        globalStockData[key] = {
+                            itemCode: entry.itemCode,
+                            itemName: entry.itemName || 'N/A',
+                            warehouse: entry.warehouse,
+                            warehouseName: entry.warehouseName || entry.warehouse,
+                            onHand: parseFloat(entry.onHand || 0),
+                            stockValue: parseFloat(entry.stockValue || 0),
+                            unitRate: parseFloat(entry.onHand || 0) > 0 ?
+                                parseFloat(entry.stockValue || 0) / parseFloat(entry.onHand || 0) : 0,
+                            itmsGrpCod: entry.itmsGrpCod || '',
+                            itmsGrpNam: entry.itmsGrpNam || '',
+                            u_Sub_Group: entry.u_Sub_Group || '',
+                            u_Variety: entry.u_Variety || '',
+                            u_Unit: entry.u_Unit || '',
+                            salPackMsr: entry.salPackMsr || '',
+                            locationCode: entry.locationCode || '',
+                            locationName: entry.locationName || ''
+                        };
+                    });
+
+                    console.log(`✓ Loaded ${Object.keys(globalStockData).length} items for calculation base`);
+                    console.log('Sample global stock data:', Object.values(globalStockData)[0]);
+                } else {
+                    console.log('No global stock data found');
+                    globalStockData = {};
+                }
+            } catch (error) {
+                console.error('Error loading global stock data:', error);
+                globalStockData = {};
+            }
+        }
+
+        // IMPROVED: Modal display with better item details handling
+        function showCountParametersModalWithItemDetails(selectedItem, physicalQuantity, itemDetails, availableWarehouses = null) {
+            console.log('=== 🔔 SHOWING WAREHOUSE SELECTION MODAL ===');
+            console.log('Selected Item:', selectedItem);
+            console.log('Item Details from API:', itemDetails);
+            console.log('Available Warehouses from API:', availableWarehouses);
+            console.log('Physical Quantity:', physicalQuantity);
+
+            pendingItemData = {
+                selectedItem,
+                physicalQuantity,
+                itemDetails: itemDetails,
+                availableWarehouses: availableWarehouses  // Store available warehouses
+            };
+
+            const modal = document.getElementById('countParametersModal');
+
+            if (!modal) {
+                console.error('❌ Count parameters modal element not found!');
+                alert('Modal not found. Please refresh the page.');
+                return;
+            }
+
+            // Populate item info
+            document.getElementById('modalItemCode').textContent = itemDetails.itemCode;
+            document.getElementById('modalItemName').textContent = itemDetails.itemName;
+
+            // Populate unit and location from count parameters (read-only)
+            const modalSelectedUnit = document.getElementById('modalSelectedUnit');
+            if (selectedItems.unit && selectedItems.unit.name) {
+                modalSelectedUnit.textContent = selectedItems.unit.name;
+            } else {
+                modalSelectedUnit.textContent = 'Not selected';
+            }
+
+            const modalSelectedLocation = document.getElementById('modalSelectedLocation');
+            if (selectedItems.location && selectedItems.location.name) {
+                modalSelectedLocation.textContent = selectedItems.location.name;
+            } else {
+                modalSelectedLocation.textContent = 'Not selected';
+            }
+
+            // Populate warehouse dropdown from API response
+            const warehouseSelect = document.getElementById('modalWarehouseSelect');
+
+            if (selectedItems.warehouse && selectedItems.warehouse.length > 0) {
+                    warehouseSelect.innerHTML = '<option value="">Select Warehouse...</option>';
+                    selectedItems.warehouse.forEach(warehouse => {
+                        const option = document.createElement('option');
+                        option.value = warehouse.code || warehouse.id;
+                        option.textContent = warehouse.name || warehouse.code || warehouse.id;
+                        warehouseSelect.appendChild(option);
+                    });
+
+                    console.log(`✓ Loaded ${selectedItems.warehouse.length} warehouses from count parameters`);
+                } else {
+                    warehouseSelect.innerHTML = '<option value="">No warehouses available</option>';
+                    warehouseSelect.disabled = true;
+                }
+
+            // if (availableWarehouses && availableWarehouses.length > 0) {
+            //     warehouseSelect.innerHTML = '<option value="">Select Warehouse...</option>';
+            //     availableWarehouses.forEach(warehouse => {
+            //         const option = document.createElement('option');
+            //         option.value = warehouse.code;
+            //         option.textContent = `${warehouse.name}`;
+            //         warehouseSelect.appendChild(option);
+            //     });
+            //     warehouseSelect.disabled = false;
+            //     console.log(`✓ Loaded ${availableWarehouses.length} warehouses from API response`);
+            // } else {
+            //     warehouseSelect.innerHTML = '<option value="">No warehouses available</option>';
+            //     warehouseSelect.disabled = true;
+            // }
+
+            // Show modal with proper styling
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.zIndex = '999999';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.classList.add('show');
+
+            const modalContent = modal.querySelector('.modal');
+            if (modalContent) {
+                modalContent.style.display = 'block';
+                modalContent.style.position = 'relative';
+                modalContent.style.zIndex = '1000000';
+                modalContent.style.backgroundColor = 'white';
+                modalContent.style.padding = '2rem';
+                modalContent.style.borderRadius = '8px';
+                modalContent.style.maxWidth = '700px';
+                modalContent.style.width = '90%';
+                modalContent.style.maxHeight = '85vh';
+                modalContent.style.overflow = 'auto';
+                modalContent.style.border = '3px solid var(--primary-color)';
+                modalContent.style.boxShadow = '0 25px 80px rgba(0, 0, 0, 0.6)';
+            }
+
+            console.log(`✅ Modal displayed for item ${itemDetails.itemCode}`);
+        }
+
+        async function populateModalDropdowns() {
+            console.log('=== POPULATING MODAL WITH READ-ONLY PARAMETERS ===');
+            console.log('Current selectedItems from count parameters:', selectedItems);
+
+            try {
+                const modalSelectedUnit = document.getElementById('modalSelectedUnit');
+                if (selectedItems.unit && selectedItems.unit.name) {
+                    modalSelectedUnit.textContent = selectedItems.unit.name;
+                    console.log(`✓ Displayed selected unit: ${selectedItems.unit.name}`);
+                } else {
+                    modalSelectedUnit.textContent = 'Not selected';
+                }
+
+                const modalSelectedLocation = document.getElementById('modalSelectedLocation');
+                if (selectedItems.location && selectedItems.location.name) {
+                    modalSelectedLocation.textContent = selectedItems.location.name;
+                    console.log(`✓ Displayed selected location: ${selectedItems.location.name}`);
+                } else {
+                    modalSelectedLocation.textContent = 'Not selected';
+                }
+
+                const warehouseSelect = document.getElementById('modalWarehouseSelect');
+
+                if (selectedItems.warehouse && selectedItems.warehouse.length > 0) {
+                    warehouseSelect.innerHTML = '<option value="">Select Warehouse...</option>';
+                    selectedItems.warehouse.forEach(warehouse => {
+                        const option = document.createElement('option');
+                        option.value = warehouse.code || warehouse.id;
+                        option.textContent = warehouse.name || warehouse.code || warehouse.id;
+                        warehouseSelect.appendChild(option);
+                    });
+
+                    console.log(`✓ Loaded ${selectedItems.warehouse.length} warehouses from count parameters`);
+                } else {
+                    warehouseSelect.innerHTML = '<option value="">No warehouses available</option>';
+                    warehouseSelect.disabled = true;
+                }
+
+                console.log('✅ Modal populated successfully with read-only parameters');
+
+            } catch (error) {
+                console.error('❌ Error populating modal:', error);
+                showGlobalError('Error loading warehouse data. Please try again.');
+            }
+        }
+
+        async function confirmParameterSelection() {
+            if (isReadOnlySession) { showTemporaryMessage('Session is closed. Changes are disabled.', 'info'); return; }
+            console.log('=== ✅ CONFIRMING WAREHOUSE SELECTION ===');
+
+            if (!pendingItemData) {
+                cancelParameterSelection();
+                return;
+            }
+
+            const modalWarehouse = document.getElementById('modalWarehouseSelect').value;
+
+            if (!modalWarehouse) {
+                alert('Please select a warehouse before confirming.');
+                return;
+            }
+
+            try {
+                console.log('Selected warehouse:', modalWarehouse);
+
+                const warehouseSelect = document.getElementById('modalWarehouseSelect');
+                const selectedOption = warehouseSelect.options[warehouseSelect.selectedIndex];
+                const warehouseName = selectedOption.textContent.split('(')[0].trim();
+
+                let selectedWarehouseStock = null;
+                if (pendingItemData.availableWarehouses) {
+                    selectedWarehouseStock = pendingItemData.availableWarehouses.find(
+                        w => w.code === modalWarehouse
+                    );
+                }
+
+                const itemDetailsForStock = {
+                    itemCode: pendingItemData.itemDetails.itemCode,
+                    itemName: pendingItemData.itemDetails.itemName,
+                    u_Sub_Group: pendingItemData.itemDetails.u_Sub_Group,
+                    itmsGrpCod: pendingItemData.itemDetails.itmsGrpCod,
+                    itmsGrpNam: pendingItemData.itemDetails.itmsGrpNam,
+                    locationCode: selectedItems.location.code,
+                    locationName: selectedItems.location.name,
+                    salPackMsr: '',
+                    u_Unit: selectedItems.unit.code,
+                    isManualEntry: false,
+                    reason: 'Item added from fallback API with warehouse selection',
+                    salPackUn: pendingItemData.itemDetails.salPackUn,
+                    u_IsLitre: pendingItemData.itemDetails.isLitre
+                };
+
+                const manualStockDetails = {
+                    isEmpty: false,
+                    warehouseEntries: [{
+                        warehouse: modalWarehouse,
+                        warehouseName: warehouseName,
+                        onHand: selectedWarehouseStock ? selectedWarehouseStock.onHand : 0,
+                        stockValue: selectedWarehouseStock ? selectedWarehouseStock.stockValue : 0,
+                        ...itemDetailsForStock
+                    }],
+                    totalOnHand: selectedWarehouseStock ? selectedWarehouseStock.onHand : 0
+                };
+
+                console.log('📦 Stock details created with selected warehouse:', manualStockDetails);
+
+                await addItemWithStockDetails(
+                    pendingItemData.selectedItem,
+                    pendingItemData.physicalQuantity,
+                    manualStockDetails
+                );
+
+                // ✅ Clear inputs
+                const searchInput = document.getElementById('itemSearchInput');
+                const quantityInput = document.getElementById('physicalQuantityInput');
+
+                searchInput.value = '';
+                searchInput.removeAttribute('data-selected-item-code');
+                quantityInput.value = '';
+                hideSearchDropdown();
+
+                // ✅ Reset button
+                const addButton = document.getElementById('addItemButton');
+                addButton.textContent = '+ Add Item';
+                addButton.disabled = false;
+
+                // ✅ CLOSE MODAL IMMEDIATELY
+                const modal = document.getElementById('countParametersModal');
+                if (modal) {
+                    modal.classList.remove('show');
+                    modal.style.display = 'none';
+                }
+
+                // ✅ Clear pending data
+                pendingItemData = null;
+
+                const itemCode = itemDetailsForStock.itemCode;
+                const systemCount = selectedWarehouseStock ? selectedWarehouseStock.onHand : 0;
+
+                console.log('✅ Item added and modal closed successfully');
+
+            } catch (error) {
+                console.error('❌ Error confirming warehouse selection:', error);
+                showGlobalError('Error processing warehouse selection. Please try again.');
+            }
+        }
+
+        function cancelParameterSelection() {
+            console.log('=== ❌ CANCELLING PARAMETER SELECTION ===');
+
+            const modal = document.getElementById('countParametersModal');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
+
+            pendingItemData = null;
+
+            document.getElementById('itemSearchInput').value = '';
+            document.getElementById('physicalQuantityInput').value = '';
+            hideSearchDropdown();
+
+            const addButton = document.getElementById('addItemButton');
+            addButton.textContent = '+ Add Item';
+            addButton.disabled = false;
+
+            console.log('✅ Parameter selection cancelled and modal hidden');
+        }
+
+        function handleModalOverlayClick(event) {
+            if (event.target === event.currentTarget) {
+                console.log('Modal overlay clicked - closing modal');
+                cancelParameterSelection();
+            }
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('countParametersModal');
+                if (modal && modal.classList.contains('show')) {
+                    console.log('Escape key pressed - closing modal');
+                    cancelParameterSelection();
+                }
+            }
+        });
+
+        function showTemporaryMessage(message, type = 'info') {
+            const existingMessage = document.querySelector('.temp-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-info';
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert ${alertClass} temp-message`;
+            messageDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; max-width: 500px;';
+            messageDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(messageDiv);
+
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 4000);
+        }
+
+        function isDuplicateItemWarehouse(itemCode, warehouse) {
+            return tableItems.some(item =>
+                item.selectedItem &&
+                item.selectedItem.itemCode === itemCode &&
+                item.warehouse === warehouse
+            );
+        }
+
+        async function addItemWithStockDetails(selectedItem, physicalQuantity, stockDetails) {
+            console.log(`\n=== ADDING ITEM ${selectedItem.itemCode} ===`);
+            console.log(`Physical Quantity: ${physicalQuantity}`);
+            console.log(`Stock Details:`, stockDetails);
+
+            let newItems = [];
+            stockDetails.warehouseEntries.forEach((warehouseEntry, index) => {
+                if (isDuplicateItemWarehouse(selectedItem.itemCode, warehouseEntry.warehouse)) {
+                    console.warn(`Skipping duplicate: ${selectedItem.itemCode} + ${warehouseEntry.warehouse}`);
+                    return;
+                }
+
+                const newItemId = getNextItemNumber();
+
+                let calculatedLastCount = 0;
+                if (index === 0) {
+                    calculatedLastCount = 0;
+                } else {
+                    let cumulativeCount = 0;
+                    for (let i = 0; i < index; i++) {
+                        const prevEntry = stockDetails.warehouseEntries[i];
+                        const prevSystemCount = parseFloat(prevEntry.onHand || 0);
+                        if (i === 0) {
+                            cumulativeCount += prevSystemCount + 0;
+                        } else {
+                            const prevLastCount = cumulativeCount;
+                            cumulativeCount = prevSystemCount + prevLastCount;
+                        }
+                    }
+                    calculatedLastCount = cumulativeCount;
+                }
+
+                const systemCount = parseFloat(warehouseEntry.onHand || 0);
+                const stockValue = parseFloat(warehouseEntry.stockValue || 0);
+
+                const newItem = {
+                    id: newItemId,
+                    selectedItem: selectedItem,
+                    systemCount: systemCount,
+                    lastCount: calculatedLastCount,
+                    physicalCount: '',
+                    notes: '',
+                    warehouse: warehouseEntry.warehouse,
+                    warehouseEntry: warehouseEntry,
+                    itemCode: selectedItem.itemCode,
+                    ActionType: 'INSERT',  // ✅ New items are INSERT
+                    ItemId: null,
+                    isMultiWarehouse: stockDetails.warehouseEntries.length > 1,
+                    warehouseIndex: index,
+                    totalWarehouses: stockDetails.warehouseEntries.length,
+                    unitRate: systemCount > 0 ? stockValue / systemCount : 0,
+                    stockValue: stockValue,
+                    isManualEntry: warehouseEntry.isManualEntry || false,
+                    itemDetails: {
+                        u_Sub_Group: warehouseEntry.u_Sub_Group || '',
+                        itmsGrpCod: warehouseEntry.itmsGrpCod || '',
+                        itmsGrpNam: warehouseEntry.itmsGrpNam || ''
+                    },
+                    // ✅ ADD THESE FIELDS for saving later
+                    salPackUn: warehouseEntry.salPackUn || 0,
+                    u_IsLitre: warehouseEntry.u_IsLitre || ''
+                };
+                newItems.push(newItem);
+            });
+
+            if (newItems.length === 0) {
+                console.warn('No new items to add - all were duplicates');
+                alert('This item and warehouse combination already exists in the table');
+                return;
+            }
+
+            tableItems.push(...newItems);
+
+            if (newItems.length > 1) {
+                let remainingQuantity = physicalQuantity;
+                const sortedItems = [...newItems].sort((a, b) => b.systemCount - a.systemCount);
+
+                for (let i = 0; i < sortedItems.length; i++) {
+                    const item = sortedItems[i];
+                    if (remainingQuantity <= 0) break;
+
+                    const maxForThis = item.systemCount;
+                    const allocatedToThis = Math.min(remainingQuantity, maxForThis);
+
+                    item.physicalCount = allocatedToThis.toString();
+                    remainingQuantity -= allocatedToThis;
+                }
+
+                if (remainingQuantity > 0) {
+                    const firstItem = sortedItems[0];
+                    const currentCount = parseFloat(firstItem.physicalCount) || 0;
+                    firstItem.physicalCount = (currentCount + remainingQuantity).toString();
+                }
+            } else {
+                newItems[0].physicalCount = physicalQuantity.toString();
+            }
+
+            console.log(`Added ${newItems.length} new warehouse entries`);
+            updateItemsTable();
+        }
+        function setupItemSearch() {
+            const searchInput = document.getElementById('itemSearchInput');
+            const dropdown = document.getElementById('itemSearchDropdown');
+            const quantityInput = document.getElementById('physicalQuantityInput');
+            const addButton = document.getElementById('addItemButton');
+
+            function updateAddButtonState() {
+                const hasSearch = searchInput.value.trim().length > 0;
+                const hasQuantity = parseFloat(quantityInput.value) > 0;
+
+                addButton.disabled = !(hasSearch && hasQuantity);
+            }
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                updateAddButtonState();
+
+                if (query.length === 0) {
+                    dropdown.classList.remove('show');
+                    return;
+                }
+
+                const filteredItems = omniSearchItems.filter(item =>
+                    (item.itemCode && item.itemCode.toLowerCase().includes(query)) ||
+                    (item.itemName && item.itemName.toLowerCase().includes(query))
+                ).slice(0, 10);
+
+                if (filteredItems.length > 0) {
+                    const itemsHtml = filteredItems.map(item => {
+                        const itemCode = item.itemCode || '';
+                        const itemName = item.itemName || 'N/A';
+
+                        return `
+                            <div class="search-option" onclick="selectSearchItem('${itemCode}', '${itemCode}', '${itemName.replace(/'/g, "\\'")}')">
+                                <div class="search-option-code">${itemCode}</div>
+                                <div class="search-option-name">${itemName}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    dropdown.innerHTML = itemsHtml;
+                    dropdown.classList.add('show');
+                } else {
+                    dropdown.classList.remove('show');
+                }
+            });
+
+            quantityInput.addEventListener('input', updateAddButtonState);
+
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const firstItem = dropdown.querySelector('.search-option');
+                    if (firstItem) {
+                        firstItem.click();
+                    }
+                }
+            });
+
+            quantityInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    processAddItem();
+                }
+            });
+        }
+
+        function selectSearchItem(itemCode, displayItemCode = null, itemName = null) {
+            const searchInput = document.getElementById('itemSearchInput');
+            const dropdown = document.getElementById('itemSearchDropdown');
+
+            const actualItemCode = displayItemCode || itemCode;
+            const actualItemName = itemName || 'N/A';
+
+            searchInput.value = `${actualItemCode} - ${actualItemName}`;
+
+            searchInput.setAttribute('data-selected-item-code', actualItemCode);
+
+            dropdown.classList.remove('show');
+
+            document.getElementById('physicalQuantityInput').focus();
+
+            const quantityInput = document.getElementById('physicalQuantityInput');
+            const addButton = document.getElementById('addItemButton');
+            const hasQuantity = parseFloat(quantityInput.value) > 0;
+            addButton.disabled = !hasQuantity;
+
+            console.log(`Selected item: ${actualItemCode} (Display: ${actualItemCode} - ${actualItemName})`);
+        }
+
+        function hideSearchDropdown() {
+            document.getElementById('itemSearchDropdown').classList.remove('show');
+        }
+
+        function getNextItemNumber() {
+            if (tableItems.length === 0) {
+                return 1;
+            }
+            const usedNumbers = tableItems.map(item => item.id).sort((a, b) => a - b);
+            for (let i = 1; i <= usedNumbers.length + 1; i++) {
+                if (!usedNumbers.includes(i)) {
+                    return i;
+                }
+            }
+            return usedNumbers.length + 1;
+        }
+
+        function updateItemCount(itemId, count) {
+            if (isReadOnlySession) { return; }
+            const item = tableItems.find(item => item.id === itemId);
+            if (!item) return;
+
+            const enteredCount = parseFloat(count) || 0;
+
+            if (item.isMultiWarehouse && item.selectedItem) {
+                const itemCode = item.selectedItem.itemCode;
+                const sameItemRows = tableItems.filter(row =>
+                    row.selectedItem &&
+                    row.selectedItem.itemCode === itemCode
+                ).sort((a, b) => b.systemCount - a.systemCount);
+
+                console.log(`Smart allocation for ${itemCode}: entered ${enteredCount}`);
+
+                sameItemRows.forEach(row => {
+                    row.physicalCount = '';
+                });
+
+                let remainingCount = enteredCount;
+
+                for (let i = 0; i < sameItemRows.length; i++) {
+                    const row = sameItemRows[i];
+                    if (remainingCount <= 0) break;
+
+                    const maxForThisRow = row.systemCount;
+                    const allocatedToThisRow = Math.min(remainingCount, maxForThisRow);
+
+                    row.physicalCount = allocatedToThisRow.toString();
+                    remainingCount -= allocatedToThisRow;
+                }
+
+                if (remainingCount > 0) {
+                    const firstRow = sameItemRows[0];
+                    const currentFirstRowCount = parseFloat(firstRow.physicalCount) || 0;
+                    firstRow.physicalCount = (currentFirstRowCount + remainingCount).toString();
+                }
+
+                const triggerInput = document.querySelector(`#count-${itemId}`);
+                if (triggerInput) {
+                    const updatedItem = tableItems.find(row => row.id === itemId);
+                    if (updatedItem) {
+                        triggerInput.value = updatedItem.physicalCount;
+                    }
+                }
+
+                updateItemsTable();
+            } else {
+                item.physicalCount = count;
+                updateItemsTable();
+            }
+        }
+
+        async function postJson(url, body) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+            return data;
+        }
+        function isSessionActive() {
+          const act = pickSessionIsActive(loadedAuditData?.session);
+          return act === 1;
+        }
+
+        async function saveAllItems(status = "Pending") {
+            if (!isSessionActive()) {
+                alert('Session is inactive. Changes are not allowed.');
+                return;
+            }
+            console.log(`\n=== SMART SAVE (rows may be INSERT and/or UPDATE) — status: ${status} ===`);
+
+            const normalizedStatus = (status || '').toLowerCase() === 'closed' ? 'Closed' : 'Pending';
+
+            if (tableItems.length === 0) {
+                alert('No items in table to save. Please add items first.');
+                return;
+            }
+
+            const allInsert = tableItems.every(r => r.ActionType === 'INSERT');
+            const hasUpdate = tableItems.some(r => r.ActionType === 'UPDATE');
+
+            const confirmMsg = allInsert
+                ? `Save ${tableItems.length} new items with status: ${normalizedStatus}?`
+                : `Save changes:\n• INSERT: ${tableItems.filter(r=>r.ActionType==='INSERT').length}\n• UPDATE: ${tableItems.filter(r=>r.ActionType==='UPDATE').length}\n\nProceed with status: ${normalizedStatus}?`;
+
+            if (!confirm(confirmMsg)) return;
+
+            const lotNumber = document.getElementById('LotNumber').value;
+            const userId = parseInt(document.getElementById('UpdatedBy').value) || null;
+            const sessionId = parseInt(document.getElementById('SessionId').value) || null;
+
+            showProgressOverlay(allInsert ? 'Uploading new items...' : 'Saving rows (insert + update)...');
+
+            try {
+                if (allInsert) {
+                    // Bulk insert logic
+                    const itemsToSave = tableItems.map(item => {
+                        const physicalCount = parseFloat(item.physicalCount) || 0;
+                        const systemCount = parseFloat(item.systemCount) || 0;
+
+                        return {
+                            ItemCode: String(item.selectedItem.itemCode),
+                            ItemName: String(item.selectedItem.itemName),
+                            WarehouseName: String(item.warehouse),
+                            ItemGroupCode: String(item.itemDetails?.itmsGrpCod || ''),
+                            SystemCount: systemCount,
+                            LastCount: parseFloat(item.lastCount) || 0,
+                            PhysicalCount: physicalCount,
+                            StockValue: parseFloat(item.stockValue) || 0,
+                            itmsGrpNam: String(item.itemDetails?.itmsGrpNam || ''),
+                            u_Sub_Group: String(item.itemDetails?.u_Sub_Group || ''),
+                            ActionType: 'INSERT',
+                            UserId: userId,
+                            salPackun: Number(parseFloat(item.salPackUn || 0).toFixed(5)),
+                            isLitre: item.u_IsLitre || ''
+                        };
+                    });
+
+                    const requestData = {
+                        LotNumber: String(lotNumber),
+                        CreatedBy: userId,
+                        AllowDuplicates: true,
+                        ActionType: "INSERT",
+                        Items: itemsToSave
+                    };
+
+                    console.log('📤 Bulk Insert Request:', requestData);
+                    const result = await postJson('/api/InventoryAudit/InsertItems', requestData);
+                    if (!result?.success) throw new Error(result?.message || 'InsertItems failed');
+
+                    console.log('✅ Bulk insert successful');
+
+                } else {
+                    // Process UPDATE rows
+                    const updateRows = tableItems.filter(r => r.ActionType === 'UPDATE');
+                    if (updateRows.length > 0) {
+                        console.log(`📤 Processing ${updateRows.length} UPDATE rows...`);
+
+                        for (const row of updateRows) {
+                            const body = {
+                                ItemId: row.ItemId,
+                                NewPhysicalCount: parseFloat(row.physicalCount) || 0,
+                                UpdatedBy: String(userId ?? ''),
+                                Notes: row.notes || '',
+                                status: normalizedStatus
+                            };
+
+                            if (!body.ItemId && body.ItemId !== 0) {
+                                console.warn('⚠️ Skipping update row without ItemId:', row);
+                                continue;
+                            }
+
+                            console.log('📤 Updating row via UpdatePhysicalCount:', body);
+                            const res = await postJson('/api/InventoryAudit/UpdatePhysicalCount', body);
+                            if (!res?.success) throw new Error(res?.message || 'UpdatePhysicalCount failed');
+                        }
+
+                        console.log('✅ All UPDATE rows processed');
+                    }
+
+                    // Process INSERT rows
+                    const insertRows = tableItems.filter(r => r.ActionType === 'INSERT');
+                    if (insertRows.length > 0) {
+                        console.log(`📤 Processing ${insertRows.length} INSERT rows...`);
+
+                        for (const row of insertRows) {
+                            const body = {
+                                LotNumber: String(lotNumber),
+                                ItemCode: String(row.selectedItem.itemCode),
+                                ItemName: String(row.selectedItem.itemName),
+                                WarehouseName: String(row.warehouse),
+                                ItemGroupCode: String(row.itemDetails?.itmsGrpCod || ''),
+                                SystemCount: parseFloat(row.systemCount) || 0,
+                                LastCount: parseFloat(row.lastCount) || 0,
+                                PhysicalCount: parseFloat(row.physicalCount) || 0,
+                                StockValue: parseFloat(row.stockValue) || 0,
+                                itmsGrpNam: String(row.itemDetails?.itmsGrpNam || ''),
+                                u_Sub_Group: String(row.itemDetails?.u_Sub_Group || ''),
+                                CreatedBy: userId,
+                                AllowDuplicates: true,
+                                ActionType: "INSERT",
+                                UserId: userId,
+                                salPackun: Number(parseFloat(row.salPackUn || 0).toFixed(5)),
+                                isLitre: row.u_IsLitre || ''
+                            };
+
+                            console.log('📤 Inserting single row via InsertSingleStockItem:', body);
+                            const res = await postJson('/api/InventoryAudit/InsertSingleStockItem', body);
+                            if (!res?.success) throw new Error(res?.message || 'InsertSingleStockItem failed');
+                        }
+
+                        console.log('✅ All INSERT rows processed');
+                    }
+                }
+
+                // Update session status if closing
+                const isClosing = (normalizedStatus === 'Closed');
+                if (isClosing) {
+                    if (!sessionId || !userId) {
+                        alert('Items saved, but cannot close session: missing session/user id.');
+                        // ✅ Reload page even if close failed
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        try {
+                            const updateStatusRequest = {
+                                sessionId: sessionId,
+                                userId: userId
+                            };
+
+                            console.log('📤 Closing session:', updateStatusRequest);
+                            const updateRes = await postJson('/api/InventoryAudit/UpdateStatus', updateStatusRequest);
+                            if (!updateRes?.success) {
+                                alert(`✅ Items saved, but closing failed: ${updateRes?.message || 'Unknown error'}`);
+                            } else {
+                                alert('✅ Items saved and session closed.');
+                            }
+                        } catch (e) {
+                            console.error('UpdateStatus error:', e);
+                            alert(`✅ Items saved, but closing failed: ${e.message}`);
+                        }
+
+                        // ✅ Reload page after close
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                } else {
+                    // Just saving as Pending
+                    alert('✅ Items saved successfully.');
+                    // ✅ Reload page after save
+                    setTimeout(() => location.reload(), 1000);
+                }
+
+                await callDeactivateIfAllInactive(sessionId);
+
+            } catch (err) {
+                console.error('❌ Save error:', err);
+                alert(`❌ Save failed: ${err.message}`);
+            } finally {
+                hideProgressOverlay();
+            }
+        }
+
+        function fmt2(n) {
+          const x = parseFloat(n);
+          return Number.isFinite(x) ? x.toFixed(2) : '—';
+        }
+
+        async function callDeactivateIfAllInactive(sessionId) {
+          try {
+            if (!sessionId && sessionId !== 0) return; // nothing to send
+
+            const url = `/api/InventoryAudit/DeactivateSessionIfAllUsersInactive?sessionId=${encodeURIComponent(sessionId)}`;
+
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json'
+              }
+            });
+
+            const data = await res.json().catch(() => ({}));
+            console.log('DeactivateSessionIfAllUsersInactive:', { status: res.status, data });
+          } catch (e) {
+            console.warn('DeactivateSessionIfAllUsersInactive call ignored:', e);
+          }
+        }
+
+        function updateItemsTable() {
+            const tableContainer = document.getElementById('itemsTableContainer');
+            const itemsActions = document.getElementById('itemsActions');
+            const itemsCountedDisplay = document.getElementById('itemsCountedDisplay');
+
+            itemsCountedDisplay.textContent = `${tableItems.length} Items`;
+
+            if (tableItems.length === 0) {
+                tableContainer.innerHTML = `
+                    <div class="empty-state" id="emptyTable">
+                        <div class="empty-state-icon">📦</div>
+                        <h3>No items in table</h3>
+                        <p>Search for an item and enter quantity, then click "Add Item"</p>
+                    </div>
+                `;
+                itemsActions.style.display = 'none';
+                return;
+            }
+
+            // ✅ Only show action buttons if session is NOT read-only
+            if (isReadOnlySession) {
+                itemsActions.style.display = 'none';
+            } else {
+                itemsActions.style.display = 'flex';
+            }
+
+            const tableHtml = `
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item Code</th>
+                            <th>Item Name</th>
+                            <th>Warehouse</th>
+                            <th>System Count</th>
+                            <th>Last Count</th>
+                            <th>Physical Count</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableItems.map(item => {
+                            const rowClass = item.isManualEntry ? 'manual-entry-row' : (item.isMultiWarehouse ? 'multi-warehouse-row' : '');
+                            return `
+                                <tr id="row-${item.id}" class="${rowClass}">
+                                    <td>
+                                        <strong>${item.selectedItem.itemCode}</strong>
+                                    </td>
+                                    <td>
+                                        ${item.selectedItem.itemName || 'N/A'}
+                                    </td>
+                                    <td>
+                                        <strong style="color: var(--primary-color);">${item.warehouse}</strong>
+                                    </td>
+                                    <td class="system-count-cell">
+                                        ${(parseFloat(item.systemCount) || 0).toFixed(2)}
+                                    </td>
+                                    <td class="last-count-cell">
+                                        ${(parseFloat(item.lastCount) || 0).toFixed(2)}
+                                    </td>
+                                    <td class="text-center">
+                                        ${isReadOnlySession
+                                          ? `<span class="readonly-count" title="Session is closed; value is locked">${fmt2(item.physicalCount)}</span>`
+                                          : `<input type="number" class="form-input text-center" id="count-${item.id}"
+                                                    placeholder="0" min="0" step="0.01" value="${item.physicalCount}"
+                                                    onchange="updateItemCount(${item.id}, this.value)">`
+                                        }
+                                    </td>
+                                    <td>
+                                      ${isReadOnlySession
+                                        ? `<button class="btn btn-danger btn-sm" disabled title="Read-only">Remove</button>`
+                                        : `<button class="btn btn-danger btn-sm" onclick="removeItemRow(${item.id})">Remove</button>`
+                                      }
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            tableContainer.innerHTML = tableHtml;
+        }
+
+        function removeItemRow(itemId) {
+            if (isReadOnlySession) { showTemporaryMessage('Session is closed. Removing items is disabled.', 'info'); return; }
+            console.log(`Removing item row with ID: ${itemId}`);
+
+            const itemToRemove = tableItems.find(item => item.id === itemId);
+            if (itemToRemove) {
+                console.log(`Removing: ${itemToRemove.selectedItem.itemCode} - ${itemToRemove.warehouse}`);
+            }
+
+            tableItems = tableItems.filter(item => item.id !== itemId);
+
+            console.log(`Items remaining after removal: ${tableItems.length}`);
+
+            updateItemsTable();
+        }
+
+        function clearAllItems() {
+            if (isReadOnlySession) { showTemporaryMessage('Session is closed. Clearing is disabled.', 'info'); return; }
+            if (confirm('Are you sure you want to clear all items from the table?')) {
+                tableItems = [];
+                itemCounter = 0;
+                globalStockData = {};
+                updateItemsTable();
+            }
+        }
+
+        function clearEverything() {
+            console.log('=== CLEARING EVERYTHING ===');
+
+            tableItems = [];
+            itemCounter = 0;
+            globalStockData = {};
+            updateItemsTable();
+
+            document.getElementById('itemSearchInput').value = '';
+            document.getElementById('physicalQuantityInput').value = '';
+            hideSearchDropdown();
+
+            // Reload the page to start fresh
+            location.reload();
+
+            console.log('Everything cleared - ready for new audit');
+        }
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize page with URL parameters
+            await initializePage();
+
+            // Initialize other components
+            updateItemsTable();
+            setupItemSearch();
+        });
+
+        // Click outside to close dropdowns
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.select-container') &&
+                !event.target.closest('.search-dropdown') &&
+                !event.target.closest('.item-search-container') &&
+                !event.target.closest('.modal')) {
+                document.querySelectorAll('.search-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('show');
+                });
+            }
+        });
+
+        // Utility functions
+        function hideProgressOverlay() {
+            const overlay = document.getElementById('progressOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function showProgressOverlay(message = 'Loading...') {
+            const overlay = document.getElementById('progressOverlay');
+            const text = overlay.querySelector('.progress-text');
+            if (overlay) {
+                text.textContent = message;
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function showGlobalError(message) {
+            const existingError = document.querySelector('.global-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger global-error';
+            errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            errorDiv.innerHTML = `
+                ${message}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 10000);
+        }
+
+        // Make functions globally available
+        window.removeItemRow = removeItemRow;
+        window.processAddItem = processAddItem;
+        window.saveAllItems = saveAllItems;
+        window.clearAllItems = clearAllItems;
+        window.cancelParameterSelection = cancelParameterSelection;
+        window.confirmParameterSelection = confirmParameterSelection;
+        window.handleModalOverlayClick = handleModalOverlayClick;
+        window.selectSearchItem = selectSearchItem;
+        window.updateItemCount = updateItemCount;
+
+        console.log('✅ Inventory audit system with enhanced empty data handling initialized');
+    </script>
+
+</body>
+</html>

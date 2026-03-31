@@ -1,0 +1,186 @@
+﻿@{
+    ViewData["Title"] = "Budget Approval"; Layout =
+    "~/Views/Shared/_Layout.cshtml";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Business Partner Management Module</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/budget.css" />
+    <script src="https://kit.fontawesome.com/yourcode.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <div id="loaderOverlay">
+        <div class="loader"></div>
+    </div>
+
+    <div class="container">
+        <div class="tab-section">
+            <div class="tab-buttons-container  form-section ">
+                <button onclick="switchTab('tab1', this)" class="tab-button tab-active">MONTH-WISE</button>
+                <button onclick="switchTab('tab2', this)" class="tab-button">DOCENTRY OR CARDNAME WISE</button>
+            </div>
+
+            @* TAB 1 *@
+            <div class="form-tab form-section active" id="tab1">
+                <div class="budget-header">
+                    <h2 class="section-title">Budget Report</h2>
+                    <div class="form-grid">
+                        @* Month Dropdown *@
+                        <div class="form-group">
+                            <label for="month">Month <span class="required">*</span></label>
+                            <select id="month" onchange="filterData()">
+                                <option>Select Month</option>
+                            </select>
+                        </div>
+                        @* Year Dropdown *@
+                        <div class="form-group">
+                            <label for="year">Year<span class="required">*</span></label>
+                            <select id="year" onchange="filterData()">
+                                <option>Select Year</option>
+                            </select>
+                        </div>
+                        @* type Dropdown *@
+                        <div class="form-group">
+                            <label for="type">Type</label>
+                            <select id="type" onchange="filterData()">
+                                <option>Select Type</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="budget-search">
+                    <label for="search"></label>
+                    <input id="search"
+                           type="text"
+                           placeholder="Search using ID or Name" />
+                </div>
+                <div class="excel-button-wrapper">
+                    <button class="excel-button" onclick="convertToExcel()">
+                        Download as Excel
+                    </button>
+                </div>
+
+                <table id="budget-data-table" class="table">
+                    <thead>
+                        <tr>
+                            <th>UserID</th>
+                            <th>Name</th>
+                            <th class="hidden-cell">Pending</th>
+                            <th class="hidden-cell">Approved</th>
+                            <th class="hidden-cell">Rejected</th>
+
+                            <th id="final-cell">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="budget-data-table-body">
+                        @* Table displayed here *@
+                    </tbody>
+                </table>
+
+                <!-- Add Pagination Controls Here -->
+                <div id="pagination-controls"></div>
+            </div>
+
+            @* TAB 2  *@
+
+            <div class="form-tab form-section" id="tab2">
+                <div class="budget-header">
+                    <h2 class="section-title">DocEntry and CardName</h2>
+                    <div class="form-grid tab-2-form-grid">
+                        @* Month Dropdown *@
+                        <div class="form-group">
+                            <label for="month-tab2">Month <span class="required">*</span></label>
+                            <select id="month-tab2" onchange="filterDataTab2()">
+                                <option>Select Month</option>
+                            </select>
+                        </div>
+                        @* Year Dropdown *@
+                        <div class="form-group">
+                            <label for="year-tab2">Year<span class="required">*</span></label>
+                            <select id="year-tab2" onchange="filterDataTab2()">
+                                <option>Select Year</option>
+                            </select>
+                        </div>
+
+                    </div>
+                </div>
+
+
+                <div class="search-form">
+                    <input type="text"
+                           id="search-form"
+                           placeholder="Enter DocEntry or CardName" />
+                    <button onclick="displayBudget()">Search</button>
+                </div>
+                <div class="excel-container">
+                    <button onclick="getExceldoc()" id="get-excel-button">Download as Excel</button>
+                </div>
+                <div id="display-table"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    @* BUDGET MODAL  *@
+    <div class="budget-modal-background" id="budget-modal-background">
+        <div class="budget-modal-content">
+
+            <div class="budget-modal-header">
+                <button onclick="closeModal()" class="modal-close-button">Close X</button>
+            </div>
+
+            <div class="budget-modal-header-detail" id="budget-modal-header-detail"></div>
+
+
+
+            <div class="budget-modal-tab-container">
+                <div class="budget-modal-tabs">
+                    <button class="budget-modal-tab-button active" id="pending-btn" onclick="switchModalTab('pending')">Pending</button>
+                    <button class="budget-modal-tab-button " id="approved-btn" onclick="switchModalTab('approved')">Approved</button>
+                    <button class="budget-modal-tab-button " id="rejected-btn" onclick="switchModalTab('rejected')">Rejected</button>
+                </div>
+            </div>
+
+
+            <div class="budget-modal-tab-content" active" id="pending-tab"></div>
+            <div class="budget-modal-tab-content" id="approved-tab"></div>
+            <div class="budget-modal-tab-content" id="rejected-tab"></div>
+
+
+        </div>
+    </div>
+
+    @* PROGRESS/ FLOW MODAL  *@
+    <div class="flow-modal-background" id="flow-modal-background">
+        <div class="flow-modal-content">
+
+            <div class="flow-modal-header">
+                <button onclick="closeFlowModal()" id="budget-flow-id">&laquo; Back </button>
+            </div>
+
+            <div class="flow-modal-heading">
+            </div>
+
+            <div id="flow-modal-display-container"></div>
+
+        </div>
+    </div>
+
+    <script>
+        var companyId = @ViewBag.CompanyId;
+        var userId =@ViewBag.UserId;
+
+        console.log('Company ID:', companyId);
+        console.log('User ID:', userId);
+    </script>
+    <script src="~/js/budget.js"></script>
+</body>
+</html>

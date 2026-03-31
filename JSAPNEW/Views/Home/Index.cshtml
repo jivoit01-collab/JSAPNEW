@@ -1,0 +1,213 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Partner Master Data</title>
+    <link rel="stylesheet" href="~/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Business Partner Master Data</h2>
+        <form id="bpForm">
+            <div class="row">
+                <div class="form-group">
+                    <label>Code</label>
+                    <select required>
+                        <option value="CUSTA">CUSTA</option>
+                    </select>
+                    <input type="text" value="CUSTA001050" required>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select required>
+                        <option>Customer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Group</label>
+                    <select required>
+                        <option>GOA</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group full">
+                    <label>Name</label>
+                    <input type="text" value="SURESH JUTTUR SHETTY P/O" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>Currency</label>
+                    <select required>
+                        <option>Indian Rupee</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Main Group</label>
+                    <input type="text" value="ROT" required>
+                </div>
+                <div class="form-group">
+                    <label>Chain</label>
+                    <input type="text" value="SUPER STOCKIST">
+                </div>
+            </div>
+            <div class="row button-group">
+                <button type="submit" class="save">Save</button>
+                <button type="button" class="add">+ Add New</button>
+                <button type="button" class="find">Find</button>
+                <button type="button" class="delete">Delete</button>
+                <button type="button" class="print">Print</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active">General</div>
+                <div class="tab">Contact Persons</div>
+                <div class="tab">Addresses</div>
+                <div class="tab">Payment Terms</div>
+                <div class="tab">Accounting</div>
+                <div class="tab">Properties</div>
+                <div class="tab">Remarks</div>
+                <div class="tab">Attachments</div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Tel 1</label>
+                    <input type="text">
+                </div>
+                <div class="form-group">
+                    <label>Contact Person</label>
+                    <input type="text" value="SURESH JUTTUR SHETTY">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Tel 2</label>
+                    <input type="text">
+                </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <input type="text">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Mobile Phone</label>
+                    <input type="text">
+                </div>
+                <div class="form-group">
+                    <label>Sales Employee</label>
+                    <select>
+                        <option>SAPNESH NAIK</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Fax</label>
+                    <input type="text">
+                </div>
+                <div class="form-group">
+                    <label>BP Channel Code</label>
+                    <input type="text">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email">
+                </div>
+                <div class="form-group">
+                    <label>Technician</label>
+                    <input type="text">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Website</label>
+                    <input type="url">
+                </div>
+                <div class="form-group">
+                    <label>Territory</label>
+                    <input type="text">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Shipping Type</label>
+                    <select>
+                        <option>Standard</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Language</label>
+                    <select>
+                        <option>English (UK)</option>
+                    </select>
+                    <label><input type="checkbox"> Natural Person</label>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select>
+                        <option>None</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Business Partner Project</label>
+                    <input type="text">
+                </div>
+                <div class="form-group">
+                    <label>Alias Name</label>
+                    <input type="text">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Industry</label>
+                    <select>
+                        <option>Retail</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>GLN</label>
+                    <input type="text">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Type of Business</label>
+                    <select>
+                        <option>Company</option>
+                    </select>
+                    <label><input type="checkbox"> Block Sending Marketing Content</label>
+                </div>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+

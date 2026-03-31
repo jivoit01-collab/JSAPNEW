@@ -1,0 +1,732 @@
+﻿@{
+    ViewData["Title"] = "Add Session";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Session</title>
+    <link rel="stylesheet" href="~/css/inventory.css" />
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-circle"></div>
+        <div class="loading-text">Creating session...</div>
+    </div>
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1 class="page-title">Create New Session</h1>
+            <p class="page-subtitle">Define session details and assign users for inventory audit</p>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <form id="sessionForm">
+            <input type="hidden" id="createdBy" value="@ViewBag.userId" />
+            <input type="hidden" id="company" value="@ViewBag.company" />
+
+            <!-- Session Information -->
+            <div class="form-card">
+                <div class="card-header">Session Information</div>
+                <div class="card-body">
+                    <!-- Session Name, Lot Number, Description in one row -->
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label class="form-label required">Session Name</label>
+                            <input type="text" class="form-input" id="sessionName" required placeholder="Enter session name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Lot Number</label>
+                            <input type="text" class="form-input" id="lotNumber" value="@ViewBag.LotNumber.ToString().ToUpper()" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" class="form-input" id="description" placeholder="Enter session description">
+                        </div>
+                    </div>
+
+                    <!-- Start Date and End Date in one row -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label required">Start Date</label>
+                            <input type="date" class="form-input" id="startDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">End Date</label>
+                            <input type="date" class="form-input" id="endDate" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Count Information -->
+            <div class="form-card">
+                <div class="card-header">Stock Count Information</div>
+                <div class="card-body">
+                    <!-- Unit, Location, Warehouse in one row -->
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label class="form-label required">Unit</label>
+                            <select class="form-select" id="unit" required>
+                                <option value="">Select unit...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">Location</label>
+                            <select class="form-select" id="location" required disabled>
+                                <option value="">Select unit first...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">Warehouse (Multi-Select)</label>
+                            <div class="select-container disabled" id="warehouse-container" onclick="toggleMultiSelect('warehouse')">
+                                <div class="select-value" id="warehouse-selected">
+                                    <div class="select-placeholder">Select location first...</div>
+                                </div>
+                                <div class="select-arrow">▼</div>
+                                <div class="select-dropdown" id="warehouse-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Group and Item Sub Group in one row -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label required">Item Group (Multi-Select)</label>
+                            <div class="select-container" id="itemgroup-container" onclick="toggleMultiSelect('itemgroup')">
+                                <div class="select-value" id="itemgroup-selected">
+                                    <div class="select-loading">Loading...</div>
+                                </div>
+                                <div class="select-arrow">▼</div>
+                                <div class="select-dropdown" id="itemgroup-dropdown"></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Item Sub Group (Multi-Select)</label>
+                            <div class="select-container" id="subgroup-container" onclick="toggleMultiSelect('subgroup')">
+                                <div class="select-value" id="subgroup-selected">
+                                    <div class="select-loading">Loading...</div>
+                                </div>
+                                <div class="select-arrow">▼</div>
+                                <div class="select-dropdown" id="subgroup-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Assignments -->
+            <div class="form-card">
+                <div class="card-header">User Assignments</div>
+                <div class="card-body">
+                    <div id="userAssignmentsContainer"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addUserAssignment()">
+                        + Add User
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='/InventoryAuditWeb/AddSession'">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-success">
+                    Create Session
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Add this popup modal -->
+    <div class="popup-overlay" id="popupOverlay">
+        <div class="popup-modal">
+            <div class="popup-icon" id="popupIcon">✓</div>
+            <div class="popup-title" id="popupTitle">Success!</div>
+            <div class="popup-message" id="popupMessage">Session created successfully</div>
+            <button class="popup-button" id="popupButton" onclick="closePopup()">OK</button>
+        </div>
+    </div>
+    <script>
+        let userAssignmentCounter = 0;
+        let apiData = {
+            units: [],
+            locations: [],
+            warehouses: [],
+            itemGroups: [],
+            subGroups: [],
+            users: []
+        };
+
+        let selectedData = {
+            unit: null,
+            location: null,
+            warehouses: [],
+            itemGroups: [],
+            subGroups: []
+        };
+
+        function getCompanyId() {
+            return document.getElementById('company').value;
+        }
+
+        async function apiCall(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+         // User Assignment Functions
+        function addUserAssignment() {
+            userAssignmentCounter++;
+            const container = document.getElementById('userAssignmentsContainer');
+            const assignmentDiv = document.createElement('div');
+            assignmentDiv.className = 'user-assignment-item';
+            assignmentDiv.id = `assignment-${userAssignmentCounter}`;
+            assignmentDiv.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">User</label>
+                    <select class="form-select assignment-user" required>
+                        <option value="">Select user...</option>
+                        ${apiData.users.map(u => `<option value="${u.userId}">${u.
+                        
+                        
+                        
+                        
+                        } (${u.userId})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <select class="form-select role-in-session" required>
+                        <option value="">Select role...</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Counter">Counter</option>
+                        <option value="Reporter">Reporter</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-danger btn-icon" onclick="removeUserAssignment(${userAssignmentCounter})" title="Remove user">
+                    ×
+                </button>
+            `;
+            container.appendChild(assignmentDiv);
+        }
+        // Load Units
+        async function loadUnits() {
+            const companyId = getCompanyId();
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetUnits?company=${companyId}`);
+                const data = response.success ? response.data : (Array.isArray(response) ? response : []);
+                apiData.units = data;
+
+                const unitSelect = document.getElementById('unit');
+                unitSelect.innerHTML = '<option value="">Select unit...</option>';
+
+                apiData.units.forEach(unit => {
+                    const option = document.createElement('option');
+                    option.value = unit.u_Unit;
+                    option.textContent = unit.u_Unit;
+                    unitSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Load units error:', error);
+                showAlert('Failed to load units', 'danger');
+            }
+        }
+
+        // Load Locations
+        async function loadLocations(unitCode) {
+            const companyId = getCompanyId();
+            const locationSelect = document.getElementById('location');
+            locationSelect.disabled = true;
+            locationSelect.innerHTML = '<option value="">Loading...</option>';
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetLocation?Unit=${unitCode}&company=${companyId}`);
+                const data = response.success ? response.data : (Array.isArray(response) ? response : []);
+                apiData.locations = data;
+
+                locationSelect.innerHTML = '<option value="">Select location...</option>';
+                apiData.locations.forEach(loc => {
+                    const option = document.createElement('option');
+                    option.value = loc.locationCode;
+                    option.textContent = loc.locationName;
+                    option.setAttribute('data-name', loc.locationName);
+                    locationSelect.appendChild(option);
+                });
+
+                locationSelect.disabled = false;
+            } catch (error) {
+                console.error('Load locations error:', error);
+                showAlert('Failed to load locations', 'danger');
+                locationSelect.innerHTML = '<option value="">Error loading locations</option>';
+            }
+        }
+
+        // Load Warehouses
+        async function loadWarehouses(locationCode) {
+            const companyId = getCompanyId();
+            const container = document.getElementById('warehouse-container');
+            const selected = document.getElementById('warehouse-selected');
+
+            selected.innerHTML = '<div class="select-loading">Loading...</div>';
+
+            try {
+                const response = await apiCall(`/api/InventoryAudit/getwarehouse?company=${companyId}&LocationCode=${locationCode}`);
+                const data = response.success ? response.data : (Array.isArray(response) ? response : []);
+                apiData.warehouses = data;
+
+                populateMultiSelect('warehouse', apiData.warehouses, 'warehouse', true);
+                container.classList.remove('disabled');
+                selected.innerHTML = '<div class="select-placeholder">Select warehouses...</div>';
+            } catch (error) {
+                console.error('Load warehouses error:', error);
+                showAlert('Failed to load warehouses', 'danger');
+                selected.innerHTML = '<div class="select-placeholder">Error loading warehouses</div>';
+            }
+        }
+
+        // Load Item Groups
+        async function loadItemGroups() {
+            const companyId = getCompanyId();
+            try {
+                const response = await apiCall(`/api/ItemMaster/GetGroup?company=${companyId}`);
+                console.log('Item Groups Response:', response);
+                const data = response.success ? response.data : (Array.isArray(response) ? response : []);
+                apiData.itemGroups = data;
+                populateMultiSelect('itemgroup', apiData.itemGroups, 'itmsGrpNam', true);
+                document.getElementById('itemgroup-selected').innerHTML = '<div class="select-placeholder">Select item groups...</div>';
+            } catch (error) {
+                console.error('Load item groups error:', error);
+                showAlert('Failed to load item groups', 'danger');
+                document.getElementById('itemgroup-selected').innerHTML = '<div class="select-placeholder">Error loading item groups</div>';
+            }
+        }
+
+        // Load Sub Groups
+        async function loadSubGroups() {
+            const companyId = getCompanyId();
+            try {
+                const response = await apiCall(`/api/InventoryAudit/GetSubGroups?company=${companyId}`);
+                console.log('Sub Groups Response:', response);
+                const data = response.success ? response.data : (Array.isArray(response) ? response : []);
+                apiData.subGroups = data;
+                console.log(apiData);
+                populateMultiSelect('subgroup', apiData.subGroups, 'u_Sub_Group', true);
+                document.getElementById('subgroup-selected').innerHTML = '<div class="select-placeholder">Select sub groups...</div>';
+            } catch (error) {
+                console.error('Load sub groups error:', error);
+                showAlert('Failed to load sub groups', 'danger');
+                document.getElementById('subgroup-selected').innerHTML = '<div class="select-placeholder">Error loading sub groups</div>';
+            }
+        }
+
+        // Load Users
+        async function loadUsers() {
+            const companyId = getCompanyId();
+            try {
+                const response = await apiCall(`/api/auth/getallusers?company=${companyId}`);
+                console.log('Users Response:', response);
+                apiData.users = response.success ? response.data : [];
+            } catch (error) {
+                console.error('Load users error:', error);
+                showAlert('Failed to load users', 'danger');
+            }
+        }
+
+        // Populate Multi-Select Dropdown with Select All
+        function populateMultiSelect(type, data, nameField, includeSelectAll = false) {
+            const dropdown = document.getElementById(`${type}-dropdown`);
+            dropdown.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                dropdown.innerHTML = '<div class="select-option" style="pointer-events:none;">No data available</div>';
+                return;
+            }
+
+            // Add Select All option
+            if (includeSelectAll && data.length > 0) {
+                const selectAllDiv = document.createElement('div');
+                selectAllDiv.className = 'select-option select-all';
+                selectAllDiv.textContent = '✓ Select All';
+                selectAllDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelectAll(type, data, nameField);
+                };
+                dropdown.appendChild(selectAllDiv);
+            }
+
+            data.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'select-option';
+                div.textContent = item[nameField];
+                div.setAttribute('data-index', index);
+
+                // Check if already selected
+                const isSelected = selectedData[getSelectedDataKey(type)].some(s => {
+                    if (type === 'itemgroup') {
+                        return s.itmsGrpCod === item.itmsGrpCod;
+                    } else {
+                        return s[nameField] === item[nameField];
+                    }
+                });
+
+                if (isSelected) {
+                    div.classList.add('selected');
+                }
+
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelectItem(type, item, div, nameField);
+                };
+                dropdown.appendChild(div);
+            });
+        }
+
+        // Toggle Select All
+        function toggleSelectAll(type, data, nameField) {
+            const dropdown = document.getElementById(`${type}-dropdown`);
+            const selectedArray = selectedData[getSelectedDataKey(type)];
+
+            if (selectedArray.length === data.length) {
+                // Unselect all
+                selectedArray.length = 0;
+                dropdown.querySelectorAll('.select-option:not(.select-all)').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+            } else {
+                // Select all
+                selectedArray.length = 0;
+                data.forEach(item => {
+                    selectedArray.push(item);
+                });
+                dropdown.querySelectorAll('.select-option:not(.select-all)').forEach(opt => {
+                    opt.classList.add('selected');
+                });
+            }
+
+            updateMultiSelectDisplay(type, nameField);
+        }
+
+        // Toggle Multi-Select Item
+        function toggleSelectItem(type, item, element, nameField) {
+            const selectedArray = selectedData[getSelectedDataKey(type)];
+            let existingIndex = -1;
+
+            if (type === 'itemgroup') {
+                existingIndex = selectedArray.findIndex(s => s.itmsGrpCod === item.itmsGrpCod);
+            } else {
+                existingIndex = selectedArray.findIndex(s => s[nameField] === item[nameField]);
+            }
+
+            if (existingIndex > -1) {
+                selectedArray.splice(existingIndex, 1);
+                element.classList.remove('selected');
+            } else {
+                selectedArray.push(item);
+                element.classList.add('selected');
+            }
+
+            updateMultiSelectDisplay(type, nameField);
+        }
+
+        // Update Multi-Select Display
+        function updateMultiSelectDisplay(type, nameField) {
+            const container = document.getElementById(`${type}-selected`);
+            const selectedArray = selectedData[getSelectedDataKey(type)];
+            const allData = type === 'warehouse' ? apiData.warehouses :
+                           type === 'itemgroup' ? apiData.itemGroups :
+                           apiData.subGroups;
+
+            if (selectedArray.length === 0) {
+                container.innerHTML = `<div class="select-placeholder">Select ${type}s...</div>`;
+                return;
+            }
+
+            if (selectedArray.length === allData.length) {
+                container.innerHTML = '<span class="select-all-tag">✓ All Selected</span>';
+                return;
+            }
+
+            if (selectedArray.length <= 3) {
+                const tags = selectedArray.map((item, idx) =>
+                    `<span class="multi-select-tag">
+                        ${item[nameField]}
+                        <span class="remove-tag" onclick="removeSelectItem(event, '${type}', ${idx}, '${nameField}')">&times;</span>
+                    </span>`
+                ).join('');
+                container.innerHTML = tags;
+            } else {
+                container.innerHTML = `<span class="multi-select-count">${selectedArray.length} selected</span>`;
+            }
+        }
+
+        // Remove Multi-Select Item
+        function removeSelectItem(event, type, index, nameField) {
+            event.stopPropagation();
+            selectedData[getSelectedDataKey(type)].splice(index, 1);
+            updateMultiSelectDisplay(type, nameField);
+
+            // Update visual state
+            populateMultiSelect(type,
+                type === 'warehouse' ? apiData.warehouses :
+                type === 'itemgroup' ? apiData.itemGroups :
+                apiData.subGroups, nameField, true);
+        }
+
+        // Toggle Multi-Select Dropdown
+        function toggleMultiSelect(type) {
+            const container = document.getElementById(`${type}-container`);
+            if (container.classList.contains('disabled')) return;
+
+            const dropdown = document.getElementById(`${type}-dropdown`);
+
+            // Close other dropdowns
+            document.querySelectorAll('.select-dropdown').forEach(d => {
+                if (d.id !== `${type}-dropdown`) d.classList.remove('show');
+            });
+            document.querySelectorAll('.select-container').forEach(c => {
+                if (c.id !== `${type}-container`) c.classList.remove('active');
+            });
+
+            dropdown.classList.toggle('show');
+            container.classList.toggle('active');
+        }
+
+        // Event Listeners
+        document.getElementById('unit').addEventListener('change', function() {
+            const unitCode = this.value;
+            selectedData.unit = unitCode;
+
+            document.getElementById('location').value = '';
+            document.getElementById('location').disabled = true;
+            selectedData.location = null;
+            selectedData.warehouses = [];
+            document.getElementById('warehouse-container').classList.add('disabled');
+            document.getElementById('warehouse-selected').innerHTML = '<div class="select-placeholder">Select location first...</div>';
+
+            if (unitCode) {
+                loadLocations(unitCode);
+            }
+        });
+
+        document.getElementById('location').addEventListener('change', function() {
+            const locationCode = this.value;
+            const selectedOption = this.options[this.selectedIndex];
+            const locationName = selectedOption.getAttribute('data-name');
+
+            selectedData.location = {
+                code: locationCode,
+                name: locationName
+            };
+
+            selectedData.warehouses = [];
+
+            if (locationCode) {
+                loadWarehouses(locationCode);
+            }
+        });
+
+
+
+        function removeUserAssignment(id) {
+            const element = document.getElementById(`assignment-${id}`);
+            if (element) element.remove();
+        }
+
+        function getSelectedDataKey(type) {
+            const keyMap = {
+                'warehouse': 'warehouses',
+                'itemgroup': 'itemGroups',
+                'subgroup': 'subGroups'
+            };
+            return keyMap[type] || type + 's';
+        }
+
+        // Show Popup Function
+        function showPopup(title, message, type = 'success') {
+            const overlay = document.getElementById('popupOverlay');
+            const icon = document.getElementById('popupIcon');
+            const titleEl = document.getElementById('popupTitle');
+            const messageEl = document.getElementById('popupMessage');
+            const button = document.getElementById('popupButton');
+
+            // Set content
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            // Set icon and style based on type
+            if (type === 'success') {
+                icon.innerHTML = '✓';
+                icon.className = 'popup-icon success';
+                button.className = 'popup-button';
+                button.style.backgroundColor = '#28a745';
+            } else {
+                icon.innerHTML = '✕';
+                icon.className = 'popup-icon error';
+                button.className = 'popup-button error';
+            }
+
+            // Show popup
+            overlay.classList.add('show');
+        }
+
+        // Close Popup Function
+        function closePopup() {
+            const overlay = document.getElementById('popupOverlay');
+            overlay.classList.remove('show');
+        }
+
+        // Updated Form Submission
+        document.getElementById('sessionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!document.getElementById('sessionName').value) {
+                showAlert('Session name is required', 'danger');
+                return;
+            }
+
+            if (!document.getElementById('startDate').value || !document.getElementById('endDate').value) {
+                showAlert('Start date and end date are required', 'danger');
+                return;
+            }
+
+            if (!selectedData.unit || !selectedData.location) {
+                showAlert('Unit and Location are required', 'danger');
+                return;
+            }
+
+            if (selectedData.warehouses.length === 0 || selectedData.itemGroups.length === 0) {
+                showAlert('Please select at least one warehouse and  item group', 'danger');
+                return;
+            }
+
+            // Collect user assignments
+            const userAssignments = [];
+            const assignmentItems = document.querySelectorAll('.user-assignment-item');
+            assignmentItems.forEach(item => {
+                const userId = item.querySelector('.assignment-user').value;
+                const roleInSession = item.querySelector('.role-in-session').value;
+                if (userId && roleInSession) {
+                    userAssignments.push({
+                        UserId: parseInt(userId),
+                        RoleInSession: roleInSession
+                    });
+                }
+            });
+
+            if (userAssignments.length === 0) {
+                showAlert('Please add at least one user assignment', 'danger');
+                return;
+            }
+
+            // Format data
+            const warehouses = selectedData.warehouses.map(w => w.warehouse).join(',');
+            const itemGroups = selectedData.itemGroups.map(g => `${g.itmsGrpCod}:${g.itmsGrpNam}`).join(',');
+            //const itemSubGroups = selectedData.subGroups.map(s => s.u_Sub_Group).join(',');
+            const itemSubGroups = selectedData.subGroups.length === 0
+                ? apiData.subGroups.map(s => s.u_Sub_Group).join(',')
+                : selectedData.subGroups.map(s => s.u_Sub_Group).join(',');
+
+            const requestData = {
+                SessionName: document.getElementById('sessionName').value,
+                Description: document.getElementById('description').value || "",
+                StartDate: document.getElementById('startDate').value,
+                EndDate: document.getElementById('endDate').value,
+                CreatedBy: parseInt(document.getElementById('createdBy').value),
+                UserAssignments: userAssignments,
+                LotNumber: document.getElementById('lotNumber').value,
+                Unit: selectedData.unit,
+                LocationCode: selectedData.location.code,
+                LocationName: selectedData.location.name,
+                DifferenceQty: null,
+                DifferenceValue: null,
+                Status: 'Pending',
+                Company: document.getElementById('company').value,
+                Warehouses: warehouses,
+                ItemGroups: itemGroups,
+                ItemSubGroups: itemSubGroups
+            };
+
+            console.log('Request data:', requestData);
+
+            try {
+                showLoading();
+
+                const response = await fetch('/api/InventoryAudit/CreateSessionWithBulkStockCount', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+                hideLoading();
+
+                if (response.ok && result.success) {
+                    // Get session ID from response
+                    const sessionId = result.data?.sessionId || result.data?.SessionId || 'N/A';
+
+                    // Show success popup
+                    showPopup('Success!', `Session created successfully! Session ID: ${sessionId}`, 'success');
+
+                    // Refresh page after 2 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showPopup('Error', result.message || 'Failed to create session', 'error');
+                }
+
+            } catch (error) {
+                hideLoading();
+                console.error('Error:', error);
+                showPopup('Error', 'An error occurred while creating the session', 'error');
+            }
+        });
+
+        // Utility Functions
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `<span>${message}</span>`;
+            alertContainer.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.select-container')) {
+                document.querySelectorAll('.select-dropdown').forEach(d => d.classList.remove('show'));
+                document.querySelectorAll('.select-container').forEach(c => c.classList.remove('active'));
+            }
+        });
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', function() {
+            loadUnits();
+            loadItemGroups();
+            loadSubGroups();
+            loadUsers();
+        });
+
+    </script>
+</body>
+</html>

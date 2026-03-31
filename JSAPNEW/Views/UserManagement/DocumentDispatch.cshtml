@@ -1,0 +1,1516 @@
+﻿@{
+    ViewData["Title"] = "Document Dispatch";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document Dispatch</title>
+    <link rel="stylesheet" href="~/css/bosystyle.css">
+    <!-- Add these CSS styles -->
+
+    <style>
+        /* CSS - Add this to your stylesheet */
+        .search-filter-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            margin-bottom: 20px;
+            flex-wrap: nowrap; /* Prevent wrapping */
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 0 12px;
+            flex: 1;
+            min-width: 200px;
+            height: 40px;
+        }
+
+            .search-container .search-icon {
+                margin-right: 8px;
+                color: #6c757d;
+                font-size: 16px;
+            }
+
+            .search-container .search-input {
+                border: none;
+                outline: none;
+                padding: 8px 5px;
+                font-size: 14px;
+                width: 100%;
+                background: transparent;
+                height: 100%;
+            }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+
+        .status-filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: #ffffff;
+            color: #495057;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            height: 40px;
+            min-width: 90px;
+            justify-content: center;
+        }
+
+            .status-filter-btn:hover {
+                background: #e9ecef;
+                border-color: #ced4da;
+                transform: translateY(-1px);
+            }
+
+            .status-filter-btn.active {
+                background: linear-gradient(135deg, #007bff, #0056b3);
+                color: white;
+                border-color: #007bff;
+                box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+            }
+
+            .status-filter-btn[data-status="S"].active {
+                background: linear-gradient(135deg, #ffc107, #e0a800);
+                border-color: #ffc107;
+                color: #000;
+                box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+            }
+
+            .status-filter-btn[data-status="R"].active {
+                background: linear-gradient(135deg, #28a745, #1e7e34);
+                border-color: #28a745;
+                box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+            }
+
+            .status-filter-btn[data-status="NR"].active {
+                background: linear-gradient(135deg, #dc3545, #c82333);
+                border-color: #dc3545;
+                box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+            }
+
+            .status-filter-btn[data-status="InActive"].active {
+                background: linear-gradient(135deg, #a6a4a4, #a6a4a4);
+                border-color: #a6a4a4;
+                box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+            }
+
+        /* Responsive - only break the line on very small screens */
+        @@media (max-width: 640px) {
+            .search-filter-row
+
+        {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        .search-container {
+            min-width: auto;
+            width: 100%;
+        }
+
+        .filter-buttons {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .status-filter-btn {
+            flex: 1;
+            min-width: 70px;
+        }
+
+        }
+        /* Add this CSS for the update button */
+        #updateButton {
+            background: linear-gradient(135deg, #0b2c4d, #0b2c4d);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+        }
+
+            #updateButton:hover {
+                background: linear-gradient(135deg, #0b2c4d, #0b2c4d);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(255, 193, 7, 0.4);
+            }
+
+            #updateButton:disabled {
+                background: #6c757d;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+    </style>
+
+</head>
+<body>
+   
+    <input type="hidden" id="UpdatedBy" name="UpdatedBy" value="@ViewBag.UserId" />
+    <input type="hidden" id="CompanyId" name="CompanyId" value="@ViewBag.CompanyId" />
+
+    <div class="container">
+        <!-- Mode Switcher -->
+        <div id="modeButtons" class="mode-switcher">
+            <button id="allBtn" class="mode-btn active" type="button">
+                <span>📊</span>
+                <span>All Documents</span>
+            </button>
+            <button id="createBundleBtn" class="mode-btn" type="button">
+                <span>➕</span>
+                <span>Create Bundle</span>
+            </button>
+        </div>
+
+        <!-- Create Bundle Section -->
+        <div id="createBundleSection" style="display: none;">
+            <div class="filter-section">
+                <div class="filter-row">
+                    <span class="filter-label">Source Document:</span>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" name="sourceDoc" value="GRPO" id="grpo">
+                            <label for="grpo">GRPO</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" name="sourceDoc" value="APDRAFT" id="apdraft">
+                            <label for="apdraft">AP Draft</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" name="sourceDoc" value="PO" id="po">
+                            <label for="po">PO</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" name="sourceDoc" value="RETURN" id="return">
+                            <label for="return">Goods Return</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" name="sourceDoc" value="MANUAL" id="manual">
+                            <label for="manual">Manual Entry</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" name="sourceDoc" value="REJECT" id="reject">
+                            <label for="reject">Reject Entry</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="search-container" style="display: none;margin-top:10px;" id="createSearchContainer">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchBox" class="search-input" placeholder="Search CardCode, CardName">
+                </div>
+            </div>
+        </div>
+
+        <!-- HTML - Replace your allDocumentsSection with this -->
+        <div id="allDocumentsSection">
+            <div class="search-filter-row">
+                <div class="search-container" style="margin-top:10px">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="allSearchBox" class="search-input" placeholder="Search documents...">
+                </div>
+
+                <div class="filter-buttons" style="margin-left:200px;">
+                    <button class="status-filter-btn active" data-status="all">📊 All</button>
+                    <button class="status-filter-btn" data-status="S">⏳ Pending</button>
+                    <button class="status-filter-btn" data-status="R">✅ Received</button>
+                    <button class="status-filter-btn" data-status="NR">❌ Not Received</button>
+                    <button class="status-filter-btn" data-status="InActive">InActive</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tableSection">
+            <div class="table-wrapper">
+                <table class="styled-table" id="resultTable">
+                    <thead class="thead-dark">
+                        <tr class="user-row" id="allTableHeader">
+                            <th scope="col" role="columnheader" >🆔 Bundle ID</th>
+                            <th scope="col" role="columnheader" >📄 Doc ID</th>
+                            <th scope="col" role="columnheader" >📋 Doc Type</th>
+                            <th scope="col" role="columnheader" >🏢 Branch</th>
+                            <th scope="col" role="columnheader" >👤 Created By</th>
+                            <th scope="col" role="columnheader" >📅 Created On</th>
+                            <th scope="col" role="columnheader" >🔄 Status</th>
+                            <th scope="col" role="columnheader" >👥 Received By</th>
+                            <th scope="col" role="columnheader" >📅 Received On</th>
+                            <th scope="col" role="columnheader" >❌ Rejected Reason</th>
+                            <th scope="col" role="columnheader" >📎 Attachment</th>
+                        </tr>
+                        <tr class="user-row" id="createBundleHeader" style="display: none;">
+                            <th>☑️ Select</th>
+                            <th>🏢 Branch</th>
+                            <th>📄 Doc No</th>
+                            <th>📅 Doc Date</th>
+                            <th>📅 Create Date</th>
+                            <th>🏷️ Card Code</th>
+                            <th>🏷️ Card Name</th>
+                            <th>💰 Amount</th>
+                            <th>📎 Attachments</th>
+                            <th>📋 SAP Attachments</th>
+                        </tr>
+                        <tr class="user-row" id="rejectBundleHeader" style="display: none;">
+                            <th>☑️ Select</th>
+                            <th>🆔 Bundle ID</th>
+                            <th>📄 Doc ID</th>
+                            <th>📋 Doc Type</th>
+                            <th>🏢 Branch</th>
+                            <th>📎 Previous Attachments</th>
+                            <th>👥 Received By</th>
+                            <th>📅 Received On</th>
+                            <th>❌ Rejected Reason</th>
+                            <th>📎 Upload Attachments</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <button id="saveButton" class="custom-btn" style="display: none;">Save Bundle</button>
+            <button id="updateButton" class="custom-btn" style="display: none;" onclick="updateRejectedStatus()">Update Status</button>
+        </div>
+    </div>
+
+    <div id="loading">Loading Data...</div>
+    <!-- FIND THIS IN YOUR HTML (around line 84): -->
+    <div id="previewModal" style="display:none">
+        <h3>Preview Before Save</h3>
+        <div id="previewContent" style="margin-top: 10px;"></div>
+        <div style="margin-top: 20px; text-align:right;" class="preview-buttons">
+            <button onclick="closePreview()" class="cancel-btn">Cancel</button>
+            <button onclick="confirmSave()" class="confirm-btn">Confirm Save</button>
+        </div>
+    </div>
+    <div id="modalBackdrop"></div>
+    <div id="filePreviewModal" style="display:none; position:fixed; top:5%; left:50%; transform:translateX(-50%);
+    background:white; border:1px solid #ccc; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+    z-index:2000; width:80%; max-height:80%; overflow:auto; border-radius:8px;">
+        <div style="text-align:right;">
+            <button onclick="closeFilePreview()" style="font-size:20px;color:black; border:none; background:none; cursor:pointer;">&times;</button>
+        </div>
+        <div id="filePreviewContent"></div>
+    </div>
+
+    <div id="filePreviewBackdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1999;"></div>
+
+    <div id="loaderOverlay">
+        <div class="loader"></div>
+    </div>
+
+</body>
+</html>
+
+<script>
+    let currentMode = 'all';
+    let allDispatchData = [];
+
+    function showLoader() {
+        document.getElementById("loaderOverlay").style.display = "flex";
+    }
+
+    function hideLoader() {
+        document.getElementById("loaderOverlay").style.display = "none";
+    }
+
+    let currentStatusFilter = 'all';
+
+    // Add this to the very beginning of your DOMContentLoaded function
+    document.addEventListener("DOMContentLoaded", function() {
+        // Force hide all overlays on page load
+        document.getElementById("loaderOverlay").style.display = "none";
+        document.getElementById("modalBackdrop").style.display = "none";
+        document.getElementById("filePreviewBackdrop").style.display = "none";
+        document.getElementById("previewModal").style.display = "none";
+        document.getElementById("filePreviewModal").style.display = "none";
+        document.getElementById("loading").style.display = "none";
+
+        // Your existing code
+        document.querySelector('#resultTable tbody').innerHTML = '';
+        loadAllDispatchData();
+        addClearFiltersButton();
+    });
+
+    // Mode switching
+    document.getElementById('allBtn').addEventListener('click', function() {
+        switchMode('all');
+    });
+
+    document.getElementById('createBundleBtn').addEventListener('click', function() {
+        switchMode('create');
+         document.getElementById('tableSection').style.display = 'none';
+             // ✅ Deselect all source document radio buttons
+        document.querySelectorAll('input[name="sourceDoc"]').forEach(r => r.checked = false);
+
+    });
+
+           function switchMode(mode) {
+        currentMode = mode;
+
+        // Toggle button active state
+        document.getElementById('allBtn').classList.toggle('active', mode === 'all');
+        document.getElementById('createBundleBtn').classList.toggle('active', mode === 'create');
+
+        // Toggle visible sections
+        document.getElementById('allDocumentsSection').style.display = mode === 'all' ? 'block' : 'none';
+        document.getElementById('createBundleSection').style.display = mode === 'create' ? 'block' : 'none';
+
+        // ✅ IMPROVED: Better header management
+        if (mode === 'all') {
+            // Show only all documents header
+            document.getElementById('allTableHeader').style.display = '';
+            document.getElementById('createBundleHeader').style.display = 'none';
+            document.getElementById('rejectBundleHeader').style.display = 'none';
+        } else if (mode === 'create') {
+            // Hide all documents header
+            document.getElementById('allTableHeader').style.display = 'none';
+
+            // ✅ Only show headers if a document type is selected
+            if (selectedDocType === 'REJECT') {
+                document.getElementById('createBundleHeader').style.display = 'none';
+                document.getElementById('rejectBundleHeader').style.display = '';
+            } else if (selectedDocType && selectedDocType !== 'MANUAL') {
+                document.getElementById('createBundleHeader').style.display = '';
+                document.getElementById('rejectBundleHeader').style.display = 'none';
+            } else {
+                // No document type selected yet, hide both
+                document.getElementById('createBundleHeader').style.display = 'none';
+                document.getElementById('rejectBundleHeader').style.display = 'none';
+            }
+        }
+
+        // Reset UI elements
+        document.getElementById('createSearchContainer').style.display = 'none';
+        document.getElementById('searchBox').style.display = 'none';
+        document.getElementById('saveButton').style.display = 'none';
+        document.getElementById('updateButton').style.display = 'none';
+
+        if (mode === 'create') {
+            document.querySelector('#resultTable tbody').innerHTML = '';
+            document.getElementById('resultTable').style.display = 'none';
+            document.getElementById('tableSection').style.display = 'none';
+
+            // ✅ Deselect all source document radio buttons
+            document.querySelectorAll('input[name="sourceDoc"]').forEach(r => r.checked = false);
+
+            // ✅ Reset selectedDocType
+            selectedDocType = null;
+        } else if (mode === 'all') {
+            // Re-render from cached data
+            document.getElementById('resultTable').style.display = 'table';
+            document.getElementById('tableSection').style.display = 'block';
+            renderAllDispatchTable(allDispatchData);
+        }
+    }
+    // Load all dispatch data
+    function loadAllDispatchData() {
+        showLoader();
+        document.getElementById("loading").style.display = "block";
+        const userId = document.getElementById("UpdatedBy").value;
+        // In loadAllDispatchData() function, replace the fetch with:
+        fetch(`/api/DocumentDispatch/GetUserDocuments?userId=${userId}`)
+        .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+        })
+        .then(data => {
+            if (!Array.isArray(data)) throw new Error("Invalid data format");
+            allDispatchData = data;
+            renderAllDispatchTable(data);
+        })
+        .catch(err => {
+            console.error("API error", err);
+            alert(`Failed to load dispatch data: ${err.message}`);
+            // Show empty state instead of broken UI
+            document.querySelector('#resultTable tbody').innerHTML =
+                '<tr><td colspan="11" style="text-align:center; padding:20px; color:#666;">Failed to load data. Please refresh the page.</td></tr>';
+        })
+        .finally(() => {
+            hideLoader();
+            document.getElementById("loading").style.display = "none";
+        });
+    }
+
+    // Render all dispatch data table
+    function renderAllDispatchTable(data) {
+         document.getElementById('tableSection').style.display = 'block';
+        const tbody = document.querySelector('#resultTable tbody');
+
+        tbody.innerHTML = '';
+
+        const rows = data.map(item => {
+            const statusClass = `status-${item.status || 'S'}`;
+
+            const filePath = item.attachment || '';
+            const fileName = filePath.split('/').pop();
+            const fileIcon = getFileIcon(fileName);
+            const attachmentLink = filePath
+                ? `<a href="#" onclick="openFilePreview('${filePath}')" title="${fileName}" class="file-icon">${fileIcon}</a>`
+                : '<i>No attachment</i>';
+
+            return `
+                <tr>
+                    <td>${item.bundleId}</td>
+                    <td>${item.docId}</td>
+                    <td>${item.docType}</td>
+                    <td>${item.branch}</td>
+                    <td>${item.createdByName}</td>
+                    <td>${formatDate(item.createdOn)}</td>
+                    <td><span class="status-badge ${statusClass}">${getStatus(item.status)}</span></td>
+                    <td>${item.receivedByName || '-'}</td>
+                    <td>${formatDate(item.receivedOn) || '-'}</td>
+                    <td>${item.rejectedReason || '-'}</td>
+                     <td>${attachmentLink}</td>
+                </tr>
+            `;
+        }).join('');
+
+        tbody.innerHTML = rows;
+    }
+
+    // Render create bundle table (original function)
+    function renderTable(data) {
+         document.getElementById('tableSection').style.display = 'block';
+        const tbody = document.querySelector('#resultTable tbody');
+        tbody.innerHTML = '';
+
+        const rows = data.map((item, index) => {
+            // Determine company number
+            let company = item.databaseName === "JIVO_OIL_HANADB" ? 1 :
+                          item.databaseName === "JIVO_BEVERAGES_HANADB" ? 2 : 0;
+
+            // Build attachment links
+            const attachmentLinks = (item.link || '').split(':').filter(Boolean).map(fileName => {
+                const encodedFile = encodeURIComponent(fileName.trim());
+                const fileUrl = `/api/DocumentDispatch/SapDownloadFile?fileName=${encodedFile}&company=${company}`;
+                const icon = getFileIcon(fileName.trim());
+                return `<a href="#" onclick="handleZipPreview('${fileUrl}')" title="${fileName.trim()}" class="file-icon">${icon}</a>`;
+            }).join('');
+
+
+
+            return `
+                <tr>
+                    <td><input type="checkbox" name="selectRow" value="${index}" /></td>
+                     <td>${getBranchDisplayName(item.databaseName)}</td>
+                    <td>${item.docNum}</td>
+                    <td>${formatDate(item.docDate)}</td>
+                    <td>${formatDate(item.createDate)}</td>
+                    <td>${item.cardCode}</td>
+                    <td>${item.cardName}</td>
+                    <td>${Math.round(item.docTotal)}</td>
+
+                    <td class="attachment-column">
+                        <label class="custom-upload-btn">
+                            📎 Upload
+                            <input type="file" name="attachments_${index}" id="attachments_${index}" multiple onchange="previewFiles(${index})" hidden />
+                        </label>
+                        <div id="preview_${index}" class="attachment-icons" style="margin-top: 6px;"></div>
+                    </td>
+
+                   <td class="sap-attachment-column">${attachmentLinks || '<i>No attachments</i>'}</td>
+
+                </tr>
+            `;
+        }).join('');
+
+        tbody.innerHTML = rows;
+    }
+
+    function getFileIcon(fileName) {
+        const ext = fileName.split('.').pop().toLowerCase();
+
+        const iconMap = {
+            pdf: '📄',
+            doc: '📝', docx: '📝',
+            xls: '📊', xlsx: '📊', csv: '📊',
+            jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️',
+            zip: '🗜️', rar: '🗜️',
+            txt: '📄', log: '📄',
+            json: '💾', xml: '💾',
+        };
+
+        return iconMap[ext] || '📁'; // default icon
+    }
+    
+    // Add status filter event listeners
+    document.querySelectorAll('.status-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Update current filter
+            currentStatusFilter = this.dataset.status;
+            
+            // Apply filters
+            applyAllFilters();
+        });
+    });
+
+        // Enhanced search functionality that includes status filtering
+    function applyAllFilters() {
+        const searchValue = document.getElementById("allSearchBox").value.toLowerCase();
+        const rows = document.querySelectorAll("#resultTable tbody tr");
+
+        rows.forEach(row => {
+            // Get row data
+            const bundleId = row.cells[0].textContent.toLowerCase();
+            const docId = row.cells[1].textContent.toLowerCase();
+            const docType = row.cells[2].textContent.toLowerCase();
+            const branch = row.cells[3].textContent.toLowerCase();
+            const status = row.cells[6].querySelector('.status-badge').textContent.trim();
+
+            // Get the actual status value from the badge classes
+            const statusBadge = row.cells[6].querySelector('.status-badge');
+            let actualStatus = 'S'; // default
+            if (statusBadge.classList.contains('status-R')) actualStatus = 'R';
+            else if (statusBadge.classList.contains('status-NR')) actualStatus = 'NR';
+            else if (statusBadge.classList.contains('status-S')) actualStatus = 'S';
+                else if (statusBadge.classList.contains('status-InActive')) actualStatus = 'InActive';
+
+            // Check search match
+            const searchMatch = searchValue === '' ||
+                               bundleId.includes(searchValue) ||
+                               docId.includes(searchValue) ||
+                               docType.includes(searchValue) ||
+                               branch.includes(searchValue);
+
+            // Check status match
+            const statusMatch = currentStatusFilter === 'all' || actualStatus === currentStatusFilter;
+
+            // Show/hide row based on both filters
+            row.style.display = (searchMatch && statusMatch) ? "" : "none";
+        });
+    }
+
+    // Update the existing search box event listener
+    document.getElementById("allSearchBox").addEventListener("keyup", function () {
+        applyAllFilters();
+    });
+
+        // Add a function to reset filters
+    function resetAllFilters() {
+        // Reset search box
+        document.getElementById("allSearchBox").value = '';
+
+        // Reset status filter
+        currentStatusFilter = 'all';
+        document.querySelectorAll('.status-filter-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector('.status-filter-btn[data-status="all"]').classList.add('active');
+
+        // Apply filters (will show all rows)
+        applyAllFilters();
+    }
+
+        // Optional: Add a clear filters button
+    function addClearFiltersButton() {
+        const filterSection = document.querySelector('#allDocumentsSection .filter-section');
+        if (filterSection) {
+            const clearBtn = document.createElement('button');
+            clearBtn.textContent = 'Clear Filters';
+            clearBtn.className = 'clear-filters-btn';
+            clearBtn.style.cssText = `
+                margin-left: 20px;
+                padding: 8px 16px;
+                background: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+            `;
+            clearBtn.addEventListener('click', resetAllFilters);
+            filterSection.querySelector('.filter-row').appendChild(clearBtn);
+        }
+    }
+
+    // Preview attachment function
+    function previewAttachment(attachmentPath) {
+        if (!attachmentPath) {
+            alert("No attachment available");
+            return;
+        }
+
+        // You can implement file preview logic here
+        // For now, just show the path or download
+        const fileUrl = `/api/DocumentDispatch/DownloadFile?filePath=${encodeURIComponent(attachmentPath)}`;
+        window.open(fileUrl, '_blank');
+    }
+
+    // Rest of your original code for create bundle functionality
+    let selectedDocType = null;
+    const filesMap = {};
+    let collectedDataForSave = [];
+
+        // Radio button change event listener - UPDATED with header logic
+    document.querySelectorAll('input[name="sourceDoc"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            selectedDocType = radio.value;
+
+            // ✅ ADD THIS: Update headers based on selected document type
+            if (selectedDocType === 'REJECT') {
+                // Show reject header, hide create header
+                document.getElementById('createBundleHeader').style.display = 'none';
+                document.getElementById('rejectBundleHeader').style.display = '';
+            } else {
+                // Show create header, hide reject header
+                document.getElementById('createBundleHeader').style.display = '';
+                document.getElementById('rejectBundleHeader').style.display = 'none';
+            }
+
+            // Determine the API endpoint based on selectedDocType
+            let apiUrl = '';
+            switch (selectedDocType) {
+                case "GRPO":
+                    apiUrl = '/api/DocumentDispatch/GetGRPO';
+                    break;
+                case "PO":
+                    apiUrl = '/api/DocumentDispatch/GetPO';
+                    break;
+                case "APDRAFT":
+                    apiUrl = '/api/DocumentDispatch/GetApDraft';
+                    break;
+                case "RETURN":
+                    apiUrl = '/api/DocumentDispatch/GetGR';
+                    break;
+                case "REJECT":
+                    // Get userId from the UpdatedBy field
+                    const userId = document.getElementById("UpdatedBy").value;
+                    apiUrl = `/api/DocumentDispatch/GetRejectedDataByUserId?userId=${userId}`;
+                    break;
+                case "MANUAL":
+                    document.getElementById("saveButton").style.display = "none";
+                    document.getElementById("updateButton").style.display = "none";
+                    document.getElementById("searchBox").style.display = "none";
+
+                    const tbody = document.querySelector('#resultTable tbody');
+                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; font-style:italic; color:gray;">Data is not available</td></tr>`;
+
+                    document.getElementById("resultTable").style.display = "table";
+                    document.getElementById('tableSection').style.display = 'block';
+                    return;
+
+                default:
+                    return;
+            }
+
+            document.getElementById("loading").style.display = "block";
+
+            // Call API dynamically
+            showLoader();
+            fetch(apiUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (!Array.isArray(data)) throw new Error("Invalid data format");
+
+                    // ✅ Show table & search box only after selection
+                    document.getElementById("resultTable").style.display = "table";
+                    document.getElementById("createSearchContainer").style.display = "block";
+                    document.getElementById("searchBox").style.display = "block";
+
+                    // Show different button based on document type
+                    if (selectedDocType === "REJECT") {
+                        document.getElementById("saveButton").style.display = "none";
+                        document.getElementById("updateButton").style.display = "block";
+                    } else {
+                        document.getElementById("saveButton").style.display = "block";
+                        document.getElementById("updateButton").style.display = "none";
+                    }
+
+                    // Use different render function for rejected data
+                    if (selectedDocType === "REJECT") {
+                        renderRejectedTable(data);
+                    } else {
+                        renderTable(data);
+                    }
+
+                    document.querySelector('.table-wrapper').scrollTop = 0;
+                    document.querySelector('.table-wrapper').scrollLeft = 0;
+                })
+                .catch(err => {
+                    console.error("API error", err);
+                    alert("Failed to load document data.");
+                })
+                .finally(() => {
+                    hideLoader();
+                    document.getElementById("loading").style.display = "none";
+                });
+        });
+    });
+
+    // Add new function to render rejected data table
+function renderRejectedTable(data) {
+    document.getElementById('tableSection').style.display = 'block';
+    const tbody = document.querySelector('#resultTable tbody');
+    tbody.innerHTML = '';
+
+    const rows = data.map((item, index) => {
+        // Handle previous attachments
+        const previousAttachment = item.attachment || '';
+        const previousAttachmentDisplay = previousAttachment 
+            ? `<a href="#" onclick="openFilePreview('${previousAttachment}')" title="View Previous Attachment" class="file-icon">📎</a>`
+            : '<i>No previous attachment</i>';
+
+        return `
+            <tr>
+                <td><input type="checkbox" name="selectRejectRow" value="${item.id}" data-index="${index}" /></td>
+                <td>${item.bundleId}</td>
+                <td>${item.docId}</td>
+                <td>${item.docType}</td>
+                <td>${item.branch}</td>
+                <td>${previousAttachmentDisplay}</td>
+                <td>${item.receivedName || '-'}</td>
+                <td>${formatDate(item.receivedOn) || '-'}</td>
+                <td>${item.rejectedReason || '-'}</td>
+                <td class="attachment-column">
+                    <label class="custom-upload-btn">
+                        📎 Upload
+                        <input type="file" name="reject_attachments_${index}" id="reject_attachments_${index}" multiple onchange="previewRejectFiles(${index})" hidden />
+                    </label>
+                    <div id="reject_preview_${index}" class="attachment-icons" style="margin-top: 6px;"></div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.innerHTML = rows;
+}
+
+// Add new function to handle file preview for reject entries
+function previewRejectFiles(index) {
+    const input = document.getElementById(`reject_attachments_${index}`);
+    const previewDiv = document.getElementById(`reject_preview_${index}`);
+    const selectedFiles = input.files;
+
+    if (!filesMap[`reject_${index}`]) filesMap[`reject_${index}`] = [];
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        if (!filesMap[`reject_${index}`].some(f => f.name === file.name && f.size === file.size)) {
+            filesMap[`reject_${index}`].push(file);
+        }
+    }
+
+    // Show only file icons
+    const fileIcons = filesMap[`reject_${index}`].map(file => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        return `<span title="${file.name}">${getFileIcon(file.name)}</span>`;
+    }).join('');
+
+    previewDiv.innerHTML = fileIcons;
+    input.value = ""; // reset input to allow re-uploading same file
+}
+
+// Add event listener for reject row selection
+document.addEventListener("change", function (e) {
+    if (e.target && e.target.name === "selectRejectRow") {
+        const anyChecked = document.querySelectorAll('input[name="selectRejectRow"]:checked').length > 0;
+        document.getElementById("updateButton").style.display = anyChecked ? "inline-block" : "none";
+    }
+});
+
+    // Updated updateRejectedStatus function with confirmSave logic (excluding HANA loop)
+    async function updateRejectedStatus() {
+        const selectedRows = document.querySelectorAll('input[name="selectRejectRow"]:checked');
+        if (selectedRows.length === 0) {
+            alert("Please select at least one row to update.");
+            return;
+        }
+
+        try {
+            showLoader();
+
+            // Collect selected IDs and create collectedDataForSave equivalent
+            const selectedIds = Array.from(selectedRows).map(checkbox => parseInt(checkbox.value));
+            const collectedRejectData = [];
+
+            // Build collectedRejectData similar to collectedDataForSave
+            selectedRows.forEach(checkbox => {
+                const row = checkbox.closest("tr");
+                const index = checkbox.dataset.index;
+                const rowId = parseInt(checkbox.value);
+
+                const rowData = {
+                    id: rowId,
+                    bundleId: row.cells[1].textContent.trim(),
+                    DocNum: row.cells[2].textContent.trim(),
+                    docType: row.cells[3].textContent.trim(),
+                    branch: row.cells[4].textContent.trim(),
+                    files: filesMap[`reject_${index}`] || []
+                };
+
+                collectedRejectData.push(rowData);
+            });
+
+            // ===== START: Modified confirmSave logic =====
+            const updatedBy = parseInt(document.getElementById('UpdatedBy').value);
+            const companyId = parseInt(document.getElementById('CompanyId').value);
+
+            // Get Bundle ID
+            const getIdResponse = await fetch("/api/DocumentDispatch/GetLastBundleId?mode=select");
+            const lastId = await getIdResponse.json();
+            const bundleId = "BNDL" + lastId.toString().padStart(4, "0");
+
+            const attachmentData = [];
+
+            for (let row of collectedRejectData) {
+                const files = row.files || [];
+
+                if (files.length > 0) {
+                    let fileIndex = 1;
+                    for (let file of files) {
+                        try {
+                            const fileForm = new FormData();
+                            const customFileName = `${bundleId}_${row.DocNum}_${fileIndex}_${file.name}`;
+                            fileForm.append("file", file, customFileName);
+
+                            const uploadResp = await fetch("/api/DocumentDispatch/UploadSingleFile", {
+                                method: "POST",
+                                body: fileForm
+                            });
+
+                            const uploadResult = await uploadResp.json();
+
+                            attachmentData.push({
+                                bundleId,
+                                attachment: uploadResult?.filePath || "",
+                                docId: row.DocNum,
+                                docType: row.docType,
+                                branch: row.branch,
+                                createdBy: updatedBy,
+                                createdOn: new Date().toISOString(),
+                                status: "S"
+                            });
+
+                            fileIndex++;
+                        } catch (uploadErr) {
+                            console.warn("File upload error:", uploadErr);
+                            attachmentData.push({
+                                bundleId,
+                                attachment: null,
+                                docId: row.DocNum,
+                                docType: row.docType,
+                                branch: row.branch,
+                                createdBy: updatedBy,
+                                createdOn: new Date().toISOString(),
+                                status: "S"
+                            });
+                        }
+                    }
+                } else {
+                    // If no files, still create entry but allow empty attachment for rejected entries
+                    attachmentData.push({
+                        bundleId,
+                        attachment: "",
+                        docId: row.DocNum,
+                        docType: row.docType,
+                        branch: row.branch,
+                        createdBy: updatedBy,
+                        createdOn: new Date().toISOString(),
+                        status: "S"
+                    });
+                }
+            }
+
+            // ✅ SKIP the attachment validation for rejected entries (attachments are optional)
+            // const invalidRows = attachmentData.filter(item => !item.attachment || item.attachment.trim() === "");
+            // if (invalidRows.length > 0) {
+            //     hideLoader();
+            //     alert("One or more selected rows are missing attachments.");
+            //     return;
+            // }
+
+            console.log("📦 Final attachmentData for rejected entries:", attachmentData);
+
+            // Save all attachments if any were uploaded
+            if (attachmentData.length > 0) {
+                try {
+                    const jsonBody = JSON.stringify(attachmentData);
+                    const saveAllResp = await fetch("/api/DocumentDispatch/SaveAllAttachments", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: jsonBody
+                    });
+
+                    const responseText = await saveAllResp.text();
+
+                    if (!saveAllResp.ok) {
+                        console.error("❌ SaveAllAttachments failed:", saveAllResp.status, responseText);
+                        hideLoader();
+                        alert("Save failed: " + responseText);
+                        return;
+                    }
+                } catch (err) {
+                    console.error("🚨 JSON.stringify or fetch failed:", err);
+                    hideLoader();
+                    alert("Unexpected error: " + err.message);
+                    return;
+                }
+
+                // Update bundle ID
+                await fetch(`/api/DocumentDispatch/GetLastBundleId?lastBundleId=${lastId + 1}&mode=update`);
+            }
+
+            // ✅ SKIP THIS LOOP as requested
+            // for (let row of collectedRejectData) {
+            //     await fetch("/api/DocumentDispatch/SaveDocumentAttachmentsInHana", {
+            //         method: "POST",
+            //         headers: { "Content-Type": "application/json" },
+            //         body: JSON.stringify({
+            //             p_docId: row.DocNum,
+            //             p_docType: row.docType,
+            //             p_branch: row.branch
+            //         })
+            //     });
+            // }
+            // ===== END: Modified confirmSave logic =====
+
+            // Now update the rejected status
+            const updateResponse = await fetch(`/api/DocumentDispatch/UpdateNotRecievedStatus`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(selectedIds) // Send as array in body
+            });
+
+            if (!updateResponse.ok) {
+                const errorText = await updateResponse.text();
+                throw new Error(`Failed to update status: ${updateResponse.status} - ${errorText}`);
+            }
+
+            const result = await updateResponse.json();
+            console.log("Update result:", result);
+
+            hideLoader();
+            alert(`✅ Successfully updated rejected entries! ${attachmentData.length > 0 ? `Bundle ID: ${bundleId}` : ''}`);
+
+            // Switch back to All view and reload data (like confirmSave does)
+            switchMode('all');
+
+            // Reload the dispatch data to show the updated entries
+            loadAllDispatchData();
+
+            // Clear file maps
+            selectedRows.forEach(checkbox => {
+                const index = checkbox.dataset.index;
+                delete filesMap[`reject_${index}`];
+            });
+
+        } catch (error) {
+            console.error("Update error:", error);
+            hideLoader();
+            alert("❌ Failed to update rejected entries: " + error.message);
+        }
+    }
+
+    function openFilePreview(fileUrl) {
+            const previewContent = document.getElementById("filePreviewContent");
+            const modal = document.getElementById("filePreviewModal");
+            const backdrop = document.getElementById("modalBackdrop");
+
+            const fileExt = fileUrl.split('.').pop().toLowerCase();
+
+            if (["pdf"].includes(fileExt)) {
+                previewContent.innerHTML = `<iframe src="${fileUrl}" width="100%" height="600px" style="border:none;"></iframe>`;
+            } else if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExt)) {
+                previewContent.innerHTML = `<img src="${fileUrl}" style="max-width:100%; height:auto;" />`;
+            } else {
+                previewContent.innerHTML = `<a href="${fileUrl}" target="_blank">Download File (${fileExt})</a>`;
+            }
+
+             // Show modal after all previews are added
+            document.getElementById("filePreviewModal").style.display = "block";
+            document.getElementById("filePreviewBackdrop").style.display = "block";
+        }
+
+           function previewFiles(index) {
+        const input = document.getElementById(`attachments_${index}`);
+        const previewDiv = document.getElementById(`preview_${index}`);
+        const selectedFiles = input.files;
+
+        if (!filesMap[index]) filesMap[index] = [];
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            if (!filesMap[index].some(f => f.name === file.name && f.size === file.size)) {
+                filesMap[index].push(file);
+            }
+        }
+
+        // Show only file icons
+        const fileIcons = filesMap[index].map(file => {
+            const ext = file.name.split('.').pop().toLowerCase();
+            return `<span title="${file.name}">${getFileIcon(file.name)}</span>`;
+        }).join('');
+
+        previewDiv.innerHTML = fileIcons;
+        input.value = ""; // reset input to allow re-uploading same file
+    }
+
+        // Add this to your existing JavaScript after the DOMContentLoaded section
+    document.getElementById("saveButton").addEventListener("click", () => {
+        const selectedRows = document.querySelectorAll('input[name="selectRow"]:checked');
+        if (selectedRows.length === 0) {
+            alert("Please select at least one row.");
+            return;
+        }
+
+        // Your existing preview generation code...
+        collectedDataForSave = [];
+        let previewHtml = "<table border='1' cellpadding='6' cellspacing='0' style='width:100%; font-size:14px'><tr>" +
+                        "<th>Branch</th><th>Doc No</th><th>Doc Date</th><th>Create Date</th><th>Card Code</th><th>Card Name</th><th>Amount</th><th>Attached Files</th></tr>";
+
+        selectedRows.forEach(checkbox => {
+            // Your existing row processing code...
+            const row = checkbox.closest("tr");
+            const index = checkbox.value;
+
+            const rowData = {
+                rawBranch: row.cells[1].textContent.trim(),
+                branch: getBranchDisplayName(row.cells[1].textContent.trim()),
+                DocNum: row.cells[2].textContent.trim(),
+                DocDate: row.cells[3].textContent.trim(),
+                CreateDate: row.cells[4].textContent.trim(),
+                CardCode: row.cells[5].textContent.trim(),
+                CardName: row.cells[6].textContent.trim(),
+                DocTotal: row.cells[7].textContent.trim(),
+                files: filesMap[index] || []
+            };
+
+            collectedDataForSave.push(rowData);
+
+            const fileList = rowData.files.map(f => `📎 ${f.name}`).join('<br/>') || '<i>No files</i>';
+            previewHtml += `<tr>
+                <td>${rowData.branch}</td>
+                <td>${rowData.DocNum}</td>
+                <td>${rowData.DocDate}</td>
+                <td>${formatDate(rowData.CreateDate)}</td>
+                <td>${rowData.CardCode}</td>
+                <td>${rowData.CardName}</td>
+                <td>${rowData.DocTotal}</td>
+                <td>${fileList}</td>
+            </tr>`;
+        });
+
+        previewHtml += "</table>";
+        document.getElementById("previewContent").innerHTML = previewHtml;
+
+        // ✅ FORCE SHOW THE BUTTONS
+        const buttonContainer = document.querySelector('#previewModal div[style*="display:none"]');
+        if (buttonContainer) {
+            buttonContainer.style.display = 'block';
+            buttonContainer.style.textAlign = 'right';
+            buttonContainer.style.marginTop = '20px';
+
+            // Add CSS classes to buttons
+            const cancelBtn = buttonContainer.querySelector('button[onclick="closePreview()"]');
+            const confirmBtn = buttonContainer.querySelector('button[onclick="confirmSave()"]');
+
+            if (cancelBtn) {
+                cancelBtn.className = 'cancel-btn';
+                cancelBtn.style.cssText = `
+                    background: #6c757d;
+                    color: #ffffff;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    margin-right: 15px;
+                `;
+            }
+
+            if (confirmBtn) {
+                confirmBtn.className = 'confirm-btn';
+                confirmBtn.style.cssText = `
+                    background: linear-gradient(135deg, #28a745, #20c997);
+                    color: #ffffff;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                `;
+            }
+        }
+
+        document.getElementById("previewModal").style.display = "block";
+        document.getElementById("modalBackdrop").style.display = "block";
+    });
+
+    function closePreview() {
+        document.getElementById("previewModal").style.display = "none";
+        document.getElementById("modalBackdrop").style.display = "none";
+        collectedDataForSave = []; // Clear the collected data
+        console.log("Preview cancelled by user");
+    }
+
+    function getBranchDisplayName(dbName) {
+        if (dbName === "JIVO_BEVERAGES_HANADB") return "BEVERAGES";
+        if (dbName === "JIVO_OIL_HANADB") return "OIL";
+        return dbName; // fallback
+    }
+
+    function getStatus(status){
+        if (status === "NR") return "Not Received";  // ✅ Fixed spelling
+        if (status === "R") return "Received";       // ✅ Fixed spelling
+        if (status === "S") return "Pending";
+        if (status === "InActive") return "InActive";
+        return status;  // ✅ Return status, not undefined dbName
+    }    
+
+    // Enhanced confirmSave function with better user feedback
+    async function confirmSave() {
+        try {
+            // Show loading state on confirm button
+            const confirmBtn = document.querySelector('.confirm-btn');
+            const originalText = confirmBtn.textContent;
+            confirmBtn.textContent = 'Saving...';
+            confirmBtn.disabled = true;
+
+            // Show loader overlay
+            showLoader();
+
+            const updatedBy = parseInt(document.getElementById('UpdatedBy').value);
+            const companyId = parseInt(document.getElementById('CompanyId').value);
+
+            // Get Bundle ID
+            const getIdResponse = await fetch("/api/DocumentDispatch/GetLastBundleId?mode=select");
+            const lastId = await getIdResponse.json();
+            const bundleId = "BNDL" + lastId.toString().padStart(4, "0");
+
+            const attachmentData = [];
+
+            for (let row of collectedDataForSave) {
+                const files = row.files || [];
+
+                if (files.length > 0) {
+                    let fileIndex = 1;
+                    for (let file of files) {
+                        try {
+                            const fileForm = new FormData();
+                            const customFileName = `${bundleId}_${row.DocNum}_${fileIndex}_${file.name}`;
+                            fileForm.append("file", file, customFileName);
+
+                            const uploadResp = await fetch("/api/DocumentDispatch/UploadSingleFile", {
+                                method: "POST",
+                                body: fileForm
+                            });
+
+                            const uploadResult = await uploadResp.json();
+
+                            attachmentData.push({
+                                bundleId,
+                                attachment: uploadResult?.filePath || "",
+                                docId: row.DocNum,
+                                docType: selectedDocType,
+                                branch: row.branch,
+                                createdBy: updatedBy,
+                                createdOn: new Date().toISOString(),
+                                status: "S"
+                            });
+
+                            fileIndex++;
+                        } catch (uploadErr) {
+                            console.warn("File upload error:", uploadErr);
+                            attachmentData.push({
+                                bundleId,
+                                attachment: null,
+                                docId: row.DocNum,
+                                docType: selectedDocType,
+                                branch: row.branch,
+                                createdBy: updatedBy,
+                                createdOn: new Date().toISOString(),
+                                status: "S"
+                            });
+                        }
+                    }
+                } else {
+                    attachmentData.push({
+                        bundleId,
+                        attachment: "",
+                        docId: row.DocNum,
+                        docType: selectedDocType,
+                        branch: row.branch,
+                        createdBy: updatedBy,
+                        createdOn: new Date().toISOString(),
+                        status: "S"
+                    });
+                }
+            }
+
+            const invalidRows = attachmentData.filter(item => !item.attachment || item.attachment.trim() === "");
+            if (invalidRows.length > 0) {
+                hideLoader();
+                confirmBtn.textContent = originalText;
+                confirmBtn.disabled = false;
+                alert("One or more selected rows are missing attachments.");
+                return;
+            }
+
+            console.log("📦 Final attachmentData:", attachmentData);
+
+            try {
+                const jsonBody = JSON.stringify(attachmentData);
+                const saveAllResp = await fetch("/api/DocumentDispatch/SaveAllAttachments", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: jsonBody
+                });
+
+                const responseText = await saveAllResp.text();
+
+                if (!saveAllResp.ok) {
+                    console.error("❌ SaveAllAttachments failed:", saveAllResp.status, responseText);
+                    hideLoader();
+                    confirmBtn.textContent = originalText;
+                    confirmBtn.disabled = false;
+                    alert("Save failed: " + responseText);
+                    return;
+                }
+            } catch (err) {
+                console.error("🚨 JSON.stringify or fetch failed:", err);
+                hideLoader();
+                confirmBtn.textContent = originalText;
+                confirmBtn.disabled = false;
+                alert("Unexpected error: " + err.message);
+                return;
+            }
+
+            await fetch(`/api/DocumentDispatch/GetLastBundleId?lastBundleId=${lastId + 1}&mode=update`);
+
+            for (let row of collectedDataForSave) {
+                await fetch("/api/DocumentDispatch/SaveDocumentAttachmentsInHana", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        p_docId: row.DocNum,
+                        p_docType: selectedDocType,
+                        p_branch: row.rawBranch
+                    })
+                });
+            }
+
+            // Hide loader
+            hideLoader();
+
+            // Close preview modal
+            closePreview();
+
+            // Show success message
+            alert(`✅ Saved successfully! Bundle ID: ${bundleId}`);
+
+            // Switch back to All view and reload data
+            switchMode('all');
+
+            // Reload the dispatch data to show the new entry
+            loadAllDispatchData();
+
+        } catch (err) {
+            console.error("Save error:", err);
+            hideLoader();
+
+            // Reset button state
+            const confirmBtn = document.querySelector('.confirm-btn');
+            if (confirmBtn) {
+                confirmBtn.textContent = 'Confirm Save';
+                confirmBtn.disabled = false;
+            }
+
+            alert("❌ Something went wrong: " + err.message);
+        }
+    }
+
+    // Search functionality for create bundle
+       document.getElementById("searchBox").addEventListener("keyup", function () {
+        const value = this.value.toLowerCase();
+        const rows = document.querySelectorAll("#resultTable tbody tr");
+
+        rows.forEach(row => {
+            if (selectedDocType === "REJECT") {
+                // For rejected data: bundleId, docId, docType, branch, rejectedReason
+                const bundleId = row.cells[1].textContent.toLowerCase();
+                const docId = row.cells[2].textContent.toLowerCase();
+                const docType = row.cells[3].textContent.toLowerCase();
+                const branch = row.cells[4].textContent.toLowerCase();
+                const rejectedReason = row.cells[8].textContent.toLowerCase();
+
+                const match = bundleId.includes(value) || docId.includes(value) ||
+                             docType.includes(value) || branch.includes(value) ||
+                             rejectedReason.includes(value);
+                row.style.display = match ? "" : "none";
+            } else {
+                // Original search logic for other document types
+                const docNum = row.cells[2].textContent.toLowerCase();
+                const cardCode = row.cells[5].textContent.toLowerCase();
+                const cardName = row.cells[6].textContent.toLowerCase();
+
+                const match = docNum.includes(value) || cardCode.includes(value) || cardName.includes(value);
+                row.style.display = match ? "" : "none";
+            }
+        });
+    });
+
+    // Show/hide save button based on selection
+    document.addEventListener("change", function (e) {
+        if (e.target && e.target.name === "selectRow") {
+            const anyChecked = document.querySelectorAll('input[name="selectRow"]:checked').length > 0;
+            document.getElementById("saveButton").style.display = anyChecked ? "inline-block" : "none";
+        }
+    });
+
+    // File preview functions (keeping your original code)
+    async function handleZipPreview(zipUrl) {
+        if (typeof JSZip === 'undefined') {
+        console.error('JSZip library not loaded');
+        alert('ZIP preview functionality is not available. The required library failed to load. Please download the file manually.');
+
+        // Provide fallback download option
+        const link = document.createElement('a');
+        link.href = zipUrl;
+        link.download = 'attachment.zip';
+        link.click();
+        return;
+    }
+        try {
+            const response = await fetch(zipUrl);
+            const blob = await response.blob();
+            const zip = await JSZip.loadAsync(blob);
+            const fileNames = Object.keys(zip.files);
+
+            if (fileNames.length === 0) {
+                alert("ZIP file is empty.");
+                return;
+            }
+
+            const container = document.getElementById("filePreviewContent");
+            container.innerHTML = "";
+
+            for (let fileName of fileNames) {
+                const file = zip.files[fileName];
+                if (file.dir) continue;
+
+                const extension = fileName.split('.').pop().toLowerCase();
+                const section = document.createElement("div");
+                section.style.marginBottom = "30px";
+                section.innerHTML = `<h4>${fileName}</h4>`;
+
+                let contentBlob, url;
+
+                if (extension === "pdf") {
+                    const arrayBuffer = await file.async("uint8array");
+                    contentBlob = new Blob([arrayBuffer], { type: "application/pdf" });
+                    url = URL.createObjectURL(contentBlob);
+                    section.innerHTML += `
+                        <iframe src="${url}" width="100%" height="600px" style="border:1px solid #ccc;"></iframe>
+                    `;
+                } else if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(extension)) {
+                    const arrayBuffer = await file.async("uint8array");
+                    contentBlob = new Blob([arrayBuffer]);
+                    url = URL.createObjectURL(contentBlob);
+                    section.innerHTML += `<img src="${url}" style="max-width:100%; height:auto;" />`;
+                } else if (["txt", "csv", "log", "json", "xml"].includes(extension)) {
+                    const text = await file.async("text");
+                    section.innerHTML += `
+                        <pre style="white-space:pre-wrap; word-wrap:break-word; background:#f4f4f4; padding:10px;">
+    ${text}</pre>`;
+                } else {
+                    const arrayBuffer = await file.async("uint8array");
+                    contentBlob = new Blob([arrayBuffer]);
+                    url = URL.createObjectURL(contentBlob);
+                    section.innerHTML += `
+                        <i>Cannot preview this file type: <strong>.${extension}</strong></i><br/>
+                        <a href="${url}" download>Click here to download</a>
+                    `;
+                }
+
+                container.appendChild(section);
+            }
+
+            // Show modal after all previews are added
+            document.getElementById("filePreviewModal").style.display = "block";
+            document.getElementById("filePreviewBackdrop").style.display = "block";
+
+        } catch (err) {
+            console.error("Preview error:", err);
+            alert("Failed to preview attachment.");
+        }
+    }
+
+
+    function closeFilePreview() {
+        document.getElementById("filePreviewModal").style.display = "none";
+        document.getElementById("filePreviewBackdrop").style.display = "none";
+
+        // ✅ Add cleanup to prevent memory leaks
+        const content = document.getElementById("filePreviewContent");
+        const iframes = content.querySelectorAll('iframe');
+        const images = content.querySelectorAll('img');
+
+        // Revoke object URLs to free memory
+        images.forEach(img => {
+            if (img.src.startsWith('blob:')) {
+                URL.revokeObjectURL(img.src);
+            }
+        });
+
+        content.innerHTML = "";
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0]; // Returns 'YYYY-MM-DD'
+    }
+        // Add this helper function
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Then use it in your render functions:
+    // Instead of: <td>${item.cardName}</td>
+    // Use: <td>${escapeHtml(item.cardName || '')}</td>
+</script>
+
+<!-- Include JSZip from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
