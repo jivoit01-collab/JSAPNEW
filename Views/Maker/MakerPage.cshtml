@@ -23,6 +23,13 @@
             background-color: #f1f1f1;
         }
 </style>
+<div id="pdfContainer" style="display:none; background:#fff; padding:10px; border-radius:8px;">
+    <button onclick="closePdf()" class="btn btn-secondary btn-sm mb-2">
+        ⬅ Back
+    </button>
+    <iframe id="pdfFrame" style="width:100%; height:80vh; border:none;"></iframe>
+</div>
+<div class="bill-ui">
 <div class="container-fluid mt-4">
 
     <h3 class="mb-4">Bill Verification - Maker</h3>
@@ -113,166 +120,9 @@
     </div>
 
 </div>
+</div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-@* 
-<script>
-    
-    //------------------------------------
-    // ✅ LOAD DATA (ONLY WHEN USER CLICKS)
-    //------------------------------------
-    function loadData() {
-
-    let fromDate = $("#fromDate").val();
-    let toDate = $("#toDate").val();
-    let accountName = $("#accountName").val().trim() || null;
-
-    if (!fromDate || !toDate) {
-    alert("Select both dates");
-    return;
-    }
-
-    if (fromDate > toDate) {
-    alert("From Date cannot be greater than To Date");
-    return;
-    }
-
-    $("#billTable").html(`<tr>
-    
-    
-    colspan="7">Loading...</td></tr>`);
-
-    $.get("/Maker/GetBillDetails",
-    { fromDate, toDate, accountName: accountName || null },
-    function (data) {
-    renderTable(data || []);
-    }
-    ).fail(function () {
-    $("#billTable").html(`<tr><td colspan="7">Error loading data</td></tr>`);
-    });
-    }
-
-
-    function renderTable(data) {
-
-    if (!data || data.length === 0) {
-    $("#billTable").html(`<tr><td colspan="8">No Data Found</td></tr>`);
-    return;
-    }
-
-    let html = "";
-    let uniqueMap = new Map();
-
-    data.forEach(item => {
-
-    if (uniqueMap.has(item.vchNumber)) return;
-    uniqueMap.set(item.vchNumber, true);
-
-    let statusBadge =
-    item.status === "Approved" ? `<span class="badge bg-success">Approved</span>` :
-    item.status === "Rejected" ? `<span class="badge bg-danger">Rejected</span>` :
-    item.status === "Submitted" ? `<span class="badge bg-primary">Submitted</span>` :
-    `<span class="badge bg-warning text-dark">Pending</span>`;
-
-    html += `
-    <tr>
-    <td>${item.accountName ?? ""}</td>
-    <td>${item.vchNumber ?? ""}</td>
-    <td>${formatDate(item.voucherDate)}</td>
-    <td>${item.billAmount ?? ""}</td>
-    <td>
-    ${
-    item.attachmentPath
-    ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">👁 View</a>`
-    : `<input type="file" class="fileInput form-control form-control-sm">`
-    }
-    </td>
-    <td>
-    ${
-    item.attachmentPath
-    ? (item.makerRemark ?? "-")
-    : `<input type="text" class="remarkInput form-control form-control-sm" placeholder="Enter remark">`
-    }
-    </td>
-    <td>${statusBadge}</td>
-    <td>
-    ${
-    item.attachmentPath
-    ? `<span class="text-success">Uploaded</span>`
-    : `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`
-    }
-    </td>
-    </tr>`;
-    });
-
-    $("#billTable").html(html);
-    }
-    }
-    $("#accountName").on("keyup", function () {
-    let searchText = $(this).val().trim();
-    if (searchText.length < 2) {
-    $("#suggestionBox").empty();
-    return;
-    }
-    $.get("/Maker/GetAccountSuggestions",
-    { term: searchText },
-    function (data) {
-    let html = "";
-    if (!data || data.length === 0) {
-    html = `<div class="suggest-item">No result</div>`;
-    } else {
-    data.forEach(x => {
-    html += `<div class="suggest-item">${x}</div>`;
-    });
-    }
-    $("#suggestionBox").html(html);
-    });
-    });
-    $(document).on("click", ".suggest-item", function () {
-    let text = $(this).text();
-    if (text === "No result") return;
-    $("#accountName").val(text);
-    $("#suggestionBox").empty();
-    });
-    $(document).ready(function () {
-    $("#searchBtn").click(loadData);
-    });
-    $(document).on("click", ".submitBtn", function () {
-    let row = $(this).closest("tr");
-    let vchNumber = $(this).data("vch");
-    let fileInput = row.find(".fileInput")[0];
-    let remark = row.find(".remarkInput").val();
-    if (!fileInput.files.length) {
-    alert("Please select a file");
-    return;
-    }
-    let file = fileInput.files[0];
-    let formData = new FormData();
-    formData.append("vchNumber", vchNumber);
-    formData.append("file", file);
-    formData.append("makerRemark", remark);
-    $.ajax({
-    url: "/Maker/SubmitBill",
-    type: "POST",
-    data: formData,
-    contentType: false,
-    processData: false,
-    success: function (res) {
-    if (res.success) {
-    alert("✅ Uploaded Successfully");
-    loadData();
-    } else {
-    alert("❌ Upload failed");
-    }
-    },
-    error: function () {
-    alert("❌ Error occurred");
-    }
-    });
-   
-
-
-</script> *@
 
 <script>
 
@@ -288,6 +138,11 @@
     $("#suggestionBox").empty();
     return;
     }
+    $(document).on("mousedown", ".suggest-item", function (e) {
+    e.preventDefault();
+    $("#accountName").val($(this).text().trim());
+    $("#suggestionBox").empty();
+    });
 
     $.get("/Maker/GetAccountSuggestions",
     { term: searchText },
@@ -381,7 +236,7 @@
     <td>${item.dueDate || '-'}</td>
     <td>
     ${item.attachmentPath
-    ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
+    ?  `<a href="#" onclick="openPdf('${item.attachmentPath}')" class="btn btn-sm btn-outline-primary">View</a>`
     : `<input type="file" class="fileInput form-control form-control-sm">`
     }
     </td>
@@ -422,8 +277,16 @@
     return d.toISOString().split('T')[0];
     }
 
+// open pdf//
+    function openPdf(path) {
+    document.getElementById("pdfFrame").src = path;
+    document.getElementById("pdfContainer").style.display = "block";
+    }
 
-    
+    function closePdf() {
+    document.getElementById("pdfContainer").style.display = "none";
+    document.getElementById("pdfFrame").src = "";
+    }
 
     // ---------------- SUBMIT BUTTON ----------------
     $(document).on("click", ".submitBtn", function () {

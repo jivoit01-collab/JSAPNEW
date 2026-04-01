@@ -100,7 +100,11 @@ namespace JSAPNEW.Controllers
                     paymentStatus = reader["PaymentStatus"] == DBNull.Value ? "UnPaid" : reader["PaymentStatus"].ToString(),
                     paymentDate = reader["PaymentDate"] == DBNull.Value ? "-" : Convert.ToDateTime(reader["PaymentDate"]).ToString("yyyy-MM-dd"),
                     attachment = reader["AttachmentPath"] == DBNull.Value ? "No File" : "File",
-                    attachmentPath = reader["AttachmentPath"] == DBNull.Value ? null : reader["AttachmentPath"].ToString()
+                    attachmentPath = reader["AttachmentPath"] == DBNull.Value
+    ? null
+    : (reader["AttachmentPath"].ToString().StartsWith("/uploads")
+        ? reader["AttachmentPath"].ToString()
+        : "/uploads/" + reader["AttachmentPath"].ToString())
                 });
             }
             return list;
@@ -134,9 +138,7 @@ namespace JSAPNEW.Controllers
         [HttpPost]
         public IActionResult DeleteAttachment([FromBody] DeleteRequest req)
         {
-            var role = HttpContext.Session.GetString("UserRole");
-            if (role != "Admin")
-                return Unauthorized(new { message = "Only Admin can delete attachments" });
+            var userId = HttpContext.Session.GetInt32("UserId");
 
             using var conn = new SqlConnection(_connStr);
             conn.Open();
