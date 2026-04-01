@@ -10,7 +10,7 @@ env:
   APP_NAME: "JSAPNEW"
   PUBLISH_PATH: ./publish
   # Set your IIS site deployment path on the Windows server
-  DEPLOY_PATH: C:\inetpub\wwwroot\JSAPNEW
+  DEPLOY_PATH: D:\LiveProject\JSAPNEW
   IIS_SITE_NAME: "JSAPNEW"
 
 jobs:
