@@ -29,18 +29,49 @@ namespace JSAPNEW.Controllers
             conn.Open();
 
             var cmd = new SqlCommand(@"
-                SELECT 
+               /* SELECT 
                     COUNT(DISTINCT A.VchNumber)                                     AS TotalBills,
                     SUM(CASE WHEN AU.Status = 'Pending'          THEN 1 ELSE 0 END) AS PendingMaker,
                     SUM(CASE WHEN AU.CheckerStatus = 'Approved'  THEN 1 ELSE 0 END) AS ApprovedChecker,
                     SUM(CASE WHEN G.RefName IS NOT NULL          THEN 1 ELSE 0 END) AS TotalPaid
-                FROM PurchaseHeader A
+                FROM PurchaseHeader A 
                 LEFT JOIN AttachmentUpload AU 
                     ON AU.VchNumber = A.VchNumber
                 LEFT JOIN RefMaster G 
                     ON G.RefName    = A.SupplierRef
                     AND G.AccountID = A.AccountID
-                    AND G.ToBy      = 43
+                    AND G.ToBy      = 43 */
+DECLARE @StartDate DATE = '2026-04-01';
+
+SELECT 
+    COUNT(DISTINCT A.VchNumber) AS TotalBills,
+
+    COUNT(DISTINCT CASE 
+        WHEN AU.Status IS NULL OR AU.Status = 'Pending' 
+        THEN A.VchNumber 
+    END) AS PendingMaker,
+
+    COUNT(DISTINCT CASE 
+        WHEN AU.CheckerStatus = 'Approved' 
+        THEN A.VchNumber 
+    END) AS ApprovedChecker,
+
+    COUNT(DISTINCT CASE 
+        WHEN G.RefName IS NOT NULL 
+        THEN A.VchNumber 
+    END) AS TotalPaid
+
+FROM PurchaseHeader A
+
+LEFT JOIN AttachmentUpload AU 
+    ON AU.VchNumber = A.VchNumber
+
+LEFT JOIN RefMaster G 
+    ON G.RefName    = A.SupplierRef
+    AND G.AccountID = A.AccountID
+    AND G.ToBy      = 43
+
+WHERE A.VoucherDate >= @StartDate
             ", conn);
 
             var reader = cmd.ExecuteReader();
