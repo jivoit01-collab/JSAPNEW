@@ -116,7 +116,16 @@ namespace JSAPNEW.Controllers
                     });
                 }
 
-                // 🔹 ONLY ONE SERVICE CALL
+                // If only one credit limit entry, attachment is mandatory
+                if (request.TotalEntries == 1 && attachment == null)
+                {
+                    return BadRequest(new CreateDocumentResult
+                    {
+                        Success = false,
+                        Message = "Attachment is required when submitting a single credit limit entry."
+                    });
+                }
+
                 var result = await _CreditLimitService.CreateDocumentWithAttachmentAsyncV2(
                     request,
                     attachment
