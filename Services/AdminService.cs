@@ -20,20 +20,55 @@ namespace JSAPNEW.Services
             using var conn = new SqlConnection(_connStr);
             await conn.OpenAsync();
 
+            // var cmd = new SqlCommand(@"
+            // SELECT 
+            //    COUNT(DISTINCT A.VchNumber)                                      AS TotalBills,
+            //   SUM(CASE WHEN AU.Status = 'Pending'         THEN 1 ELSE 0 END)  AS PendingMaker,
+            //   SUM(CASE WHEN AU.CheckerStatus = 'Approved' THEN 1 ELSE 0 END)  AS ApprovedChecker,
+            //  SUM(CASE WHEN G.RefName IS NOT NULL         THEN 1 ELSE 0 END)  AS TotalPaid
+            //FROM PurchaseHeader A
+            // LEFT JOIN AttachmentUpload AU 
+            //     ON AU.VchNumber = A.VchNumber
+            // LEFT JOIN RefMaster G 
+            //   ON G.RefName    = A.SupplierRef
+            //   AND G.AccountID = A.AccountID
+            //  AND G.ToBy      = 43
+            // ", conn);
             var cmd = new SqlCommand(@"
-                SELECT 
-                    COUNT(DISTINCT A.VchNumber)                                      AS TotalBills,
-                    SUM(CASE WHEN AU.Status = 'Pending'         THEN 1 ELSE 0 END)  AS PendingMaker,
-                    SUM(CASE WHEN AU.CheckerStatus = 'Approved' THEN 1 ELSE 0 END)  AS ApprovedChecker,
-                    SUM(CASE WHEN G.RefName IS NOT NULL         THEN 1 ELSE 0 END)  AS TotalPaid
-                FROM PurchaseHeader A
-                LEFT JOIN AttachmentUpload AU 
-                    ON AU.VchNumber = A.VchNumber
-                LEFT JOIN RefMaster G 
-                    ON G.RefName    = A.SupplierRef
-                    AND G.AccountID = A.AccountID
-                    AND G.ToBy      = 43
-            ", conn);
+    /* FIX: Only April data + correct counting */
+
+    DECLARE @StartDate DATE = '2026-04-01';
+
+    SELECT 
+        COUNT(DISTINCT A.VchNumber) AS TotalBills,
+
+        COUNT(DISTINCT CASE 
+            WHEN AU.Status IS NULL OR AU.Status = 'Pending' 
+            THEN A.VchNumber 
+        END) AS PendingMaker,
+
+        COUNT(DISTINCT CASE 
+            WHEN AU.CheckerStatus = 'Approved' 
+            THEN A.VchNumber 
+        END) AS ApprovedChecker,
+
+        COUNT(DISTINCT CASE 
+            WHEN G.RefName IS NOT NULL 
+            THEN A.VchNumber 
+        END) AS TotalPaid
+
+    FROM PurchaseHeader A
+
+    LEFT JOIN AttachmentUpload AU 
+        ON AU.VchNumber = A.VchNumber
+
+    LEFT JOIN RefMaster G 
+        ON G.RefName    = A.SupplierRef
+        AND G.AccountID = A.AccountID
+        AND G.ToBy      = 43
+
+    WHERE A.VoucherDate >= @StartDate
+", conn);
 
             var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
