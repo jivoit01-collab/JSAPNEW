@@ -132,5 +132,4 @@ app.UseEndpoints(endpoints =>
         pattern: "{controller=Login}/{action=Index}/{id?}");
 });
 
-app.Urls.Add("http://localhost:5004");
 app.Run();
