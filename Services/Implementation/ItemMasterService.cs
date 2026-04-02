@@ -1414,7 +1414,7 @@ namespace JSAPNEW.Services.Implementation
                 //string uType = first.Utype;
                 string uType = null;
                 // Apply correct rule: uType only when IsLitre = Y
-                if ((first.IsLitre ?? "").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase))
+                if ((first.IsLitre ?? "").Trim().Equals("N", StringComparison.OrdinalIgnoreCase))
                 {
                     var premiumItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -1531,7 +1531,7 @@ namespace JSAPNEW.Services.Implementation
                             (company == 1 || company == 2) &&
                             (first.ItemGroupCode == "102" ||
                              (!string.IsNullOrEmpty(first.itemGroupName) &&
-                              first.itemGroupName.Contains("Finished", StringComparison.OrdinalIgnoreCase)));
+                              first.itemGroupName.Contains("FINISHED", StringComparison.OrdinalIgnoreCase)));
 
                         Console.WriteLine($"[INFO] MART SAP Condition → InitId: {first.InitId}, Company: {company}, GroupCode: {first.ItemGroupCode}, GroupName: {first.itemGroupName}, IsCandidate: {isMartCandidate}");
 

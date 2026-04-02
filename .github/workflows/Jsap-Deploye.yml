@@ -1,0 +1,110 @@
+name: JSAP Web - Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  APP_NAME: "JSAPNEW"
+  PUBLISH_PATH: ./publish
+  # Set your IIS site deployment path on the Windows server
+  DEPLOY_PATH: D:\LiveProject\JSAPNEW
+  IIS_SITE_NAME: "JSAPNEW"
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted  # Your Windows server with GitHub Actions runner installed
+
+    steps:
+      # Step 1: Checkout the latest code from main branch
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup .NET SDK matching your project's target framework
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Step 3: Restore NuGet packages
+      - name: Restore Dependencies
+        run: dotnet restore JSAPNEW.sln
+
+      - name: Clean
+        run: dotnet clean JSAPNEW.sln
+      # Step 4: Build the project in Release mode
+      - name: Build
+        run: dotnet build JSAPNEW.sln --configuration Release --no-restore
+
+      # Step 5: Publish the app to a folder
+      - name: Publish
+        run: dotnet publish JSAPNEW.csproj -c Release -o ${{ env.PUBLISH_PATH }} --no-build
+
+      # Step 6: Stop IIS site before deploying new files
+      - name: Stop IIS Site
+        run: |
+          Import-Module WebAdministration
+          if (Get-Website -Name "${{ env.IIS_SITE_NAME }}" -ErrorAction SilentlyContinue) {
+            Stop-Website -Name "${{ env.IIS_SITE_NAME }}"
+            Write-Host "Stopped IIS site: ${{ env.IIS_SITE_NAME }}"
+          }
+          # Give IIS time to release file locks
+          Start-Sleep -Seconds 3
+        shell: powershell
+
+      # Step 7: Deploy - copy published files to IIS directory
+      - name: Deploy to IIS
+        run: |
+          # Create deployment directory if it doesn't exist
+          if (-not (Test-Path "${{ env.DEPLOY_PATH }}")) {
+            New-Item -ItemType Directory -Path "${{ env.DEPLOY_PATH }}" -Force
+          }
+
+          # Backup appsettings files before overwriting (preserve server-specific config)
+          $backupDir = "${{ env.DEPLOY_PATH }}\config-backup"
+          if (-not (Test-Path $backupDir)) {
+            New-Item -ItemType Directory -Path $backupDir -Force
+          }
+          if (Test-Path "${{ env.DEPLOY_PATH }}\appsettings.json") {
+            Copy-Item "${{ env.DEPLOY_PATH }}\appsettings.json" "$backupDir\appsettings.json" -Force
+          }
+          if (Test-Path "${{ env.DEPLOY_PATH }}\appsettings.Production.json") {
+            Copy-Item "${{ env.DEPLOY_PATH }}\appsettings.Production.json" "$backupDir\appsettings.Production.json" -Force
+          }
+
+          # Copy new published files to deployment path
+          Copy-Item -Path "${{ env.PUBLISH_PATH }}\*" -Destination "${{ env.DEPLOY_PATH }}" -Recurse -Force
+
+          # Restore server-specific appsettings (so production config is not overwritten)
+          if (Test-Path "$backupDir\appsettings.json") {
+            Copy-Item "$backupDir\appsettings.json" "${{ env.DEPLOY_PATH }}\appsettings.json" -Force
+          }
+          if (Test-Path "$backupDir\appsettings.Production.json") {
+            Copy-Item "$backupDir\appsettings.Production.json" "${{ env.DEPLOY_PATH }}\appsettings.Production.json" -Force
+          }
+
+          Write-Host "Deployment files copied successfully."
+        shell: powershell
+
+      # Step 8: Start IIS site after deployment
+      - name: Start IIS Site
+        run: |
+          Import-Module WebAdministration
+          Start-Website -Name "${{ env.IIS_SITE_NAME }}"
+          Write-Host "Started IIS site: ${{ env.IIS_SITE_NAME }}"
+        shell: powershell
+
+      # Step 9: Verify the site is running
+      - name: Health Check
+        run: |
+          Start-Sleep -Seconds 10
+          try {
+            $response = Invoke-WebRequest -Uri "https://dsr.jivocanola.com:5000/" -UseBasicParsing -TimeoutSec 15
+            Write-Host "Site is UP - Status: $($response.StatusCode)"
+          } catch {
+            Write-Host "ERROR: Health check failed - $($_.Exception.Message)"
+          exit 1
+          }
+        shell: powershell

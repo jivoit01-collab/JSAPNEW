@@ -102,7 +102,7 @@ namespace JSAPNEW.Controllers
 
         [HttpPost("CreateCLDocumentV2")]
         [Consumes("multipart/form-data")]
-        public async Task<ActionResult<CreateDocumentResult>> CreateDocumentV2([FromForm] string documentData, [FromForm] IFormFile attachment)
+        public async Task<ActionResult<CreateDocumentResult>> CreateDocumentV2([FromForm] string documentData, [FromForm] IFormFile? attachment)
         {
             try
             {
