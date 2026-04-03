@@ -92,7 +92,6 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ITicketsService, TicketsService>();
 builder.Services.AddScoped<CheckerService>();
-//builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<MakerService>();
 builder.Services.AddScoped<InvoicePaymentService>();
 
@@ -101,7 +100,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
         builder => builder
-            .WithOrigins("http://localhost:3000") // Add your frontend URL
+            .WithOrigins("http://localhost:5000") // Add your frontend URL
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());

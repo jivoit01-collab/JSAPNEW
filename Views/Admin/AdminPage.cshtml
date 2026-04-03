@@ -149,14 +149,26 @@
     /* Modal fix for Bootstrap 4 */
     .modal-backdrop.show { opacity: 0.5; }
 </style>
-
+<div class="bill-ui">
 <div class="container-fluid mt-4">
 
     <div class="admin-title">
         Admin Dashboard — Bill Verification
         <span>Full control over Maker · Checker · Invoice Payment</span>
     </div>
+ 
+    <div id="pdfContainer" style="display:none; background:#fff; padding:10px; border-radius:8px;">
 
+    <button onclick="closePdf()" 
+            style="margin-bottom:10px; padding:6px 12px; border:none; background:#002147; color:#fff; border-radius:6px;">
+        ⬅ Back
+    </button>
+
+    <iframe id="pdfFrame" 
+            style="width:100%; height:80vh; border:none; border-radius:8px;">
+    </iframe>
+
+</div>
     <!-- SUMMARY CARDS -->
     <div class="row mb-4">
         <div class="col-md-3 mb-3">
@@ -316,7 +328,8 @@
         <div class="modal-content" style="border-radius:12px;border:none;">
             <div class="modal-header" style="border-bottom:1px solid #f1f1f1;">
                 <h5 class="modal-title" style="color:#842029;">Delete Attachment</h5>
-                <button type="button" class="close" data-dismiss="modal">
+                <!--<button type="button" class="close" data-dismiss="modal">-->
+                    <button type="button" class="close" onclick="closeModal()">
                     <span>&times;</span>
                 </button>
             </div>
@@ -325,14 +338,16 @@
                 <br><strong>This action cannot be undone.</strong>
             </div>
             <div class="modal-footer" style="border-top:1px solid #f1f1f1;">
-                <button class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>
+                <!--<button class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>-->
+                <button class="btn btn-sm btn-secondary" onclick="closeModal()">Cancel</button>
                 <button class="btn btn-sm btn-danger" id="confirmDeleteBtn">Yes, Delete</button>
             </div>
         </div>
     </div>
 </div>
+</div>
 
-@section scripts {
+@* @section scripts {
 <script>
 
 let currentVchNumber = null;
@@ -480,7 +495,13 @@ function loadInvoice() {
 window.openDelete = function(vchNumber, btn) {
     currentVchNumber = vchNumber;
     currentRow       = btn.closest('tr');
-    $('#deleteModal').modal('show');   // Bootstrap 4 way
+  document.getElementById('deleteModal').style.display = 'block';
+document.getElementById('deleteModal').classList.add('show');
+
+let backdrop = document.createElement('div');
+backdrop.className = 'modal-backdrop fade show';
+backdrop.id = 'customBackdrop';
+document.body.appendChild(backdrop);
 }
 
 // DELETE CONFIRM
@@ -495,7 +516,7 @@ $('#confirmDeleteBtn').on('click', function() {
                 const tds = currentRow.querySelectorAll('td');
                 tds[tds.length - 2].innerHTML = '<span style="font-size:12px;color:#aaa;">Deleted</span>';
                 tds[tds.length - 1].innerHTML = '<button class="btn-delete" disabled>Delete</button>';
-                $('#deleteModal').modal('hide');  // Bootstrap 4 way
+               window.jQuery('#deleteModal').modal('hide');
             }
         },
         error: function() {
@@ -522,6 +543,218 @@ $(document).ready(function() {
     $('#fromDate').val(firstOfMonth);
     $('#toDate').val(today);
 
+    loadSummary();
+    loadMaker();
+    loadChecker();
+    loadInvoice();
+});
+
+</script>
+} *@
+
+               @section scripts {
+<script>
+
+let currentVchNumber = null;
+let currentRow       = null;
+
+// TAB SWITCH
+function switchTab(tab, el) {
+    document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('section-' + tab).classList.add('active');
+    el.classList.add('active');
+}
+
+// FILTER TABLE
+function filterTable(tableId, val) {
+    document.querySelectorAll('#' + tableId + ' tbody tr').forEach(row => {
+        row.style.display =
+            row.innerText.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+    });
+}
+
+// GET FILTERS
+function getFilters() {
+    return {
+        fromDate:    $('#fromDate').val(),
+        toDate:      $('#toDate').val(),
+        accountName: $('#accountName').val().trim() || null
+    };
+}
+
+// BADGE HELPER
+function badge(status) {
+    if (!status || status === '-') return '-';
+    const s = status.toLowerCase();
+    if (s === 'approved') return `<span class="badge-approved">Approved</span>`;
+    if (s === 'rejected') return `<span class="badge-rejected">Rejected</span>`;
+    if (s === 'paid')     return `<span class="badge-paid">Paid</span>`;
+    if (s === 'unpaid')   return `<span class="badge-unpaid">UnPaid</span>`;
+    return `<span class="badge-pending">${status}</span>`;
+}
+
+// ATTACHMENT
+//function attachHtml(item) {
+  //  if (item.attachment === 'File' && item.attachmentPath)
+      //  return //`<a href="${item.attachmentPath}" target="_blank" class="btn-view">View</a>`;
+      //  <a href="${item.attachmentPath}">View</a>;
+    //return `<span style="font-size:12px;color:#aaa;">No file</span>`;
+//}
+function attachHtml(item) {
+    if (item.attachment === 'File' && item.attachmentPath)
+        return `<a href="#" onclick="openPdf('${item.attachmentPath}')" class="btn-view">View</a>`;
+    return `<span style="color:#aaa;">No file</span>`;
+}
+function openPdf(path) {
+    document.getElementById("pdfFrame").src = path;
+    document.getElementById("pdfContainer").style.display = "block";
+}
+
+function closePdf() {
+    document.getElementById("pdfContainer").style.display = "none";
+    document.getElementById("pdfFrame").src = "";
+}
+
+// DELETE BUTTON
+function deleteBtn(item) {
+    if (item.attachment === 'File')
+        return `<button class="btn-delete" onclick="openDelete(${item.vchNumber}, this)">Delete</button>`;
+    return `<button class="btn-delete" disabled>Delete</button>`;
+}
+
+// LOAD SUMMARY
+function loadSummary() {
+    $.get('/Admin/GetSummary', function(d) {
+        $('#totalBills').text(d.totalBills ?? 0);
+        $('#pendingMaker').text(d.pendingMaker ?? 0);
+        $('#approvedChecker').text(d.approvedChecker ?? 0);
+        $('#totalPaid').text(d.totalPaid ?? 0);
+    });
+}
+
+// LOAD MAKER
+function loadMaker() {
+    $('#makerBody').html('<tr><td colspan="8">Loading...</td></tr>');
+    $.get('/Admin/GetMakerActivity', getFilters(), function(data) {
+        let html = '';
+        data.forEach(item => {
+            html += `<tr>
+                <td>${item.accountName}</td>
+                <td>${item.vchNumber}</td>
+                <td>${item.voucherDate}</td>
+                <td>${item.billAmount}</td>
+                <td>${item.makerRemark}</td>
+                <td>${badge(item.makerStatus)}</td>
+                <td>${attachHtml(item)}</td>
+                <td>${deleteBtn(item)}</td>
+            </tr>`;
+        });
+        $('#makerBody').html(html);
+    });
+}
+
+// LOAD CHECKER
+function loadChecker() {
+    $('#checkerBody').html('<tr><td colspan="8">Loading...</td></tr>');
+    $.get('/Admin/GetCheckerActivity', getFilters(), function(data) {
+        let html = '';
+        data.forEach(item => {
+            html += `<tr>
+                <td>${item.accountName}</td>
+                <td>${item.vchNumber}</td>
+                <td>${item.voucherDate}</td>
+                <td>${item.billAmount}</td>
+                <td>${item.checkerRemark}</td>
+                <td>${badge(item.checkerStatus)}</td>
+                <td>${attachHtml(item)}</td>
+                <td>${deleteBtn(item)}</td>
+            </tr>`;
+        });
+        $('#checkerBody').html(html);
+    });
+}
+
+// LOAD INVOICE
+function loadInvoice() {
+    $('#invoiceBody').html('<tr><td colspan="9">Loading...</td></tr>');
+    $.get('/Admin/GetInvoiceActivity', getFilters(), function(data) {
+        let html = '';
+        data.forEach(item => {
+            html += `<tr>
+                <td>${item.accountName}</td>
+                <td>${item.vchNumber}</td>
+                <td>${item.voucherDate}</td>
+                <td>${item.billAmount}</td>
+                <td>${item.dueDate}</td>
+                <td>${badge(item.paymentStatus)}</td>
+                <td>${item.paymentDate}</td>
+                <td>${attachHtml(item)}</td>
+                <td>${deleteBtn(item)}</td>
+            </tr>`;
+        });
+        $('#invoiceBody').html(html);
+    });
+}
+
+// OPEN MODAL
+window.openDelete = function(vchNumber, btn) {
+    currentVchNumber = vchNumber;
+    currentRow = btn.closest('tr');
+
+    document.getElementById('deleteModal').style.display = 'block';
+    document.getElementById('deleteModal').classList.add('show');
+
+    let backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    backdrop.id = 'customBackdrop';
+    document.body.appendChild(backdrop);
+}
+
+// CLOSE MODAL
+function closeModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    document.getElementById('deleteModal').classList.remove('show');
+
+    let backdrop = document.getElementById('customBackdrop');
+    if (backdrop) backdrop.remove();
+}
+
+// DELETE CONFIRM
+$('#confirmDeleteBtn').on('click', function() {
+    $.ajax({
+        url: '/Admin/DeleteAttachment',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ vchNumber: currentVchNumber }),
+        success: function(res) {
+            if (res.success) {
+
+                // update UI
+                const tds = currentRow.querySelectorAll('td');
+                tds[tds.length - 2].innerHTML = '<span style="color:#aaa;">Deleted</span>';
+                tds[tds.length - 1].innerHTML = '<button disabled>Delete</button>';
+
+                closeModal(); // ✅ FIXED
+            }
+        },
+        error: function() {
+            alert('Error deleting');
+            closeModal(); // ✅ FIXED
+        }
+    });
+});
+
+// SEARCH
+$('#searchBtn').on('click', function() {
+    loadSummary();
+    loadMaker();
+    loadChecker();
+    loadInvoice();
+});
+
+// INIT
+$(document).ready(function() {
     loadSummary();
     loadMaker();
     loadChecker();

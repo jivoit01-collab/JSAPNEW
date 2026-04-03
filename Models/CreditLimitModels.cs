@@ -53,6 +53,7 @@
         public string ValidTill { get; set; }
         public int CompanyId { get; set; } = 1;
         public int? CreatedBy { get; set; }
+        public int TotalEntries { get; set; } = 1;
         // ===== Attachments =====
         public List<IFormFile> Attachments { get; set; }
     }

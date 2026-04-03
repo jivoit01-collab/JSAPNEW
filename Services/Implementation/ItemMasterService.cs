@@ -1414,7 +1414,7 @@ namespace JSAPNEW.Services.Implementation
                 //string uType = first.Utype;
                 string uType = null;
                 // Apply correct rule: uType only when IsLitre = Y
-                if ((first.IsLitre ?? "").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase))
+                if ((first.IsLitre ?? "").Trim().Equals("N", StringComparison.OrdinalIgnoreCase))
                 {
                     var premiumItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -1523,21 +1523,37 @@ namespace JSAPNEW.Services.Implementation
                     await UpdateItemApiStatusAsync(first.InitId, message, status);
 
                     // ── MART SAP SYNC (call SAP API for Company 3 if FG item from Oil/Bev) ──
-                    string martStatus = "Skipped (SAP failed)";
+                    string martStatus;
 
-                    if (response.IsSuccessStatusCode)
+                    if (!response.IsSuccessStatusCode)
                     {
-                        bool isMartCandidate =
-                            (company == 1 || company == 2) &&
-                            (first.ItemGroupCode == "102" ||
-                             (!string.IsNullOrEmpty(first.itemGroupName) &&
-                              first.itemGroupName.Contains("Finished", StringComparison.OrdinalIgnoreCase)));
+                        martStatus = $"Skipped — Primary SAP creation failed: {message}";
+                    }
+                    else if (company == 3)
+                    {
+                        martStatus = "Skipped — Item is already for Company 3 (MART), no duplicate sync needed";
+                    }
+                    else if (company != 1 && company != 2)
+                    {
+                        martStatus = $"Skipped — Company {company} is not eligible for MART sync (only Company 1 and 2)";
+                    }
+                    else
+                    {
+                        // Trim the values to avoid whitespace mismatch from DB
+                        string groupCode = (first.ItemGroupCode ?? "").Trim();
+                        string groupName = (first.itemGroupName ?? "").Trim();
 
-                        Console.WriteLine($"[INFO] MART SAP Condition → InitId: {first.InitId}, Company: {company}, GroupCode: {first.ItemGroupCode}, GroupName: {first.itemGroupName}, IsCandidate: {isMartCandidate}");
+                        bool isGroupCode102 = groupCode == "102";
+                        bool isFinishedGroup = groupName.Contains("FINISHED", StringComparison.OrdinalIgnoreCase) ||
+                                               groupName.Contains("FG", StringComparison.OrdinalIgnoreCase);
+
+                        bool isMartCandidate = isGroupCode102 || isFinishedGroup;
+
+                        Console.WriteLine($"[INFO] MART SAP Condition → InitId: {first.InitId}, Company: {company}, GroupCode: '{groupCode}', GroupName: '{groupName}', IsGroupCode102: {isGroupCode102}, IsFinishedGroup: {isFinishedGroup}, IsCandidate: {isMartCandidate}");
 
                         if (!isMartCandidate)
                         {
-                            martStatus = $"Skipped (not FG item — GroupCode: {first.ItemGroupCode})";
+                            martStatus = $"Skipped — Not an FG item (GroupCode: '{groupCode}', GroupName: '{groupName}'). MART sync requires GroupCode '102' or GroupName containing 'FINISHED'/'FG'";
                         }
                         else
                         {
@@ -1547,60 +1563,67 @@ namespace JSAPNEW.Services.Implementation
                                 // Get MART SAP session (Company 3)
                                 var martSession = await _bom2Service.GetSAPSessionMartAsync();
 
-                                // MART SAP does not have U_FA_TYPE or U_FA_Type UDF — clear both
-                                tree.U_FA_TYPE = null;
-                                tree.U_FA_Type = null;
-
-                                var martHandler = new HttpClientHandler
+                                if (martSession == null || string.IsNullOrEmpty(martSession.B1Session))
                                 {
-                                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                                };
-
-                                using var martClient = new HttpClient(martHandler);
-                                martClient.BaseAddress = new Uri(_sapBaseUrl);
-                                martClient.DefaultRequestHeaders.Clear();
-                                martClient.DefaultRequestHeaders.Add("Cookie", $"{martSession.B1Session}; {martSession.RouteId}");
-                                martClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                                var martJson    = JsonConvert.SerializeObject(tree);
-                                var martContent = new StringContent(martJson, Encoding.UTF8, "application/json");
-
-                                Console.WriteLine($"[INFO] MART SAP API Request → InitId: {first.InitId}");
-                                var martResponse     = await martClient.PostAsync("Items", martContent);
-                                var martResponseBody = await martResponse.Content.ReadAsStringAsync();
-
-                                if (martResponse.IsSuccessStatusCode)
-                                {
-                                    Console.WriteLine($"[INFO] MART SAP API Success → InitId: {first.InitId}, Created in Company 3");
-                                    martStatus = "SAP Created in MART (Company 3)";
+                                    martStatus = "Failed — Could not establish MART SAP session (Company 3). Check SAP credentials/connectivity for MART database";
                                 }
                                 else
                                 {
-                                    var martErrMsg = ExtractSapErrorCodeAndMessage(martResponseBody);
-                                    Console.WriteLine($"[ERROR] MART SAP API Failed → {martErrMsg}, InitId: {first.InitId}");
+                                    // MART SAP does not have these UDFs — clear them
+                                    tree.U_FA_TYPE = null;
+                                    tree.U_Packing_Type = null;
 
-                                    await LogApiErrorAsync(new LogApiErrorRequest
+                                    var martHandler = new HttpClientHandler
                                     {
-                                        ReferenceID  = first.InitId,
-                                        ApiName      = "SAP/Items/MART",
-                                        ErrorMessage = martErrMsg,
-                                        ErrorCode    = martResponse.StatusCode.ToString(),
-                                        Payload      = System.Text.Json.JsonSerializer.Serialize(new
-                                        {
-                                            Request        = tree,
-                                            ResponseStatus = (int)martResponse.StatusCode,
-                                            ResponseBody   = martResponseBody
-                                        }),
-                                        CreatedBy = first.UserId
-                                    });
+                                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                                    };
 
-                                    martStatus = $"SAP MART Failed: {martErrMsg}";
+                                    using var martClient = new HttpClient(martHandler);
+                                    martClient.BaseAddress = new Uri(_sapBaseUrl);
+                                    martClient.DefaultRequestHeaders.Clear();
+                                    martClient.DefaultRequestHeaders.Add("Cookie", $"{martSession.B1Session}; {martSession.RouteId}");
+                                    martClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                                    var martJson    = JsonConvert.SerializeObject(tree);
+                                    var martContent = new StringContent(martJson, Encoding.UTF8, "application/json");
+
+                                    Console.WriteLine($"[INFO] MART SAP API Request → InitId: {first.InitId}, Payload: {martJson}");
+                                    var martResponse     = await martClient.PostAsync("Items", martContent);
+                                    var martResponseBody = await martResponse.Content.ReadAsStringAsync();
+
+                                    if (martResponse.IsSuccessStatusCode)
+                                    {
+                                        Console.WriteLine($"[INFO] MART SAP API Success → InitId: {first.InitId}, Created in Company 3");
+                                        martStatus = "Success — Item created in MART SAP (Company 3)";
+                                    }
+                                    else
+                                    {
+                                        var martErrMsg = ExtractSapErrorCodeAndMessage(martResponseBody);
+                                        Console.WriteLine($"[ERROR] MART SAP API Failed → {martErrMsg}, InitId: {first.InitId}");
+
+                                        await LogApiErrorAsync(new LogApiErrorRequest
+                                        {
+                                            ReferenceID  = first.InitId,
+                                            ApiName      = "SAP/Items/MART",
+                                            ErrorMessage = martErrMsg,
+                                            ErrorCode    = martResponse.StatusCode.ToString(),
+                                            Payload      = System.Text.Json.JsonSerializer.Serialize(new
+                                            {
+                                                Request        = tree,
+                                                ResponseStatus = (int)martResponse.StatusCode,
+                                                ResponseBody   = martResponseBody
+                                            }),
+                                            CreatedBy = first.UserId
+                                        });
+
+                                        martStatus = $"Failed — MART SAP API error: {martErrMsg}";
+                                    }
                                 }
                             }
                             catch (Exception ex)
                             {
                                 Console.WriteLine($"[ERROR] MART SAP API Exception → {ex.Message}, InitId: {first.InitId}");
-                                martStatus = $"SAP MART Failed: {ex.Message}";
+                                martStatus = $"Failed — MART SAP exception: {ex.Message}";
                             }
                         }
                     }

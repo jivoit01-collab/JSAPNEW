@@ -40,7 +40,19 @@
         vertical-align: middle !important;
     }
 </style>
+<div id="pdfContainer" style="display:none; background:#fff; padding:10px; border-radius:8px;">
 
+    <button onclick="closePdf()" 
+            style="margin-bottom:10px; padding:6px 12px; border:none; background:#002147; color:#fff; border-radius:6px;">
+        ⬅ Back
+    </button>
+
+    <iframe id="pdfFrame" 
+            style="width:100%; height:80vh; border:none; border-radius:8px;">
+    </iframe>
+
+</div>
+<div class="bill-ui">
 <div class="container-fluid mt-4">
 
     <h3 class="mb-4">Bill Verification - Checker</h3>
@@ -112,525 +124,9 @@
     </div>
 
 </div>
+</div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-@* <script>
-
-//------------------------------------
-// LOAD DATA
-//------------------------------------
-function loadData() {
-
-    let fromDate = $("#fromDate").val();
-    let toDate = $("#toDate").val();
-    let accountName = $("#accountName").val().trim() || null;
-
-    // ✅ FIXED LINE
-    $("#checkerTable").html(`<tr><td colspan="11">Loading...</td></tr>`);
-
-    $.get("/Checker/GetBillDetails", {
-        fromDate: fromDate || null,
-        toDate: toDate || null,
-        accountName: accountName
-    }, function (data) {
-
-        console.log("DATA:", data);
-
-        renderTable(data || []);
-
-    }).fail(function (err) {
-        console.log("ERROR:", err);
-
-        // ✅ FIXED LINE
-        $("#checkerTable").html(`<tr><td colspan="11">Error loading data</td></tr>`);
-    });
-}
-
-//------------------------------------
-// RENDER TABLE
-//------------------------------------
-function renderTable(data) {
-
-    if (!data || data.length === 0) {
-        $("#checkerTable").html(`<tr><td colspan="12">No Data Found</td></tr>`);
-        return;
-    }
-
-    let html = "";
-
-    data.forEach(item => {
-
-        let statusBadge =
-            item.checkerStatus === "Approved"
-                ? `<span class="badge bg-success">Approved</span>`
-                : item.checkerStatus === "Rejected"
-                ? `<span class="badge bg-danger">Rejected</span>`
-                : `<span class="badge bg-primary">Pending</span>`;
-
-        html += `
-        <tr>
-            <td>${item.accountName ?? ""}</td>
-            <td>${item.vchNumber ?? ""}</td>
-            <td>${formatDate(item.voucherDate)}</td>
-            <td>${item.billAmount ?? ""}</td>
-
-          <td>${item.supplierRef || '-'}</td>
-<td>${formatDate(item.dueDate)}</td>
-
-<td>
-    ${
-        item.attachmentPath
-        ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
-        : `<span class="text-muted">No File</span>`
-    }
-</td>
-
-<td>${item.makerRemark ?? "-"}</td>
-
-            <td>${statusBadge}</td>
-
-            <td>
-                <input type="text"
-                       class="form-control form-control-sm checkerRemark"
-                       placeholder="Enter remark"
-                       value="${item.checkerRemark ?? ""}">
-            </td>
-
-            <td>
-                ${
-                    item.checkerStatus === "Approved"
-                    ? `<span class="badge bg-success">Approved ✔</span>`
-                    : item.checkerStatus === "Rejected"
-                    ? `<span class="badge bg-danger">Rejected ❌</span>`
-                    : `
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-success btn-sm approveBtn" data-vch="${item.vchNumber}">Approve</button>
-                            <button class="btn btn-danger btn-sm rejectBtn" data-vch="${item.vchNumber}">Reject</button>
-                        </div>
-                    `
-                }
-            </td>
-        </tr>`;
-    });
-
-    $("#checkerTable").html(html);
-}
-
-
-//------------------------------------
-// APPROVE
-//------------------------------------
-$(document).on("click", ".approveBtn", function () {
-
-    let vch = $(this).data("vch");
-    let remark = $(this).closest("tr").find(".checkerRemark").val();
-
-    $.post("/Checker/UpdateCheckerStatus", {
-        vchNumber: vch,
-        status: "Approved",
-        remark: remark
-    }).done(function () {
-        alert("Approved ✅");
-        loadData();
-    }).fail(function () {
-        alert("Error ❌");
-    });
-});
-
-
-//------------------------------------
-// REJECT
-//------------------------------------
-$(document).on("click", ".rejectBtn", function () {
-
-    let vch = $(this).data("vch");
-    let remark = $(this).closest("tr").find(".checkerRemark").val();
-
-    $.post("/Checker/UpdateCheckerStatus", {
-        vchNumber: vch,
-        status: "Rejected",
-        remark: remark
-    }).done(function () {
-        alert("Rejected ❌");
-        loadData();
-    }).fail(function () {
-        alert("Error ❌");
-    });
-});
-
-
-//------------------------------------
-// OMNI SEARCH
-//------------------------------------
-$("#accountName").on("keyup", function () {
-
-    let searchText = $(this).val().trim();
-
-    if (searchText.length < 2) {
-        $("#suggestionBox").empty();
-        return;
-    }
-
-    $.get("/Checker/GetAccountSuggestions",
-        { term: searchText },
-        function (data) {
-
-            let html = "";
-
-            if (!data || data.length === 0) {
-                html = `<div class="suggest-item">No result</div>`;
-            } else {
-                data.forEach(x => {
-                    html += `<div class="suggest-item">${x}</div>`;
-                });
-            }
-
-            $("#suggestionBox").html(html);
-        });
-});
-
-
-//------------------------------------
-// SELECT SUGGESTION
-//------------------------------------
-$(document).on("click", ".suggest-item", function () {
-
-    let text = $(this).text();
-
-    if (text === "No result") return;
-
-    $("#accountName").val(text);
-    $("#suggestionBox").empty();
-});
-
-
-//------------------------------------
-// SEARCH BUTTON
-//------------------------------------
-$("#searchBtn").click(loadData);
-
-
-//------------------------------------
-// INIT
-//------------------------------------
-$(document).ready(function () {
-    console.log("Checker JS Loaded ✔");
-    loadData();
-});
-
-
-//------------------------------------
-// DATE FORMAT
-//------------------------------------
-function formatDate(dateString) {
-    if (!dateString) return "";
-    let d = new Date(dateString);
-    return d.toISOString().split('T')[0];
-}
-
-</script>
-*/ *@
-@* <script>
-
-//------------------------------------
-// LOAD DATA
-//------------------------------------
-function loadData() {
-
-    let fromDate = $("#fromDate").val();
-    let toDate   = $("#toDate").val();
-    let accountName = $("#accountName").val().trim() || null;
-
-    $("#checkerTable").html(`<tr><td colspan="11">Loading...</td></tr>`);
-
-    $.get("/Checker/GetBillDetails", {
-        fromDate: fromDate || null,
-        toDate: toDate || null,
-        accountName: accountName
-    }, function (data) {
-        console.log("DATA:", data);
-        renderTable(data || []);
-    }).fail(function (err) {
-        console.log("ERROR:", err);
-        $("#checkerTable").html(`<tr><td colspan="11">Error loading data</td></tr>`);
-    });
-}
-
-//------------------------------------
-// RENDER TABLE
-//------------------------------------
-function renderTable(data) {
-
-    if (!data || data.length === 0) {
-        $("#checkerTable").html(`<tr><td colspan="12">No Data Found</td></tr>`);
-        return;
-    }
-
-   // let html = "";
-
-    //data.forEach(item => {
-
-      //  let statusBadge =
-            item.checkerStatus === "Approved"
-                ? `<span class="badge bg-success">Approved</span>`
-                : item.checkerStatus === "Rejected"
-                ? `<span class="badge bg-danger">Rejected</span>`
-                : `<span class="badge bg-primary">Pending</span>`;
-
-        html += `
-        
-        // ============================================================
-        // ❌ COMMENTED OLD CODE — tr without id, td without onclick
-        // <tr>
-        //     <td>${item.accountName ?? ""}</td>
-        // ============================================================
-        
-        <tr id="row-${item.vchNumber}">
-        
-            // ✅ NEW — Account name clickable
-            <td>
-                <a href="javascript:void(0)" onclick="loadDetails(${item.vchNumber})">
-                    ${item.accountName ?? ""}
-                </a>
-            </td>
-            
-            <td>${item.vchNumber ?? ""}</td>
-            <td>${formatDate(item.voucherDate)}</td>
-            <td>${item.billAmount ?? ""}</td>
-            <td>${item.supplierRef || '-'}</td>
-            <td>${formatDate(item.dueDate)}</td>
-
-            <td>
-                ${
-                    item.attachmentPath
-                    ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
-                    : `<span class="text-muted">No File</span>`
-                }
-            </td>
-
-            <td>${item.makerRemark ?? "-"}</td>
-            <td>${statusBadge}</td>
-
-            <td>
-                <input type="text"
-                       class="form-control form-control-sm checkerRemark"
-                       placeholder="Enter remark"
-                       value="${item.checkerRemark ?? ""}">
-            </td>
-
-            <td>
-                ${
-                    item.checkerStatus === "Approved"
-                    ? `<span class="badge bg-success">Approved ✔</span>`
-                    : item.checkerStatus === "Rejected"
-                    ? `<span class="badge bg-danger">Rejected ❌</span>`
-                    : `
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-success btn-sm approveBtn" data-vch="${item.vchNumber}">Approve</button>
-                            <button class="btn btn-danger btn-sm rejectBtn" data-vch="${item.vchNumber}">Reject</button>
-                        </div>
-                    `
-                }
-            </td>
-        </tr>`;
-    });
-
-    $("#checkerTable").html(html);
-}
-
-
-//------------------------------------
-// APPROVE
-//------------------------------------
-$(document).on("click", ".approveBtn", function () {
-
-    let vch    = $(this).data("vch");
-    let remark = $(this).closest("tr").find(".checkerRemark").val();
-
-    $.post("/Checker/UpdateCheckerStatus", {
-        vchNumber: vch,
-        status: "Approved",
-        remark: remark
-    }).done(function () {
-        alert("Approved ✅");
-        loadData();
-    }).fail(function () {
-        alert("Error ❌");
-    });
-});
-
-
-//------------------------------------
-// REJECT
-//------------------------------------
-$(document).on("click", ".rejectBtn", function () {
-
-    let vch    = $(this).data("vch");
-    let remark = $(this).closest("tr").find(".checkerRemark").val();
-
-    $.post("/Checker/UpdateCheckerStatus", {
-        vchNumber: vch,
-        status: "Rejected",
-        remark: remark
-    }).done(function () {
-        alert("Rejected ❌");
-        loadData();
-    }).fail(function () {
-        alert("Error ❌");
-    });
-});
-
-
-//------------------------------------
-// OMNI SEARCH
-//------------------------------------
-$("#accountName").on("keyup", function () {
-
-    let searchText = $(this).val().trim();
-
-    if (searchText.length < 2) {
-        $("#suggestionBox").empty();
-        return;
-    }
-
-    $.get("/Checker/GetAccountSuggestions",
-        { term: searchText },
-        function (data) {
-
-            let html = "";
-
-            if (!data || data.length === 0) {
-                html = `<div class="suggest-item">No result</div>`;
-            } else {
-                data.forEach(x => {
-                    html += `<div class="suggest-item">${x}</div>`;
-                });
-            }
-
-            $("#suggestionBox").html(html);
-        });
-});
-
-
-//------------------------------------
-// SELECT SUGGESTION
-//------------------------------------
-$(document).on("click", ".suggest-item", function () {
-
-    let text = $(this).text();
-    if (text === "No result") return;
-
-    $("#accountName").val(text);
-    $("#suggestionBox").empty();
-});
-
-
-//------------------------------------
-// SEARCH BUTTON
-//------------------------------------
-$("#searchBtn").click(loadData);
-
-
-//------------------------------------
-// INIT
-//------------------------------------
-$(document).ready(function () {
-    console.log("Checker JS Loaded ✔");
-    loadData();
-});
-
-
-//------------------------------------
-// DATE FORMAT
-//------------------------------------
-function formatDate(dateString) {
-    if (!dateString) return "";
-    let d = new Date(dateString);
-    return d.toISOString().split('T')[0];
-}
-
-
-// ============================================================
-// ✅ NEW — loadDetails function (Account click pe product show)
-// ============================================================
-function loadDetails(vchNumber) {
-    if (!vchNumber) return;
-
-    // Toggle — already open hai to band karo
-    let existing = document.getElementById("details-" + vchNumber);
-    if (existing) { existing.remove(); return; }
-
-    // Dusre open rows band karo
-    document.querySelectorAll("[id^='details-']").forEach(el => el.remove());
-
-    let row = document.getElementById("row-" + vchNumber);
-    if (!row) return;
-
-    // Checker page me 11 columns hain
-    row.insertAdjacentHTML("afterend", `
-        <tr id="details-${vchNumber}">
-            <td colspan="11" class="text-center text-muted">Loading items...</td>
-        </tr>
-    `);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    fetch('/Checker/GetInvoiceItems?vchNumber=' + vchNumber, { signal: controller.signal })
-        .then(res => {
-            if (!res.ok) throw new Error("Server error: " + res.status);
-            return res.json();
-        })
-        .then(data => {
-            clearTimeout(timeout);
-
-            let rows = data.map(item => `
-                <tr>
-                    <td>${item.productName ?? ''}</td>
-                    <td>${item.quantity ?? ''}</td>
-                    <td>${item.rate ?? ''}</td>
-                    <td>${item.tax ?? ''}</td>
-                    <td>${item.amount ?? ''}</td>
-                </tr>`).join('');
-
-            let html = `
-            <tr id="details-${vchNumber}" style="background-color:#f8f9fa;">
-                <td colspan="11">
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Rate</th>
-                                <th>Tax %</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows.length
-                                ? rows
-                                : '<tr><td colspan="5" class="text-center">No items</td></tr>'}
-                        </tbody>
-                    </table>
-                </td>
-            </tr>`;
-
-            let detailRow = document.getElementById("details-" + vchNumber);
-            if (detailRow) detailRow.outerHTML = html;
-        })
-        .catch(err => {
-            clearTimeout(timeout);
-            let msg = err.name === "AbortError"
-                ? "Request timed out ⏱"
-                : "Error loading items ❌";
-            let detailRow = document.getElementById("details-" + vchNumber);
-            if (detailRow) detailRow.innerHTML =
-                `<td colspan="11" class="text-danger text-center">${msg}</td>`;
-        });
-}
-
-</script> *@
 <script>
 
 //------------------------------------
@@ -693,11 +189,15 @@ function renderTable(data) {
                        <button class="btn btn-danger btn-sm rejectBtn"  data-vch="${item.vchNumber}">Reject</button>
                    </div>`;
 
-        let attachHtml =
-            item.attachmentPath
-                ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
-                : `<span class="text-muted">No File</span>`;
-
+       //let attachHtml =
+           // item.attachmentPath
+              //  ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
+               // : `<span class="text-muted">No File</span>`;
+               let attachHtml =
+    item.attachmentPath
+        ? `<a href="#" onclick="openPdf('${item.attachmentPath}')" class="btn btn-sm btn-outline-primary">View</a>`
+        : `<span class="text-muted">No File</span>`;
+ 
         html += `<tr id="row-${item.vchNumber}">
 <td><a href="javascript:void(0)" onclick="loadDetails(${item.vchNumber}, ${item.serialNumber})">${item.accountName ?? ""}</a></td>
 
@@ -786,7 +286,16 @@ $("#accountName").on("keyup", function () {
             $("#suggestionBox").html(html);
         });
 });
+// open pdf//
+function openPdf(path) {
+    document.getElementById("pdfFrame").src = path;
+    document.getElementById("pdfContainer").style.display = "block";
+}
 
+function closePdf() {
+    document.getElementById("pdfContainer").style.display = "none";
+    document.getElementById("pdfFrame").src = "";
+}
 
 //------------------------------------
 // SELECT SUGGESTION

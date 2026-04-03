@@ -694,6 +694,26 @@
                 grid-template-columns: 1fr;
             }
         }
+            @@media (max-width: 768px) {
+
+                .bill-ui table {
+                    font-size: 12px;
+                }
+
+                .bill-ui .btn {
+                    font-size: 12px;
+                    padding: 4px 6px;
+                }
+
+                .bill-ui input,
+                .bill-ui select {
+                    font-size: 12px;
+                }
+
+                .bill-ui iframe {
+                    height: 70vh !important;
+                }
+            }
     </style>
 </head>
 <body>
@@ -787,6 +807,7 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+       
     <script>
         // ============================================================
         // MENU CONFIGURATION - CUSTOMIZE THIS SECTION
