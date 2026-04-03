@@ -6,12 +6,12 @@ on:
       - main
 
 env:
-  DOTNET_VERSION: "10.0.x"
-  APP_NAME: "JSAPNEW"
-  PUBLISH_PATH: ./publish
+  DOTNET_VERSION: "8.0.x"
+  APP_NAME: "JSAP"
+  PUBLISH_PATH: publish
   # Set your IIS site deployment path on the Windows server
-  DEPLOY_PATH: D:\LiveProject\JSAPNEW
-  IIS_SITE_NAME: "JSAPNEW"
+  DEPLOY_PATH: D:\LiveProject\JSAP
+  IIS_SITE_NAME: "JSAP"
 
 jobs:
   build-and-deploy:
@@ -53,39 +53,50 @@ jobs:
           # Give IIS time to release file locks
           Start-Sleep -Seconds 3
         shell: powershell
-
+      
       # Step 7: Deploy - copy published files to IIS directory
-      - name: Deploy to IIS
+      - name: Deploy to IIS (Filtered Copy)
         run: |
-          # Create deployment directory if it doesn't exist
-          if (-not (Test-Path "${{ env.DEPLOY_PATH }}")) {
-            New-Item -ItemType Directory -Path "${{ env.DEPLOY_PATH }}" -Force
+          $source = "${{ env.PUBLISH_PATH }}"
+          $destination = "${{ env.DEPLOY_PATH }}"
+
+          # Ensure destination exists
+          if (-not (Test-Path $destination)) {
+            New-Item -ItemType Directory -Path $destination -Force
           }
 
-          # Backup appsettings files before overwriting (preserve server-specific config)
-          $backupDir = "${{ env.DEPLOY_PATH }}\config-backup"
-          if (-not (Test-Path $backupDir)) {
-            New-Item -ItemType Directory -Path $backupDir -Force
-          }
-          if (Test-Path "${{ env.DEPLOY_PATH }}\appsettings.json") {
-            Copy-Item "${{ env.DEPLOY_PATH }}\appsettings.json" "$backupDir\appsettings.json" -Force
-          }
-          if (Test-Path "${{ env.DEPLOY_PATH }}\appsettings.Production.json") {
-            Copy-Item "${{ env.DEPLOY_PATH }}\appsettings.Production.json" "$backupDir\appsettings.Production.json" -Force
+          # Files/folders to KEEP (never delete)
+            $keep = @(
+              "appsettings.json",
+              "appsettings.Production.json",
+              "web.config",
+              "wwwroot",
+              "JSAP.bat"
+            )
+
+            # Delete everything EXCEPT keep list
+            Get-ChildItem -Path $destination -Force | ForEach-Object {
+              if ($keep -notcontains $_.Name) {
+                try {
+                  Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
+                  Write-Host "Deleted: $($_.Name)"
+                } catch {
+                  Write-Host "Skipped (in use or error): $($_.Name)"
+                }
+              } else {
+                Write-Host "Preserved: $($_.Name)"
+              }
+            }
+          # Copy everything EXCEPT excluded items
+          Get-ChildItem -Path $source | ForEach-Object {
+            if ($keep -notcontains $_.Name) {
+              Copy-Item -Path $_.FullName -Destination $destination -Recurse -Force
+            } else {
+              Write-Host "Skipped: $($_.Name)"
+            }
           }
 
-          # Copy new published files to deployment path
-          Copy-Item -Path "${{ env.PUBLISH_PATH }}\*" -Destination "${{ env.DEPLOY_PATH }}" -Recurse -Force
-
-          # Restore server-specific appsettings (so production config is not overwritten)
-          if (Test-Path "$backupDir\appsettings.json") {
-            Copy-Item "$backupDir\appsettings.json" "${{ env.DEPLOY_PATH }}\appsettings.json" -Force
-          }
-          if (Test-Path "$backupDir\appsettings.Production.json") {
-            Copy-Item "$backupDir\appsettings.Production.json" "${{ env.DEPLOY_PATH }}\appsettings.Production.json" -Force
-          }
-
-          Write-Host "Deployment files copied successfully."
+          Write-Host "Filtered deployment completed."
         shell: powershell
 
       # Step 8: Start IIS site after deployment
