@@ -131,4 +131,12 @@ app.UseEndpoints(endpoints =>
         pattern: "{controller=Login}/{action=Index}/{id?}");
 });
 
+// Health check endpoint for CI/CD deployment verification
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy",
+    timestamp = DateTime.UtcNow,
+    app = "JSAP"
+}));
+
 app.Run();
