@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  DOTNET_VERSION: "8.0.x"
+  DOTNET_VERSION: "10.0.x"
   APP_NAME: "JSAP"
   PUBLISH_PATH: publish
   # Set your IIS site deployment path on the Windows server
@@ -107,15 +107,25 @@ jobs:
           Write-Host "Started IIS site: ${{ env.IIS_SITE_NAME }}"
         shell: powershell
 
-      # Step 9: Verify the site is running
+      # Step 9: Verify the site is running via /health endpoint
       - name: Health Check
         run: |
           Start-Sleep -Seconds 10
-          try {
-            $response = Invoke-WebRequest -Uri "https://dsr.jivocanola.com:5000/" -UseBasicParsing -TimeoutSec 15
-            Write-Host "Site is UP - Status: $($response.StatusCode)"
-          } catch {
-            Write-Host "ERROR: Health check failed - $($_.Exception.Message)"
-          exit 1
+          $maxRetries = 3
+          $retryDelay = 5
+          for ($i = 1; $i -le $maxRetries; $i++) {
+            try {
+              $response = Invoke-WebRequest -Uri "https://dsr.jivocanola.com:5000/health" -UseBasicParsing -TimeoutSec 15
+              $body = $response.Content | ConvertFrom-Json
+              Write-Host "Site is UP - Status: $($response.StatusCode) | App: $($body.app) | Health: $($body.status)"
+              exit 0
+            } catch {
+              Write-Host "Attempt $i/$maxRetries failed: $($_.Exception.Message)"
+              if ($i -lt $maxRetries) {
+                Start-Sleep -Seconds $retryDelay
+              }
+            }
           }
+          Write-Host "ERROR: Health check failed after $maxRetries attempts"
+          exit 1
         shell: powershell
