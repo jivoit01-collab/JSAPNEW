@@ -1388,19 +1388,71 @@ namespace JSAPNEW.Services.Implementation
                 client.DefaultRequestHeaders.Add("Cookie", $"{session.B1Session}; {session.RouteId}");
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                // Determine IssueMethod based on ItemGroupCode
-                //string issueMethod = first.ItemGroupCode == "111" || first.ItemGroupCode == "114" ? "im_Backflush" : "im_Manual";
-                string issueMethod = first.ItemGroupCode == "109" || first.ItemGroupCode == "111" || first.ItemGroupCode == "114" ? "B" : "M";
+                string gc = (first.ItemGroupCode ?? "").Trim();
 
-                // Determine CostAccountingMethod based on EvalSystem
-                string costAccountingMethod = first.EvalSystem == "F" ? "bis_FIFO" : (first.EvalSystem == "B" ? "bis_SNB" : ""); // Default if neither F nor B
-                string sapSalesItem = (first.SellItem ?? "tYES").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) ? "tYES" : "tNO";
-                string sapPurchaseItem = (first.PrchseItem ?? "tYES").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) ? "tYES" : "tNO";
-                string sapInventoryItem = (first.InvItem ?? "tYES").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) ? "tYES" : "tNO";
+                // ── IssueMethod: Backflush = auto-consumed, Manual = tracked individually ──
+                string issueMethod = gc switch
+                {
+                    "109" or "105" => "B",
+                    "111" or "114" when company == 1 || company == 2 => "B",
+                    "101" when company == 2 || company == 3 => "B",
+                    "112" when company == 2 => "B",
+                    "113" when company == 1 => "B",
+                    "106" when company == 3 => "B",
+                    "107" when company == 2 => "B",
+                    _ => "M"
+                };
 
-                bool isSales = sapSalesItem == "tYES";
-                bool isPurchase = sapPurchaseItem == "tYES";
-                bool isInv = sapInventoryItem == "tYES";
+                // ── ManageBatchNumbers ──
+                string manageBatch = gc switch
+                {
+                    "102" => "tYES",
+                    "106" when company == 1 || company == 2 => "tYES",
+                    "107" when company == 1 => "tYES",
+                    "115" when company == 1 => "tYES",
+                    _ => "tNO"
+                };
+
+                // ── CostAccountingMethod: BEV always FIFO, others SNB if batch else FIFO ──
+                string costMethod = company == 2 ? "bis_FIFO"
+                    : (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
+
+                // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
+                string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
+
+                // ── SalesItem / PurchaseItem / InventoryItem ──
+                string salesItem, purchaseItem, inventoryItem;
+                switch (gc)
+                {
+                    case "102": case "105": case "106": case "107": case "115": case "113":
+                        salesItem = "tYES"; purchaseItem = "tYES"; inventoryItem = "tYES";
+                        break;
+                    case "114":
+                        salesItem = company == 2 ? "tYES" : "tNO";
+                        purchaseItem = "tYES";
+                        inventoryItem = company == 2 ? "tYES" : "tNO";
+                        break;
+                    case "109":
+                        salesItem = "tYES"; purchaseItem = "tNO"; inventoryItem = "tNO";
+                        break;
+                    case "101": case "111":
+                        salesItem = "tNO"; purchaseItem = "tYES"; inventoryItem = "tNO";
+                        break;
+                    case "110":
+                        salesItem = "tNO"; purchaseItem = "tYES"; inventoryItem = "tYES";
+                        break;
+                    case "112":
+                        salesItem = "tNO"; purchaseItem = "tYES";
+                        inventoryItem = company == 2 ? "tNO" : "tYES";
+                        break;
+                    default:
+                        salesItem = "tYES"; purchaseItem = "tYES"; inventoryItem = "tYES";
+                        break;
+                }
+
+                bool isSales = salesItem == "tYES";
+                bool isPurchase = purchaseItem == "tYES";
+                bool isInv = inventoryItem == "tYES";
 
                 int uomGroupEntryForSap = first.UomGroup switch
                 {
@@ -1408,27 +1460,13 @@ namespace JSAPNEW.Services.Implementation
                     "MTS2LITRE" => 1,
                     "KG2LITRE" => 2,
                     "MTS2LITRE(OLIVE)" => 3,
-                    _ => 0 // default if none match
+                    _ => 0
                 };
 
-                //string uType = first.Utype;
-                string uType = null;
-                // Apply correct rule: uType only when IsLitre = Y
-                if ((first.IsLitre ?? "").Trim().Equals("N", StringComparison.OrdinalIgnoreCase))
-                {
-                    var premiumItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        "CANOLA", "OLIVE", "GROUNDNUT"
-                    };
-
-                    uType = premiumItems.Contains(first.Variety?.Trim() ?? "")
-                        ? "PREMIUM"
-                        : "COMMODITY";
-                }
-                else
-                {
-                    uType = "COMMODITY";
-                }
+                // ── U_TYPE: Premium vs Commodity ──
+                string uType = ((first.IsLitre ?? "").Trim().Equals("N", StringComparison.OrdinalIgnoreCase)
+                    && new[] { "CANOLA", "OLIVE", "GROUNDNUT" }.Contains(first.Variety?.Trim() ?? "", StringComparer.OrdinalIgnoreCase))
+                    ? "PREMIUM" : "COMMODITY";
 
                 var tree = new ItemsTree
                 {
@@ -1436,20 +1474,19 @@ namespace JSAPNEW.Services.Implementation
                     ItemsGroupCode = first.ItemGroupCode,
                     U_Rev_tax_Rate = first.TaxRate,
                     U_Tax_Rate = first.TaxRate,
-                    PurchaseItem = sapPurchaseItem,
-                    InventoryItem = sapInventoryItem,
-                    SalesItem = sapSalesItem,
+                    PurchaseItem = purchaseItem,
+                    InventoryItem = inventoryItem,
+                    SalesItem = salesItem,
                     ChapterID = int.TryParse(first.ChapterId, out int chapterId) ? chapterId : 0,
                     U_Unit = first.Unit,
                     U_Brand = first.Brand,
-                    U_Sub_Group = first.Variety,
-                    U_Variety = first.SubGroup,
+                    U_Sub_Group = first.SubGroup,
+                    U_Variety = first.Variety,
                     U_SKU = first.Sku,
                     U_IsLitre = first.IsLitre,
                     U_Gross_Weight = first.GrossWeight,
                     U_MRP = first.Mrp,
                     U_PACK_TYPE = first.PackType,
-                    //U_FA_TYPE = first.FaType,
                     SalesUnit = isSales ? first.SalesUom : null,
                     SalesPackagingUnit = isSales ? first.SalesUom : null,
                     InventoryUOM = isInv ? first.InvUom : null,
@@ -1458,10 +1495,10 @@ namespace JSAPNEW.Services.Implementation
                     SalesQtyPerPackUnit = first.UnitSize,
                     SalesFactor2 = first.BoxSize,
                     UoMGroupEntry = uomGroupEntryForSap,
-                    CostAccountingMethod = costAccountingMethod, // Use the dynamically set CostAccountingMethod
-                    WTLiable = "tYES",
-                    IssueMethod = issueMethod, // Use the dynamically set IssueMethod
-                    ManageBatchNumbers = first.ManBtchNum,
+                    CostAccountingMethod = costMethod,
+                    WTLiable = wtLiable,
+                    IssueMethod = issueMethod,
+                    ManageBatchNumbers = manageBatch,
                     ManageSerialNumbers = "tNO",
                     ForceSelectionOfSerialNumber = "tYES",
                     SRIAndBatchManageMethod = "bomm_OnEveryTransaction",
@@ -1471,20 +1508,16 @@ namespace JSAPNEW.Services.Implementation
                     GSTTaxCategory = "gtc_Regular",
                     GLMethod = "glm_WH",
                     U_TYPE = uType
-                    //SalPackUn = first.SalPackUn
                 };
-                if (company == 1)
-                {
+                // U_Packing_Type exists in OIL(1) and BEV(2), NOT in MART(3)
+                if (company == 1 || company == 2)
                     tree.U_Packing_Type = first.PackingType;
-                }
+
+                // U_FA_TYPE (ALL CAPS) for MART(3), U_FA_Type (mixed case) for OIL & BEV
                 if (company == 3)
-                {
                     tree.U_FA_TYPE = first.FaType;
-                }
                 else
-                {
                     tree.U_FA_Type = first.FaType;
-                }
                 try
                 {
                     var json = JsonConvert.SerializeObject(tree);
@@ -1569,9 +1602,11 @@ namespace JSAPNEW.Services.Implementation
                                 }
                                 else
                                 {
-                                    // MART SAP does not have these UDFs — clear them
+                                    // MART adjustments — clear UDFs that don't exist, set WTLiable=tNO
                                     tree.U_FA_TYPE = null;
+                                    tree.U_FA_Type = null;
                                     tree.U_Packing_Type = null;
+                                    tree.WTLiable = "tNO";
 
                                     var martHandler = new HttpClientHandler
                                     {
