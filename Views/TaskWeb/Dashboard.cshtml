@@ -1,0 +1,1258 @@
+@{
+    ViewData["Title"] = "Task Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/task-dashboard.css?v=20260343" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+    /* Dept Cards */
+    /* HOD side-by-side layout */
+    #hodLayout {
+        display: none;
+    }
+
+    body.hod-view #hodLayout {
+        display: flex !important;
+    }
+
+    body.hod-view #taskListHeader, body.hod-view #taskListFilters, body.hod-view #taskList, body.hod-view #taskPagination, body.hod-view .non-hod-team {
+        display: none !important;
+    }
+    /* Dept Cards column */
+    #hierarchySection {
+        width: 100%;
+    }
+
+        #hierarchySection .td-dept-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        #hierarchySection .td-dept-card {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+            cursor: pointer;
+            transition: transform .15s,box-shadow .15s;
+        }
+
+            #hierarchySection .td-dept-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 24px rgba(0,0,0,.12);
+            }
+
+        #hierarchySection .td-dept-header {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #hierarchySection .td-dept-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        #hierarchySection .td-dept-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        #hierarchySection .td-dept-sub {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        #hierarchySection .td-dept-stats {
+            display: flex;
+            gap: 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        #hierarchySection .td-dept-stat {
+            flex: 1;
+            text-align: center;
+            padding: 10px 4px;
+            border-right: 1px solid #f1f5f9;
+        }
+
+            #hierarchySection .td-dept-stat:last-child {
+                border-right: none;
+            }
+
+        #hierarchySection .td-dept-stat-num {
+            font-size: 16px;
+            font-weight: 800;
+            color: #1e293b;
+        }
+
+        #hierarchySection .td-dept-stat-lbl {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+
+        #hierarchySection .td-dept-prog-section {
+            padding: 0 16px 14px;
+        }
+
+        #hierarchySection .td-dept-prog-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        #hierarchySection .td-dept-prog-lbl {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+        }
+
+        #hierarchySection .td-dept-prog-bar {
+            width: 100%;
+            height: 7px;
+            background: #f1f5f9;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        #hierarchySection .td-dept-prog-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg,#4f46e5,#7c3aed);
+            transition: width .4s;
+            min-width: 0;
+        }
+
+        #hierarchySection .td-dept-prog-text {
+            min-width: 48px;
+            text-align: right;
+            font-size: 14px;
+            font-weight: 800;
+            color: #4f46e5;
+        }
+
+        #hierarchySection .td-dept-employees {
+            display: none;
+            border-top: 1px solid #f1f5f9;
+            padding: 12px;
+        }
+
+            #hierarchySection .td-dept-employees.open {
+                display: block;
+            }
+
+        #hierarchySection .td-emp-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .15s;
+            margin-bottom: 4px;
+        }
+
+            #hierarchySection .td-emp-row:hover {
+                background: #f8f5ff;
+            }
+
+        #hierarchySection .td-emp-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: #fff;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        #hierarchySection .td-emp-name {
+            flex: 1;
+            min-width: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            word-break: break-word;
+            overflow: visible;
+            white-space: normal;
+            text-overflow: clip;
+        }
+
+        #hierarchySection .td-emp-role-tag {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        #hierarchySection .td-emp-prog-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 75px;
+            flex-shrink: 0;
+        }
+
+        #hierarchySection .td-emp-prog-bar {
+            flex: 1;
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            min-width: 44px;
+        }
+
+        #hierarchySection .td-emp-prog-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg,#4f46e5,#7c3aed);
+        }
+
+        #hierarchySection .td-emp-prog {
+            font-size: 11px;
+            font-weight: 700;
+            color: #4f46e5;
+            min-width: 28px;
+            text-align: right;
+        }
+
+        #hierarchySection .td-dept-card.loading {
+            cursor: default;
+        }
+
+        #hierarchySection .td-dept-skeleton {
+            background: linear-gradient(90deg,#eef2f7 25%,#f8fafc 37%,#eef2f7 63%);
+            background-size: 400% 100%;
+            animation: tdShimmer 1.2s ease-in-out infinite;
+            border-radius: 10px;
+        }
+
+        #hierarchySection .td-dept-skeleton-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+        }
+
+        #hierarchySection .td-dept-skeleton-title {
+            height: 16px;
+            width: 180px;
+            margin-bottom: 8px;
+        }
+
+        #hierarchySection .td-dept-skeleton-sub {
+            height: 12px;
+            width: 88px;
+        }
+
+        #hierarchySection .td-dept-skeleton-stat {
+            height: 44px;
+            border-radius: 0;
+        }
+
+        #hierarchySection .td-dept-skeleton-progress {
+            height: 7px;
+            width: 100%;
+            border-radius: 999px;
+        }
+
+        #hierarchySection .td-dept-skeleton-pct {
+            height: 14px;
+            width: 42px;
+            border-radius: 8px;
+        }
+
+    @@keyframes tdShimmer {
+        0% {
+            background-position: 100% 0;
+        }
+
+        100% {
+            background-position: 0 0;
+        }
+    }
+    /* HOD Table */
+    .hod-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+
+    .hod-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+        .hod-table th {
+            background: #f8fafc;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 700;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .hod-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #1e293b;
+            vertical-align: middle;
+        }
+
+        .hod-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .hod-table tr:hover td {
+            background: #fafbff;
+        }
+
+    .hod-tbl-prog {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .hod-tbl-prog-bar {
+        flex: 1;
+        height: 6px;
+        background: #f1f5f9;
+        border-radius: 3px;
+        min-width: 60px;
+    }
+
+    .hod-tbl-prog-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg,#4f46e5,#7c3aed);
+    }
+
+    .hod-filter-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+        .hod-filter-bar select, .hod-filter-bar input {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 13px;
+            color: #374151;
+            background: #fff;
+            outline: none;
+        }
+
+            .hod-filter-bar select:focus, .hod-filter-bar input:focus {
+                border-color: #4f46e5;
+            }
+    /* Emp tasks popup */
+    .emp-task-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        background: #fafbff;
+    }
+
+    .emp-task-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+    }
+
+    .emp-task-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+
+    .emp-task-meta {
+        font-size: 12px;
+        color: #64748b;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .emp-task-prog {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .emp-task-prog-bar {
+        flex: 1;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+    }
+
+    .emp-task-prog-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg,#4f46e5,#7c3aed);
+    }
+    /* Hierarchy Tree */
+    .td-hier-summary {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .td-hier-sum-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(135deg,#1e293b,#334155);
+        color: #fff;
+        padding: 16px 24px;
+        border-radius: 14px;
+        min-width: 160px;
+        box-shadow: 0 4px 15px rgba(0,0,0,.15);
+    }
+
+        .td-hier-sum-card i {
+            font-size: 22px;
+            color: #60a5fa;
+        }
+
+    .td-hier-num {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .td-hier-lbl {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-left: 4px;
+    }
+
+    .td-hier-tree {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .td-hier-node {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 0;
+        overflow: hidden;
+        min-width: 260px;
+        flex: 1;
+        max-width: 340px;
+        box-shadow: 0 2px 12px rgba(0,0,0,.07);
+        transition: box-shadow .2s;
+    }
+
+        .td-hier-node:hover {
+            box-shadow: 0 6px 24px rgba(0,0,0,.12);
+        }
+
+    .td-hier-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg,#4f46e5,#7c3aed);
+        color: #fff;
+    }
+
+    .td-hier-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .td-hier-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .td-hier-info strong {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .td-hier-info span {
+            font-size: 11px;
+            color: rgba(255,255,255,.75);
+        }
+
+    .td-hier-badge {
+        background: rgba(255,255,255,.2);
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .td-hier-execs {
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 160px;
+        overflow-y: auto;
+    }
+
+    .td-hier-exec {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 8px;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+
+    .td-hier-exec-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4f46e5;
+        flex-shrink: 0;
+    }
+
+    .td-hier-exec span {
+        font-size: 12px;
+        font-weight: 600;
+        color: #1e293b;
+        flex: 1;
+    }
+
+    .td-hier-exec small {
+        font-size: 10px;
+        color: #94a3b8;
+    }
+
+    .td-section-header {
+        display: flex;
+        align-items: center;
+        margin: 20px 0 12px;
+    }
+
+        .td-section-header h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    /* Sub-HOD side-by-side layout */
+    body.subhod-view #hodLayout {
+        display: flex !important;
+    }
+
+    body.subhod-view #taskListHeader, body.subhod-view #taskListFilters, body.subhod-view #taskList, body.subhod-view #taskPagination, body.subhod-view .non-hod-team {
+        display: none !important;
+    }
+
+    body.subhod-view #myTasksSection {
+        display: none !important;
+    }
+
+    body.subhod-view #hodTableSection {
+        display: block !important;
+    }
+
+    body.subhod-view #hodLayout #teamStatsSection {
+        display: block !important;
+    }
+
+    body.subhod-view #hierarchySection {
+        width: 380px !important;
+    }
+    /* Sub-HOD team panel wrapper */
+    body.subhod-view #hierarchySection {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        overflow-y: auto;
+        max-height: 85vh;
+    }
+    /* Sub-HOD team cards */
+    .subhod-team-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .subhod-emp-card {
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: transform .15s, box-shadow .15s, border-color .15s;
+        box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .subhod-emp-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg,#4f46e5,#7c3aed);
+            border-radius: 12px 0 0 12px;
+        }
+
+        .subhod-emp-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79,70,229,.15);
+            border-color: #a5b4fc;
+        }
+
+    .subhod-emp-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding-left: 4px;
+    }
+
+    .subhod-emp-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg,#4f46e5,#7c3aed);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(79,70,229,.3);
+    }
+
+    .subhod-emp-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .subhod-emp-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .subhod-emp-role {
+        font-size: 10px;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 1px 7px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-top: 2px;
+    }
+
+    .subhod-emp-click-hint {
+        margin-top: 8px;
+        font-size: 10px;
+        color: #a5b4fc;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding-left: 4px;
+    }
+    /* Sub-HOD task list header */
+    .subhod-tasklist-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .subhod-tasklist-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+    }
+
+    .subhod-filter-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+        .subhod-filter-row select {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            color: #374151;
+            background: #fff;
+            outline: none;
+        }
+
+            .subhod-filter-row select:focus {
+                border-color: #4f46e5;
+            }
+
+    .td-task-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #dbe6f3;
+        border-radius: 16px;
+        background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+        margin-bottom: 12px;
+    }
+
+    .td-task-row-main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(220px,2.1fr) minmax(155px,1fr) minmax(155px,1fr) minmax(150px,0.9fr);
+        gap: 12px;
+    }
+
+    .td-task-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .td-task-field-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #5b6b80;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        padding-left: 2px;
+    }
+
+    .td-task-row .td-task-input,
+    .td-task-row .td-task-start-date,
+    .td-task-row .td-task-deadline,
+    .td-task-row .td-task-priority,
+    .td-task-row .td-task-remarks {
+        border: 1px solid #d6e2f0;
+        border-radius: 12px;
+        background: #fff;
+        color: #16324f;
+        font-size: 14px;
+    }
+
+    .td-task-row .td-task-input,
+    .td-task-row .td-task-start-date,
+    .td-task-row .td-task-deadline,
+    .td-task-row .td-task-priority {
+        min-height: 46px;
+        padding: 10px 14px;
+        font-weight: 600;
+    }
+
+    .td-task-row .td-task-remarks {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 74px;
+        padding: 10px 12px;
+        resize: vertical;
+    }
+
+    .td-task-row .td-task-start-date,
+    .td-task-row .td-task-deadline {
+        background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+    }
+
+    .td-task-row .td-task-priority {
+        background: linear-gradient(180deg,#ffffff 0%,#f1f7ff 100%);
+        color: #12375f;
+    }
+
+    .td-modal-content.td-modal-create {
+        width: min(1120px, 92vw);
+        max-width: 1120px;
+    }
+
+    .td-task-chip {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: #183a63;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+        margin-top: 7px;
+    }
+
+    .td-task-row .td-task-remove {
+        margin-top: 7px;
+    }
+
+    @@media (max-width: 900px) {
+        .td-task-row {
+            flex-direction: column;
+        }
+
+        .td-task-row-main {
+            width: 100%;
+            grid-template-columns: 1fr;
+        }
+
+        .td-task-row .td-task-remarks {
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 1100px) {
+        #hodLayout {
+            flex-direction: column !important;
+        }
+
+        #hierarchySection {
+            width: 100% !important;
+        }
+
+        body.subhod-view #hierarchySection {
+            width: 100% !important;
+        }
+    }
+</style>
+
+<!-- Loader -->
+<div id="loaderOverlay" style="display: none;">
+    <div class="loader"></div>
+</div>
+
+<div class="td-container">
+
+    <!-- Welcome Banner -->
+    <div class="td-banner">
+        <div class="td-banner-content">
+            <div class="td-banner-icon">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <div>
+                <h1>Task Dashboard</h1>
+                <p>Welcome, <strong id="employeeName">User</strong></p>
+            </div>
+        </div>
+        <div class="td-banner-right">
+            <span class="td-role-badge" id="roleBadge"></span>
+            <span class="td-date-badge" id="bannerDate"></span>
+        </div>
+    </div>
+
+
+    <!-- Action Bar: View Toggle + New Task -->
+    <div class="td-action-bar">
+        <button class="td-btn-new" onclick="openCreateTaskModal()">
+            <i class="fas fa-plus"></i> New Task
+        </button>
+    </div>
+
+    <!-- My Tasks Stats (hidden for HOD) -->
+    <div id="myTasksSection">
+        <div class="td-section-header">
+            <h2><i class="fas fa-user-check"></i> My Tasks</h2>
+        </div>
+        <div class="td-stats-row">
+            <div class="td-stat-card td-stat-total">
+                <div class="td-stat-icon"><i class="fas fa-tasks"></i></div>
+                <div class="td-stat-info">
+                    <div class="td-stat-num" id="statTotal">0</div>
+                    <div class="td-stat-label">Total</div>
+                </div>
+            </div>
+            <div class="td-stat-card td-stat-pending">
+                <div class="td-stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="td-stat-info">
+                    <div class="td-stat-num" id="statPending">0</div>
+                    <div class="td-stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="td-stat-card td-stat-progress">
+                <div class="td-stat-icon"><i class="fas fa-spinner"></i></div>
+                <div class="td-stat-info">
+                    <div class="td-stat-num" id="statInProgress">0</div>
+                    <div class="td-stat-label">In Progress</div>
+                </div>
+            </div>
+            <div class="td-stat-card td-stat-completed">
+                <div class="td-stat-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="td-stat-info">
+                    <div class="td-stat-num" id="statCompleted">0</div>
+                    <div class="td-stat-label">Completed</div>
+                </div>
+            </div>
+            <div class="td-stat-card td-stat-overdue">
+                <div class="td-stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="td-stat-info">
+                    <div class="td-stat-num" id="statOverdue">0</div>
+                    <div class="td-stat-label">Overdue</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HOD: side-by-side layout -->
+    <div id="hodLayout" style="display:none; gap:20px; align-items:flex-start;">
+        <!-- LEFT: Stats + Table -->
+        <div style="flex:1; min-width:0;">
+            <div id="teamStatsSection" style="display:none;">
+                <div class="td-section-header">
+                    <h2><i class="fas fa-users-cog"></i> Team Overview</h2>
+                </div>
+                <div class="td-stats-row" style="flex-wrap:wrap;">
+                    <div class="td-stat-card td-stat-total">
+                        <div class="td-stat-icon"><i class="fas fa-tasks"></i></div>
+                        <div class="td-stat-info"><div class="td-stat-num" id="teamStatTotal">0</div><div class="td-stat-label">Total Tasks</div></div>
+                    </div>
+                    <div class="td-stat-card td-stat-pending">
+                        <div class="td-stat-icon"><i class="fas fa-clock"></i></div>
+                        <div class="td-stat-info"><div class="td-stat-num" id="teamStatPending">0</div><div class="td-stat-label">Pending</div></div>
+                    </div>
+                    <div class="td-stat-card td-stat-progress">
+                        <div class="td-stat-icon"><i class="fas fa-spinner"></i></div>
+                        <div class="td-stat-info"><div class="td-stat-num" id="teamStatInProgress">0</div><div class="td-stat-label">In Progress</div></div>
+                    </div>
+                    <div class="td-stat-card td-stat-completed">
+                        <div class="td-stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="td-stat-info"><div class="td-stat-num" id="teamStatCompleted">0</div><div class="td-stat-label">Completed</div></div>
+                    </div>
+                    <div class="td-stat-card td-stat-overdue">
+                        <div class="td-stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="td-stat-info"><div class="td-stat-num" id="teamStatOverdue">0</div><div class="td-stat-label">Overdue</div></div>
+                    </div>
+                </div>
+                <div class="td-team-grid" id="teamMemberGrid" style="display:none;"></div>
+            </div>
+            <!-- HOD Table -->
+            <div id="hodTableSection" style="display:none;">
+                <div id="hodTableWrap"></div>
+            </div>
+        </div>
+        <!-- RIGHT: Dept cards -->
+        <div id="hierarchySection" style="width:440px; flex-shrink:0;"></div>
+    </div>
+
+    <!-- Non-HOD: Filters + Card list -->
+    <div id="teamStatsSection" style="display:none;" class="non-hod-team"></div>
+    <div class="td-section-header" id="taskListHeader">
+        <h2><i class="fas fa-list"></i> Task List</h2>
+    </div>
+    <div class="td-filter-bar" id="taskListFilters">
+        <select id="filterStatus" onchange="currentPage=1;loadTasks()">
+            <option value="">All Status</option>
+            <option value="PENDING">Pending</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="COMPLETED">Completed</option>
+        </select>
+        <select id="filterPriority" onchange="currentPage=1;loadTasks()">
+            <option value="">All Priority</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+        </select>
+        <select id="filterTaskType" onchange="currentPage=1;loadTasks()">
+            <option value="">All Types</option>
+            <option value="SELF">Self Created</option>
+            <option value="ASSIGNED">Assigned</option>
+        </select>
+    </div>
+    <div class="td-task-list" id="taskList"></div>
+    <div class="td-pagination" id="taskPagination" style="display:none;"></div>
+</div>
+
+<!-- ============================================ -->
+<!-- EMPLOYEE TASKS POPUP (HOD click on employee) -->
+<!-- ============================================ -->
+<div id="empTasksModal" class="td-modal">
+    <div class="td-modal-content" style="max-width:760px;">
+        <div class="td-modal-banner">
+            <div>
+                <h2><i class="fas fa-user-circle"></i> <span id="empTasksName">Employee</span></h2>
+                <p id="empTasksSubtitle">Task overview</p>
+            </div>
+            <span class="td-modal-close" onclick="closeEmpTasksModal()">&times;</span>
+        </div>
+        <div class="td-modal-body" id="empTasksBody" style="max-height:70vh;overflow-y:auto;padding:16px;">
+        </div>
+    </div>
+</div>
+
+<div id="taskDetailsModal" class="td-modal">
+    <div class="td-modal-content" style="max-width:960px;">
+        <div class="td-modal-banner">
+            <div>
+                <h2><i class="fas fa-eye"></i> Task Details</h2>
+                <p>Full task information from start to completion</p>
+            </div>
+            <span class="td-modal-close" onclick="closeTaskDetailsModal()">&times;</span>
+        </div>
+        <div class="td-modal-body" id="taskDetailsBody" style="max-height:75vh;overflow-y:auto;padding:18px;">
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CREATE TASK MODAL -->
+<!-- ============================================ -->
+<div id="createTaskModal" class="td-modal">
+    <div class="td-modal-content td-modal-create">
+        <div class="td-modal-banner">
+            <div>
+                <h2><i class="fas fa-plus-circle"></i> Create New Task</h2>
+                <p id="modalSubtitle">Add a new task</p>
+            </div>
+            <span class="td-modal-close" onclick="closeCreateTaskModal()">&times;</span>
+        </div>
+
+        <div class="td-modal-body">
+            <!-- Employee Details -->
+            <div class="td-emp-card" style="margin-top:0; display:none;">
+                <div class="td-emp-card-title"><i class="fas fa-id-badge"></i> EMPLOYEE DETAILS</div>
+                <div class="td-emp-grid">
+                    <div class="td-emp-item"><span class="td-emp-label">Employee ID</span><span class="td-emp-value" id="modalEmpCode">-</span></div>
+                    <div class="td-emp-item"><span class="td-emp-label">Name</span><span class="td-emp-value" id="modalEmpName">-</span></div>
+                    <div class="td-emp-item"><span class="td-emp-label">Date</span><span class="td-emp-value" id="modalDate">-</span></div>
+                </div>
+            </div>
+
+            <form id="createTaskForm" onsubmit="submitCreateTask(event)">
+
+                <!-- Task Type Selector (Sub HOD / HOD only) -->
+                <div class="td-task-type-selector" id="taskTypeSelector" style="display:none;">
+                    <label class="td-field-label">Task For <span class="td-req">*</span></label>
+                    <div class="td-type-toggle">
+                        <button type="button" class="td-type-btn active" data-type="SELF" onclick="selectTaskType('SELF')">
+                            <i class="fas fa-user"></i>
+                            <span>My Own Task</span>
+                            <small>Create a task for yourself</small>
+                        </button>
+                        <button type="button" class="td-type-btn" data-type="ASSIGN" onclick="selectTaskType('ASSIGN')">
+                            <i class="fas fa-user-plus"></i>
+                            <span>Assign Task</span>
+                            <small>Assign task to allowed team members</small>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Assign To Dropdown (visible when ASSIGN selected) -->
+                <div class="td-field" id="assignSection" style="display:none;">
+                    <label><i class="fas fa-user-check"></i> Assign To <span class="td-req">*</span></label>
+                    <select id="ctAssignTo">
+                        <option value="">-- Select Person --</option>
+                    </select>
+                </div>
+
+                <!-- Tasks Section -->
+                <div class="td-tasks-section">
+                    <div class="td-tasks-header">
+                        <label>Tasks <span class="td-req">*</span></label>
+                        <button type="button" class="td-add-btn" onclick="addTaskRow()"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="taskRowsContainer">
+                        <div class="td-task-row" data-index="1">
+                            <span class="td-task-chip">1</span>
+                            <div class="td-task-row-main">
+                                <div class="td-task-field">
+                                    <span class="td-task-field-label">Task</span>
+                                    <input type="text" class="td-task-input" placeholder="Describe task..." required />
+                                </div>
+                                <div class="td-task-field">
+                                    <span class="td-task-field-label">Start Date</span>
+                                    <input type="date" class="td-task-start-date" required />
+                                </div>
+                                <div class="td-task-field">
+                                    <span class="td-task-field-label">End Date</span>
+                                    <input type="date" class="td-task-deadline" required />
+                                </div>
+                                <div class="td-task-field">
+                                    <span class="td-task-field-label">Priority</span>
+                                    <select class="td-task-priority">
+                                        <option value="LOW">Low</option>
+                                        <option value="MEDIUM" selected>Medium</option>
+                                        <option value="HIGH">High</option>
+                                        <option value="CRITICAL">Critical</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <textarea class="td-task-remarks" rows="2" placeholder="Remarks for this task"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time Slot (Executive & Sub HOD self tasks) -->
+                <div class="td-field" id="timeSlotSection" style="display:none;">
+                    <label class="td-field-label"><i class="fas fa-clock"></i> Time Slot <span class="td-req">*</span></label>
+                    <div class="td-timeslot-toggle">
+                        <button type="button" class="td-timeslot-btn" data-slot="10AM-1PM" onclick="selectTimeSlot('10AM-1PM')">
+                            <i class="fas fa-sun"></i>
+                            <span>10AM – 1PM</span>
+                        </button>
+                        <button type="button" class="td-timeslot-btn" data-slot="1PM-4PM" onclick="selectTimeSlot('1PM-4PM')">
+                            <i class="fas fa-cloud-sun"></i>
+                            <span>1PM – 4PM</span>
+                        </button>
+                        <button type="button" class="td-timeslot-btn" data-slot="4PM-7PM" onclick="selectTimeSlot('4PM-7PM')">
+                            <i class="fas fa-moon"></i>
+                            <span>4PM – 7PM</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="td-field" id="autoTimeSlotSection" style="display:none;">
+                    <label class="td-field-label"><i class="fas fa-clock"></i> Time Slot</label>
+                    <div id="autoTimeSlotValue" style="padding:12px 14px;border:1px solid #dbe2ea;border-radius:12px;background:#f8fafc;color:#1e293b;font-weight:600;"></div>
+                </div>
+
+                <div class="td-form-actions">
+                    <button type="button" class="td-btn-cancel" onclick="closeCreateTaskModal()">Cancel</button>
+                    <button type="submit" class="td-btn-submit" id="submitTaskBtn">
+                        <i class="fas fa-paper-plane"></i> Submit Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Update Modal -->
+<div id="progressModal" class="td-modal">
+    <div class="td-modal-content td-modal-sm">
+        <div class="td-modal-banner">
+            <div>
+                <h2><i class="fas fa-chart-line"></i> Update Progress</h2>
+                <p>Log your work on this task</p>
+            </div>
+            <span class="td-modal-close" onclick="closeProgressModal()">&times;</span>
+        </div>
+        <div class="td-modal-body">
+            <input type="hidden" id="progressTaskId" />
+            <div class="td-field">
+                <label>Progress Note <span style="color:#94a3b8;font-size:11px">(optional)</span></label>
+                <textarea id="progressText" rows="3" placeholder="What did you work on? (optional)"></textarea>
+            </div>
+            <div class="td-field">
+                <label>Percent Complete</label>
+                <div class="td-range-wrap">
+                    <input type="range" id="progressPercent" min="0" max="100" step="5" value="0"
+                           oninput="document.getElementById('progressPercentLabel').textContent = this.value + '%'" />
+                    <span id="progressPercentLabel" class="td-range-val">0%</span>
+                </div>
+            </div>
+            <div class="td-progress-history" id="progressHistory"></div>
+            <div class="td-form-actions">
+                <button class="td-btn-cancel" onclick="closeProgressModal()">Cancel</button>
+                <button class="td-btn-submit" onclick="submitProgressUpdate()"><i class="fas fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Modal -->
+<div id="reassignModal" class="td-modal">
+    <div class="td-modal-content td-modal-sm">
+        <div class="td-modal-banner">
+            <div>
+                <h2><i class="fas fa-exchange-alt"></i> Reassign Task</h2>
+                <p>Transfer this task to a team member</p>
+            </div>
+            <span class="td-modal-close" onclick="closeReassignModal()">&times;</span>
+        </div>
+        <div class="td-modal-body">
+            <input type="hidden" id="reassignTaskId" />
+            <div class="td-field">
+                <label>Reassign To <span class="td-req">*</span></label>
+                <select id="reassignTo" required></select>
+            </div>
+            <div class="td-field">
+                <label>Notes</label>
+                <textarea id="reassignNotes" rows="2" placeholder="Reason for reassignment"></textarea>
+            </div>
+            <div class="td-form-actions">
+                <button class="td-btn-cancel" onclick="closeReassignModal()">Cancel</button>
+                <button class="td-btn-submit" onclick="submitReassign()"><i class="fas fa-check"></i> Reassign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const EMPLOYEE_ID = @(ViewBag.EmployeeId != null ? ViewBag.EmployeeId : 0);
+    const ROLE_TYPE_ID = @(ViewBag.RoleTypeId != null ? ViewBag.RoleTypeId : 3);
+    const EMPLOYEE_NAME = '@Html.Raw(ViewBag.EmployeeName ?? "")';
+    const EMPLOYEE_CODE = '@Html.Raw(ViewBag.EmployeeCode ?? "")';
+    const IS_ADMIN = @(ViewBag.IsAdmin != null && ViewBag.IsAdmin == true ? "true" : "false");
+    const ADMIN_LABEL = '@Html.Raw(ViewBag.AdminLabel ?? "")';
+    const USER_ID = @(ViewBag.UserId != null ? ViewBag.UserId : 0);
+    const HIERARCHY_PRELOAD = @Html.Raw(ViewBag.HierarchyJson != null ? ViewBag.HierarchyJson.ToString() : "null");
+
+    console.log('Dashboard loaded - EmployeeId:', EMPLOYEE_ID, 'RoleTypeId:', ROLE_TYPE_ID, 'Name:', EMPLOYEE_NAME, 'IsAdmin:', IS_ADMIN);
+</script>
+<script src="~/js/task-dashboard.js?v=20260363"></script>

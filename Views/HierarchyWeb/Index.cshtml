@@ -1,0 +1,3814 @@
+﻿@model JSAPNEW.Models.DashboardSummaryDto
+@{
+    var canViewSalary = false;
+    var currentRoleTypeId = (int)(ViewBag.CurrentRoleTypeId ?? 0);
+    var isAdmin = (bool)(ViewBag.IsAdmin ?? false);
+    var empName = ViewBag.FirstName ?? "";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+    html, body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .eh-root, .eh-root * {
+        font-family: 'Sora', system-ui, sans-serif;
+        box-sizing: border-box;
+    }
+
+    .eh-root {
+        background: #eef2f7;
+        min-height: 100vh;
+        overflow-x: hidden;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* ══ HEADER ══ */
+    .eh-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 24px;
+        height: 66px;
+        background: #ffffff;
+        border-bottom: 1.5px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 1px 6px rgba(0,0,0,.07);
+        flex-wrap: wrap;
+    }
+
+    .eh-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    .eh-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #1e3a5f, #2563eb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(37,99,235,.2);
+    }
+
+    .eh-hd-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -.2px;
+    }
+
+    .eh-hd-sub {
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    .eh-sw {
+        flex: 1;
+        max-width: 440px;
+        min-width: 200px;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .eh-si {
+        position: absolute;
+        left: 12px;
+        color: #94a3b8;
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    .eh-search {
+        width: 100%;
+        padding: 10px 14px 10px 36px;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 500;
+        outline: none;
+        transition: all .2s;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .eh-search:focus {
+            border-color: #2563eb;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+        }
+
+        .eh-search::placeholder {
+            color: #94a3b8;
+        }
+
+    .search-drop {
+        position: absolute;
+        top: calc(100% + 7px);
+        left: 0;
+        right: 0;
+        z-index: 200;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(0,0,0,.12);
+        overflow: hidden;
+    }
+
+    .sd-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid #f8fafc;
+        transition: background .15s;
+    }
+
+        .sd-item:hover {
+            background: #f8fafc;
+        }
+
+    .sd-ico {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+
+    .sd-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .sd-detail {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .sd-type {
+        padding: 2px 7px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .sd-empty {
+        padding: 16px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    .eh-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    .role-chip {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 14px;
+        border-radius: 20px;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        font-size: 12px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .rc-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .rc-sep {
+        width: 1px;
+        height: 13px;
+        background: #e2e8f0;
+    }
+
+    .rc-name {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .eh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 15px;
+        border-radius: 9px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1.5px solid;
+        transition: all .2s;
+        font-family: 'Sora', sans-serif;
+    }
+
+    .eh-btn-sal {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+
+    .eh-btn-sal-on {
+        background: #ecfdf5;
+        border-color: #10b981;
+        color: #059669;
+    }
+
+    .eh-btn-export {
+        background: #ecfdf5;
+        border-color: #10b981;
+        color: #059669;
+    }
+
+        .eh-btn-export:hover {
+            background: #d1fae5;
+        }
+
+    .eh-btn-print {
+        background: #eff6ff;
+        border-color: #2563eb;
+        color: #2563eb;
+    }
+
+        .eh-btn-print:hover {
+            background: #dbeafe;
+        }
+
+    .eh-sm-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1.5px solid #e2e8f0;
+        background: #f8fafc;
+        color: #64748b;
+        font-family: 'Sora', sans-serif;
+        transition: all .15s;
+    }
+
+        .eh-sm-btn:hover {
+            background: #fff;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+    /* ══ STAT CARDS ══ */
+    .eh-stats {
+        display: flex;
+        gap: 10px;
+        padding: 16px 24px 0;
+        flex-wrap: wrap;
+    }
+
+    .esc {
+        flex: 1;
+        min-width: 108px;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 13px;
+        padding: 13px 15px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+        cursor: pointer;
+        transition: all .2s;
+    }
+
+        .esc:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0,0,0,.1);
+        }
+
+    .esc-ico {
+        width: 42px;
+        height: 42px;
+        border-radius: 11px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .esc-val {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1;
+    }
+
+    .esc-lbl {
+        font-size: 9px;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+        margin-top: 3px;
+    }
+
+    /* ══ TABS ══ */
+    .eh-tabs {
+        display: flex;
+        gap: 8px;
+        padding: 16px 24px 0;
+        flex-wrap: wrap;
+    }
+
+    .eh-tab {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 16px;
+        border-radius: 10px;
+        cursor: pointer;
+        border: 1.5px solid #e2e8f0;
+        background: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        transition: all .2s;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .eh-tab:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+            background: #eff6ff;
+            transform: translateY(-1px);
+        }
+
+        .eh-tab.on {
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+        }
+
+    /* ══ LOADING ══ */
+    .eh-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 0;
+        gap: 20px;
+    }
+
+    .eh-spinner {
+        position: relative;
+        width: 56px;
+        height: 56px;
+    }
+
+        .eh-spinner div {
+            position: absolute;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            animation: ehspin 1.2s cubic-bezier(.5,0,.5,1) infinite;
+        }
+
+            .eh-spinner div:nth-child(1) {
+                width: 56px;
+                height: 56px;
+                border-top-color: #1e3a5f;
+                animation-delay: -.45s;
+            }
+
+            .eh-spinner div:nth-child(2) {
+                width: 40px;
+                height: 40px;
+                top: 8px;
+                left: 8px;
+                border-top-color: #2563eb;
+                animation-delay: -.3s;
+            }
+
+            .eh-spinner div:nth-child(3) {
+                width: 26px;
+                height: 26px;
+                top: 15px;
+                left: 15px;
+                border-top-color: #60a5fa;
+                animation-delay: -.15s;
+            }
+
+            .eh-spinner div:nth-child(4) {
+                width: 12px;
+                height: 12px;
+                top: 22px;
+                left: 22px;
+                border-top-color: #93c5fd;
+            }
+
+    @@keyframes ehspin {
+        0% {
+            transform: rotate(0)
+        }
+
+        100% {
+            transform: rotate(360deg)
+        }
+    }
+
+    .eh-ld-txt {
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .ld-err {
+        color: #dc2626;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* ══ VIEW WRAPPER ══ */
+    .eh-view {
+        margin: 14px 24px 0;
+        width: auto;
+        max-width: 100%;
+        min-width: 0;
+        animation: ehFI .22s ease;
+    }
+
+    #tabV2 {
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+        #tabV2 > div,
+        #tabV2 .main-card,
+        #tabV2 .table-wrap {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+    @@keyframes ehFI {
+        from {
+            opacity: 0;
+            transform: translateY(5px)
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0)
+        }
+    }
+
+    /* ══ V1 — ORG TREE ══ */
+    .v1-legend {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        padding: 10px 16px;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+        margin-bottom: 12px;
+    }
+
+    .ll-title {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .8px;
+    }
+
+    .ll-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .ll-dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 4px;
+        flex-shrink: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    }
+
+    .ll-sep {
+        color: #cbd5e1;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    /* ═══════════════════════════════════════
+                       CHANGE #2: v1-outer uses overflow:hidden
+                       Drag-to-pan is handled entirely via JS.
+                       A grab cursor signals it's pannable.
+                    ═══════════════════════════════════════ */
+    .v1-outer {
+        position: relative;
+        overflow: hidden;
+        min-height: calc(100vh - 290px);
+        padding-bottom: 100px;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+        .v1-outer.is-dragging {
+            cursor: grabbing;
+        }
+
+    /* Drag hint pill — bottom-right corner */
+    .v1-drag-hint {
+        position: absolute;
+        bottom: 12px;
+        right: 16px;
+        z-index: 20;
+        background: rgba(15,23,42,.52);
+        backdrop-filter: blur(4px);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity .4s;
+    }
+
+    .v1-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 0;
+        overflow: visible;
+    }
+
+    /* ══ ORPHAN PANEL ══ */
+    .orphan-panel {
+        position: fixed;
+        right: 0;
+        top: 130px;
+        width: 300px;
+        max-height: calc(100vh - 160px);
+        overflow-y: auto;
+        background: #fff1f2;
+        border-left: 3px solid #dc2626;
+        border-radius: 12px 0 0 12px;
+        box-shadow: -4px 0 20px rgba(220,38,38,.12);
+        z-index: 90;
+        padding: 14px;
+        display: none;
+    }
+
+        .orphan-panel.show {
+            display: block;
+        }
+
+    .orphan-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #dc2626;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+        .orphan-title .orphan-count {
+            background: #dc2626;
+            color: #fff;
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+
+    .orphan-card {
+        background: #fff;
+        border: 1.5px solid rgba(220,38,38,.25);
+        border-left: 3px solid #dc2626;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        transition: all .15s;
+    }
+
+        .orphan-card:hover {
+            border-color: #dc2626;
+            box-shadow: 0 2px 8px rgba(220,38,38,.1);
+        }
+
+    .orphan-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #7f1d1d;
+    }
+
+    .orphan-code {
+        font-family: 'JetBrains Mono',monospace;
+        font-size: 10px;
+        color: #dc2626;
+        background: rgba(220,38,38,.08);
+        padding: 1px 6px;
+        border-radius: 3px;
+    }
+
+    .orphan-role {
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-top: 4px;
+    }
+
+        .orphan-role.subhod {
+            background: #9333ea;
+        }
+
+        .orphan-role.exec {
+            background: #0891b2;
+        }
+
+    .orphan-meta {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .orphan-toggle {
+        position: fixed;
+        right: 12px;
+        top: 135px;
+        z-index: 91;
+        background: #dc2626;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'Sora',sans-serif;
+        box-shadow: 0 2px 8px rgba(220,38,38,.3);
+        display: none;
+    }
+
+        .orphan-toggle:hover {
+            background: #b91c1c;
+        }
+
+    .v1-canvas {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 60px 60px;
+        min-width: fit-content;
+    }
+
+    .branch {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .children-row {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        padding-top: 52px;
+    }
+
+        .children-row > .branch {
+            padding: 0 10px;
+        }
+
+    /* NODE CARDS */
+    .node-card {
+        position: relative;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: all .22s;
+        user-select: none;
+        overflow: hidden;
+        border-left: 4px solid var(--nc, #2563eb);
+        border-top: 1.5px solid;
+        border-right: 1.5px solid;
+        border-bottom: 1.5px solid;
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+
+        .node-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 28px rgba(0,0,0,.14) !important;
+        }
+    /* CHANGE #1: .nc-comparing and .nc-chk CSS removed entirely */
+    .nc-owner {
+        width: 220px;
+        background: #fef9c3 !important;
+        border-color: #f59e0b !important;
+        border-left-color: #d97706 !important;
+        box-shadow: 0 3px 14px rgba(245,158,11,.2) !important;
+    }
+
+    .nc-hod {
+        width: 185px;
+        background: #dbeafe !important;
+        border-color: #3b82f6 !important;
+        border-left-color: #2563eb !important;
+    }
+
+    .nc-dept {
+        width: 165px;
+        background: #bbf7d0 !important;
+        border-color: #22c55e !important;
+        border-left-color: #16a34a !important;
+    }
+
+    .nc-subdept {
+        width: 155px;
+        background: #fde68a !important;
+        border-color: #f59e0b !important;
+        border-left-color: #d97706 !important;
+    }
+
+    .nc-subhod {
+        width: 155px;
+        background: #ede9fe !important;
+        border-color: #a855f7 !important;
+        border-left-color: #9333ea !important;
+    }
+
+    .nc-exec {
+        width: 142px;
+        background: #cffafe !important;
+        border-color: #22d3ee !important;
+        border-left-color: #0891b2 !important;
+    }
+
+    .nc-info-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(0,0,0,.15);
+        background: rgba(255,255,255,.7);
+        color: #334155;
+        font-size: 11px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .2s;
+        z-index: 3;
+    }
+
+        .nc-info-btn:hover {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+
+    .nc-card-inner {
+        padding: 13px 12px 10px 14px;
+    }
+
+    .nc-name {
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        color: #0f172a !important;
+        line-height: 1.2 !important;
+        margin-bottom: 6px !important;
+        word-break: break-word;
+    }
+
+    .nc-owner .nc-name {
+        font-size: 16px !important;
+        color: #78350f !important;
+    }
+
+    .nc-hod .nc-name {
+        font-size: 15px !important;
+        color: #1e3a8a !important;
+    }
+
+    .nc-dept .nc-name {
+        font-size: 13px !important;
+        color: #14532d !important;
+    }
+
+    .nc-subdept .nc-name {
+        font-size: 13px !important;
+        color: #78350f !important;
+    }
+
+    .nc-subhod .nc-name {
+        font-size: 13px !important;
+        color: #4c1d95 !important;
+    }
+
+    .nc-exec .nc-name {
+        font-size: 12px !important;
+        color: #164e63 !important;
+    }
+
+    .nc-stats {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+    }
+
+    .nc-stat {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--nc, #2563eb);
+    }
+
+        .nc-stat strong {
+            font-weight: 800;
+        }
+
+        .nc-stat span {
+            color: #334155;
+            font-size: 10px;
+        }
+
+    .nc-div {
+        width: 1px;
+        height: 12px;
+        background: rgba(0,0,0,.12);
+    }
+
+    .nc-sal {
+        font-size: 11px;
+        font-weight: 700;
+        color: #065f46;
+        font-family: 'JetBrains Mono', monospace;
+        margin-bottom: 4px;
+    }
+
+    .nc-expand-btn {
+        display: block;
+        width: 100%;
+        padding: 6px 0;
+        background: rgba(255,255,255,.55);
+        border: 1px solid rgba(0,0,0,.1);
+        border-radius: 0 0 12px 12px;
+        color: #334155;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all .2s;
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        text-align: center;
+        margin-top: 6px;
+    }
+
+        .nc-expand-btn:hover {
+            background: rgba(255,255,255,.9);
+            color: var(--nc, #2563eb);
+        }
+
+        .nc-expand-btn.nc-exp {
+            color: var(--nc, #2563eb);
+            background: rgba(255,255,255,.75);
+        }
+
+    /* CHANGE #3: search-found pulse highlight */
+    .hl-found {
+        animation: hlPulse 1.5s ease 3;
+    }
+
+    @@keyframes hlPulse {
+        0%, 100% {
+            box-shadow: none
+        }
+
+        50% {
+            box-shadow: 0 0 0 3px #fbbf24, 0 0 20px rgba(251,191,36,.35)
+        }
+    }
+
+    /* ══ V2 — TABLE DRILL-DOWN ══ */
+    .filter-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        background: #fef3c7;
+        border: 2px solid #f59e0b;
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin-bottom: 14px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .fb-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .fb-icon {
+        color: #d97706;
+        font-size: 18px;
+    }
+
+    .fb-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #78350f;
+    }
+
+    .fb-chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: #fff;
+        border: 2px solid #e2e8f0;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .fc-remove {
+        cursor: pointer;
+        color: #94a3b8;
+        font-size: 15px;
+        margin-left: 4px;
+    }
+
+        .fc-remove:hover {
+            color: #dc2626;
+        }
+
+    .fb-clear-btn {
+        background: #fff;
+        border: 2px solid #f87171;
+        color: #dc2626;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 8px;
+        padding: 6px 14px;
+        cursor: pointer;
+    }
+
+    .v2-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin-bottom: 14px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .tb-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .tb-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 100%;
+    }
+
+    .tb-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: #475569;
+    }
+
+    #v2ColToggles {
+        display: flex;
+        gap: 6px;
+        flex-wrap: nowrap;
+        align-items: center;
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+    }
+
+    .col-tog {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        flex: 0 0 auto;
+    }
+
+    .col-arr {
+        width: 30px;
+        height: 30px;
+        border: 2px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .15s;
+    }
+
+        .col-arr:hover:not(.dis) {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+
+        .col-arr.dis {
+            opacity: .3;
+            cursor: default;
+        }
+
+    .col-pill {
+        display: inline-flex;
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .col-pill input {
+            display: none;
+        }
+
+        .col-pill span {
+            padding: 7px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 2px solid #cbd5e1;
+            color: #475569;
+            background: #fff;
+            transition: all .15s;
+        }
+
+        .col-pill input:checked + span {
+            background: #dbeafe;
+            border-color: #3b82f6;
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+
+    .main-card {
+        background: #fff;
+        border: 2px solid #94a3b8;
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,.1);
+        overflow: hidden;
+        max-width: 100%;
+    }
+
+    .table-wrap {
+        display: block;
+        overflow-x: auto;
+        overflow-y: hidden;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .eh-table {
+        width: max-content;
+        border-collapse: collapse;
+        table-layout: auto;
+        min-width: 100%;
+    }
+
+        .eh-table th {
+            background: linear-gradient(135deg,#0f172a,#1e293b);
+            color: #fff;
+            padding: 16px 18px;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            text-align: left;
+            border: none;
+            white-space: nowrap;
+        }
+
+        .eh-table td {
+            padding: 12px 14px;
+            vertical-align: top;
+            border-bottom: 2px solid #e2e8f0;
+            background: #fff;
+            min-width: 140px;
+        }
+
+        .eh-table tr:hover td {
+            background: #f8fafc;
+        }
+
+    .th-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .col-filter-btn {
+        background: rgba(255,255,255,.12);
+        border: 2px solid rgba(255,255,255,.25);
+        color: rgba(255,255,255,.8);
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        transition: all .15s;
+        flex-shrink: 0;
+    }
+
+        .col-filter-btn:hover {
+            background: rgba(255,255,255,.3);
+            color: #fff;
+        }
+
+        .col-filter-btn.active {
+            background: #f59e0b;
+            border-color: #f59e0b;
+            color: #fff;
+        }
+
+    .cell {
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 2px solid #cbd5e1;
+        cursor: pointer;
+        transition: all .15s;
+        margin-bottom: 8px;
+        min-width: 0;
+    }
+
+        .cell:last-child {
+            margin-bottom: 0;
+        }
+
+        .cell:hover {
+            transform: translateX(4px);
+            box-shadow: 0 3px 12px rgba(0,0,0,.1);
+        }
+
+        .cell.cell-static {
+            cursor: default;
+        }
+
+            .cell.cell-static:hover {
+                transform: none;
+            }
+
+        .cell.cell-muted {
+            color: #64748b;
+            font-size: 14px;
+            padding: 10px 14px;
+            font-style: italic;
+            font-weight: 500;
+        }
+
+    .cell-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .cell-name {
+        flex: 1;
+        font-weight: 700;
+        font-size: 15px;
+        color: #0f172a;
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        line-height: 1.35;
+        cursor: pointer;
+    }
+
+        .cell-name:hover {
+            text-decoration: underline;
+        }
+
+    .cell-badge {
+        min-width: 30px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 14px;
+        background: #64748b;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+
+    .cell-num {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #1d4ed8;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .cell-sal {
+        margin-top: 5px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #047857;
+    }
+
+    .cell-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .cell-info-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all .15s;
+        flex-shrink: 0;
+        font-size: 14px;
+    }
+
+        .cell-info-btn:hover {
+            background: #1d4ed8;
+            color: #fff;
+        }
+
+    .cell-row-exec {
+        align-items: flex-start;
+    }
+
+    .cell-exec-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .cell-exec-text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .cell-count-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        text-align: center;
+        min-height: 72px;
+        border: 2px solid #cbd5e1;
+        cursor: pointer;
+    }
+
+        .cell-count-box:hover {
+            transform: scale(1.03);
+            border-color: #94a3b8;
+        }
+
+    .count-num {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+        color: #0f172a;
+    }
+
+    .count-label {
+        font-size: 12px;
+        color: #475569;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: .8px;
+        font-weight: 700;
+    }
+
+    .cell-total {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0f172a;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .cell-total-sal {
+        color: #047857;
+    }
+
+    .cell-empty {
+        font-size: 14px;
+        color: #64748b;
+        padding: 12px;
+        font-style: italic;
+        font-weight: 500;
+    }
+
+    .sd-subhod-tag {
+        font-size: 12px;
+        font-weight: 600;
+        color: #7c3aed;
+        background: #ede9fe;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 4px;
+        white-space: nowrap;
+    }
+
+    .fd-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1050;
+        background: transparent;
+    }
+
+    .filter-dropdown {
+        position: fixed;
+        z-index: 1051;
+        width: 300px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0,0,0,.2);
+        overflow: hidden;
+    }
+
+    .sal-fd {
+        position: fixed;
+        z-index: 1051;
+        width: 320px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0,0,0,.2);
+    }
+
+    .fd-header {
+        padding: 12px 14px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .fd-search {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        outline: none;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .fd-search:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+        }
+
+    .fd-actions {
+        display: flex;
+        gap: 6px;
+        padding: 8px 14px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .fd-act-btn {
+        background: none;
+        border: none;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .fd-act-btn:hover {
+            background: #eff6ff;
+        }
+
+    .fd-list {
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 8px 10px;
+    }
+
+    .fd-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background .1s;
+    }
+
+        .fd-item:hover {
+            background: #f1f5f9;
+        }
+
+        .fd-item input {
+            width: 18px;
+            height: 18px;
+            accent-color: #2563eb;
+            cursor: pointer;
+        }
+
+        .fd-item span {
+            flex: 1;
+            color: #0f172a;
+        }
+
+    .fd-empty {
+        padding: 18px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .fd-footer {
+        display: flex;
+        gap: 8px;
+        padding: 12px 14px;
+        border-top: 2px solid #e2e8f0;
+        justify-content: flex-end;
+    }
+
+    .fd-apply-btn {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        font-weight: 700;
+        border-radius: 8px;
+        padding: 8px 20px;
+        font-size: 14px;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .fd-apply-btn:hover {
+            background: #1d4ed8;
+        }
+
+    .fd-cancel-btn {
+        background: #f1f5f9;
+        color: #475569;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: 'Sora', sans-serif;
+    }
+
+    .sfd-header {
+        padding: 14px 18px;
+        font-weight: 700;
+        color: #047857;
+        background: #d1fae5;
+        border-radius: 14px 14px 0 0;
+        font-size: 15px;
+    }
+
+    .sfd-body {
+        padding: 14px 18px;
+    }
+
+    .sfd-row {
+        margin-bottom: 12px;
+    }
+
+    .sfd-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: #475569;
+        margin-bottom: 6px;
+    }
+
+    .sfd-sel, .sfd-inp {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        outline: none;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .sfd-sel:focus, .sfd-inp:focus {
+            border-color: #34d399;
+            box-shadow: 0 0 0 3px rgba(16,185,129,.15);
+        }
+
+    /* ══ V3 — STACKED HOD ACCORDION ══ */
+    .hod-section {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 16px;
+        margin-bottom: 14px;
+        overflow: hidden;
+        transition: all .25s;
+    }
+
+        .hod-section.hod-exp {
+            box-shadow: 0 4px 20px rgba(0,0,0,.1);
+        }
+
+    .hs-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 20px;
+        cursor: pointer;
+        transition: all .2s;
+        border-bottom: 2px solid transparent;
+        flex-wrap: wrap;
+    }
+
+        .hs-header:hover {
+            background: #f8fafc !important;
+        }
+
+    .hod-exp .hs-header {
+        border-bottom-color: inherit;
+    }
+
+    .hs-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .hs-arrow {
+        font-size: 16px;
+        transition: transform .2s;
+        flex-shrink: 0;
+    }
+
+    .hs-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .hs-info {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .hs-name {
+        font-size: 16px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .hs-code {
+        font-size: 12px;
+        opacity: .6;
+        font-weight: 600;
+    }
+
+    .hs-pills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-left: auto;
+    }
+
+    .hs-pill {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 8px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .hs-pill-total {
+        border: 1.5px solid;
+    }
+
+    .hs-actions {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+
+    .hs-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 2px solid #cbd5e1;
+        background: #fff;
+        color: #475569;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        transition: all .15s;
+    }
+
+        .hs-btn:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+    .hs-body {
+        padding: 20px 24px;
+        border-top: none;
+    }
+
+    /* ══ SHARED TREE ══ */
+    .tr-wrap {
+        font-size: 14px;
+    }
+
+    .tr-root {
+        position: relative;
+    }
+
+    .tr-node {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 2px solid #cbd5e1;
+        background: #fff;
+        cursor: default;
+        transition: all .2s;
+        margin-bottom: 2px;
+        flex-wrap: wrap;
+        position: relative;
+    }
+
+        .tr-node[onclick] {
+            cursor: pointer;
+        }
+
+            .tr-node[onclick]:hover {
+                box-shadow: 0 3px 12px rgba(0,0,0,.1);
+                transform: translateX(3px);
+            }
+
+        .tr-node.tr-exp {
+            font-weight: 700;
+        }
+
+    .tr-ico {
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .tr-arrow {
+        font-size: 12px;
+        color: #94a3b8;
+        flex-shrink: 0;
+        transition: transform .2s;
+    }
+
+    .tr-exp .tr-arrow {
+        color: inherit;
+    }
+
+    .tr-name {
+        font-weight: 700;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .tr-tag {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        opacity: .6;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: rgba(0,0,0,.05);
+        flex-shrink: 0;
+    }
+
+    .tr-code {
+        font-size: 11px;
+        opacity: .5;
+        flex-shrink: 0;
+    }
+
+    .tr-sal {
+        font-size: 12px;
+        font-weight: 700;
+        color: #047857;
+        background: #d1fae5;
+        padding: 2px 8px;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
+
+    .tr-count {
+        min-width: 24px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 11px;
+        background: #94a3b8;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .tr-children {
+        margin-left: 24px;
+        padding-left: 22px;
+        border-left: 2.5px solid #e2e8f0;
+        position: relative;
+    }
+
+    .tr-item {
+        position: relative;
+        padding: 4px 0;
+    }
+
+    .tr-line-h {
+        position: absolute;
+        left: -22px;
+        top: 20px;
+        width: 22px;
+        height: 0;
+        border-top: 2.5px solid #e2e8f0;
+    }
+
+    .tr-item:last-child::after {
+        content: '';
+        position: absolute;
+        left: -24.5px;
+        top: 21px;
+        bottom: 0;
+        width: 3px;
+        background: #fff;
+    }
+
+    .tr-hod {
+        border-width: 3px;
+        padding: 12px 20px;
+    }
+
+        .tr-hod .tr-ico {
+            font-size: 20px;
+        }
+
+        .tr-hod .tr-name {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+    .tr-exec {
+        background: #f0f9ff !important;
+        border-color: #bae6fd !important;
+        color: #0c4a6e;
+        cursor: default !important;
+        padding: 8px 14px !important;
+    }
+
+        .tr-exec:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .tr-exec .tr-ico {
+            font-size: 14px;
+            color: #0284c7;
+        }
+
+        .tr-exec .tr-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+    /* ══ V4 — HOD CARDS ══ */
+    .hc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .hc-card {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 16px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all .25s;
+        position: relative;
+    }
+
+        .hc-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0,0,0,.15);
+            border-color: #94a3b8;
+        }
+
+    .hc-color-bar {
+        height: 5px;
+        width: 100%;
+    }
+
+    .hc-body {
+        padding: 16px 18px 0;
+    }
+
+    .hc-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .hc-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .hc-info {
+        min-width: 0;
+    }
+
+    .hc-name {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hc-code {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .hc-stats {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .hc-stat {
+        text-align: center;
+        padding: 8px 4px;
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .hc-stat-num {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1;
+    }
+
+    .hc-stat-lbl {
+        display: block;
+        font-size: 10px;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        margin-top: 3px;
+    }
+
+    .hc-stat-total {
+        background: #f0f9ff;
+        border-color: #bae6fd;
+    }
+
+        .hc-stat-total .hc-stat-num {
+            color: #0369a1;
+        }
+
+    .hc-salary {
+        font-size: 14px;
+        font-weight: 700;
+        color: #047857;
+        background: #d1fae5;
+        padding: 6px 12px;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 12px;
+    }
+
+    .hc-footer {
+        display: flex;
+        align-items: center;
+        padding: 12px 18px;
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 -18px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .tree-hdr {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        padding: 14px 20px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    .btn-back {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 8px 18px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all .15s;
+        display: flex;
+        align-items: center;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .btn-back:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+    .thi-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .thi-av {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .thi-name {
+        display: block;
+        font-size: 16px;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .thi-meta {
+        display: block;
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .tree-btn {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all .15s;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .tree-btn:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+    .tree-container {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        overflow-x: auto;
+    }
+
+    /* ══ V5 — 3-COL GRID ══ */
+    .sel-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 14px 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    .sb-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .sb-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+    }
+
+    .sb-right {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .sb-btn {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all .15s;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .sb-btn:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+    .sb-dd-wrap {
+        position: relative;
+    }
+
+    .sb-dd-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+        cursor: pointer;
+        min-width: 200px;
+        transition: all .15s;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .sb-dd-btn:hover {
+            border-color: #94a3b8;
+        }
+
+    .sb-dd-arr {
+        margin-left: auto;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .sb-dd-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 1060;
+        width: 340px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0,0,0,.2);
+        overflow: hidden;
+    }
+
+    .sb-dd-sh {
+        padding: 12px 14px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .sb-dd-sinp {
+        width: 100%;
+        padding: 9px 14px;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        font-size: 14px;
+        outline: none;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .sb-dd-sinp:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+        }
+
+    .sb-dd-acts {
+        display: flex;
+        gap: 6px;
+        padding: 8px 14px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .sb-dd-act {
+        background: none;
+        border: none;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-family: 'Sora', sans-serif;
+    }
+
+        .sb-dd-act:hover {
+            background: #eff6ff;
+        }
+
+    .sb-dd-list {
+        max-height: 280px;
+        overflow-y: auto;
+        padding: 8px 10px;
+    }
+
+    .sb-dd-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background .1s;
+    }
+
+        .sb-dd-item:hover {
+            background: #f1f5f9;
+        }
+
+        .sb-dd-item input {
+            width: 18px;
+            height: 18px;
+            accent-color: #2563eb;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+    .sb-dd-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+
+    .sb-dd-name {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .sb-dd-stats {
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .sb-chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .sb-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1.5px solid;
+    }
+
+    .sb-chip-x {
+        cursor: pointer;
+        font-size: 13px;
+        opacity: .7;
+        transition: opacity .15s;
+    }
+
+        .sb-chip-x:hover {
+            opacity: 1;
+        }
+
+    .hc5-grid {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 16px;
+    }
+
+    .no-sel {
+        text-align: center;
+        padding: 60px 20px;
+        color: #94a3b8;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+        border: 2px dashed #cbd5e1;
+        border-radius: 14px;
+    }
+
+    .hc5-card {
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all .25s;
+        display: flex;
+        flex-direction: column;
+    }
+
+        .hc5-card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,.1);
+        }
+
+    .hc5-header {
+        padding: 14px 16px;
+        border-bottom: 2px solid rgba(0,0,0,.06);
+    }
+
+    .hc5-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .hc5-av {
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .hc5-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .hc5-name {
+        font-size: 14px;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hc5-code {
+        font-size: 11px;
+        color: #64748b;
+        font-weight: 600;
+        margin-top: 1px;
+    }
+
+    .hc5-acts {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .hc5-btn {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        border: 1.5px solid rgba(0,0,0,.12);
+        background: rgba(255,255,255,.6);
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: all .15s;
+    }
+
+        .hc5-btn:hover {
+            background: rgba(255,255,255,.9);
+        }
+
+    .hc5-stats {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .hc5-stat {
+        flex: 1;
+        min-width: 44px;
+        text-align: center;
+        padding: 5px 3px;
+        background: #f8fafc;
+        border-radius: 7px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .hc5-stat-n {
+        display: block;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1;
+    }
+
+    .hc5-stat-l {
+        display: block;
+        font-size: 9px;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        margin-top: 2px;
+    }
+
+    .hc5-stat-sal {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+    }
+
+    .hc5-tree {
+        padding: 12px;
+        overflow-x: auto;
+        flex: 1;
+    }
+
+    /* ══ MODALS ══ */
+    .ot-modal {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    }
+
+    .ot-modal-hdr {
+        background: linear-gradient(135deg,#1e3a5f,#2563eb);
+        border-bottom: none;
+        padding: 18px 24px;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .ot-modal-body {
+        background: #fff;
+        color: #0f172a;
+        padding: 22px;
+        max-height: 72vh;
+        overflow-y: auto;
+    }
+
+    .ot-modal-ftr {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        padding: 12px 22px;
+        border-radius: 0 0 16px 16px;
+    }
+
+    .ip-header {
+        display: flex;
+        align-items: center;
+        padding: 11px 15px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+
+    .ip-owner-h {
+        background: #fef9c3;
+        color: #d97706;
+    }
+
+    .ip-hod {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .ip-dept-h {
+        background: #bbf7d0;
+        color: #15803d;
+    }
+
+    .ip-sd-h {
+        background: #fde68a;
+        color: #b45309;
+    }
+
+    .ip-shod-h {
+        background: #ede9fe;
+        color: #7c3aed;
+    }
+
+    .ip-exec-h {
+        background: #cffafe;
+        color: #0e7490;
+    }
+
+    .ip-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .ip-table th, .ip-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        .ip-table th {
+            color: #64748b;
+            font-weight: 600;
+            width: 42%;
+            background: #f8fafc;
+        }
+
+        .ip-table td {
+            color: #0f172a;
+        }
+
+    .ip-sal {
+        color: #059669;
+        font-weight: 700;
+    }
+
+    .stat-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .stat-table thead th {
+            background: #f8fafc;
+            padding: 10px 13px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-align: left;
+            border-bottom: 1.5px solid #e2e8f0;
+        }
+
+        .stat-table tbody td {
+            padding: 10px 13px;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #0f172a;
+            vertical-align: middle;
+        }
+
+        .stat-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+    .stat-pill {
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .cmp-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 16px;
+        align-items: start;
+        margin-bottom: 22px;
+    }
+
+    .cc-card {
+        border-radius: 14px;
+        padding: 20px 16px;
+        text-align: center;
+        border: 1.5px solid;
+    }
+
+    .cc-blue {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    .cc-amber {
+        background: #fef9c3;
+        border-color: #fde68a;
+    }
+
+    .cc-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        font-weight: 800;
+        margin: 0 auto 9px;
+        border: 2px solid;
+    }
+
+    .cc-role {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+
+    .cc-name {
+        font-size: 14px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 3px;
+    }
+
+    .vs-div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .vs-div span {
+            font-size: 15px;
+            font-weight: 900;
+            color: #94a3b8;
+            background: #f1f5f9;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+    .cmp-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .cmp-table thead th {
+            background: #f8fafc;
+            padding: 10px 13px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-align: left;
+            border-bottom: 1.5px solid #e2e8f0;
+        }
+
+        .cmp-table tbody td {
+            padding: 10px 13px;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+            color: #0f172a;
+        }
+
+    .cf-label {
+        color: #64748b;
+        font-weight: 700;
+        font-size: 12px;
+    }
+
+    .cf-eq {
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: #bbf7d0;
+        color: #15803d;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .cf-diff {
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: #fde68a;
+        color: #b45309;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+    @@media print {
+        .eh-header, .nc-info-btn, .nc-expand-btn, .eh-tabs, .v1-legend, #infoModal, #compareModal, #statModal {
+            display: none !important;
+        }
+
+        .eh-root {
+            background: #fff !important;
+        }
+
+        .node-card {
+            box-shadow: none !important;
+        }
+
+        .v1-svg {
+            display: none !important;
+        }
+
+        .v1-outer {
+            overflow: visible !important;
+        }
+    }
+
+    @@media(max-width:1200px) {
+        .hc5-grid {
+            grid-template-columns: repeat(2,1fr);
+        }
+    }
+
+    @@media(max-width:768px) {
+        .eh-header {
+            height: auto;
+            padding: 12px 16px;
+            gap: 10px;
+        }
+
+        .eh-sw {
+            order: 3;
+            max-width: 100%;
+            flex: 100%;
+        }
+
+        .eh-view, .eh-stats, .eh-tabs {
+            margin-left: 14px !important;
+            margin-right: 14px !important;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .hc5-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hc-grid {
+            grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+        }
+
+        .cmp-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .children-row > .branch {
+            padding: 0 5px;
+        }
+
+        .v1-canvas {
+            padding: 28px 16px;
+        }
+
+        .tr-children {
+            margin-left: 16px;
+            padding-left: 16px;
+        }
+
+        .tr-line-h {
+            left: -16px;
+            width: 16px;
+        }
+
+        .tr-item:last-child::after {
+            left: -18.5px;
+        }
+
+        .sel-bar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .sb-dd-menu {
+            width: calc(100vw - 60px);
+            max-width: 340px;
+        }
+    }
+</style>
+
+@section Scripts {
+    <script>
+            /* ═══════════════════════════════════════════════════════════════
+               EMPLOYEE HIERARCHY — 3 CHANGES APPLIED:
+                 CHANGE #1: Checkbox / compare feature REMOVED from V1 tree
+                 CHANGE #2: Drag-to-pan on #v1Outer (no scrollbar needed)
+                 CHANGE #3: Search nav collapses ALL nodes, expands only path
+            ═══════════════════════════════════════════════════════════════ */
+
+            var SHOW_SAL_PERM = @(canViewSalary ? "true" : "false");
+            var OWNER_NAME    = "@(ViewBag.OwnerName ?? "Director")";
+            var RAW_DATA      = [];
+            var SUMMARY_COUNTS = {
+                hodCount: @(Model?.TotalHODs ?? 0),
+                subHodCount: @(Model?.TotalSubHODs ?? 0),
+                execCount: @(Model?.TotalExecutives ?? 0),
+                totalEmployees: @(Model?.TotalEmployees ?? 0)
+            };
+            var SHOW_SAL      = false;
+            var ACTIVE_TAB    = 'v1';
+            var SAL_AFTER_OPEN= false;
+
+            var HOD_COLORS = [
+                {bg:'#dbeafe',border:'#2563eb',text:'#1e3a8a',badge:'#1d4ed8',light:'#eff6ff'},
+                {bg:'#fde68a',border:'#d97706',text:'#78350f',badge:'#b45309',light:'#fffbeb'},
+                {bg:'#a7f3d0',border:'#059669',text:'#064e3b',badge:'#047857',light:'#ecfdf5'},
+                {bg:'#fecdd3',border:'#e11d48',text:'#881337',badge:'#be123c',light:'#fff1f2'},
+                {bg:'#e9d5ff',border:'#9333ea',text:'#581c87',badge:'#7c3aed',light:'#faf5ff'},
+                {bg:'#fecaca',border:'#dc2626',text:'#7f1d1d',badge:'#b91c1c',light:'#fef2f2'},
+                {bg:'#bae6fd',border:'#0284c7',text:'#0c4a6e',badge:'#0369a1',light:'#f0f9ff'},
+                {bg:'#fef08a',border:'#ca8a04',text:'#713f12',badge:'#a16207',light:'#fefce8'},
+                {bg:'#c7d2fe',border:'#4f46e5',text:'#312e81',badge:'#4338ca',light:'#eef2ff'},
+                {bg:'#fbcfe8',border:'#db2777',text:'#831843',badge:'#be185d',light:'#fdf2f8'},
+                {bg:'#99f6e4',border:'#0d9488',text:'#134e4a',badge:'#0f766e',light:'#f0fdfa'},
+                {bg:'#fed7aa',border:'#ea580c',text:'#7c2d12',badge:'#c2410c',light:'#fff7ed'}
+            ];
+            var DEPT_COLORS = [
+                {bg:'#bfdbfe',border:'#2563eb',text:'#1e3a8a',badge:'#1d4ed8'},
+                {bg:'#a7f3d0',border:'#059669',text:'#064e3b',badge:'#047857'},
+                {bg:'#fde68a',border:'#d97706',text:'#78350f',badge:'#b45309'},
+                {bg:'#fecdd3',border:'#e11d48',text:'#881337',badge:'#be123c'},
+                {bg:'#ddd6fe',border:'#7c3aed',text:'#4c1d95',badge:'#6d28d9'},
+                {bg:'#fed7aa',border:'#ea580c',text:'#7c2d12',badge:'#c2410c'}
+            ];
+
+            var bsInfoModal, bsCmpModal, bsStatModal, bsSalModal;
+
+            $(document).ready(function(){
+                bsInfoModal = new bootstrap.Modal('#infoModal');
+                bsCmpModal  = new bootstrap.Modal('#compareModal');
+                bsStatModal = new bootstrap.Modal('#statModal');
+                bsSalModal  = null;
+
+                $(document).on('keydown', function(e){
+                    if((e.ctrlKey||e.metaKey) && e.key==='k'){ e.preventDefault(); $('#ehSearch').focus(); }
+                    if(e.key==='Escape'){ $('#searchDrop').hide(); v2_closeFd(); v2_closeSalFd(); v5_closeDd(); }
+                });
+                $(document).on('click', function(e){
+                    if(!$(e.target).closest('.eh-sw').length) $('#searchDrop').hide();
+                    if(!$(e.target).closest('#v5DdWrap').length) v5_closeDd();
+                });
+                $(window).on('resize', function(){ if(ACTIVE_TAB==='v1') v1_drawLines(); });
+
+                /* CHANGE #2: initialise drag-to-pan */
+                v1_initDragPan();
+                loadData();
+            });
+
+            /* ══════════════════════════════════════════════════════════
+               CHANGE #2 — DRAG-TO-PAN
+               We set overflow:hidden on #v1Outer and manually track
+               scrollLeft / scrollTop via mouse and touch events.
+               Clicks on .nc-expand-btn and .nc-info-btn are excluded
+               so they still fire normally.
+            ══════════════════════════════════════════════════════════ */
+            var _pan = { active:false, startX:0, startY:0, scrollX:0, scrollY:0, moved:false };
+
+            function v1_initDragPan(){
+                var el = document.getElementById('v1Outer');
+                if(!el) return;
+
+                /* ── Mouse ── */
+                el.addEventListener('mousedown', function(e){
+                    if(e.button !== 0) return;
+                    // let button clicks through
+                    if(e.target.closest('.nc-expand-btn, .nc-info-btn, button, a')) return;
+                    _pan.active  = true;
+                    _pan.moved   = false;
+                    _pan.startX  = e.clientX;
+                    _pan.startY  = e.clientY;
+                    _pan.scrollX = el.scrollLeft;
+                    _pan.scrollY = el.scrollTop;
+                    el.classList.add('is-dragging');
+                    e.preventDefault();
+                });
+
+                window.addEventListener('mousemove', function(e){
+                    if(!_pan.active) return;
+                    var dx = e.clientX - _pan.startX;
+                    var dy = e.clientY - _pan.startY;
+                    if(Math.abs(dx)>3 || Math.abs(dy)>3) _pan.moved = true;
+                    el.scrollLeft = _pan.scrollX - dx;
+                    el.scrollTop  = _pan.scrollY - dy;
+                    v1_drawLines();
+                });
+
+                window.addEventListener('mouseup', function(){
+                    if(!_pan.active) return;
+                    _pan.active = false;
+                    el.classList.remove('is-dragging');
+                });
+
+                /* ── Touch ── */
+                el.addEventListener('touchstart', function(e){
+                    if(e.touches.length !== 1) return;
+                    var t = e.touches[0];
+                    _pan.active  = true;
+                    _pan.moved   = false;
+                    _pan.startX  = t.clientX;
+                    _pan.startY  = t.clientY;
+                    _pan.scrollX = el.scrollLeft;
+                    _pan.scrollY = el.scrollTop;
+                }, {passive:true});
+
+                el.addEventListener('touchmove', function(e){
+                    if(!_pan.active || e.touches.length!==1) return;
+                    var t  = e.touches[0];
+                    var dx = t.clientX - _pan.startX;
+                    var dy = t.clientY - _pan.startY;
+                    if(Math.abs(dx)>3 || Math.abs(dy)>3) _pan.moved = true;
+                    el.scrollLeft = _pan.scrollX - dx;
+                    el.scrollTop  = _pan.scrollY - dy;
+                    v1_drawLines();
+                    e.preventDefault();
+                }, {passive:false});
+
+                el.addEventListener('touchend', function(){ _pan.active = false; });
+            }
+
+            /* ══ DATA LOADING ══ */
+            function loadData(){
+                $.get('/api/Hierarchy/GetHierarchyTree', function(r){
+                    if(r.success && r.data && r.data.length){
+                        RAW_DATA = normalizeData(r.data);
+                        updateStatCards();
+                        buildChips_V5();
+                        loadOrphans();
+                        $('#ehLoading').fadeOut(200);
+                        $('#ehStats,#ehTabs').fadeIn(300);
+                        switchTab('v1');
+                    } else {
+                        $('#ehLoading').html('<div class="ld-err"><i class="bi bi-exclamation-triangle me-2"></i>No data found</div>');
+                    }
+                }).fail(function(){
+                    $('#ehLoading').html('<div class="ld-err"><i class="bi bi-x-circle me-2"></i>Error loading. Please refresh.</div>');
+                });
+            }
+
+            /* ══ ORPHAN EMPLOYEES ══ */
+            var ORPHAN_DATA = [];
+
+            function loadOrphans(){
+                console.log('[Orphan] Fetching orphan employees...');
+                $.get('/api/Hierarchy/GetOrphanEmployees')
+                .done(function(r){
+                    console.log('[Orphan] API response:', r);
+                    if(r.success && r.data && r.data.length){
+                        ORPHAN_DATA = r.data;
+                        console.log('[Orphan] Found ' + r.data.length + ' orphan employees');
+                        document.getElementById('orphanCount').textContent = r.data.length;
+                        document.getElementById('orphanToggle').style.display = 'block';
+                        renderOrphans();
+                        // Auto-open panel when orphans found
+                        document.getElementById('orphanPanel').classList.add('show');
+                    } else {
+                        console.log('[Orphan] No orphans found or API error:', r.message || '');
+                        ORPHAN_DATA = [];
+                        document.getElementById('orphanToggle').style.display = 'none';
+                        document.getElementById('orphanPanel').classList.remove('show');
+                    }
+                })
+                .fail(function(xhr, status, err){
+                    console.error('[Orphan] API call failed:', status, err);
+                });
+            }
+
+            function renderOrphans(){
+                var h = '';
+                ORPHAN_DATA.forEach(function(o){
+                    var roleClass = o.roleTypeId === 2 ? 'subhod' : 'exec';
+                    var roleName = o.roleTypeId === 2 ? 'Sub-HOD' : 'Executive';
+                    var isTemp = o.employeeCode && o.employeeCode.toUpperCase().startsWith('TEMP');
+                    var codeStyle = isTemp ? 'color:#dc2626;font-weight:700' : '';
+                    h += '<div class="orphan-card">';
+                    h += '<div class="orphan-name">' + esc(o.employeeName) + '</div>';
+                    h += '<span class="orphan-code" style="' + codeStyle + '">' + esc(o.employeeCode || '') + '</span>';
+                    h += '<span class="orphan-role ' + roleClass + '">' + roleName + '</span>';
+                    var meta = [];
+                    if(o.departmentName) meta.push(o.departmentName);
+                    if(o.subDepartmentName) meta.push(o.subDepartmentName);
+                    if(o.designation) meta.push(o.designation);
+                    if(meta.length) h += '<div class="orphan-meta">' + esc(meta.join(' · ')) + '</div>';
+                    h += '</div>';
+                });
+                document.getElementById('orphanList').innerHTML = h || '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px">No orphan employees</div>';
+            }
+
+            function toggleOrphanPanel(){
+                var panel = document.getElementById('orphanPanel');
+                panel.classList.toggle('show');
+            }
+
+            function getPersonKey(role, name, code){
+                var cleanCode = (code || '').toString().trim().toUpperCase();
+                if(cleanCode) return role + '|' + cleanCode;
+
+                var cleanName = (name || '').toString().trim().toLowerCase();
+                return cleanName ? role + '|' + cleanName : '';
+            }
+
+            function countUniquePeople(items, role){
+                var seen = {}, count = 0;
+                (items || []).forEach(function(item){
+                    var key = getPersonKey(role, item && item.name, item && item.code);
+                    if(key && !seen[key]){
+                        seen[key] = 1;
+                        count++;
+                    }
+                });
+                return count;
+            }
+
+            function getOrgEmployeeCounts(){
+                var hodSet={},shSet={},exSet={};
+                RAW_DATA.forEach(function(h){
+                    var hodKey=getPersonKey('hod',h.name,h.code);
+                    if(hodKey) hodSet[hodKey]=1;
+                    h.subs.forEach(function(s){
+                        (s.subHods||[]).forEach(function(sh){
+                            var shKey=getPersonKey('subhod',sh.name,sh.code);
+                            if(shKey) shSet[shKey]=1;
+                            (sh.execs||[]).forEach(function(e){
+                                var exKey=getPersonKey('exec',e.name,e.code);
+                                if(exKey) exSet[exKey]=1;
+                            });
+                        });
+                        (s.execs||[]).forEach(function(e){
+                            var exKey=getPersonKey('exec',e.name,e.code);
+                            if(exKey) exSet[exKey]=1;
+                        });
+                    });
+                });
+
+                return {
+                    hodCount: Object.keys(hodSet).length,
+                    subHodCount: Object.keys(shSet).length,
+                    execCount: Object.keys(exSet).length,
+                    totalEmployees: Object.keys(hodSet).length + Object.keys(shSet).length + Object.keys(exSet).length
+                };
+            }
+
+            function normalizeData(raw){
+                return raw.map(function(h, i){
+                    var deptSet = Object.create(null);
+                    if(h.departments && Array.isArray(h.departments)){
+                        h.departments.forEach(function(d){
+                            var deptName = d && d.departmentName ? d.departmentName.trim() : '';
+                            if(deptName) deptSet[deptName] = 1;
+                        });
+                    }
+                    var rawSubs = (h.subHODs||[]).map(function(s){
+                        return { sdName:s.subDepartmentName||'-', shName:s.employeeName||'-', shCode:s.employeeCode||'', shSal:s.salary||0, dept:s.departmentName||'',
+                            execs:(s.executives||[]).filter(function(e){return e&&e.employeeName;}).map(function(e){ return {name:e.employeeName,code:e.employeeCode||'',sal:e.salary||0}; }) };
+                    });
+                    var sdMap={}, sdOrder=[];
+                    rawSubs.forEach(function(s){
+                        var key=(s.dept||'')+'||'+s.sdName;
+                        if(!sdMap[key]){ sdMap[key]={idx:sdOrder.length,sdName:s.sdName,dept:s.dept,subHods:[],execs:[]}; sdOrder.push(key); }
+                        var entry=sdMap[key];
+                        if(s.shName&&s.shName!=='-'){
+                            var dup=entry.subHods.some(function(x){return(x.code&&x.code===s.shCode)||x.name===s.shName;});
+                            if(!dup) entry.subHods.push({name:s.shName,code:s.shCode,sal:s.shSal,execs:s.execs});
+                        } else {
+                            s.execs.forEach(function(e){ if(!entry.execs.some(function(x){return(x.code&&x.code===e.code)||x.name===e.name;})) entry.execs.push(e); });
+                        }
+                    });
+                    var subs=sdOrder.map(function(key){return sdMap[key];});
+                    subs.forEach(function(s){
+                        var deptName = (s.dept||'').trim();
+                        if(deptName && deptName !== '-') deptSet[deptName] = 1;
+                    });
+                    var deptNames = Object.keys(deptSet);
+                    if(!deptNames.length && (h.departmentCount||0)>0) deptNames.push('Department');
+                    var uniqueSubHods=[],uniqueExecs=[];
+                    subs.forEach(function(s){
+                        (s.subHods||[]).forEach(function(sh){
+                            uniqueSubHods.push({name:sh.name,code:sh.code});
+                            (sh.execs||[]).forEach(function(e){ uniqueExecs.push({name:e.name,code:e.code}); });
+                        });
+                        (s.execs||[]).forEach(function(e){ uniqueExecs.push({name:e.name,code:e.code}); });
+                    });
+                    var subhodCount=countUniquePeople(uniqueSubHods,'subhod'), execCount=countUniquePeople(uniqueExecs,'exec');
+                    return { id:'hod-'+i, idx:i, name:h.employeeName||'-', code:h.employeeCode||'', sal:h.salary||0, depts:deptNames, deptCount:h.departmentCount||deptNames.length||0, subs:subs, color:HOD_COLORS[i%HOD_COLORS.length], subhodCount:subhodCount, execCount:execCount, totalTeam:subhodCount+execCount };
+                });
+            }
+
+            /* ══ STAT CARDS ══ */
+            function updateStatCards(){
+                // Compute all counts from RAW_DATA so header, HOD card and tree are always consistent.
+                var counts=getOrgEmployeeCounts(),dSet={},sdSet={};
+                RAW_DATA.forEach(function(h){
+                    h.depts.forEach(function(d){dSet[d]=1;});
+                    h.subs.forEach(function(s){
+                        sdSet[h.name+'||'+s.sdName]=1;
+                    });
+                });
+                animCount('escHod',counts.hodCount); animCount('escDept',Object.keys(dSet).length); animCount('escSD',Object.keys(sdSet).length); animCount('escSH',counts.subHodCount); animCount('escEx',counts.execCount); animCount('escTeam',counts.totalEmployees);
+            }
+            function animCount(id,target){ var el=document.getElementById(id);if(!el)return;var t0=null;(function step(ts){if(!t0)t0=ts;var p=Math.min((ts-t0)/900,1),e=1-Math.pow(1-p,3);el.textContent=Math.round(e*target).toLocaleString('en-IN');if(p<1)requestAnimationFrame(step);})(performance.now()); }
+            /* ══ TAB SWITCHING ══ */
+            function switchTab(id){
+                if(!RAW_DATA.length)return;
+                ACTIVE_TAB=id;
+                $('#searchDrop,#v2FdMenu,#v2FdOverlay,#v2SalFd,#v5DdMenu').hide();
+                if(id==='v2'){
+                    v2_state={};
+                }
+                if(id==='v4'){
+                    v4_selIdx=null;
+                    v4_treeState={};
+                }
+                document.querySelectorAll('.eh-tab').forEach(function(t){t.classList.toggle('on',t.getAttribute('data-tab')===id);});
+                document.querySelectorAll('.eh-view').forEach(function(v){v.style.display='none';});
+                document.getElementById('tab'+id.toUpperCase()).style.display='';
+                if(id==='v1')v1_render();else if(id==='v2')v2_init();else if(id==='v3')v3_render();else if(id==='v4')v4_renderCards();else if(id==='v5')v5_render();
+                requestAnimationFrame(function(){
+                    if(id==='v1'){
+                        setTimeout(v1_drawLines, 80);
+                        if(document.fonts && document.fonts.ready){
+                            document.fonts.ready.then(function(){ if(ACTIVE_TAB==='v1') v1_drawLines(); });
+                        }
+                    }
+                });
+            }
+            function rerender(){ switchTab(ACTIVE_TAB); }
+
+            /* ══════════════════════════════════════════════════════════
+               SEARCH  (CHANGE #3)
+               When a result is clicked:
+                1. Reset v1_exp = {}  → collapse everything
+                2. expandPathTo(nodeId) → open only the needed parents
+                3. Render → the tree shows only the found node's chain
+                4. Scroll into view and flash the node
+            ══════════════════════════════════════════════════════════ */
+            var S_CMAP={hod:'#1d4ed8',dept:'#15803d',subdept:'#b45309',subhod:'#7c3aed',exec:'#0e7490'};
+            var S_IMAP={hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill'};
+
+            function ehSearchHandle(val){
+                var q=(val||'').trim().toLowerCase();
+                if(!q){$('#searchDrop').hide();return;}
+                var res=[];
+                RAW_DATA.forEach(function(hod){
+                    if(hod.name.toLowerCase().indexOf(q)>-1) res.push({type:'hod',id:hod.id,name:hod.name,detail:'HOD · '+hod.depts.join(', ')});
+                    hod.depts.forEach(function(d,di){if(d.toLowerCase().indexOf(q)>-1)res.push({type:'dept',id:'dept-'+hod.idx+'-'+di,name:d,detail:'HOD: '+hod.name});});
+                    hod.subs.forEach(function(s,si){
+                        if(s.sdName!=='-'&&s.sdName.toLowerCase().indexOf(q)>-1)res.push({type:'subdept',id:'sd-'+hod.idx+'-'+si,name:s.sdName,detail:hod.name+' › '+(s.dept||hod.depts[0]||'')});
+                        (s.subHods||[]).forEach(function(sh,shi){
+                            if(sh.name.toLowerCase().indexOf(q)>-1)res.push({type:'subhod',id:'sh-'+hod.idx+'-'+si+'-'+shi,name:sh.name,detail:s.sdName+' · '+hod.name});
+                            (sh.execs||[]).forEach(function(ex,ei){if(ex.name.toLowerCase().indexOf(q)>-1)res.push({type:'exec',id:'ex-'+hod.idx+'-'+si+'-'+shi+'-'+ei,name:ex.name,detail:sh.name+' · '+s.sdName});});
+                        });
+                        (s.execs||[]).forEach(function(ex,ei){if(ex.name.toLowerCase().indexOf(q)>-1)res.push({type:'exec',id:'exd-'+hod.idx+'-'+si+'-'+ei,name:ex.name,detail:s.sdName+' (direct)'});});
+                    });
+                });
+                if(!res.length){$('#searchDrop').html('<div class="sd-empty"><i class="bi bi-search me-2"></i>No results</div>').show();return;}
+                var h='';
+                res.slice(0,8).forEach(function(r){
+                    h+='<div class="sd-item" onclick="ehNavTo(\''+r.id+'\',\''+r.type+'\')">';
+                    h+='<div class="sd-ico" style="background:'+S_CMAP[r.type]+'18;color:'+S_CMAP[r.type]+'"><i class="bi bi-'+S_IMAP[r.type]+'"></i></div>';
+                    h+='<div><div class="sd-name">'+esc(r.name)+'</div><div class="sd-detail"><span class="sd-type" style="background:'+S_CMAP[r.type]+'18;color:'+S_CMAP[r.type]+'">'+r.type+'</span> '+esc(r.detail)+'</div></div></div>';
+                });
+                $('#searchDrop').html(h).show();
+            }
+
+            function ehNavTo(nodeId, type){
+                $('#ehSearch').val(''); $('#searchDrop').hide();
+                switchTab('v1');
+
+                /* CHANGE #3 — collapse ALL, then expand only the found path */
+                v1_exp = {};
+                v1_expandPathTo(nodeId);
+
+                v1_render();
+                setTimeout(function(){
+                    var $c = $('.node-card[data-node-id="'+nodeId+'"]');
+                    if($c.length){
+                        /* Centre the card inside the pannable container */
+                        var outer    = document.getElementById('v1Outer');
+                        var cardEl   = $c[0];
+                        var outerRect = outer.getBoundingClientRect();
+                        var cardRect  = cardEl.getBoundingClientRect();
+                        outer.scrollLeft += (cardRect.left - outerRect.left) - (outerRect.width  / 2) + (cardRect.width  / 2);
+                        outer.scrollTop  += (cardRect.top  - outerRect.top)  - (outerRect.height / 2) + (cardRect.height / 2);
+                        v1_drawLines();
+                        $c.addClass('hl-found');
+                        setTimeout(function(){ $c.removeClass('hl-found'); }, 3500);
+                    }
+                }, 260);
+            }
+
+            /* ══════════════════════════════════════════════
+               VIEW 1 — ORG TREE
+            ══════════════════════════════════════════════ */
+            var v1_exp = {};
+
+            function v1_getDescendants(nodeId){
+                var desc=[], p=nodeId.split('-');
+                if(nodeId==='owner'){ RAW_DATA.forEach(function(h){ desc.push(h.id); h.depts.forEach(function(d,di){desc.push('dept-'+h.idx+'-'+di);}); h.subs.forEach(function(s){desc.push('sd-'+h.idx+'-'+s.idx);(s.subHods||[]).forEach(function(sh,shi){desc.push('sh-'+h.idx+'-'+s.idx+'-'+shi);});}); }); }
+                else if(p[0]==='hod'){ var h=RAW_DATA[+p[1]];if(!h)return desc;h.depts.forEach(function(d,di){desc.push('dept-'+h.idx+'-'+di);});h.subs.forEach(function(s){desc.push('sd-'+h.idx+'-'+s.idx);(s.subHods||[]).forEach(function(sh,shi){desc.push('sh-'+h.idx+'-'+s.idx+'-'+shi);});}); }
+                else if(p[0]==='dept'){ var h=RAW_DATA[+p[1]];if(!h)return desc;var dName=h.depts[+p[2]];h.subs.filter(function(s){return s.dept===dName||(s.dept===''&&dName===h.depts[0]);}).forEach(function(s){desc.push('sd-'+h.idx+'-'+s.idx);(s.subHods||[]).forEach(function(sh,shi){desc.push('sh-'+h.idx+'-'+s.idx+'-'+shi);});}); }
+                else if(p[0]==='sd'){ var h=RAW_DATA[+p[1]];if(!h)return desc;var s=h.subs[+p[2]];if(!s)return desc;(s.subHods||[]).forEach(function(sh,shi){desc.push('sh-'+h.idx+'-'+s.idx+'-'+shi);}); }
+                return desc;
+            }
+
+            function v1_toggle(id){
+                if(v1_exp[id]){ v1_exp[id]=false; v1_getDescendants(id).forEach(function(d){delete v1_exp[d];}); }
+                else { v1_exp[id]=true; }
+                v1_rerender();
+            }
+
+            function v1_render(){ document.getElementById('v1Canvas').innerHTML=v1_buildOwner(); requestAnimationFrame(function(){requestAnimationFrame(v1_drawLines);}); }
+            function v1_rerender(){ var el=document.getElementById('v1Outer');var sL=el?el.scrollLeft:0,sT=el?el.scrollTop:0;v1_render();if(el){el.scrollLeft=sL;el.scrollTop=sT;} }
+
+            function v1_buildOwner(){
+                var counts=getOrgEmployeeCounts();
+                var h='<div class="branch" data-node-id="owner" data-parent-id="">';
+                h+=v1_card({id:'owner',type:'owner',name:OWNER_NAME,c:'#d97706',stats:[{ic:'bi-person-badge-fill',v:counts.hodCount,lb:'HODs'},{ic:'bi-people-fill',v:counts.totalEmployees,lb:'Employees'}],sal:null,hasKids:true,alwaysExp:true});
+                if(RAW_DATA.length){h+='<div class="children-row">';RAW_DATA.forEach(function(hod){h+=v1_buildHod(hod);});h+='</div>';}
+                return h+'</div>';
+            }
+            function v1_buildHod(hod){
+                // Compute team count live (same deduplication as getOrgEmployeeCounts)
+                // so HOD card is always consistent with the header stat cards.
+                var shSet={},exSet={};
+                hod.subs.forEach(function(s){
+                    (s.subHods||[]).forEach(function(sh){
+                        var k=getPersonKey('subhod',sh.name,sh.code);if(k)shSet[k]=1;
+                        (sh.execs||[]).forEach(function(e){var ek=getPersonKey('exec',e.name,e.code);if(ek)exSet[ek]=1;});
+                    });
+                    (s.execs||[]).forEach(function(e){var ek=getPersonKey('exec',e.name,e.code);if(ek)exSet[ek]=1;});
+                });
+                var team=Object.keys(shSet).length+Object.keys(exSet).length;
+                var isExp=!!v1_exp[hod.id];var h='<div class="branch" data-node-id="'+hod.id+'" data-parent-id="owner">';
+                h+=v1_card({id:hod.id,type:'hod',name:hod.name,c:hod.color.badge,stats:[{ic:'bi-building',v:hod.depts.length,lb:'Depts'},{ic:'bi-people',v:team,lb:'Team'}],sal:SHOW_SAL?hod.sal:null,hasKids:hod.depts.length>0});
+                if(isExp&&hod.depts.length){h+='<div class="children-row">';hod.depts.forEach(function(d,di){h+=v1_buildDept(hod,d,di);});h+='</div>';}
+                return h+'</div>';
+            }
+            function v1_buildDept(hod,dName,di){ var nid='dept-'+hod.idx+'-'+di,isExp=!!v1_exp[nid];var subs=hod.subs.filter(function(s){return s.dept===dName||(s.dept===''&&di===0);});var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+hod.id+'">';h+=v1_card({id:nid,type:'dept',name:dName,c:hod.color.badge,stats:[{ic:'bi-buildings',v:subs.length,lb:'Sub-Depts'}],sal:null,hasKids:subs.length>0});if(isExp&&subs.length){h+='<div class="children-row">';subs.forEach(function(s){h+=v1_buildSD(hod,s,nid);});h+='</div>';}return h+'</div>'; }
+            function v1_buildSD(hod,s,parId){ var nid='sd-'+hod.idx+'-'+s.idx,isExp=!!v1_exp[nid];var hasSubHods=(s.subHods&&s.subHods.length>0),hasDirectEx=s.execs.length>0,hasKids=hasSubHods||hasDirectEx;var totalEx=(hasSubHods?s.subHods.reduce(function(a,sh){return a+sh.execs.length;},0):0)+s.execs.length;var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">';h+=v1_card({id:nid,type:'subdept',name:s.sdName,c:hod.color.badge,stats:[{ic:'bi-person-badge',v:s.subHods?s.subHods.length:0,lb:'Sub-HOD'},{ic:'bi-person',v:totalEx,lb:'Execs'}],sal:null,hasKids:hasKids});if(isExp&&hasKids){h+='<div class="children-row">';if(hasSubHods){s.subHods.forEach(function(sh,shi){h+=v1_buildSH(hod,s,sh,shi,nid);});}if(hasDirectEx){s.execs.forEach(function(ex,ei){h+=v1_buildEx(hod,s,ex,ei,nid,null);});}if(!hasSubHods&&!hasDirectEx){}h+='</div>';}return h+'</div>'; }
+            function v1_buildSH(hod,s,sh,shi,parId){ var nid='sh-'+hod.idx+'-'+s.idx+'-'+shi,isExp=!!v1_exp[nid];var shExecs=sh.execs||[];var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">';h+=v1_card({id:nid,type:'subhod',name:sh.name,c:hod.color.badge,stats:[{ic:'bi-people',v:shExecs.length,lb:'Execs'}],sal:SHOW_SAL?sh.sal:null,hasKids:shExecs.length>0});if(isExp&&shExecs.length){h+='<div class="children-row">';shExecs.forEach(function(ex,ei){h+=v1_buildEx(hod,s,ex,ei,nid,shi);});h+='</div>';}return h+'</div>'; }
+            function v1_buildEx(hod,s,ex,ei,parId,shi){ var nid=shi!==null?'ex-'+hod.idx+'-'+s.idx+'-'+shi+'-'+ei:'exd-'+hod.idx+'-'+s.idx+'-'+ei;return '<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">'+v1_card({id:nid,type:'exec',name:ex.name,c:hod.color.badge,stats:[],sal:SHOW_SAL?ex.sal:null,hasKids:false})+'</div>'; }
+
+            /* CHANGE #1: nc-chk input and compare logic REMOVED from v1_card */
+            function v1_card(n){
+                var isExp=!!v1_exp[n.id];
+                var h='<div class="node-card nc-'+n.type+'" data-node-id="'+n.id+'" style="--nc:'+n.c+'" ondblclick="v1_info(\''+n.id+'\')">';
+                h+='<button class="nc-info-btn" onclick="event.stopPropagation();v1_info(\''+n.id+'\')"><i class="bi bi-info-circle-fill"></i></button>';
+                h+='<div class="nc-card-inner"><div class="nc-name">'+esc(n.name)+'</div>';
+                if(n.stats&&n.stats.length){ h+='<div class="nc-stats">'; n.stats.forEach(function(s,i){ if(i)h+='<span class="nc-div"></span>'; h+='<span class="nc-stat"><i class="bi '+s.ic+'"></i>&thinsp;<strong>'+s.v+'</strong>&thinsp;<span>'+s.lb+'</span></span>'; }); h+='</div>'; }
+                if(n.sal!==null&&n.sal!==undefined&&Number(n.sal)>0) h+='<div class="nc-sal">₹'+fmtN(n.sal)+'</div>';
+                h+='</div>';
+                if(n.hasKids&&!n.alwaysExp){
+                    h+='<button class="nc-expand-btn'+(isExp?' nc-exp':'')+'" onclick="event.stopPropagation();v1_toggle(\''+n.id+'\')">';
+                    h+='<i class="bi bi-chevron-'+(isExp?'up':'down')+' me-1"></i>'+(isExp?'Collapse':'Expand');
+                    h+='</button>';
+                }
+                return h+'</div>';
+            }
+
+            function v1_expandAll(){ RAW_DATA.forEach(function(hod){ v1_exp[hod.id]=true; hod.depts.forEach(function(d,di){v1_exp['dept-'+hod.idx+'-'+di]=true;}); hod.subs.forEach(function(s,si){v1_exp['sd-'+hod.idx+'-'+s.idx]=true;(s.subHods||[]).forEach(function(sh,shi){v1_exp['sh-'+hod.idx+'-'+s.idx+'-'+shi]=true;});}); }); v1_rerender(); }
+            function v1_collapseAll(){ v1_exp={}; v1_rerender(); }
+
+            function v1_expandPathTo(nodeId){
+                var p=nodeId.split('-');
+                if(p[0]==='hod') v1_exp['hod-'+p[1]]=true;
+                else if(p[0]==='dept'){ v1_exp['hod-'+p[1]]=true; v1_exp[nodeId]=true; }
+                else if(p[0]==='sd'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true; }
+                else if(p[0]==='sh'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true;v1_exp['sd-'+p[1]+'-'+p[2]]=true; }
+                else if(p[0]==='ex'||p[0]==='exd'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true;v1_exp['sd-'+p[1]+'-'+p[2]]=true;if(p[0]==='ex')v1_exp['sh-'+p[1]+'-'+p[2]+'-'+p[3]]=true; }
+            }
+
+            /* SVG CONNECTOR LINES */
+            function v1_drawLines(){
+                var outer=document.getElementById('v1Outer'),canvas=document.getElementById('v1Canvas'),svg=document.getElementById('v1Svg');
+                if(!outer||!canvas||!svg)return;
+                svg.setAttribute('width',canvas.scrollWidth);svg.setAttribute('height',canvas.scrollHeight);svg.innerHTML='';
+                var oR=outer.getBoundingClientRect(),sL=outer.scrollLeft,sT=outer.scrollTop;
+                document.querySelectorAll('.children-row').forEach(function(row){ var children=row.querySelectorAll(':scope > .branch > .node-card');if(children.length<2)return;var first=children[0].getBoundingClientRect(),last=children[children.length-1].getBoundingClientRect();var y=first.top-oR.top+sT-22;var x1=first.left-oR.left+sL+first.width/2,x2=last.left-oR.left+sL+last.width/2;var line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',x1);line.setAttribute('y1',y);line.setAttribute('x2',x2);line.setAttribute('y2',y);line.setAttribute('stroke','rgba(100,116,139,.22)');line.setAttribute('stroke-width','1.5');svg.appendChild(line); });
+                document.querySelectorAll('.branch[data-parent-id]').forEach(function(branch){ var parId=branch.getAttribute('data-parent-id');if(!parId)return;var parBranch=document.querySelector('.branch[data-node-id="'+parId+'"]');if(!parBranch)return;var pCard=parBranch.querySelector(':scope > .node-card'),cCard=branch.querySelector(':scope > .node-card');if(!pCard||!cCard)return;var pr=pCard.getBoundingClientRect(),cr=cCard.getBoundingClientRect();var x1=pr.left-oR.left+sL+pr.width/2,y1=pr.top-oR.top+sT+pr.height;var x2=cr.left-oR.left+sL+cr.width/2,y2=cr.top-oR.top+sT;if(y2<y1+4)return;var midY=(y1+y2)/2;var isOwner=parId==='owner';var nc=getComputedStyle(cCard).getPropertyValue('--nc').trim()||'rgba(100,116,139,.4)';var stroke=isOwner?'rgba(217,119,6,.5)':nc+'90';var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M'+x1+','+y1+' C'+x1+','+midY+' '+x2+','+midY+' '+x2+','+y2);path.setAttribute('fill','none');path.setAttribute('stroke',stroke);path.setAttribute('stroke-width','2');svg.appendChild(path);var dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('cx',x2);dot.setAttribute('cy',y2);dot.setAttribute('r','3.5');dot.setAttribute('fill',isOwner?'#d97706':stroke);svg.appendChild(dot); });
+            }
+
+            /* INFO MODAL */
+            function v1_info(nodeId){ var n=getNodeData(nodeId);if(!n)return;var icons={owner:'award-fill',hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill'};var hdrCls={owner:'ip-owner-h',hod:'ip-hod',dept:'ip-dept-h',subdept:'ip-sd-h',subhod:'ip-shod-h',exec:'ip-exec-h'};var h='<div class="ip-header '+hdrCls[n.type]+'"><i class="bi bi-'+icons[n.type]+' me-2"></i>'+n.role+'</div><table class="ip-table">';var rows=[['Name','<strong style="font-size:15px">'+esc(n.name)+'</strong>']];if(n.code)rows.push(['Employee Code','<code>'+esc(n.code)+'</code>']);if(n.hod)rows.push(['HOD',esc(n.hod)]);if(n.dept)rows.push(['Department',esc(n.dept)]);if(n.subDept)rows.push(['Sub-Department',esc(n.subDept)]);if(n.subHod)rows.push(['Sub-HOD',esc(n.subHod)]);if(n.hodCount!==undefined)rows.push(['HODs','<strong>'+n.hodCount+'</strong>']);if(n.teamCount!==undefined)rows.push([n.type==='owner'?'Total Employees':'Team Size','<strong>'+n.teamCount+'</strong>']);if(n.deptCount!==undefined)rows.push(['Departments','<strong>'+n.deptCount+'</strong>']);if(n.subHodCount!==undefined)rows.push(['Sub-HODs','<strong>'+n.subHodCount+'</strong>']);if(n.subDeptCount!==undefined)rows.push(['Sub-Depts','<strong>'+n.subDeptCount+'</strong>']);if(n.execCount!==undefined)rows.push(['Executives','<strong>'+n.execCount+'</strong>']);if(n.sal&&SHOW_SAL)rows.push(['Salary','<span class="ip-sal">₹'+fmtN(n.sal)+'</span>']);rows.forEach(function(r){h+='<tr><th>'+r[0]+'</th><td>'+r[1]+'</td></tr>';});h+='</table>';document.getElementById('infoModalTitle').innerHTML='<i class="bi bi-'+icons[n.type]+' me-2"></i>'+esc(n.name);document.getElementById('infoModalBody').innerHTML=h;bsInfoModal.show(); }
+
+            /* ══ V2 — TABLE DRILL-DOWN ══ */
+            var v2_data=[],v2_filteredData=[],v2_state={};
+            var v2_colOrder  =['hod','dept','subdept','subhod','exec','total','totalsalary'];
+            var v2_colVisible={hod:1,dept:1,subdept:1,subhod:1,exec:1,total:1,totalsalary:0};
+            var v2_colLabel  ={hod:'HOD',dept:'Department',subdept:'Sub-Dept',subhod:'Sub-HOD',exec:'Executive',total:'Team Size',totalsalary:'Total Salary'};
+            var v2_colWidth  ={hod:180,dept:250,subdept:190,subhod:210,exec:300,total:120,totalsalary:170};
+            var v2_filters   ={hod:[],dept:[],subdept:[],subhod:[],exec:[],salary:null};
+            var v2_activeFdCol=null,v2_fdTemp={};
+
+            function v2_init(){ v2_data=RAW_DATA;if(!SHOW_SAL)v2_colVisible.totalsalary=0;v2_applyFilters();v2_renderToolbar();v2_render(); }
+            function v2_renderToolbar(){ var h='';v2_colOrder.forEach(function(c,i){if(c==='totalsalary'&&!SHOW_SAL)return;var lastIdx=SHOW_SAL?v2_colOrder.length-1:v2_colOrder.length-2;h+='<div class="col-tog"><button class="col-arr'+(i===0?' dis':'')+'" onclick="v2_moveCol(\''+c+'\',-1)">&larr;</button><label class="col-pill"><input type="checkbox" '+(v2_colVisible[c]?'checked':'')+' onchange="v2_togCol(\''+c+'\',this.checked)"><span>'+v2_colLabel[c]+'</span></label><button class="col-arr'+(i>=lastIdx?' dis':'')+'" onclick="v2_moveCol(\''+c+'\',1)">&rarr;</button></div>';});document.getElementById('v2ColToggles').innerHTML=h; }
+            function v2_moveCol(c,d){ var i=v2_colOrder.indexOf(c),j=i+d;if(j<0||j>=v2_colOrder.length)return;v2_colOrder[i]=v2_colOrder[j];v2_colOrder[j]=c;v2_renderToolbar();v2_render(); }
+            function v2_togCol(c,v){ v2_colVisible[c]=v?1:0;if(v2_getVisCols().length===0){v2_colVisible[c]=1;showAlert('warning','At least one column required.');}v2_render();v2_renderToolbar(); }
+            function v2_getVisCols(){ return v2_colOrder.filter(function(c){return v2_colVisible[c]&&(c!=='totalsalary'||SHOW_SAL);}); }
+            function v2_applyFilters(){ v2_filteredData=v2_data.filter(function(h){ if(v2_filters.hod.length&&v2_filters.hod.indexOf(h.name)===-1)return false;if(v2_filters.dept.length&&!h.depts.some(function(d){return v2_filters.dept.indexOf(d)>-1;}))return false;if(v2_filters.subdept.length&&!h.subs.some(function(s){return v2_filters.subdept.indexOf(s.sdName)>-1;}))return false;if(v2_filters.subhod.length){var hasSH=h.subs.some(function(s){return(s.subHods||[]).some(function(sh){var k=sh.code?(sh.name+' ('+sh.code+')'):sh.name;return v2_filters.subhod.indexOf(k)>-1;});});if(!hasSH)return false;}if(v2_filters.exec.length){var hasEx=h.subs.some(function(s){var fromSH=(s.subHods||[]).some(function(sh){return(sh.execs||[]).some(function(e){var k=e.code?(e.name+' ('+e.code+')'):e.name;return v2_filters.exec.indexOf(k)>-1;});});var fromDirect=(s.execs||[]).some(function(e){var k=e.code?(e.name+' ('+e.code+')'):e.name;return v2_filters.exec.indexOf(k)>-1;});return fromSH||fromDirect;});if(!hasEx)return false;}if(v2_filters.salary){var sv=v2_getSalForFilter(h,v2_filters.salary.target);if(!v2_matchSal(sv,v2_filters.salary))return false;}return true;}); }
+            function v2_getSalForFilter(h,t){ if(t==='hod')return Number(h.sal)||0;if(t==='subhod'){var s=0;h.subs.forEach(function(x){(x.subHods||[]).forEach(function(sh){s+=Number(sh.sal)||0;});});return s;}if(t==='exec'){var s=0;h.subs.forEach(function(x){(x.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){s+=Number(e.sal)||0;});});(x.execs||[]).forEach(function(e){s+=Number(e.sal)||0;});});return s;}var s=Number(h.sal)||0;h.subs.forEach(function(x){(x.subHods||[]).forEach(function(sh){s+=Number(sh.sal)||0;(sh.execs||[]).forEach(function(e){s+=Number(e.sal)||0;});});(x.execs||[]).forEach(function(e){s+=Number(e.sal)||0;});});return s; }
+            function v2_matchSal(val,f){ var v1=Number(f.value1)||0,v2b=Number(f.value2)||0;switch(f.condition){case'gte':return val>=v1;case'lte':return val<=v1;case'gt':return val>v1;case'lt':return val<v1;case'eq':return val===v1;case'between':return val>=v1&&val<=v2b;}return true; }
+            function v2_hasFilters(){return v2_filters.hod.length||v2_filters.dept.length||v2_filters.subdept.length||v2_filters.subhod.length||v2_filters.exec.length||v2_filters.salary!==null;}
+            function v2_clearFilters(){v2_filters={hod:[],dept:[],subdept:[],subhod:[],exec:[],salary:null};v2_applyFilters();v2_state={};v2_render();v2_renderFilterBar();}
+            function v2_removeFilter(col){if(col==='salary')v2_filters.salary=null;else v2_filters[col]=[];v2_applyFilters();v2_state={};v2_render();v2_renderFilterBar();}
+            function v2_renderFilterBar(){ if(!v2_hasFilters()){document.getElementById('v2FilterBar').style.display='none';return;}document.getElementById('v2FilterBar').style.display='';var chips='';['hod','dept','subdept','subhod','exec'].forEach(function(col){if(!v2_filters[col].length)return;var n=v2_filters[col].length,txt=n<=2?v2_filters[col].join(', '):n+' selected';chips+='<span class="filter-chip"><strong>'+v2_colLabel[col]+':</strong> '+esc(txt)+'<i class="bi bi-x-circle-fill fc-remove" onclick="v2_removeFilter(\''+col+'\')"></i></span>';});if(v2_filters.salary){var sf=v2_filters.salary;var condLbl={gte:'≥',lte:'≤',gt:'>',lt:'<',eq:'=',between:'between'}[sf.condition];var tLbl={total:'Total',hod:'HOD',subhod:'SubHOD',exec:'Exec'}[sf.target];var vTxt=sf.condition==='between'?'₹'+fmtN(sf.value1)+' - ₹'+fmtN(sf.value2):condLbl+' ₹'+fmtN(sf.value1);chips+='<span class="filter-chip" style="border-color:#34d399;background:#ecfdf5"><strong>'+tLbl+' Salary:</strong> '+vTxt+'<i class="bi bi-x-circle-fill fc-remove" onclick="v2_removeFilter(\'salary\')"></i></span>';}document.getElementById('v2FChips').innerHTML=chips; }
+            function v2_render(){ var vc=v2_getVisCols(),src=v2_filteredData;var cg='';vc.forEach(function(c){cg+='<col style="width:'+(v2_colWidth[c]||160)+'px">';});document.getElementById('v2ColGroup').innerHTML=cg;var th='<tr>';vc.forEach(function(c){var hasF=(c==='total'||c==='totalsalary')?v2_filters.salary!==null:(v2_filters[c]&&v2_filters[c].length>0);th+='<th><div class="th-content"><span>'+v2_colLabel[c]+'</span><button class="col-filter-btn'+(hasF?' active':'')+'" onclick="v2_openFd(\''+c+'\',this)"><i class="bi bi-'+(hasF?'funnel-fill':'funnel')+'"></i></button></div></th>';});th+='</tr>';document.getElementById('v2THead').innerHTML=th;if(!src.length){document.getElementById('v2TBody').innerHTML='<tr><td colspan="'+vc.length+'" style="padding:40px;text-align:center;color:#94a3b8">'+(v2_hasFilters()?'No data matching filters <button class="btn btn-link btn-sm" onclick="v2_clearFilters()">Clear</button>':'No data')+'</td></tr>';v2_renderFilterBar();return;}var tb='';src.forEach(function(h){var st=v2_state[h.idx]||{expanded:false,selDept:null,selSD:{}};tb+='<tr data-hod="'+h.idx+'">';vc.forEach(function(c){tb+=v2_renderCell(c,h,st);});tb+='</tr>';});document.getElementById('v2TBody').innerHTML=tb;v2_renderFilterBar(); }
+            function v2_renderCell(col,h,st){ switch(col){case'hod':return v2_cellHod(h,st);case'dept':return v2_cellDept(h,st);case'subdept':return v2_cellSD(h,st);case'subhod':return v2_cellSH(h,st);case'exec':return v2_cellEx(h,st);case'total':return v2_cellTotal(h);case'totalsalary':return v2_cellTotSal(h);}return'<td>-</td>'; }
+            function v2_cellHod(h,st){ var isAct=st.expanded||st.selDept||Object.keys(st.selSD||{}).length>0;var c=h.color;var style='background:'+c.bg+';border-color:'+(isAct?c.border:'#e2e8f0')+';'+(isAct?'box-shadow:0 2px 8px '+c.border+'30;':'');var r='<td><div class="cell" style="'+style+'"><div class="cell-row"><span class="cell-name" style="color:'+c.text+'" onclick="v2_clickHod('+h.idx+',event)">'+esc(h.name)+'</span><span class="cell-info-btn" onclick="v2_showHodInfo('+h.idx+',event)"><i class="bi bi-info-circle"></i></span><span class="cell-badge" style="background:'+c.badge+'" onclick="v2_clickHod('+h.idx+',event)">'+h.depts.length+'</span></div>';if(SHOW_SAL&&h.sal)r+='<div class="cell-sal">₹'+fmtN(h.sal)+'</div>';return r+'</div></td>'; }
+            function v2_cellDept(h,st){ if(!st.expanded&&!st.selDept){var c=h.color;return'<td><div class="cell cell-count-box" style="background:'+c.bg+';border-color:#e2e8f0" onclick="v2_clickHod('+h.idx+',event)"><span class="count-num" style="color:'+c.badge+'">'+(h.deptCount||h.depts.length)+'</span><span class="count-label">Departments</span></div></td>';}var r='<td><div class="cell-stack">';h.depts.forEach(function(d,di){if(v2_filters.dept.length&&v2_filters.dept.indexOf(d)===-1)return;var isSel=st.selDept===d;var c=DEPT_COLORS[di%DEPT_COLORS.length];var subs=h.subs.filter(function(s){return s.dept===d||(s.dept===''&&di===0);});var style='background:'+(isSel?c.bg:'#fff')+';border-color:'+(isSel?c.border:'#e2e8f0')+';'+(isSel?'box-shadow:0 2px 6px '+c.border+'25;':'');r+='<div class="cell" style="'+style+'"><div class="cell-row"><span class="cell-name" style="color:'+(isSel?c.text:'#1e293b')+'" onclick="v2_clickDept('+h.idx+',\''+escAttr(d)+'\',event)">'+esc(d)+'</span><span class="cell-info-btn" onclick="v2_showDeptInfo('+h.idx+',\''+escAttr(d)+'\',event)"><i class="bi bi-info-circle"></i></span><span class="cell-badge" style="background:'+(isSel?c.badge:'#94a3b8')+'" onclick="v2_clickDept('+h.idx+',\''+escAttr(d)+'\',event)">'+subs.length+'</span></div></div>';});return r+'</div></td>'; }
+            function v2_cellSD(h,st){ if(!st.selDept){var c=h.color,uq={};h.subs.forEach(function(s){uq[s.sdName]=1;});return'<td><div class="cell cell-count-box" style="background:'+c.bg+';border-color:#e2e8f0" onclick="v2_clickSDCount('+h.idx+',event)"><span class="count-num" style="color:'+c.badge+'">'+Object.keys(uq).length+'</span><span class="count-label">Sub-Depts</span></div></td>';}var subs=h.subs.filter(function(s){return s.dept===st.selDept||(s.dept===''&&st.selDept===h.depts[0]);});if(!subs.length)return'<td><div class="cell-empty">No sub-departments</div></td>';var r='<td><div class="cell-stack">';subs.forEach(function(s){if(v2_filters.subdept.length&&v2_filters.subdept.indexOf(s.sdName)===-1)return;var isSel=!!st.selSD[s.idx];var c=DEPT_COLORS[s.idx%DEPT_COLORS.length];var shCount=(s.subHods||[]).length;var style='background:'+(isSel?c.bg:'#fff')+';border-color:'+(isSel?c.border:'#e2e8f0')+';'+(isSel?'box-shadow:inset 4px 0 0 '+c.badge+',0 2px 6px '+c.border+'20;':'');r+='<div class="cell" style="'+style+'"><div class="cell-row"><span class="cell-name" style="color:'+(isSel?c.text:'#1e293b')+'" onclick="v2_clickSD(event,'+h.idx+','+s.idx+')">'+esc(s.sdName)+'</span><span class="cell-info-btn" onclick="v2_showSDInfo('+h.idx+','+s.idx+',event)"><i class="bi bi-info-circle"></i></span><span class="cell-badge" style="background:'+(isSel?c.badge:'#94a3b8')+'" onclick="v2_clickSD(event,'+h.idx+','+s.idx+')">'+shCount+'</span></div></div>';});return r+'</div></td>'; }
+            function v2_cellSH(h,st){ var selKeys=Object.keys(st.selSD||{}).filter(function(k){return st.selSD[k];});if(!selKeys.length){var c=h.color;return'<td><div class="cell cell-count-box" style="background:'+c.bg+';border-color:#e2e8f0" onclick="v2_clickSHCount('+h.idx+',event)"><span class="count-num" style="color:'+c.badge+'">'+h.subhodCount+'</span><span class="count-label">Sub-HODs</span></div></td>';}var r='<td><div class="cell-stack">';selKeys.sort().forEach(function(k){var s=h.subs[parseInt(k)];if(!s)return;var c=DEPT_COLORS[s.idx%DEPT_COLORS.length];var subHods=s.subHods||[];if(!subHods.length){r+='<div class="cell cell-static cell-muted" style="border-left:4px solid '+c.badge+';background:'+c.bg+'">No sub-HODs</div>';return;}subHods.forEach(function(sh){r+='<div class="cell" style="background:'+c.bg+';border-color:'+c.border+';border-left:4px solid '+c.badge+'"><div class="cell-row"><span class="cell-name" style="color:'+c.text+'" onclick="v2_showSHInfo2('+h.idx+','+s.idx+',\''+escAttr(sh.name)+'\',event)"><i class="bi bi-person-fill me-1"></i>'+esc(sh.name)+'</span><span class="cell-info-btn" onclick="v2_showSHInfo2('+h.idx+','+s.idx+',\''+escAttr(sh.name)+'\',event)"><i class="bi bi-info-circle"></i></span><span class="cell-badge" style="background:'+c.badge+'">'+(sh.execs||[]).length+'</span></div>';if(SHOW_SAL&&sh.sal)r+='<div class="cell-sal">₹'+fmtN(sh.sal)+'</div>';r+='</div>';});});return r+'</div></td>'; }
+            function v2_cellEx(h,st){  var selKeys = Object.keys(st.selSD || {}).filter(function(k){
+            return st.selSD[k];
+        });
+
+        if(!selKeys.length){
+            var c = h.color;
+            return '<td><div class="cell cell-count-box" style="background:'+c.bg+';border-color:#e2e8f0" onclick="v2_clickExCount('+h.idx+',event)"><span class="count-num" style="color:'+c.badge+'">'+h.execCount+'</span><span class="count-label">Executives</span></div></td>';
+        }
+
+        var r = '<td><div class="cell-stack">';
+
+        selKeys.sort().forEach(function(k){
+            var s = h.subs[parseInt(k)];
+            if(!s) return;
+
+            var c = DEPT_COLORS[s.idx % DEPT_COLORS.length];
+            var allExecs = [];
+
+            (s.subHods || []).forEach(function(sh){
+                (sh.execs || []).forEach(function(e){
+                    allExecs.push(e);
+                });
+            });
+
+            (s.execs || []).forEach(function(e){
+                allExecs.push(e);
+            });
+
+            if(!allExecs.length){
+                r += '<div class="cell cell-static cell-muted" style="border-left:4px solid '+c.badge+';background:'+c.bg+'">No executives</div>';
+                return;
+            }
+
+            allExecs.forEach(function(ex,ei){
+                r += '<div class="cell" style="background:'+c.bg+';border-color:'+c.border+';border-left:4px solid '+c.badge+'">';
+                r += '<div class="cell-row cell-row-exec">';
+                r += '<div class="cell-exec-main">';
+                r += '<span class="cell-num" style="background:'+c.badge+'">'+(ei+1)+'</span>';
+                r += '<div class="cell-exec-text">';
+                r += '<span class="cell-name" style="color:'+c.text+'" onclick="v2_showExInfoDirect('+h.idx+','+s.idx+','+ei+',event)">'+esc(ex.name)+'</span>';
+                r += '</div>';
+                r += '</div>';
+                r += '<span class="cell-info-btn" onclick="v2_showExInfoDirect('+h.idx+','+s.idx+','+ei+',event)"><i class="bi bi-info-circle"></i></span>';
+                r += '</div>';
+
+                if(SHOW_SAL && ex.sal){
+                    r += '<div class="cell-sal">₹'+fmtN(ex.sal)+'</div>';
+                }
+
+                r += '</div>';
+            });
+        });
+
+        return r + '</div></td>'; }
+            function v2_cellTotal(h){ return'<td><div class="cell-total">'+h.totalTeam+'</div></td>'; }
+            function v2_cellTotSal(h){ var t=Number(h.sal)||0;h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){t+=Number(sh.sal)||0;(sh.execs||[]).forEach(function(e){t+=Number(e.sal)||0;});});(s.execs||[]).forEach(function(e){t+=Number(e.sal)||0;});});return'<td><div class="cell-total cell-total-sal">₹'+fmtN(t)+'</div></td>'; }
+            function v2_clickHod(idx,e){ e.stopPropagation();if(!v2_state[idx])v2_state[idx]={expanded:false,selDept:null,selSD:{}};if(v2_state[idx].expanded||v2_state[idx].selDept)v2_state[idx]={expanded:false,selDept:null,selSD:{}};else{v2_state[idx].expanded=true;v2_autoExpand(idx);}v2_render(); }
+            function v2_clickDept(hIdx,dept,e){ e.stopPropagation();if(!v2_state[hIdx])v2_state[hIdx]={expanded:true,selDept:null,selSD:{}};v2_state[hIdx].expanded=true;if(v2_state[hIdx].selDept===dept){v2_state[hIdx].selDept=null;v2_state[hIdx].selSD={};}else{v2_state[hIdx].selDept=dept;v2_state[hIdx].selSD={};v2_autoExpandSD(hIdx);}v2_render(); }
+            function v2_clickSD(e,hIdx,sIdx){ e.stopPropagation();if(!v2_state[hIdx])v2_state[hIdx]={expanded:true,selDept:null,selSD:{}};if(!e.ctrlKey&&!e.metaKey)v2_state[hIdx].selSD={};if(v2_state[hIdx].selSD[sIdx])delete v2_state[hIdx].selSD[sIdx];else v2_state[hIdx].selSD[sIdx]=true;v2_render(); }
+            function v2_clickSDCount(idx,e){e.stopPropagation();if(!v2_state[idx])v2_state[idx]={expanded:false,selDept:null,selSD:{}};v2_state[idx].expanded=true;var h=v2_filteredData.find(function(x){return x.idx===idx;});if(h&&h.depts.length&&!v2_state[idx].selDept)v2_state[idx].selDept=h.depts[0];v2_render();}
+            function v2_clickSHCount(idx,e){e.stopPropagation();v2_clickSDCount(idx,e);var h=v2_filteredData.find(function(x){return x.idx===idx;});if(h&&v2_state[idx]&&v2_state[idx].selDept){var subs=h.subs.filter(function(s){return s.dept===v2_state[idx].selDept||(s.dept===''&&v2_state[idx].selDept===h.depts[0]);});if(subs.length&&!Object.keys(v2_state[idx].selSD||{}).length)v2_state[idx].selSD[subs[0].idx]=true;}v2_render();}
+            function v2_clickExCount(idx,e){v2_clickSHCount(idx,e);}
+            function v2_autoExpand(idx){var vc=v2_getVisCols(),h=v2_filteredData.find(function(x){return x.idx===idx;});if(!h)return;if(vc.indexOf('dept')===-1&&vc.indexOf('subdept')>-1){if(h.depts.length)v2_state[idx].selDept=h.depts[0];}if(vc.indexOf('dept')===-1&&vc.indexOf('subdept')===-1){if(h.depts.length){v2_state[idx].selDept=h.depts[0];var subs=h.subs.filter(function(s){return s.dept===v2_state[idx].selDept||(s.dept===''&&v2_state[idx].selDept===h.depts[0]);});if(subs.length)v2_state[idx].selSD[subs[0].idx]=true;}}}
+            function v2_autoExpandSD(idx){var vc=v2_getVisCols(),h=v2_filteredData.find(function(x){return x.idx===idx;});if(!h||!v2_state[idx]||!v2_state[idx].selDept)return;if(vc.indexOf('subdept')===-1){var subs=h.subs.filter(function(s){return s.dept===v2_state[idx].selDept||(s.dept===''&&v2_state[idx].selDept===h.depts[0]);});if(subs.length&&!Object.keys(v2_state[idx].selSD||{}).length)v2_state[idx].selSD[subs[0].idx]=true;}}
+            function v2_getFilterOpts(col){ var opts={};v2_data.forEach(function(h){switch(col){case'hod':opts[h.name]=1;break;case'dept':h.depts.forEach(function(d){opts[d]=1;});break;case'subdept':h.subs.forEach(function(s){if(s.sdName!=='-')opts[s.sdName]=1;});break;case'subhod':h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){opts[sh.code?(sh.name+' ('+sh.code+')'):sh.name]=1;});});break;case'exec':h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){opts[e.code?(e.name+' ('+e.code+')'):e.name]=1;});});(s.execs||[]).forEach(function(e){opts[e.code?(e.name+' ('+e.code+')'):e.name]=1;});});break;}});return Object.keys(opts).sort(); }
+            function v2_openFd(col,btnEl){ if(col==='total'||col==='totalsalary'){v2_openSalFd(btnEl);return;}v2_activeFdCol=col;var opts=v2_getFilterOpts(col),cur=v2_filters[col]||[];v2_fdTemp={};opts.forEach(function(o){v2_fdTemp[o]=!cur.length||cur.indexOf(o)>-1;});v2_renderFdList(opts);var $btn=$(btnEl),pos=$btn.offset(),$dd=$('#v2FdMenu');$dd.css({top:pos.top+$btn.outerHeight()+4,left:Math.min(pos.left,$(window).width()-280)}).show();$('#v2FdOverlay').show();$('#v2FdSInp').val('').focus(); }
+            function v2_renderFdList(opts){ if(!opts)opts=v2_getFilterOpts(v2_activeFdCol);var q=($('#v2FdSInp').val()||'').toLowerCase();var html='';opts.forEach(function(o){if(q&&o.toLowerCase().indexOf(q)===-1)return;html+='<label class="fd-item"><input type="checkbox" '+(v2_fdTemp[o]?'checked':'')+' onchange="v2_fdToggle(\''+escAttr(o)+'\',this.checked)"><span>'+esc(o)+'</span></label>';});if(!html)html='<div class="fd-empty">No matches</div>';document.getElementById('v2FdList').innerHTML=html; }
+            function v2_fdSearch(){v2_renderFdList();}
+            function v2_fdToggle(key,checked){v2_fdTemp[key]=checked;}
+            function v2_fdSelAll(){v2_getFilterOpts(v2_activeFdCol).forEach(function(o){v2_fdTemp[o]=true;});v2_renderFdList();}
+            function v2_fdDeselAll(){v2_getFilterOpts(v2_activeFdCol).forEach(function(o){v2_fdTemp[o]=false;});v2_renderFdList();}
+            function v2_applyFd(){ var sel=[],allOpts=v2_getFilterOpts(v2_activeFdCol),allSel=true;allOpts.forEach(function(o){if(v2_fdTemp[o])sel.push(o);else allSel=false;});v2_filters[v2_activeFdCol]=allSel?[]:sel;v2_closeFd();v2_applyFilters();v2_state={};v2_render();v2_renderFilterBar(); }
+            function v2_closeFd(){$('#v2FdMenu').hide();$('#v2FdOverlay').hide();v2_activeFdCol=null;}
+            function v2_openSalFd(btnEl){ if(v2_filters.salary){$('#v2SalCond').val(v2_filters.salary.condition);$('#v2SalV1').val(v2_filters.salary.value1);$('#v2SalV2').val(v2_filters.salary.value2||'');$('#v2SalTarget').val(v2_filters.salary.target);$('#v2SalV2Row').toggle(v2_filters.salary.condition==='between');}else{$('#v2SalCond').val('gte');$('#v2SalV1').val('');$('#v2SalV2').val('');$('#v2SalTarget').val('total');$('#v2SalV2Row').hide();}var $btn=$(btnEl),pos=$btn.offset();$('#v2SalFd').css({top:pos.top+$btn.outerHeight()+4,left:Math.min(pos.left,$(window).width()-320)}).show();$('#v2FdOverlay').show(); }
+            function v2_applySalFd(){ var v1=$('#v2SalV1').val();if(!v1&&v1!=='0'){showAlert('warning','Enter a salary value.');return;}var cond=$('#v2SalCond').val(),v2b=$('#v2SalV2').val();if(cond==='between'&&(!v2b&&v2b!=='0')){showAlert('warning','Enter both salary values.');return;}v2_filters.salary={condition:cond,value1:parseFloat(v1),value2:cond==='between'?parseFloat(v2b):null,target:$('#v2SalTarget').val()};v2_closeSalFd();v2_applyFilters();v2_state={};v2_render();v2_renderFilterBar(); }
+            function v2_closeSalFd(){$('#v2SalFd').hide();$('#v2FdOverlay').hide();}
+           // function v2_showHodInfo(hIdx,e){ e.stopPropagation();var h=v2_data.find(function(x){return x.idx===hIdx;});if(!h)return;var t=h.totalTeam,s=Number(h.sal)||0;h.subs.forEach(function(sub){(sub.subHods||[]).forEach(function(sh){s+=Number(sh.sal)||0;(sh.execs||[]).forEach(function(e){s+=Number(e.sal)||0;});});(sub.execs||[]).forEach(function(e){s+=Number(e.sal)||0;});});var html='<div class="ip-header ip-hod"><i class="bi bi-person-badge me-2"></i>HOD Information</div><table class="ip-table"><tr><th>Name</th><td><strong>'+esc(h.name)+'</strong></td></tr><tr><th>Code</th><td>'+esc(h.code||'-')+'</td></tr><tr><th>Departments</th><td>'+h.depts.join(', ')+'</td></tr><tr><th>Sub-HODs</th><td><strong>'+h.subhodCount+'</strong></td></tr><tr><th>Executives</th><td><strong>'+h.execCount+'</strong></td></tr><tr><th>Team Size</th><td><strong>'+t+'</strong></td></tr>'+(SHOW_SAL?'<tr><th>Total Salary</th><td class="ip-sal"><strong>₹'+fmtN(s)+'</strong></td></tr>':'')+'</table>';document.getElementById('infoModalTitle').textContent='HOD: '+h.name;document.getElementById('infoModalBody').innerHTML=html;bsInfoModal.show(); }
+            function v2_showDeptInfo(hIdx,deptName,e){e.stopPropagation();var h=v2_data.find(function(x){return x.idx===hIdx;});if(!h)return;var subs=h.subs.filter(function(s){return s.dept===deptName||(s.dept===''&&deptName===h.depts[0]);});var exCnt=0;subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;});var html='<div class="ip-header ip-dept-h"><i class="bi bi-building me-2"></i>Department</div><table class="ip-table"><tr><th>Department</th><td><strong>'+esc(deptName)+'</strong></td></tr><tr><th>HOD</th><td>'+esc(h.name)+'</td></tr><tr><th>Sub-Depts</th><td>'+subs.length+'</td></tr><tr><th>Executives</th><td>'+exCnt+'</td></tr></table>';document.getElementById('infoModalTitle').textContent='Department: '+deptName;document.getElementById('infoModalBody').innerHTML=html;bsInfoModal.show();}
+            function v2_showSDInfo(hIdx,sIdx,e){e.stopPropagation();var h=v2_data.find(function(x){return x.idx===hIdx;});if(!h)return;var s=h.subs[sIdx];if(!s)return;var shNames=(s.subHods||[]).map(function(sh){return sh.name;}).join(', ')||'—';var exCnt=0;(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;var html='<div class="ip-header ip-sd-h"><i class="bi bi-buildings me-2"></i>Sub-Department</div><table class="ip-table"><tr><th>Sub-Dept</th><td><strong>'+esc(s.sdName)+'</strong></td></tr><tr><th>Department</th><td>'+esc(s.dept||h.depts[0]||'-')+'</td></tr><tr><th>Sub-HOD(s)</th><td>'+esc(shNames)+'</td></tr><tr><th>Executives</th><td>'+exCnt+'</td></tr></table>';document.getElementById('infoModalTitle').textContent='Sub-Dept: '+s.sdName;document.getElementById('infoModalBody').innerHTML=html;bsInfoModal.show();}
+            function v2_showSHInfo2(hIdx,sIdx,shName,e){ e.stopPropagation();var h=v2_data.find(function(x){return x.idx===hIdx;});if(!h)return;var s=h.subs[sIdx];if(!s)return;var sh=(s.subHods||[]).find(function(x){return x.name===shName;});if(!sh)return;var html='<div class="ip-header ip-shod-h"><i class="bi bi-people me-2"></i>Sub-HOD</div><table class="ip-table"><tr><th>Name</th><td><strong>'+esc(sh.name)+'</strong></td></tr><tr><th>Code</th><td>'+esc(sh.code||'-')+'</td></tr><tr><th>Sub-Dept</th><td>'+esc(s.sdName)+'</td></tr><tr><th>HOD</th><td>'+esc(h.name)+'</td></tr><tr><th>Executives</th><td>'+(sh.execs||[]).length+'</td></tr>'+(SHOW_SAL&&sh.sal?'<tr><th>Salary</th><td class="ip-sal">₹'+fmtN(sh.sal)+'</td></tr>':'')+'</table>';document.getElementById('infoModalTitle').textContent='Sub-HOD: '+sh.name;document.getElementById('infoModalBody').innerHTML=html;bsInfoModal.show(); }
+            function v2_showExInfoDirect(hIdx,sIdx,flatIdx,e){ e.stopPropagation();var h=v2_data.find(function(x){return x.idx===hIdx;});if(!h)return;var s=h.subs[sIdx];if(!s)return;var allExecs=[];(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){allExecs.push({exec:e,shName:sh.name});});});(s.execs||[]).forEach(function(e){allExecs.push({exec:e,shName:null});});var item=allExecs[flatIdx];if(!item)return;var ex=item.exec;var html='<div class="ip-header ip-exec-h"><i class="bi bi-person me-2"></i>Executive</div><table class="ip-table"><tr><th>Name</th><td><strong>'+esc(ex.name)+'</strong></td></tr><tr><th>Code</th><td>'+esc(ex.code||'-')+'</td></tr><tr><th>Sub-Dept</th><td>'+esc(s.sdName)+'</td></tr>'+(item.shName?'<tr><th>Sub-HOD</th><td>'+esc(item.shName)+'</td></tr>':'')+'<tr><th>HOD</th><td>'+esc(h.name)+'</td></tr>'+(SHOW_SAL&&ex.sal?'<tr><th>Salary</th><td class="ip-sal">₹'+fmtN(ex.sal)+'</td></tr>':'')+'</table>';document.getElementById('infoModalTitle').textContent='Executive: '+ex.name;document.getElementById('infoModalBody').innerHTML=html;bsInfoModal.show(); }
+
+            /* ══ V3 ══ */
+            var v3_hodExp={},v3_treeStates={};
+            function v3_render(){ var html='';RAW_DATA.forEach(function(h){html+=v3_renderSection(h);});document.getElementById('v3List').innerHTML=html||'<div style="text-align:center;padding:40px;color:#94a3b8">No data</div>'; }
+            function v3_renderSection(h){ var c=h.color,isExp=!!v3_hodExp[h.idx];var totalSal=Number(h.sal)||0;h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){totalSal+=Number(sh.sal)||0;(sh.execs||[]).forEach(function(e){totalSal+=Number(e.sal)||0;});});(s.execs||[]).forEach(function(e){totalSal+=Number(e.sal)||0;});});var html='<div class="hod-section'+(isExp?' hod-exp':'')+'" id="v3Sec_'+h.idx+'" style="border-color:'+c.border+'">';html+='<div class="hs-header" onclick="v3_toggleHod('+h.idx+')" style="background:'+(isExp?c.bg:'#fff')+';color:'+(isExp?c.text:'#0f172a')+';border-color:'+c.border+'">';html+='<div class="hs-left"><i class="bi '+(isExp?'bi-chevron-down':'bi-chevron-right')+' hs-arrow" style="color:'+(isExp?c.text:'#94a3b8')+'"></i><div class="hs-avatar" style="background:'+(isExp?c.badge:c.bg)+';color:'+(isExp?'#fff':c.text)+'"><i class="bi bi-person-badge-fill"></i></div><div class="hs-info"><span class="hs-name">'+esc(h.name)+'</span>'+(h.code?'<span class="hs-code">'+esc(h.code)+'</span>':'')+'</div></div>';html+='<div class="hs-pills"><span class="hs-pill" style="background:#dbeafe;color:#1d4ed8"><i class="bi bi-building me-1"></i>'+h.depts.length+' Depts</span><span class="hs-pill" style="background:#ede9fe;color:#7c3aed">'+h.subhodCount+' Sub-HODs</span><span class="hs-pill" style="background:#cffafe;color:#0891b2">'+h.execCount+' Execs</span><span class="hs-pill hs-pill-total" style="background:'+c.light+';color:'+c.text+';border-color:'+c.border+'"><strong>'+h.totalTeam+'</strong> Team</span>';if(SHOW_SAL)html+='<span class="hs-pill" style="background:#bbf7d0;color:#15803d">₹'+fmtN(totalSal)+'</span>';html+='</div>';if(isExp){html+='<div class="hs-actions"><button class="hs-btn" onclick="event.stopPropagation();v3_expandTree('+h.idx+')" title="Expand tree"><i class="bi bi-arrows-expand"></i></button><button class="hs-btn" onclick="event.stopPropagation();v3_collapseTree('+h.idx+')" title="Collapse tree"><i class="bi bi-arrows-collapse"></i></button></div>';}html+='</div>';if(isExp){html+='<div class="hs-body" style="border-color:'+c.border+'">'+sharedTreeRender(h,v3_treeStates[h.idx]||{},'v3_toggleNode('+h.idx+',')+'</div>';}return html+'</div>'; }
+            function v3_toggleHod(idx){v3_hodExp[idx]=!v3_hodExp[idx];if(!v3_treeStates[idx])v3_treeStates[idx]={};var h=RAW_DATA.find(function(x){return x.idx===idx;});if(h)document.getElementById('v3Sec_'+idx).outerHTML=v3_renderSection(h);}
+            function v3_toggleNode(hodIdx,key,e){if(e)e.stopPropagation();if(!v3_treeStates[hodIdx])v3_treeStates[hodIdx]={};v3_treeStates[hodIdx][key]=!v3_treeStates[hodIdx][key];var h=RAW_DATA.find(function(x){return x.idx===hodIdx;});if(h)document.getElementById('v3Sec_'+hodIdx).outerHTML=v3_renderSection(h);}
+            function v3_expandTree(idx){var h=RAW_DATA.find(function(x){return x.idx===idx;});if(!h)return;if(!v3_treeStates[idx])v3_treeStates[idx]={};h.depts.forEach(function(d){v3_treeStates[idx]['dept_'+d]=true;});h.subs.forEach(function(s,si){v3_treeStates[idx]['sd_'+s.idx]=true;(s.subHods||[]).forEach(function(sh,shi){v3_treeStates[idx]['sh_'+s.idx+'_'+shi]=true;});});document.getElementById('v3Sec_'+idx).outerHTML=v3_renderSection(h);}
+            function v3_collapseTree(idx){v3_treeStates[idx]={};var h=RAW_DATA.find(function(x){return x.idx===idx;});if(h)document.getElementById('v3Sec_'+idx).outerHTML=v3_renderSection(h);}
+            function v3_expandAll(){RAW_DATA.forEach(function(h){v3_hodExp[h.idx]=true;});v3_render();}
+            function v3_collapseAll(){RAW_DATA.forEach(function(h){v3_hodExp[h.idx]=false;});v3_render();}
+            function v3_expandTrees(){RAW_DATA.forEach(function(h){if(v3_hodExp[h.idx])v3_expandTree(h.idx);});}
+            function v3_collapseTrees(){RAW_DATA.forEach(function(h){if(v3_hodExp[h.idx])v3_collapseTree(h.idx);});}
+
+            /* ══ V4 ══ */
+            var v4_selIdx=null,v4_treeState={};
+            function v4_renderCards(){ document.getElementById('v4Cards').style.display='';document.getElementById('v4TreeView').style.display='none';var html='';RAW_DATA.forEach(function(h){var c=h.color;var totalSal=Number(h.sal)||0;h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){totalSal+=Number(sh.sal)||0;(sh.execs||[]).forEach(function(e){totalSal+=Number(e.sal)||0;});});(s.execs||[]).forEach(function(e){totalSal+=Number(e.sal)||0;});});html+='<div class="hc-card" onclick="v4_selectHod('+h.idx+')" style="border-color:'+c.border+'"><div class="hc-color-bar" style="background:'+c.badge+'"></div><div class="hc-body"><div class="hc-top"><div class="hc-avatar" style="background:'+c.bg+';color:'+c.text+'"><i class="bi bi-person-badge-fill"></i></div><div class="hc-info"><div class="hc-name" style="color:'+c.text+'">'+esc(h.name)+'</div>'+(h.code?'<div class="hc-code">'+esc(h.code)+'</div>':'')+'</div></div><div class="hc-stats"><div class="hc-stat"><span class="hc-stat-num">'+h.depts.length+'</span><span class="hc-stat-lbl">Depts</span></div><div class="hc-stat"><span class="hc-stat-num">'+h.subhodCount+'</span><span class="hc-stat-lbl">Sub-HODs</span></div><div class="hc-stat"><span class="hc-stat-num">'+h.execCount+'</span><span class="hc-stat-lbl">Execs</span></div><div class="hc-stat hc-stat-total"><span class="hc-stat-num">'+h.totalTeam+'</span><span class="hc-stat-lbl">Team</span></div></div>';if(SHOW_SAL)html+='<div class="hc-salary"><i class="bi bi-currency-rupee"></i> ₹'+fmtN(totalSal)+'</div>';html+='<div class="hc-footer" style="background:'+c.light+';color:'+c.text+'"><i class="bi bi-diagram-3 me-1"></i>View Org Tree <i class="bi bi-chevron-right ms-auto"></i></div></div></div>';});document.getElementById('v4Grid').innerHTML=html; }
+            function v4_selectHod(idx){v4_selIdx=idx;v4_treeState={};var h=RAW_DATA.find(function(x){return x.idx===idx;});if(!h)return;var c=h.color;var info='<div class="thi-av" style="background:'+c.bg+';color:'+c.text+'"><i class="bi bi-person-badge-fill"></i></div><div><span class="thi-name" style="color:'+c.text+'">'+esc(h.name)+'</span><span class="thi-meta">'+h.depts.length+' Depts · '+h.subhodCount+' Sub-HODs · '+h.execCount+' Execs · <strong>'+h.totalTeam+' Team</strong></span></div>';document.getElementById('v4HodInfo').innerHTML=info;v4_renderTree();document.getElementById('v4Cards').style.display='none';document.getElementById('v4TreeView').style.display='';window.scrollTo({top:0,behavior:'smooth'});}
+            function v4_back(){v4_selIdx=null;v4_treeState={};document.getElementById('v4TreeView').style.display='none';document.getElementById('v4Cards').style.display='';}
+            function v4_renderTree(){var h=RAW_DATA.find(function(x){return x.idx===v4_selIdx;});if(!h)return;document.getElementById('v4TC').innerHTML=sharedTreeRender(h,v4_treeState,'v4_toggleNode(');}
+            function v4_toggleNode(key,e){if(e)e.stopPropagation();v4_treeState[key]=!v4_treeState[key];v4_renderTree();}
+            function v4_expandAll(){var h=RAW_DATA.find(function(x){return x.idx===v4_selIdx;});if(!h)return;h.depts.forEach(function(d){v4_treeState['dept_'+d]=true;});h.subs.forEach(function(s,si){v4_treeState['sd_'+s.idx]=true;(s.subHods||[]).forEach(function(sh,shi){v4_treeState['sh_'+s.idx+'_'+shi]=true;});});v4_renderTree();}
+            function v4_collapseAll(){v4_treeState={};v4_renderTree();}
+
+            /* ══ V5 ══ */
+            var v5_selHods=[],v5_treeStates={};
+            function buildChips_V5(){v5_selHods=RAW_DATA.map(function(h){return h.idx;});}
+            function v5_render(){v5_renderDdList('');v5_renderCards();}
+            function v5_renderDdList(q){ var html='';RAW_DATA.forEach(function(h){if(q&&h.name.toLowerCase().indexOf(q.toLowerCase())===-1)return;var c=h.color,sel=v5_selHods.indexOf(h.idx)>-1;html+='<label class="sb-dd-item"><input type="checkbox" '+(sel?'checked':'')+' onchange="v5_toggleSel('+h.idx+',this.checked)"><span class="sb-dd-color" style="background:'+c.badge+'"></span><span class="sb-dd-name">'+esc(h.name)+'</span><span class="sb-dd-stats">'+h.depts.length+'D · '+h.subhodCount+'SH · '+h.execCount+'E</span></label>';});document.getElementById('v5DdList').innerHTML=html||'<div class="fd-empty">No matches</div>';v5_updateDdBtn();v5_renderChips(); }
+            function v5_toggleDd(){var m=document.getElementById('v5DdMenu');if(m.style.display!=='none'){v5_closeDd();}else{m.style.display='';document.getElementById('v5DdSInp').value='';document.getElementById('v5DdSInp').focus();v5_renderDdList('');}}
+            function v5_closeDd(){document.getElementById('v5DdMenu').style.display='none';}
+            function v5_filterDd(val){v5_renderDdList(val);}
+            function v5_toggleSel(idx,checked){if(checked){if(v5_selHods.indexOf(idx)===-1)v5_selHods.push(idx);}else{v5_selHods=v5_selHods.filter(function(i){return i!==idx;});}v5_updateDdBtn();v5_renderChips();v5_renderCards();}
+            function v5_selAll(){v5_selHods=RAW_DATA.map(function(h){return h.idx;});document.querySelectorAll('#v5DdList input').forEach(function(c){c.checked=true;});v5_updateDdBtn();v5_renderChips();v5_renderCards();}
+            function v5_deselAll(){v5_selHods=[];document.querySelectorAll('#v5DdList input').forEach(function(c){c.checked=false;});v5_updateDdBtn();v5_renderChips();v5_renderCards();}
+            function v5_updateDdBtn(){var n=v5_selHods.length,txt;if(!n)txt='Select HODs...';else if(n===RAW_DATA.length)txt='All HODs ('+n+')';else txt=n+' HOD'+(n>1?'s':'')+' selected';document.getElementById('v5DdTxt').textContent=txt;}
+            function v5_renderChips(){if(!v5_selHods.length||v5_selHods.length===RAW_DATA.length){document.getElementById('v5Chips').innerHTML='';return;}var html='';v5_selHods.forEach(function(idx){var h=RAW_DATA.find(function(x){return x.idx===idx;});if(!h)return;html+='<span class="sb-chip" style="background:'+h.color.light+';border-color:'+h.color.border+';color:'+h.color.text+'">'+esc(h.name)+'<i class="bi bi-x-circle-fill sb-chip-x" onclick="v5_removeHod('+idx+')"></i></span>';});document.getElementById('v5Chips').innerHTML=html;}
+            function v5_removeHod(idx){v5_selHods=v5_selHods.filter(function(i){return i!==idx;});v5_renderDdList('');v5_renderCards();}
+            function v5_renderCards(){if(!v5_selHods.length){document.getElementById('v5Grid').innerHTML='<div class="no-sel" style="grid-column:1/-1"><i class="bi bi-arrow-up-circle me-2"></i>Please select at least one HOD above</div>';return;}var html='';v5_selHods.forEach(function(idx){var h=RAW_DATA.find(function(x){return x.idx===idx;});if(!h)return;html+=v5_renderCard(h);});document.getElementById('v5Grid').innerHTML=html;}
+            function v5_renderCard(h){ var c=h.color;if(!v5_treeStates[h.idx])v5_treeStates[h.idx]={};var totalSal=Number(h.sal)||0;h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){totalSal+=Number(sh.sal)||0;(sh.execs||[]).forEach(function(e){totalSal+=Number(e.sal)||0;});});(s.execs||[]).forEach(function(e){totalSal+=Number(e.sal)||0;});});var html='<div class="hc5-card" id="v5Card_'+h.idx+'" style="border-color:'+c.border+'"><div class="hc5-header" style="background:'+c.bg+';border-color:'+c.border+'"><div class="hc5-top"><div class="hc5-av" style="background:'+c.badge+';color:#fff"><i class="bi bi-person-badge-fill"></i></div><div class="hc5-info"><div class="hc5-name" style="color:'+c.text+'">'+esc(h.name)+'</div>'+(h.code?'<div class="hc5-code">'+esc(h.code)+'</div>':'')+'</div><div class="hc5-acts"><button class="hc5-btn" onclick="v5_expandCard('+h.idx+')" title="Expand"><i class="bi bi-arrows-expand"></i></button><button class="hc5-btn" onclick="v5_collapseCard('+h.idx+')" title="Collapse"><i class="bi bi-arrows-collapse"></i></button></div></div><div class="hc5-stats"><div class="hc5-stat"><span class="hc5-stat-n">'+h.depts.length+'</span><span class="hc5-stat-l">Depts</span></div><div class="hc5-stat"><span class="hc5-stat-n">'+h.subhodCount+'</span><span class="hc5-stat-l">Sub-HODs</span></div><div class="hc5-stat"><span class="hc5-stat-n">'+h.execCount+'</span><span class="hc5-stat-l">Execs</span></div><div class="hc5-stat" style="background:'+c.light+';border-color:'+c.border+'"><span class="hc5-stat-n" style="color:'+c.text+'">'+h.totalTeam+'</span><span class="hc5-stat-l">Team</span></div>';if(SHOW_SAL)html+='<div class="hc5-stat hc5-stat-sal"><span class="hc5-stat-n" style="color:#047857">₹'+fmtN(totalSal)+'</span><span class="hc5-stat-l">Salary</span></div>';html+='</div></div><div class="hc5-tree">'+sharedTreeRender(h,v5_treeStates[h.idx],'v5_toggleNode('+h.idx+',')+'</div></div>';return html; }
+            function v5_toggleNode(hodIdx,key,e){if(e)e.stopPropagation();if(!v5_treeStates[hodIdx])v5_treeStates[hodIdx]={};v5_treeStates[hodIdx][key]=!v5_treeStates[hodIdx][key];v5_refreshCard(hodIdx);}
+            function v5_expandCard(idx){var h=RAW_DATA.find(function(x){return x.idx===idx;});if(!h)return;if(!v5_treeStates[idx])v5_treeStates[idx]={};h.depts.forEach(function(d){v5_treeStates[idx]['dept_'+d]=true;});h.subs.forEach(function(s,si){v5_treeStates[idx]['sd_'+s.idx]=true;(s.subHods||[]).forEach(function(sh,shi){v5_treeStates[idx]['sh_'+s.idx+'_'+shi]=true;});});v5_refreshCard(idx);}
+            function v5_collapseCard(idx){v5_treeStates[idx]={};v5_refreshCard(idx);}
+            function v5_refreshCard(idx){var h=RAW_DATA.find(function(x){return x.idx===idx;});if(!h)return;var el=document.getElementById('v5Card_'+idx);if(el)el.outerHTML=v5_renderCard(h);}
+            function v5_expandAll(){RAW_DATA.forEach(function(h){if(v5_selHods.indexOf(h.idx)>-1)v5_expandCard(h.idx);});}
+            function v5_collapseAll(){v5_treeStates={};v5_renderCards();}
+
+            /* ══ SHARED TREE ══ */
+            function sharedTreeRender(h,ts,togglePrefix){
+                var hc=h.color;var html='<div class="tr-wrap"><div class="tr-root"><div class="tr-node tr-hod" style="background:'+hc.bg+';border-color:'+hc.border+';color:'+hc.text+'"><i class="bi bi-person-badge-fill tr-ico"></i><span class="tr-name">'+esc(h.name)+'</span><span class="tr-tag">HOD</span>';
+                if(SHOW_SAL&&h.sal)html+='<span class="tr-sal">₹'+fmtN(h.sal)+'</span>';
+                html+='</div>';
+                if(h.depts.length){html+='<div class="tr-children">';h.depts.forEach(function(dept,di){var dKey='dept_'+dept,dExp=!!ts[dKey];var dc=DEPT_COLORS[di%DEPT_COLORS.length];var subs=h.subs.filter(function(s){return s.dept===dept||(s.dept===''&&dept===h.depts[0]);});var hasKids=subs.length>0;html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-dept'+(dExp?' tr-exp':'')+'" style="background:'+(dExp?dc.bg:'#fff')+';border-color:'+(dExp?dc.border:'#cbd5e1')+';color:'+(dExp?dc.text:'#1e293b')+'"'+(hasKids?' onclick="'+togglePrefix+'\''+escAttr(dKey)+'\',event)"':'')+'>'; if(hasKids)html+='<i class="bi '+(dExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi bi-building tr-ico"></i><span class="tr-name">'+esc(dept)+'</span><span class="tr-tag">Dept</span>';if(hasKids)html+='<span class="tr-count" style="background:'+(dExp?dc.badge:'#94a3b8')+'">'+subs.length+'</span>';html+='</div>';
+                if(dExp&&subs.length){html+='<div class="tr-children">';subs.forEach(function(s){var sdKey='sd_'+s.idx,sdExp=!!ts[sdKey];var hasSubHods=(s.subHods&&s.subHods.length>0),hasDirectEx=s.execs.length>0,hasMore=hasSubHods||hasDirectEx;var totalExecs=hasSubHods?s.subHods.reduce(function(a,sh){return a+(sh.execs||[]).length;},0):s.execs.length;html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subdept'+(sdExp?' tr-exp':'')+'" style="background:'+(sdExp?'#d1fae5':'#fff')+';border-color:'+(sdExp?'#059669':'#cbd5e1')+';color:'+(sdExp?'#064e3b':'#1e293b')+'"'+(hasMore?' onclick="'+togglePrefix+'\''+sdKey+'\',event)"':'')+'>'; if(hasMore)html+='<i class="bi '+(sdExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi bi-buildings tr-ico"></i><span class="tr-name">'+esc(s.sdName)+'</span><span class="tr-tag">Sub-Dept</span>';if(totalExecs)html+='<span class="tr-count" style="background:'+(sdExp?'#047857':'#94a3b8')+'">'+totalExecs+'</span>';html+='</div>';
+                if(sdExp&&hasMore){html+='<div class="tr-children">';if(hasSubHods){s.subHods.forEach(function(sh,shi){var shKey='sh_'+s.idx+'_'+shi,shExp=!!ts[shKey];var shExecs=sh.execs||[];html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subhod'+(shExp?' tr-exp':'')+'" style="background:'+(shExp?'#fef3c7':'#fff')+';border-color:'+(shExp?'#d97706':'#cbd5e1')+';color:'+(shExp?'#78350f':'#1e293b')+'"'+(shExecs.length?' onclick="'+togglePrefix+'\''+shKey+'\',event)"':'')+'>'; if(shExecs.length)html+='<i class="bi '+(shExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi bi-people-fill tr-ico"></i><span class="tr-name">'+esc(sh.name)+'</span><span class="tr-tag">Sub-HOD</span>';if(sh.code)html+='<span class="tr-code">'+esc(sh.code)+'</span>';if(SHOW_SAL&&sh.sal)html+='<span class="tr-sal">₹'+fmtN(sh.sal)+'</span>';if(shExecs.length)html+='<span class="tr-count" style="background:'+(shExp?'#b45309':'#94a3b8')+'">'+shExecs.length+'</span>';html+='</div>';if(shExp&&shExecs.length){html+='<div class="tr-children">';shExecs.forEach(function(ex){html+='<div class="tr-item"><div class="tr-line-h"></div>'+trExecNode(ex)+'</div>';});html+='</div>';}html+='</div>';}); }else{s.execs.forEach(function(ex){html+='<div class="tr-item"><div class="tr-line-h"></div>'+trExecNode(ex)+'</div>';});}html+='</div>';}html+='</div>';});html+='</div>';}html+='</div>';});html+='</div>';}
+                return html+'</div></div>';
+            }
+            function trExecNode(ex){ return '<div class="tr-node tr-exec"><i class="bi bi-person-fill tr-ico"></i><span class="tr-name">'+esc(ex.name)+'</span>'+(ex.code?'<span class="tr-code">'+esc(ex.code)+'</span>':'')+(SHOW_SAL&&ex.sal?'<span class="tr-sal">₹'+fmtN(ex.sal)+'</span>':'')+'</div>'; }
+
+            /* ══ STAT POPUP ══ */
+            function showStatPopup(type){
+                if(!RAW_DATA.length)return;
+                var cfgs={
+                    hod:{title:'All HODs',grad:'#dc2626,#b91c1c',icon:'bi-person-badge-fill',heads:['#','Name','Code','Departments','Sub-HODs','Executives','Team'],rows:RAW_DATA.map(function(h){return[h.name,h.code||'—',h.depts.join(' · ')||'—',h.subhodCount,h.execCount,h.totalTeam];})},
+                    dept:{title:'All Departments',grad:'#2563eb,#1d4ed8',icon:'bi-building-fill',heads:['#','Department','HOD','Sub-Depts'],rows:(function(){var r=[];RAW_DATA.forEach(function(h){h.depts.forEach(function(d){var cnt=h.subs.filter(function(s){return s.dept===d;}).length;r.push([d,h.name,cnt]);});});return r;})()},
+                    subdept:{title:'All Sub-Departments',grad:'#d97706,#b45309',icon:'bi-buildings-fill',heads:['#','Sub-Dept','Department','HOD','Sub-HODs','Execs'],rows:(function(){var r=[];RAW_DATA.forEach(function(h){h.subs.forEach(function(s){var shNames=(s.subHods||[]).map(function(sh){return sh.name;}).join(', ')||'—';var exCnt=0;(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;r.push([s.sdName,s.dept||h.depts[0]||'—',h.name,shNames,exCnt]);});});return r;})()},
+                    subhod:{title:'All Sub-HODs',grad:'#9333ea,#7c3aed',icon:'bi-people-fill',heads:['#','Name','Code','Sub-Dept','Department','HOD','Execs'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){var k=sh.code||sh.name;if(!seen[k]){seen[k]=1;r.push([sh.name,sh.code||'—',s.sdName,s.dept||h.depts[0]||'—',h.name,(sh.execs||[]).length]);}});});});return r;})()},
+                    exec:{title:'All Executives',grad:'#047857,#065f46',icon:'bi-person-fill',heads:['#','Name','Code','Sub-HOD','Sub-Dept','HOD'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—',sh.name,s.sdName,h.name]);}});});(s.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—','—',s.sdName,h.name]);}});});});return r;})()}
+                };
+                var c=cfgs[type];if(!c)return;
+                document.getElementById('statModalHdr').style.background='linear-gradient(135deg,'+c.grad+')';
+                document.getElementById('statModalTitle').innerHTML='<i class="bi '+c.icon+' me-2"></i>'+c.title+' <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:20px;font-size:12px">'+c.rows.length+'</span>';
+                var html='<div style="overflow-x:auto"><table class="stat-table"><thead><tr>';c.heads.forEach(function(h){html+='<th>'+h+'</th>';});html+='</tr></thead><tbody>';
+                c.rows.forEach(function(row,i){html+='<tr><td style="color:#94a3b8;font-weight:700;width:36px">'+(i+1)+'</td>';row.forEach(function(cell,ci){if(ci===0)html+='<td><strong>'+esc(cell)+'</strong></td>';else if(typeof cell==='number')html+='<td><span class="stat-pill" style="background:#eff6ff;color:#1d4ed8">'+cell+'</span></td>';else html+='<td style="color:#475569">'+esc(String(cell))+'</td>';});html+='</tr>';});
+                html+='</tbody></table></div>';document.getElementById('statModalBody').innerHTML=html;bsStatModal.show();
+            }
+
+            /* ══ NODE DATA ══ */
+            function getNodeData(nodeId){
+                if(nodeId==='owner'){var counts=getOrgEmployeeCounts();return{type:'owner',name:OWNER_NAME,role:'Owner',code:'',hodCount:counts.hodCount,teamCount:counts.totalEmployees};}
+                var p=nodeId.split('-');
+                if(p[0]==='hod'){var h=RAW_DATA[+p[1]];if(!h)return null;return{type:'hod',name:h.name,role:'HOD',code:h.code,sal:h.sal,deptCount:h.deptCount,subHodCount:h.subhodCount,execCount:h.execCount,teamCount:h.totalTeam};}
+                if(p[0]==='dept'){var h=RAW_DATA[+p[1]];if(!h)return null;var dName=h.depts[+p[2]];if(!dName)return null;var subs=h.subs.filter(function(s){return s.dept===dName||(s.dept===''&&dName===h.depts[0]);});var exCnt=0;subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;});return{type:'dept',name:dName,role:'Department',code:'',hod:h.name,subDeptCount:subs.length,execCount:exCnt};}
+                if(p[0]==='sd'){var h=RAW_DATA[+p[1]];if(!h)return null;var s=h.subs[+p[2]];if(!s)return null;var exCnt=0;(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;return{type:'subdept',name:s.sdName,role:'Sub-Dept',code:'',dept:s.dept||h.depts[0]||'-',hod:h.name,subHod:(s.subHods&&s.subHods.length?s.subHods.map(function(x){return x.name;}).join(', '):'-'),execCount:exCnt};}
+                if(p[0]==='sh'){var h=RAW_DATA[+p[1]];if(!h)return null;var s=h.subs[+p[2]];if(!s)return null;var shi=+p[3];var sh=(s.subHods&&s.subHods[shi])?s.subHods[shi]:null;if(!sh)return null;return{type:'subhod',name:sh.name,role:'Sub-HOD',code:sh.code,sal:sh.sal,subDept:s.sdName,dept:s.dept||h.depts[0]||'-',hod:h.name,execCount:(sh.execs||[]).length};}
+                if(p[0]==='ex'){var h=RAW_DATA[+p[1]];if(!h)return null;var s=h.subs[+p[2]];if(!s)return null;var shi=+p[3],shi2=+p[4];var sh=(s.subHods&&s.subHods[shi])?s.subHods[shi]:null;var ex=sh?(sh.execs||[])[shi2]:null;if(!ex)return null;return{type:'exec',name:ex.name,role:'Executive',code:ex.code,sal:ex.sal,subHod:sh.name,subDept:s.sdName,dept:s.dept||h.depts[0]||'-',hod:h.name};}
+                if(p[0]==='exd'){var h=RAW_DATA[+p[1]];if(!h)return null;var s=h.subs[+p[2]];if(!s)return null;var ex=(s.execs||[])[+p[3]];if(!ex)return null;return{type:'exec',name:ex.name,role:'Executive',code:ex.code,sal:ex.sal,subHod:'—',subDept:s.sdName,dept:s.dept||h.depts[0]||'-',hod:h.name};}
+                return null;
+            }
+
+            /* ══ EXPORT ══ */
+            function ehExport(){
+                if(!RAW_DATA.length){showAlert('warning','Data not loaded yet.');return;}
+                var hdr=['Owner','HOD'];if(SHOW_SAL)hdr.push('HOD Salary');hdr.push('Department','Sub-Dept','Sub-HOD');if(SHOW_SAL)hdr.push('Sub-HOD Salary');hdr.push('Executive');if(SHOW_SAL)hdr.push('Exec Salary');
+                var rows=[hdr.map(csvE).join(',')];
+                RAW_DATA.forEach(function(h){ h.depts.forEach(function(d){ var subs=h.subs.filter(function(s){return s.dept===d||(s.dept===''&&d===h.depts[0]);});if(!subs.length){var r=[OWNER_NAME,h.name];if(SHOW_SAL)r.push(h.sal||'');r.push(d,'','');if(SHOW_SAL)r.push('');r.push('');if(SHOW_SAL)r.push('');rows.push(r.map(csvE).join(','));}else{subs.forEach(function(s){var shRows=[];(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(ex){shRows.push({shName:sh.name,shSal:sh.sal,ex:ex});});if(!(sh.execs||[]).length)shRows.push({shName:sh.name,shSal:sh.sal,ex:null});});(s.execs||[]).forEach(function(ex){shRows.push({shName:'',shSal:null,ex:ex});});if(!shRows.length)shRows.push({shName:'',shSal:null,ex:null});shRows.forEach(function(sr){var r=[OWNER_NAME,h.name];if(SHOW_SAL)r.push(h.sal||'');r.push(d,s.sdName,sr.shName||'');if(SHOW_SAL)r.push(sr.shSal||'');r.push(sr.ex?sr.ex.name:'');if(SHOW_SAL)r.push(sr.ex&&sr.ex.sal?sr.ex.sal:'');rows.push(r.map(csvE).join(','));});});}});});
+                var blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Hierarchy_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+            }
+
+            /* ══ UTILS ══ */
+            function initials(n){if(!n)return'?';var p=n.trim().split(' ').filter(Boolean);return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
+            function fmtN(n){return n?Number(n).toLocaleString('en-IN'):'0';}
+            function esc(t){if(t==null)return'';var d=document.createElement('div');d.textContent=String(t);return d.innerHTML;}
+            function escAttr(s){return(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+            function csvE(s){if(!s)return'';s=String(s);return(s.indexOf(',')>-1||s.indexOf('"')>-1)?'"'+s.replace(/"/g,'""')+'"':s;}
+            function showAlert(type,msg){var el=document.getElementById('ehAlert');if(!el)return;el.innerHTML='<div class="alert alert-'+type+' alert-dismissible fade show mx-3 mt-2">'+msg+'<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';setTimeout(function(){var a=el.querySelector('.alert');if(a)$(a).alert('close');},4000);}
+    </script>
+}
+
+<div class="eh-root" id="ehRoot">
+
+    <header class="eh-header">
+        <div class="eh-brand">
+            <div class="eh-logo"><i class="bi bi-diagram-3-fill"></i></div>
+            <div><div class="eh-hd-title">Organization Hierarchy</div><div class="eh-hd-sub">Interactive · Multi-View</div></div>
+        </div>
+        <div class="eh-sw" id="ehSW">
+            <i class="bi bi-search eh-si"></i>
+            <input type="text" id="ehSearch" class="eh-search" placeholder="Search employees, depts… (Ctrl+K)" oninput="ehSearchHandle(this.value)" autocomplete="off">
+            <div class="search-drop" id="searchDrop" style="display:none"></div>
+        </div>
+        <div class="eh-right">
+            @if (!string.IsNullOrEmpty(empName))
+            {
+                <div class="role-chip">
+                    @if (isAdmin)
+                    {
+                        <span class="rc-dot" style="background:#f87171"></span>
+
+                        <span>Admin</span>
+                    }
+                    else if (currentRoleTypeId == 1)
+                    {
+                        <span class="rc-dot" style="background:#60a5fa"></span>
+
+                        <span>HOD</span>
+                    }
+                    else if (currentRoleTypeId == 2)
+                    {
+                        <span class="rc-dot" style="background:#fbbf24"></span>
+
+                        <span>Sub-HOD</span>
+                    }
+                    else
+                    {
+                        <span class="rc-dot" style="background:#34d399"></span>
+
+                        <span>Executive</span>
+                    }
+                    <span class="rc-sep"></span><span class="rc-name">@empName</span>
+                </div>
+            }
+            <button class="eh-btn eh-btn-export" onclick="ehExport()"><i class="bi bi-file-earmark-excel"></i> Export</button>
+            <button class="eh-btn eh-btn-print" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+        </div>
+    </header>
+
+    <div id="ehAlert"></div>
+
+    <div class="eh-stats" id="ehStats" style="display:none">
+        <div class="esc" onclick="showStatPopup('hod')"><div class="esc-ico" style="background:#dbeafe;color:#2563eb"><i class="bi bi-person-badge-fill"></i></div><div><div class="esc-val" id="escHod">0</div><div class="esc-lbl">HODs</div></div></div>
+        <div class="esc" onclick="showStatPopup('dept')"><div class="esc-ico" style="background:#bbf7d0;color:#16a34a"><i class="bi bi-building-fill"></i></div><div><div class="esc-val" id="escDept">0</div><div class="esc-lbl">Departments</div></div></div>
+        <div class="esc" onclick="showStatPopup('subdept')"><div class="esc-ico" style="background:#fde68a;color:#d97706"><i class="bi bi-buildings-fill"></i></div><div><div class="esc-val" id="escSD">0</div><div class="esc-lbl">Sub-Depts</div></div></div>
+        <div class="esc" onclick="showStatPopup('subhod')"><div class="esc-ico" style="background:#ede9fe;color:#9333ea"><i class="bi bi-people-fill"></i></div><div><div class="esc-val" id="escSH">0</div><div class="esc-lbl">Sub-HODs</div></div></div>
+        <div class="esc" onclick="showStatPopup('exec')"><div class="esc-ico" style="background:#cffafe;color:#0891b2"><i class="bi bi-person-fill"></i></div><div><div class="esc-val" id="escEx">0</div><div class="esc-lbl">Executives</div></div></div>
+        <div class="esc"><div class="esc-ico" style="background:#dcfce7;color:#15803d"><i class="bi bi-people-fill"></i></div><div><div class="esc-val" id="escTeam">0</div><div class="esc-lbl">Employees</div></div></div>
+    </div>
+
+    <div class="eh-tabs" id="ehTabs" style="display:none">
+        <button class="eh-tab on" data-tab="v1" onclick="switchTab('v1')"><i class="bi bi-diagram-3-fill"></i> Org Tree</button>
+        <button class="eh-tab" data-tab="v2" onclick="switchTab('v2')"><i class="bi bi-table"></i> Table View</button>
+        <button class="eh-tab" data-tab="v3" onclick="switchTab('v3')"><i class="bi bi-layers-fill"></i> Stacked HODs</button>
+        <button class="eh-tab" data-tab="v4" onclick="switchTab('v4')"><i class="bi bi-grid-3x2-gap-fill"></i> HOD Cards</button>
+        <button class="eh-tab" data-tab="v5" onclick="switchTab('v5')"><i class="bi bi-layout-three-columns"></i> Grid View</button>
+    </div>
+
+    <div id="ehLoading" class="eh-loading">
+        <div class="eh-spinner"><div></div><div></div><div></div><div></div></div>
+        <div class="eh-ld-txt">Building organization hierarchy…</div>
+    </div>
+
+    <!-- VIEW 1: ORG TREE -->
+    <div class="eh-view" id="tabV1" style="display:none">
+        <div class="v1-legend">
+            <span class="ll-title"><i class="bi bi-palette me-1"></i>Level Guide:</span>
+            <span class="ll-item"><span class="ll-dot" style="background:#f59e0b"></span>Director</span><span class="ll-sep">→</span>
+            <span class="ll-item"><span class="ll-dot" style="background:#2563eb"></span>HOD</span><span class="ll-sep">→</span>
+            <span class="ll-item"><span class="ll-dot" style="background:#16a34a"></span>Department</span><span class="ll-sep">→</span>
+            <span class="ll-item"><span class="ll-dot" style="background:#d97706"></span>Sub-Dept</span><span class="ll-sep">→</span>
+            <span class="ll-item"><span class="ll-dot" style="background:#9333ea"></span>Sub-HOD</span><span class="ll-sep">→</span>
+            <span class="ll-item"><span class="ll-dot" style="background:#0891b2"></span>Executive</span>
+            <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="eh-sm-btn" onclick="v1_expandAll()"><i class="bi bi-arrows-fullscreen me-1"></i>Expand All</button>
+                <button class="eh-sm-btn" onclick="v1_collapseAll()"><i class="bi bi-arrows-collapse me-1"></i>Collapse All</button>
+            </div>
+        </div>
+        <!-- CHANGE #2: overflow:hidden + drag hint badge; no scrollbar needed -->
+        <div id="v1Outer" class="v1-outer">
+            <svg id="v1Svg" class="v1-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div id="v1Canvas" class="v1-canvas"></div>
+            <div class="v1-drag-hint"><i class="bi bi-arrows-move"></i>&nbsp;Drag to pan</div>
+        </div>
+        <!-- CHANGE #1: compare-bar HTML removed entirely -->
+    </div>
+
+    <!-- VIEW 2: TABLE -->
+    <div class="eh-view" id="tabV2" style="display:none">
+        <div>
+            <div class="filter-bar" id="v2FilterBar" style="display:none"><div class="fb-left"><span class="fb-icon"><i class="bi bi-funnel-fill"></i></span><span class="fb-label">Filters:</span><div class="fb-chips" id="v2FChips"></div></div><div class="fb-right"><button class="fb-clear-btn" onclick="v2_clearFilters()"><i class="bi bi-x-circle me-1"></i>Clear All</button></div></div>
+            <div class="v2-toolbar"><div class="tb-left"><span class="tb-label"><i class="bi bi-layout-three-columns me-1"></i>Columns:</span><div id="v2ColToggles"></div></div><div class="tb-right"><button class="eh-sm-btn" onclick="v2_state={};v2_render()"><i class="bi bi-arrows-collapse me-1"></i>Collapse All</button></div></div>
+            <div class="main-card"><div class="table-wrap"><table class="eh-table"><colgroup id="v2ColGroup"></colgroup><thead id="v2THead"></thead><tbody id="v2TBody"></tbody></table></div></div>
+        </div>
+    </div>
+
+    <!-- VIEW 3: STACKED ACCORDION -->
+    <div class="eh-view" id="tabV3" style="display:none">
+        <div>
+            <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+                <button class="eh-sm-btn" onclick="v3_expandAll()"><i class="bi bi-arrows-expand me-1"></i>Expand All HODs</button>
+                <button class="eh-sm-btn" onclick="v3_collapseAll()"><i class="bi bi-arrows-collapse me-1"></i>Collapse All HODs</button>
+                <button class="eh-sm-btn" onclick="v3_expandTrees()"><i class="bi bi-diagram-3 me-1"></i>Expand All Trees</button>
+                <button class="eh-sm-btn" onclick="v3_collapseTrees()"><i class="bi bi-node-minus me-1"></i>Collapse All Trees</button>
+            </div>
+            <div id="v3List"></div>
+        </div>
+    </div>
+
+    <!-- VIEW 4: HOD CARDS -->
+    <div class="eh-view" id="tabV4" style="display:none">
+        <div>
+            <div id="v4Cards"><div class="hc-grid" id="v4Grid"></div></div>
+            <div id="v4TreeView" style="display:none">
+                <div class="tree-hdr"><button class="btn-back" onclick="v4_back()"><i class="bi bi-arrow-left me-2"></i>Back to All HODs</button><div class="thi-wrap" id="v4HodInfo"></div><div style="display:flex;gap:6px"><button class="tree-btn" onclick="v4_expandAll()"><i class="bi bi-arrows-expand me-1"></i>Expand All</button><button class="tree-btn" onclick="v4_collapseAll()"><i class="bi bi-arrows-collapse me-1"></i>Collapse All</button></div></div>
+                <div class="tree-container" id="v4TC"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 5: 3-COL GRID -->
+    <div class="eh-view" id="tabV5" style="display:none">
+        <div>
+            <div class="sel-bar">
+                <div class="sb-left">
+                    <span class="sb-label"><i class="bi bi-person-badge me-2"></i>Select HODs:</span>
+                    <div class="sb-dd-wrap" id="v5DdWrap">
+                        <button class="sb-dd-btn" onclick="v5_toggleDd()" id="v5DdBtn"><span id="v5DdTxt">All HODs</span><i class="bi bi-chevron-down sb-dd-arr"></i></button>
+                        <div class="sb-dd-menu" id="v5DdMenu" style="display:none">
+                            <div class="sb-dd-sh"><input type="text" class="sb-dd-sinp" id="v5DdSInp" placeholder="Search HODs..." oninput="v5_filterDd(this.value)"></div>
+                            <div class="sb-dd-acts"><button class="sb-dd-act" onclick="v5_selAll()">Select All</button><button class="sb-dd-act" onclick="v5_deselAll()">Deselect All</button></div>
+                            <div class="sb-dd-list" id="v5DdList"></div>
+                        </div>
+                    </div>
+                    <div class="sb-chips" id="v5Chips"></div>
+                </div>
+                <div class="sb-right"><button class="sb-btn" onclick="v5_expandAll()"><i class="bi bi-arrows-expand me-1"></i>Expand All</button><button class="sb-btn" onclick="v5_collapseAll()"><i class="bi bi-arrows-collapse me-1"></i>Collapse All</button></div>
+            </div>
+            <div class="hc5-grid" id="v5Grid"></div>
+        </div>
+    </div>
+
+    <div style="height:40px"></div>
+</div>
+
+<!-- ORPHAN TOGGLE BUTTON & PANEL (page-level, always visible) -->
+<button class="orphan-toggle" id="orphanToggle" onclick="toggleOrphanPanel()">⚠ Unassigned</button>
+<div class="orphan-panel" id="orphanPanel">
+    <div class="orphan-title">
+        <span>⚠ Unassigned Employees</span>
+        <span class="orphan-count" id="orphanCount">0</span>
+        <button onclick="toggleOrphanPanel()" style="margin-left:auto;background:none;border:none;font-size:16px;cursor:pointer;color:#dc2626">&times;</button>
+    </div>
+    <div style="font-size:11px;color:#991b1b;margin-bottom:10px">These employees have no active reporting chain. Use Bulk Assign to fix.</div>
+    <div id="orphanList"></div>
+</div>
+
+<!-- INFO MODAL -->
+<div class="modal fade" id="infoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content ot-modal"><div class="modal-header ot-modal-hdr"><h5 class="modal-title" id="infoModalTitle" style="color:#fff;font-weight:800">Details</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body ot-modal-body" id="infoModalBody"></div><div class="modal-footer ot-modal-ftr"><button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button></div></div>
+    </div>
+</div>
+
+<!-- COMPARE MODAL (kept for potential future use) -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content ot-modal"><div class="modal-header ot-modal-hdr"><h5 class="modal-title" style="color:#fff;font-weight:800"><i class="bi bi-bar-chart-line me-2"></i>Node Comparison</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body ot-modal-body" id="cmpBody"></div><div class="modal-footer ot-modal-ftr"><button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button></div></div>
+    </div>
+</div>
+
+<!-- STAT MODAL -->
+<div class="modal fade" id="statModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content ot-modal"><div class="modal-header ot-modal-hdr" id="statModalHdr"><h5 class="modal-title" id="statModalTitle" style="color:#fff;font-weight:800">List</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body ot-modal-body" id="statModalBody"></div><div class="modal-footer ot-modal-ftr"><button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button></div></div>
+    </div>
+</div>
+
+<!-- V2 FILTER DROPDOWNS -->
+<div class="fd-overlay" id="v2FdOverlay" style="display:none" onclick="v2_closeFd()"></div>
+<div class="filter-dropdown" id="v2FdMenu" style="display:none">
+    <div class="fd-header"><input type="text" class="fd-search" id="v2FdSInp" placeholder="Search..." oninput="v2_fdSearch()"></div>
+    <div class="fd-actions"><button class="fd-act-btn" onclick="v2_fdSelAll()">Select All</button><button class="fd-act-btn" onclick="v2_fdDeselAll()">Deselect All</button></div>
+    <div class="fd-list" id="v2FdList"></div>
+    <div class="fd-footer"><button class="btn btn-sm fd-cancel-btn" onclick="v2_closeFd()">Cancel</button><button class="btn btn-sm fd-apply-btn" onclick="v2_applyFd()"><i class="bi bi-check-lg me-1"></i>Apply</button></div>
+</div>
+<div class="filter-dropdown sal-fd" id="v2SalFd" style="display:none">
+    <div class="sfd-header"><i class="bi bi-currency-rupee me-1"></i>Salary Filter</div>
+    <div class="sfd-body">
+        <div class="sfd-row"><label class="sfd-label">Condition:</label><select class="sfd-sel" id="v2SalCond" onchange="document.getElementById('v2SalV2Row').style.display=this.value==='between'?'':'none'"><option value="gte">≥ Greater or equal</option><option value="lte">≤ Less or equal</option><option value="gt">&gt; Greater than</option><option value="lt">&lt; Less than</option><option value="eq">= Equal to</option><option value="between">Between</option></select></div>
+        <div class="sfd-row"><label class="sfd-label">Value (₹):</label><input type="number" class="sfd-inp" id="v2SalV1" placeholder="e.g. 5000" min="0"></div>
+        <div class="sfd-row" id="v2SalV2Row" style="display:none"><label class="sfd-label">And (₹):</label><input type="number" class="sfd-inp" id="v2SalV2" placeholder="e.g. 50000" min="0"></div>
+        <div class="sfd-row"><label class="sfd-label">Apply on:</label><select class="sfd-sel" id="v2SalTarget"><option value="total">Total Salary</option><option value="hod">HOD Salary</option><option value="subhod">Sub-HOD Salary</option><option value="exec">Exec Salary</option></select></div>
+    </div>
+    <div class="fd-footer"><button class="btn btn-sm fd-cancel-btn" onclick="v2_closeSalFd()">Cancel</button><button class="btn btn-sm fd-apply-btn" onclick="v2_applySalFd()"><i class="bi bi-check-lg me-1"></i>Apply</button></div>
+</div>

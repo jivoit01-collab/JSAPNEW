@@ -197,12 +197,7 @@
                     <label class="form-label">User</label>
                     <select class="form-select assignment-user" required>
                         <option value="">Select user...</option>
-                        ${apiData.users.map(u => `<option value="${u.userId}">${u.
-                        
-                        
-                        
-                        
-                        } (${u.userId})</option>`).join('')}
+                        ${apiData.users.map(u => `<option value="${u.userId}">${u.userName} (${u.userId})</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">

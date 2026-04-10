@@ -1,0 +1,1804 @@
+@model List<JSAPNEW.Models.EmployeeDto>
+@{
+    ViewData["Title"] = "Employee Hierarchy";
+    var searchTerm = ViewBag.SearchTerm?.ToString() ?? "";
+    var pageNumber = (int)(ViewBag.PageNumber ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalRecords = (int)(ViewBag.TotalRecords ?? 0);
+    var error = ViewBag.Error?.ToString();
+    var canManageEmployeeHierarchy = ViewBag.CanManageEmployeeHierarchy is bool canManage && canManage;
+    var canViewSalary = ViewBag.ViewSalary is bool viewSalary && viewSalary;
+    var canManageAdminKey = ViewBag.CanManageAdminKey is bool canManageAdmin && canManageAdmin;
+    var allEmployeesJson = ViewBag.AllEmployeesJson?.ToString() ?? "[]";
+}
+
+<style>
+    .employee-hierarchy-page {
+        min-height: calc(100vh - 80px);
+        background: #f4f7fb;
+        padding: 22px;
+        color: #0f172a;
+        font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    .eh-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+    }
+
+    .eh-header {
+        padding: 20px 22px;
+        margin-bottom: 16px;
+    }
+
+    .eh-title {
+        font-size: 24px;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .eh-subtitle {
+        color: #64748b;
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+    .eh-search {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+
+    .eh-search input, .eh-input, .eh-select {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 11px 14px;
+        outline: none;
+        font-size: 14px;
+        width: 100%;
+        background: #fff;
+    }
+
+    .eh-search input {
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .eh-search input:focus, .eh-input:focus, .eh-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+
+    .eh-btn {
+        border: 0;
+        border-radius: 10px;
+        background: #123f6d;
+        color: #fff;
+        padding: 11px 18px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .eh-btn.secondary {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .eh-btn.danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .eh-btn.small {
+        padding: 7px 12px;
+        font-size: 12px;
+    }
+
+    .eh-alert {
+        padding: 14px 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        font-weight: 600;
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+
+    .eh-table-card {
+        overflow: hidden;
+    }
+
+    .eh-table-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 14px 18px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .eh-table-wrap {
+        overflow-x: auto;
+    }
+
+    .eh-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+    }
+
+    .eh-table th, .eh-table td {
+        text-align: left;
+        padding: 12px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+    }
+
+    .eh-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .35px;
+    }
+
+    .eh-table tbody tr:hover td {
+        background: #f8fafc;
+    }
+
+    .eh-code {
+        display: inline-block;
+        font-family: Consolas, monospace;
+        background: #eef2ff;
+        color: #3730a3;
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .eh-status {
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 12px;
+        font-weight: 800;
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .eh-status.inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .eh-empty {
+        color: #64748b;
+        padding: 14px;
+        background: #fff;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+    }
+
+    .act-cell {
+        display: flex;
+        gap: 3px;
+        align-items: center;
+    }
+
+    .btn-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+    .btn-edit-hod {
+        border-color: rgba(37, 99, 235, .24);
+        color: #1d4ed8;
+        background: rgba(37, 99, 235, .08);
+    }
+
+    .btn-edit-hod:hover {
+        background: rgba(37, 99, 235, .16);
+    }
+
+    .btn-edit-sub {
+        border-color: rgba(13, 148, 136, .24);
+        color: #0f766e;
+        background: rgba(13, 148, 136, .08);
+    }
+
+    .btn-edit-sub:hover {
+        background: rgba(13, 148, 136, .16);
+    }
+
+    .btn-edit-exec {
+        border-color: rgba(124, 58, 237, .24);
+        color: #7c3aed;
+        background: rgba(124, 58, 237, .08);
+    }
+
+    .btn-edit-exec:hover {
+        background: rgba(124, 58, 237, .16);
+    }
+
+    .eh-pagination {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 16px 18px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .eh-page-link {
+        min-width: 38px;
+        height: 36px;
+        padding: 0 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #cbd5e1;
+        color: #0f172a;
+        background: #fff;
+        border-radius: 9px;
+        text-decoration: none;
+        font-weight: 800;
+    }
+
+    .eh-page-link.active {
+        background: #123f6d;
+        border-color: #123f6d;
+        color: #fff;
+    }
+
+    .eh-page-link.disabled {
+        opacity: .45;
+        pointer-events: none;
+    }
+
+    .eh-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 18px;
+    }
+
+    .eh-modal.open {
+        display: flex;
+    }
+
+    .eh-modal-box {
+        width: 680px;
+        max-width: 96vw;
+        max-height: 92vh;
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, .25);
+        padding: 22px;
+    }
+
+    .eh-modal-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: center;
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 16px;
+        color: #123f6d;
+    }
+
+    .eh-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .eh-form-group {
+        margin-bottom: 12px;
+    }
+
+    .eh-form-group label {
+        display: block;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .35px;
+        margin-bottom: 6px;
+    }
+
+    .eh-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .eh-inline-error {
+        display: none;
+        margin-top: 8px;
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .hm-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 18px;
+        backdrop-filter: blur(3px);
+    }
+
+    .hm-modal-overlay.open {
+        display: flex;
+    }
+
+    .hm-modal-box {
+        width: 580px;
+        max-width: 96vw;
+        max-height: 92vh;
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, .25);
+        padding: 22px;
+    }
+
+    .hm-modal-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 16px;
+        color: #123f6d;
+    }
+
+    .eh-modal-loader {
+        min-height: 260px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .eh-modal-loader.open {
+        display: flex;
+    }
+
+    .eh-loader-ring {
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        border: 4px solid #dbeafe;
+        border-top-color: #123f6d;
+        animation: eh-spin .8s linear infinite;
+    }
+
+    .eh-loader-text {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    @@keyframes eh-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .hm-modal-foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .f2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .fg {
+        margin-bottom: 12px;
+    }
+
+    .fl {
+        display: block;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .35px;
+        margin-bottom: 6px;
+    }
+
+    .fi, .fs {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 11px 14px;
+        outline: none;
+        font-size: 14px;
+        width: 100%;
+        background: #fff;
+    }
+
+    .fi:focus, .fs:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+
+    @@media (max-width: 700px) {
+        .employee-hierarchy-page {
+            padding: 14px;
+        }
+
+        .eh-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .f2 {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="employee-hierarchy-page">
+    <div class="eh-card eh-header">
+        <h1 class="eh-title">Employee Hierarchy</h1>
+        <div class="eh-subtitle">
+            @if (canManageEmployeeHierarchy)
+            {
+                <text>Employee details only. Use search, pagination, and edit any employee row.</text>
+            }
+            else
+            {
+                <text>Employee details only. You currently have view access for this page.</text>
+            }
+        </div>
+
+        <div class="eh-search">
+            <input type="text" id="employeeOmniSearch" value="@searchTerm" placeholder="Search name, code, role, designation, department, email, phone..." autocomplete="off" />
+            <button class="eh-btn secondary" type="button" onclick="clearEmployeeOmniSearch()">Clear</button>
+        </div>
+
+        <div id="salaryTimerBadge" style="display:none;margin-top:12px;padding:8px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;font-size:13px;font-weight:700;color:#166534;display:none;align-items:center;gap:10px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Salary Unlocked — <span id="salaryTimerText">30:00</span> remaining
+            <button type="button" onclick="manualLockSalary()" style="margin-left:8px;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer">Lock Now</button>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+            @if (canManageAdminKey)
+            {
+                <button type="button" class="eh-btn" id="adminKeyEhBtn" onclick="openEhAdminKeyModal()" style="background:#123f6d;font-size:13px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    Admin Key
+                </button>
+                <button type="button" class="eh-btn" id="salaryPermEhBtn" onclick="openSalaryPermModal()" style="background:#0f766e;font-size:13px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Salary Permission
+                </button>
+            }
+            @if (canViewSalary)
+            {
+                <button type="button" class="eh-btn" id="unlockSalaryEhBtn" onclick="openUnlockSalaryModal()" style="background:#b91c1c;font-size:13px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Unlock Salary
+                </button>
+            }
+            @if (canManageAdminKey)
+            {
+                <button type="button" class="eh-btn" id="dbCredEhBtn" onclick="openDbCredentialEditor()" style="background:#7c3aed;font-size:13px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+                    DB Credentials
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="eh-alert">@error</div>
+    }
+
+    <div class="eh-card eh-table-card">
+        <div class="eh-table-meta">
+            <span id="employeeTableCount">Total Records: @totalRecords</span>
+            <span id="employeeTablePageInfo">Page @pageNumber of @totalPages | 10 records per page</span>
+        </div>
+
+        <div class="eh-table-wrap">
+            <table class="eh-table">
+                <thead>
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Employee Code</th>
+                        <th>Role</th>
+                        <th>Designation</th>
+                        <th>Status</th>
+                        <th class="sal-col" style="display:none;color:#166534">Salary (Rs.)</th>
+                        @if (canManageEmployeeHierarchy)
+                        {
+                            <th style="width:110px">Action</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                    @if (Model.Any())
+                    {
+                        foreach (var employee in Model)
+                        {
+                            <tr data-empcode="@employee.EmployeeCode">
+                                <td>@employee.EmployeeName</td>
+                                <td><span class="eh-code">@employee.EmployeeCode</span></td>
+                                <td>@employee.RoleName</td>
+                                <td>@(string.IsNullOrWhiteSpace(employee.Designation) ? "-" : employee.Designation)</td>
+                                <td><span class="eh-status @(employee.IsActive ? "" : "inactive")">@(employee.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="sal-col sal-val" style="display:none;font-weight:700;color:#166534">—</td>
+                                @if (canManageEmployeeHierarchy)
+                                {
+                                    var buttonClass = employee.RoleTypeId == 1 ? "btn-icon btn-edit-hod"
+                                        : employee.RoleTypeId == 2 ? "btn-icon btn-edit-sub"
+                                        : "btn-icon btn-edit-exec";
+                                    var buttonText = employee.RoleTypeId == 1 ? "H"
+                                        : employee.RoleTypeId == 2 ? "S"
+                                        : "E";
+                                    var buttonTitle = employee.RoleTypeId == 1 ? "Edit HOD"
+                                        : employee.RoleTypeId == 2 ? "Edit Sub-HOD"
+                                        : "Edit Executive";
+                                    <td>
+                                        <div class="act-cell">
+                                            <button type="button" class="@buttonClass" onclick="openEditEmployee(@employee.EmployeeId)" title="@buttonTitle">@buttonText</button>
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="@(canManageEmployeeHierarchy ? 7 : 6)">
+                                <div class="eh-empty">No employees found.</div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="eh-pagination" id="employeePagination">
+            <a class="eh-page-link @(pageNumber <= 1 ? "disabled" : "")"
+               asp-action="EmployeeHierarchy"
+               asp-controller="HierarchyWeb"
+               asp-route-searchTerm="@searchTerm"
+               asp-route-pageNumber="@(pageNumber - 1)">Prev</a>
+
+            @for (var i = Math.Max(1, pageNumber - 2); i <= Math.Min(totalPages, pageNumber + 2); i++)
+            {
+                <a class="eh-page-link @(i == pageNumber ? "active" : "")"
+                   asp-action="EmployeeHierarchy"
+                   asp-controller="HierarchyWeb"
+                   asp-route-searchTerm="@searchTerm"
+                   asp-route-pageNumber="@i">@i</a>
+            }
+
+            <a class="eh-page-link @(pageNumber >= totalPages ? "disabled" : "")"
+               asp-action="EmployeeHierarchy"
+               asp-controller="HierarchyWeb"
+               asp-route-searchTerm="@searchTerm"
+               asp-route-pageNumber="@(pageNumber + 1)">Next</a>
+        </div>
+    </div>
+</div>
+
+<div class="hm-modal-overlay" id="editEmployeeModal">
+    <div class="hm-modal-box">
+        <div class="hm-modal-title">
+            <span>Edit Employee</span>
+            <span id="editEmpBadge" style="font-size:10px;font-weight:600;background:rgba(13,148,136,.15);color:#0f766e;padding:3px 10px;border-radius:20px;border:1px solid rgba(13,148,136,.3)"></span>
+        </div>
+
+        <div class="eh-modal-loader" id="editEmployeeLoader">
+            <div class="eh-loader-ring"></div>
+            <div class="eh-loader-text">Loading employee details...</div>
+        </div>
+
+        <div id="editEmployeeContent">
+            <input type="hidden" id="editEmployeeId" />
+            <input type="hidden" id="editDateOfJoining" />
+            <input type="hidden" id="editRoleTypeValue" />
+            <input type="hidden" id="editCurrentDepartmentId" />
+            <input type="hidden" id="editCurrentSubDepartmentId" />
+            <input type="hidden" id="editReportsToEmployeeId" />
+
+            <div class="f2">
+                <div class="fg">
+                    <label class="fl">Employee Code *</label>
+                    <input class="fi" id="editEmployeeCode" placeholder="JWPL0001" />
+                </div>
+                <div class="fg">
+                    <label class="fl">Full Name *</label>
+                    <input class="fi" id="editEmployeeName" />
+                </div>
+            </div>
+
+            <div class="f2">
+                <div class="fg">
+                    <label class="fl">Designation</label>
+                    <input class="fi" id="editDesignation" placeholder="Manager, Officer..." />
+                </div>
+                <div class="fg">
+                    <label class="fl">Role</label>
+                    <input class="fi" id="editRoleText" readonly />
+                </div>
+            </div>
+
+            <div id="editDepartmentViewRow" style="display:none">
+                <div class="fg">
+                    <label class="fl" id="editDepartmentLabel">Department</label>
+                    <input class="fi" id="editDepartmentText" readonly />
+                </div>
+            </div>
+
+            <div id="editSubDepartmentViewRow" style="display:none">
+                <div class="fg">
+                    <label class="fl">Sub-Department</label>
+                    <input class="fi" id="editSubDepartmentText" readonly />
+                </div>
+            </div>
+
+            <div class="fg" style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                <label class="fl" style="margin:0">Status</label>
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+                    <input type="checkbox" id="editIsActive" style="width:16px;height:16px;accent-color:#123f6d" />
+                    <span style="font-size:12px;color:#0f172a" id="editActiveLabel">Active</span>
+                </label>
+            </div>
+
+            <div class="eh-inline-error" id="editEmployeeError"></div>
+
+            <div class="hm-modal-foot" id="editEmployeeActions">
+                <button type="button" class="eh-btn secondary" onclick="closeEditEmployee()">Cancel</button>
+                <button type="button" class="eh-btn" id="saveEmployeeBtn" onclick="saveEmployee()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canManageEmployeeHierarchy = @canManageEmployeeHierarchy.ToString().ToLowerInvariant();
+    const canViewSalary = @canViewSalary.ToString().ToLowerInvariant();
+    const canManageAdminKey = @canManageAdminKey.ToString().ToLowerInvariant();
+    const detailsUrl = '@Url.Action("GetEmployeeHierarchyDetails", "HierarchyWeb")';
+    const updateUrl = '@Url.Action("UpdateEmployeeHierarchyItem", "HierarchyWeb")';
+    const apiBase = '/api/Hierarchy';
+    const employeePageSize = 10;
+    const employeeData = @Html.Raw(allEmployeesJson);
+    const allEmployees = Array.isArray(employeeData) ? employeeData : [];
+    let roleTypes = [];
+    let departments = [];
+    let hodsMeta = [];
+    let editingEmployee = null;
+    let filteredEmployees = [];
+    let employeeCurrentPage = @pageNumber;
+    let currentSalaryMap = {};
+
+    function ensureSingleEditModalInstance() {
+        const modalIds = [
+            'editEmployeeModal',
+            'editEmpBadge',
+            'editEmployeeId',
+            'editDateOfJoining',
+            'editRoleTypeValue',
+            'editCurrentDepartmentId',
+            'editCurrentSubDepartmentId',
+            'editReportsToEmployeeId',
+            'editEmployeeCode',
+            'editEmployeeName',
+            'editDesignation',
+            'editRoleText',
+            'editDepartmentText',
+            'editSubDepartmentText',
+            'editIsActive',
+            'editActiveLabel',
+            'editEmployeeError',
+            'editEmployeeLoader',
+            'editEmployeeContent',
+            'editEmployeeActions',
+            'saveEmployeeBtn'
+        ];
+
+        modalIds.forEach(id => {
+            const nodes = document.querySelectorAll(`#${id}`);
+            if (nodes.length > 1) {
+                nodes.forEach((node, index) => {
+                    if (index > 0) node.remove();
+                });
+            }
+        });
+    }
+
+    async function openEditEmployee(employeeId) {
+        if (!canManageEmployeeHierarchy) return;
+
+        ensureSingleEditModalInstance();
+        closeEditEmployee();
+        setEditError('');
+        setEditModalLoading(true);
+        document.getElementById('editEmployeeModal').classList.add('open');
+
+        try {
+            await ensureLookups();
+            const statusToggle = document.getElementById('editIsActive');
+            if (statusToggle) {
+                statusToggle.onchange = syncEditStatusLabel;
+            }
+            const result = await fetchEmployeeDetails(employeeId);
+            const success = result.success ?? result.Success;
+            if (!success) {
+                setEditModalLoading(false);
+                setEditError(result.message ?? result.Message ?? 'Could not load employee.');
+                return;
+            }
+
+            editingEmployee = result.data ?? result.Data;
+            await bindEditForm(editingEmployee);
+            setEditModalLoading(false);
+        } catch (error) {
+            setEditModalLoading(false);
+            setEditError('Could not load employee.');
+        }
+    }
+
+    function closeEditEmployee() {
+        document.getElementById('editEmployeeModal').classList.remove('open');
+        setEditModalLoading(false);
+        editingEmployee = null;
+        setEditError('');
+    }
+
+    function setEditModalLoading(isLoading) {
+        const loader = document.getElementById('editEmployeeLoader');
+        const content = document.getElementById('editEmployeeContent');
+        const actions = document.getElementById('editEmployeeActions');
+        const saveButton = document.getElementById('saveEmployeeBtn');
+
+        if (loader) {
+            loader.classList.toggle('open', isLoading);
+        }
+
+        if (content) {
+            content.style.display = isLoading ? 'none' : '';
+        }
+
+        if (actions) {
+            actions.style.display = isLoading ? 'none' : 'flex';
+        }
+
+        if (saveButton) {
+            saveButton.disabled = isLoading;
+            if (!isLoading) {
+                saveButton.textContent = 'Save Changes';
+            }
+        }
+    }
+
+    async function ensureLookups() {
+        if (!roleTypes.length || !departments.length) {
+            const [roleResult, deptResult] = await Promise.all([
+                apiJson(`${apiBase}/GetRoleTypes`),
+                apiJson(`${apiBase}/GetDepartments?includeSubDepartments=true`)
+            ]);
+
+            roleTypes = roleResult.data ?? roleResult.Data ?? [];
+            departments = deptResult.data?.departments ?? deptResult.data ?? deptResult.Data?.departments ?? deptResult.Data ?? [];
+        }
+    }
+
+    async function getHodDepartmentsText(employeeId, fallbackDepartmentName) {
+        try {
+            const result = await apiJson(`${apiBase}/GetDepartmentsForHOD/${employeeId}`);
+            const departmentsForHod = result.data ?? result.Data ?? [];
+            const names = departmentsForHod
+                .map(item => pick(item, ['departmentName', 'DepartmentName'], ''))
+                .filter(Boolean);
+            return names.length ? [...new Set(names)].join(', ') : (fallbackDepartmentName || '-');
+        } catch (error) {
+            return fallbackDepartmentName || '-';
+        }
+    }
+
+    async function bindEditForm(employee) {
+        const reportsTo = employee.reportsTo ?? employee.ReportsTo ?? [];
+        const firstReport = reportsTo.length ? reportsTo[0] : null;
+        const roleTypeId = toInt(pick(employee, ['roleTypeId', 'RoleTypeId'], null)) || 0;
+        const departmentId = toInt(pick(employee, ['primaryDepartmentId', 'PrimaryDepartmentId'], null)) || toInt(pick(firstReport, ['departmentId', 'DepartmentId'], null));
+        const subDepartmentId = toInt(pick(firstReport, ['subDepartmentId', 'SubDepartmentId'], null));
+        const managerId = toInt(pick(firstReport, ['managerId', 'ManagerId'], null));
+        const roleName = getRoleName(employee) || (roleTypeId === 1 ? 'HOD' : roleTypeId === 2 ? 'Sub-HOD' : 'Executive');
+        const baseDepartmentName = getDepartmentName(employee) || pick(firstReport, ['departmentName', 'DepartmentName'], '') || '';
+        const subDepartmentName = getSubDepartmentName(employee) || pick(firstReport, ['subDepartmentName', 'SubDepartmentName'], '') || '';
+        const departmentName = roleTypeId === 1
+            ? await getHodDepartmentsText(getEmployeeId(employee), baseDepartmentName)
+            : baseDepartmentName;
+
+        document.getElementById('editEmployeeId').value = getEmployeeId(employee);
+        document.getElementById('editEmployeeName').value = getEmployeeName(employee);
+        document.getElementById('editEmployeeCode').value = getEmployeeCode(employee);
+        document.getElementById('editRoleTypeValue').value = String(roleTypeId);
+        document.getElementById('editRoleText').value = roleName;
+        document.getElementById('editDesignation').value = getDesignation(employee);
+        document.getElementById('editDateOfJoining').value = pick(employee, ['dateOfJoining', 'DateOfJoining'], '');
+        document.getElementById('editIsActive').checked = Boolean(pick(employee, ['isActive', 'IsActive'], true));
+        document.getElementById('editCurrentDepartmentId').value = departmentId ?? '';
+        document.getElementById('editCurrentSubDepartmentId').value = subDepartmentId ?? '';
+        document.getElementById('editReportsToEmployeeId').value = managerId ?? '';
+        syncEditStatusLabel();
+        updateEditRoleUI(roleTypeId, departmentName, subDepartmentName);
+    }
+
+    async function saveEmployee() {
+        if (!canManageEmployeeHierarchy) {
+            setEditError('You have view-only access for Employee Hierarchy.');
+            return;
+        }
+
+        const employeeId = toInt(document.getElementById('editEmployeeId').value);
+        const roleTypeId = toInt(document.getElementById('editRoleTypeValue').value);
+        const employeeName = document.getElementById('editEmployeeName').value.trim();
+        const employeeCode = document.getElementById('editEmployeeCode').value.trim();
+        const departmentId = toInt(document.getElementById('editCurrentDepartmentId').value);
+        const subDepartmentId = toInt(document.getElementById('editCurrentSubDepartmentId').value);
+        const reportsToEmpId = toInt(document.getElementById('editReportsToEmployeeId').value);
+
+        if (!employeeName || !employeeCode || !roleTypeId) {
+            setEditError('Employee name, employee code, and role are required.');
+            return;
+        }
+
+        const button = document.getElementById('saveEmployeeBtn');
+        button.disabled = true;
+        button.textContent = 'Saving...';
+        setEditError('');
+
+        try {
+            const result = await apiJson(updateUrl, 'POST', {
+                employeeId,
+                employeeName,
+                employeeCode,
+                designation: document.getElementById('editDesignation').value.trim() || null,
+                dateOfJoining: document.getElementById('editDateOfJoining').value || null,
+                roleTypeId,
+                departmentId,
+                subDepartmentId,
+                reportsToEmpId,
+                isActive: document.getElementById('editIsActive').checked,
+                moveTeamWithDepartment: false
+            });
+
+            if (result.success ?? result.Success) {
+                window.location.reload();
+                return;
+            }
+
+            setEditError(result.message ?? result.Message ?? 'Update failed.');
+        } catch (error) {
+            setEditError('Could not save employee.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Save Changes';
+        }
+    }
+
+    function setEditError(message) {
+        const error = document.getElementById('editEmployeeError');
+        error.textContent = message || '';
+        error.style.display = message ? 'block' : 'none';
+    }
+
+    function syncEditStatusLabel() {
+        const checkbox = document.getElementById('editIsActive');
+        const label = document.getElementById('editActiveLabel');
+        if (checkbox && label) {
+            label.textContent = checkbox.checked ? 'Active' : 'Inactive';
+        }
+    }
+
+    function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = String(value);
+        return div.innerHTML;
+    }
+
+    function pick(obj, keys, fallback = '') {
+        if (!obj) return fallback;
+        for (const key of keys) {
+            if (obj[key] !== undefined && obj[key] !== null) {
+                return obj[key];
+            }
+        }
+        return fallback;
+    }
+
+    function toInt(value) {
+        const parsed = parseInt(value, 10);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    function normalizeText(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function formatCurrency(value) {
+        const amount = Number(value);
+        if (Number.isFinite(amount)) {
+            return `Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return 'Rs. 0.00';
+    }
+
+    function getEditButtonMeta(employee) {
+        const roleTypeId = getRoleTypeId(employee);
+        if (roleTypeId === 1) {
+            return { cssClass: 'btn-icon btn-edit-hod', label: 'H', title: 'Edit HOD' };
+        }
+        if (roleTypeId === 2) {
+            return { cssClass: 'btn-icon btn-edit-sub', label: 'S', title: 'Edit Sub-HOD' };
+        }
+        return { cssClass: 'btn-icon btn-edit-exec', label: 'E', title: 'Edit Executive' };
+    }
+
+    function getEmployeeId(employee) { return pick(employee, ['employeeId', 'EmployeeId'], 0); }
+    function getEmployeeCode(employee) { return pick(employee, ['employeeCode', 'EmployeeCode'], ''); }
+    function getEmployeeName(employee) { return pick(employee, ['employeeName', 'EmployeeName'], ''); }
+    function getRoleName(employee) { return pick(employee, ['roleName', 'RoleName'], ''); }
+    function getRoleTypeId(employee) { return toInt(pick(employee, ['roleTypeId', 'RoleTypeId'], null)); }
+    function getDesignation(employee) { return pick(employee, ['designation', 'Designation'], ''); }
+    function getDepartmentName(employee) { return pick(employee, ['primaryDepartmentName', 'PrimaryDepartmentName', 'departmentName', 'DepartmentName'], ''); }
+    function getSubDepartmentName(employee) { return pick(employee, ['primarySubDepartmentName', 'PrimarySubDepartmentName', 'subDepartmentName', 'SubDepartmentName'], ''); }
+    function getEmail(employee) { return pick(employee, ['email', 'Email'], ''); }
+    function getPhone(employee) { return pick(employee, ['phone', 'Phone'], ''); }
+    function isActiveEmployee(employee) { return Boolean(pick(employee, ['isActive', 'IsActive'], false)); }
+
+    function getEmployeeSearchBlob(employee) {
+        return normalizeText([
+            getEmployeeName(employee),
+            getEmployeeCode(employee),
+            getRoleName(employee),
+            getDesignation(employee),
+            getDepartmentName(employee),
+            getSubDepartmentName(employee),
+            getEmail(employee),
+            getPhone(employee)
+        ].join(' '));
+    }
+
+    function getFilteredEmployees() {
+        const term = normalizeText(document.getElementById('employeeOmniSearch')?.value);
+        if (!term) {
+            return [...allEmployees];
+        }
+        return allEmployees.filter(employee => getEmployeeSearchBlob(employee).includes(term));
+    }
+
+    function updateEmployeeTableMeta(totalRecords, totalPages) {
+        const countEl = document.getElementById('employeeTableCount');
+        const pageEl = document.getElementById('employeeTablePageInfo');
+        if (countEl) countEl.textContent = `Total Records: ${totalRecords}`;
+        if (pageEl) pageEl.textContent = `Page ${employeeCurrentPage} of ${Math.max(totalPages, 1)} | ${employeePageSize} records per page`;
+    }
+
+    function renderEmployeePagination(totalPages) {
+        const pagination = document.getElementById('employeePagination');
+        if (!pagination) return;
+
+        const pages = [];
+        for (let page = Math.max(1, employeeCurrentPage - 2); page <= Math.min(totalPages, employeeCurrentPage + 2); page += 1) {
+            pages.push(`<button type="button" class="eh-page-link ${page === employeeCurrentPage ? 'active' : ''}" onclick="goToEmployeePage(${page})">${page}</button>`);
+        }
+
+        pagination.innerHTML = `
+            <button type="button" class="eh-page-link ${employeeCurrentPage <= 1 ? 'disabled' : ''}" onclick="goToEmployeePage(${employeeCurrentPage - 1})" ${employeeCurrentPage <= 1 ? 'disabled' : ''}>Prev</button>
+            ${pages.join('')}
+            <button type="button" class="eh-page-link ${employeeCurrentPage >= totalPages ? 'disabled' : ''}" onclick="goToEmployeePage(${employeeCurrentPage + 1})" ${employeeCurrentPage >= totalPages ? 'disabled' : ''}>Next</button>`;
+    }
+
+    function renderEmployeeTable() {
+        const tbody = document.getElementById('employeeTableBody');
+        if (!tbody) return;
+
+        filteredEmployees = getFilteredEmployees();
+        const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / employeePageSize));
+        employeeCurrentPage = Math.min(Math.max(employeeCurrentPage, 1), totalPages);
+        const start = (employeeCurrentPage - 1) * employeePageSize;
+        const pageItems = filteredEmployees.slice(start, start + employeePageSize);
+        updateEmployeeTableMeta(filteredEmployees.length, totalPages);
+
+        if (!pageItems.length) {
+            tbody.innerHTML = `<tr><td colspan="${canManageEmployeeHierarchy ? 7 : 6}"><div class="eh-empty">No employees found.</div></td></tr>`;
+            renderEmployeePagination(totalPages);
+            return;
+        }
+
+        const showSalary = Object.keys(currentSalaryMap).length > 0;
+        tbody.innerHTML = pageItems.map(employee => {
+            const employeeId = getEmployeeId(employee);
+            const employeeCode = getEmployeeCode(employee);
+            const editMeta = getEditButtonMeta(employee);
+            const salaryValue = currentSalaryMap[employeeCode] ?? currentSalaryMap[employeeCode.toUpperCase()];
+            const salaryText = salaryValue !== undefined && salaryValue !== null ? formatCurrency(salaryValue) : 'Rs. 0.00';
+            const salaryColor = salaryValue !== undefined && salaryValue !== null ? '#166534' : '#94a3b8';
+            return `<tr data-empcode="${escapeHtml(employeeCode)}">
+                <td>${escapeHtml(getEmployeeName(employee))}</td>
+                <td><span class="eh-code">${escapeHtml(employeeCode)}</span></td>
+                <td>${escapeHtml(getRoleName(employee) || '-')}</td>
+                <td>${escapeHtml(getDesignation(employee) || '-')}</td>
+                <td><span class="eh-status ${isActiveEmployee(employee) ? '' : 'inactive'}">${isActiveEmployee(employee) ? 'Active' : 'Inactive'}</span></td>
+                <td class="sal-col sal-val" style="display:${showSalary ? '' : 'none'};font-weight:700;color:${salaryColor}">${salaryText}</td>
+                ${canManageEmployeeHierarchy ? `<td><div class="act-cell"><button type="button" class="${editMeta.cssClass}" onclick="openEditEmployee(${employeeId})" title="${editMeta.title}">${editMeta.label}</button></div></td>` : ''}
+            </tr>`;
+        }).join('');
+
+        renderEmployeePagination(totalPages);
+    }
+
+    function goToEmployeePage(pageNumber) {
+        const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / employeePageSize));
+        if (pageNumber < 1 || pageNumber > totalPages) return;
+        employeeCurrentPage = pageNumber;
+        renderEmployeeTable();
+    }
+
+    function clearEmployeeOmniSearch() {
+        const input = document.getElementById('employeeOmniSearch');
+        if (!input) return;
+        input.value = '';
+        employeeCurrentPage = 1;
+        renderEmployeeTable();
+    }
+
+    async function apiJson(url, method = 'GET', body = null) {
+        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) options.body = JSON.stringify(body);
+        const response = await fetch(url, options);
+        return response.json();
+    }
+
+    async function fetchEmployeeDetails(employeeId) {
+        const response = await fetch(`${detailsUrl}?id=${employeeId}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        return response.json();
+    }
+
+    function renderRoleOptions() {
+        document.getElementById('editRoleType').innerHTML = roleTypes
+            .map(role => `<option value="${pick(role, ['roleTypeId', 'RoleTypeId'])}">${escapeHtml(pick(role, ['roleName', 'RoleName']))}</option>`)
+            .join('');
+    }
+
+    function renderDeptOptions(selectId, deptList) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = '<option value="">- Select Department -</option>' + (deptList || []).map(department => {
+            const deptId = pick(department, ['departmentId', 'DepartmentId']);
+            const deptName = pick(department, ['departmentName', 'DepartmentName']);
+            return `<option value="${deptId}">${escapeHtml(deptName)}</option>`;
+        }).join('');
+    }
+
+    function renderHodOptions(selectId, employees) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = '<option value="">- Select HOD -</option>' + (employees || []).map(employee => {
+            const employeeId = getEmployeeId(employee);
+            const employeeName = getEmployeeName(employee);
+            const employeeCode = getEmployeeCode(employee);
+            return `<option value="${employeeId}">${escapeHtml(employeeName)} (${escapeHtml(employeeCode)})</option>`;
+        }).join('');
+    }
+
+    function ensureSelectOption(selectId, value, label) {
+        const select = document.getElementById(selectId);
+        if (!select || value === null || value === undefined || value === '') return;
+        const normalized = String(value);
+        const exists = [...select.options].some(option => String(option.value) === normalized);
+        if (!exists) {
+            select.innerHTML += `<option value="${normalized}">${escapeHtml(label || normalized)}</option>`;
+        }
+    }
+
+    function updateEditRoleUI(roleTypeId, departmentName, subDepartmentName) {
+        const resolvedRoleTypeId = roleTypeId || toInt(document.getElementById('editRoleTypeValue').value) || 0;
+        const departmentViewRow = document.getElementById('editDepartmentViewRow');
+        const subDepartmentViewRow = document.getElementById('editSubDepartmentViewRow');
+        const departmentLabel = document.getElementById('editDepartmentLabel');
+        const departmentText = document.getElementById('editDepartmentText');
+        const subDepartmentText = document.getElementById('editSubDepartmentText');
+
+        if (departmentViewRow) departmentViewRow.style.display = resolvedRoleTypeId === 1 ? '' : 'none';
+        if (subDepartmentViewRow) subDepartmentViewRow.style.display = resolvedRoleTypeId === 2 ? '' : 'none';
+        if (departmentLabel) departmentLabel.textContent = 'Department';
+        if (departmentText) departmentText.value = departmentName || '-';
+        if (subDepartmentText) subDepartmentText.value = subDepartmentName || '-';
+
+        const badge = document.getElementById('editEmpBadge');
+        if (badge) {
+            const roleMap = { 1: 'HOD', 2: 'Sub-HOD', 3: 'Executive' };
+            badge.textContent = roleMap[resolvedRoleTypeId] || '';
+        }
+    }
+
+    async function resolveManagerSelection(employee, managerId) {
+        const roleTypeId = toInt(pick(employee, ['roleTypeId', 'RoleTypeId'], null)) || 0;
+        let hodId = null;
+        let subHodId = null;
+
+        if (roleTypeId === 2) {
+            hodId = managerId;
+        } else if (roleTypeId === 3 && managerId) {
+            const managerRow = allEmployees.find(item => String(getEmployeeId(item)) === String(managerId));
+            const managerRoleTypeId = getRoleTypeId(managerRow);
+            if (managerRoleTypeId === 2) {
+                subHodId = managerId;
+                try {
+                    const managerResult = await fetchEmployeeDetails(managerId);
+                    const managerDetail = managerResult.data ?? managerResult.Data ?? null;
+                    const managerReports = managerDetail ? (managerDetail.reportsTo ?? managerDetail.ReportsTo ?? []) : [];
+                    const managerFirstReport = managerReports.length ? managerReports[0] : null;
+                    hodId = toInt(pick(managerFirstReport, ['managerId', 'ManagerId'], null));
+                } catch (error) {
+                    hodId = null;
+                }
+            } else {
+                hodId = managerId;
+            }
+        }
+
+        return { hodId, subHodId };
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        ensureSingleEditModalInstance();
+        const searchInput = document.getElementById('employeeOmniSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                employeeCurrentPage = 1;
+                renderEmployeeTable();
+            });
+        }
+        renderEmployeeTable();
+    });
+
+    // ══════════════════════════════════════════════════════
+    // ADMIN KEY MODAL
+    // ══════════════════════════════════════════════════════
+    let _ehAkKeyExists = false;
+    let _ehUnlockAdminKeyForCreds = '';
+    let _ehUnlockMode = 'salary';
+    let _ehDbCredRequirePassword = true;
+
+    function validateAdminKeyFormat(value) {
+        return value
+            && value.length >= 6
+            && /[A-Z]/.test(value)
+            && /[^A-Za-z0-9]/.test(value);
+    }
+
+    async function openEhAdminKeyModal() {
+        ['ehAk_old','ehAk_new','ehAk_confirm'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        const errEl = document.getElementById('ehAdminKeyErr');
+        if (errEl) errEl.style.display = 'none';
+
+        try {
+            const res = await fetch(`${apiBase}/GetAdminKeyStatus`);
+            const status = await res.json();
+            if (!status.hasPermission) {
+                alert('You do not have permission to manage the admin salary key.');
+                return;
+            }
+            _ehAkKeyExists = !!status.keyExists;
+        } catch(e) {
+            alert('Could not load key status.');
+            return;
+        }
+
+        const oldWrap = document.getElementById('ehAk_old_wrap');
+        const title   = document.getElementById('ehAdminKeyTitle');
+        const newLbl  = document.getElementById('ehAk_new_label');
+        if (_ehAkKeyExists) {
+            oldWrap.style.display = '';
+            title.textContent  = 'Change Admin Key';
+            newLbl.textContent = 'New Admin Key *';
+        } else {
+            oldWrap.style.display = 'none';
+            title.textContent  = 'Create Admin Key';
+            newLbl.textContent = 'Admin Key *';
+        }
+
+        document.getElementById('ehAdminKeyModal').classList.add('open');
+        setTimeout(() => document.getElementById(_ehAkKeyExists ? 'ehAk_old' : 'ehAk_new').focus(), 100);
+    }
+
+    function closeEhAdminKeyModal() {
+        document.getElementById('ehAdminKeyModal').classList.remove('open');
+    }
+
+    async function submitEhAdminKey() {
+        const oldKey     = document.getElementById('ehAk_old').value;
+        const newKey     = document.getElementById('ehAk_new').value;
+        const confirmKey = document.getElementById('ehAk_confirm').value;
+        const errEl      = document.getElementById('ehAdminKeyErr');
+        errEl.style.display = 'none';
+
+        if (_ehAkKeyExists && !oldKey) {
+            errEl.textContent = 'Enter the current key'; errEl.style.display = 'block'; return;
+        }
+        if (!validateAdminKeyFormat(newKey)) {
+            errEl.textContent = 'New key must be at least 6 characters and include one uppercase letter and one special character'; errEl.style.display = 'block'; return;
+        }
+        if (newKey !== confirmKey) {
+            errEl.textContent = 'Keys do not match'; errEl.style.display = 'block'; return;
+        }
+
+        const btn = document.getElementById('ehAdminKeySubmitBtn');
+        btn.disabled = true; btn.textContent = 'Saving…';
+
+        try {
+            const res = await fetch(`${apiBase}/SetAdminSalaryKey`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oldKey: _ehAkKeyExists ? oldKey : null, adminKey: newKey })
+            });
+            const data = await res.json();
+            if (data.success) {
+                closeEhAdminKeyModal();
+                alert(data.message || 'Admin key saved successfully.');
+            } else {
+                errEl.textContent = data.message || 'Failed to save key';
+                errEl.style.display = 'block';
+            }
+        } catch(e) {
+            errEl.textContent = 'Network error';
+            errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false; btn.textContent = 'Save Key';
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // SALARY PERMISSION MODAL
+    // ══════════════════════════════════════════════════════
+    let _salPermEmployees = [];
+    let _salPermSelected = new Set();
+    let _salPermSearchTerm = '';
+
+    async function openSalaryPermModal() {
+        document.getElementById('salPermModal').classList.add('open');
+        document.getElementById('salPermList').innerHTML = '<div style="color:#64748b;padding:12px">Loading employees…</div>';
+        document.getElementById('salPermErr').style.display = 'none';
+        const searchInput = document.getElementById('salPermSearch');
+        if (searchInput) searchInput.value = '';
+        _salPermSearchTerm = '';
+
+        try {
+            const data = await apiJson(`${apiBase}/GetEmployeesForSalaryPermission`);
+            _salPermEmployees = data.data ?? data.Data ?? [];
+            _salPermSelected = new Set(_salPermEmployees.filter(employee => pick(employee, ['viewSalary', 'ViewSalary'], false)).map(employee => pick(employee, ['employeeId', 'EmployeeId'])));
+            renderSalPermList();
+        } catch (error) {
+            document.getElementById('salPermList').innerHTML = '<div style="color:#991b1b;padding:12px">Failed to load employees.</div>';
+        }
+    }
+
+    function getSalaryPermissionSearchBlob(employee) {
+        return normalizeText([
+            pick(employee, ['employeeName', 'EmployeeName'], ''),
+            pick(employee, ['employeeCode', 'EmployeeCode'], ''),
+            pick(employee, ['roleName', 'RoleName'], ''),
+            pick(employee, ['designation', 'Designation'], ''),
+            pick(employee, ['departmentName', 'DepartmentName', 'primaryDepartmentName', 'PrimaryDepartmentName'], ''),
+            pick(employee, ['subDepartmentName', 'SubDepartmentName', 'primarySubDepartmentName', 'PrimarySubDepartmentName'], '')
+        ].join(' '));
+    }
+
+    function filterSalaryPermissionList() {
+        _salPermSearchTerm = normalizeText(document.getElementById('salPermSearch')?.value);
+        renderSalPermList();
+    }
+
+    function renderSalPermList() {
+        const list = document.getElementById('salPermList');
+        const items = !_salPermSearchTerm
+            ? _salPermEmployees
+            : _salPermEmployees.filter(employee => getSalaryPermissionSearchBlob(employee).includes(_salPermSearchTerm));
+        if (!items.length) {
+            list.innerHTML = '<div style="color:#64748b;padding:12px">No employees found.</div>';
+            return;
+        }
+
+        list.innerHTML = items.map(employee => {
+            const employeeId = pick(employee, ['employeeId', 'EmployeeId']);
+            const checked = _salPermSelected.has(employeeId) ? 'checked' : '';
+            const deptText = [
+                pick(employee, ['departmentName', 'DepartmentName', 'primaryDepartmentName', 'PrimaryDepartmentName'], ''),
+                pick(employee, ['subDepartmentName', 'SubDepartmentName', 'primarySubDepartmentName', 'PrimarySubDepartmentName'], '')
+            ].filter(Boolean).join(' / ');
+            return `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #e2e8f0;cursor:pointer;font-size:13px">
+                <input type="checkbox" ${checked} onchange="toggleSalPerm(${employeeId}, this.checked)" style="width:15px;height:15px;accent-color:#123f6d;cursor:pointer;flex-shrink:0" />
+                <span style="flex:1">
+                    <strong>${escapeHtml(pick(employee, ['employeeName', 'EmployeeName'], ''))}</strong>
+                    <span style="font-size:11px;color:#64748b;font-family:monospace">${escapeHtml(pick(employee, ['employeeCode', 'EmployeeCode'], ''))}</span>
+                    ${deptText ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${escapeHtml(deptText)}</div>` : ''}
+                </span>
+                <span style="font-size:11px;color:#475569;background:#f1f5f9;border-radius:20px;padding:2px 8px">${escapeHtml(pick(employee, ['roleName', 'RoleName'], ''))}</span>
+            </label>`;
+        }).join('');
+    }
+
+    function toggleSalPerm(employeeId, checked) {
+        if (checked) _salPermSelected.add(employeeId);
+        else _salPermSelected.delete(employeeId);
+    }
+
+    function closeSalaryPermModal() {
+        document.getElementById('salPermModal').classList.remove('open');
+    }
+
+    async function submitSalaryPerm() {
+        const errEl = document.getElementById('salPermErr');
+        errEl.style.display = 'none';
+        const btn = document.getElementById('salPermSubmitBtn');
+        btn.disabled = true; btn.textContent = 'Saving…';
+
+        try {
+            const res = await fetch(`${apiBase}/SetSalaryPermission`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeIds: [..._salPermSelected] })
+            });
+            const data = await res.json();
+            if (data.success) {
+                closeSalaryPermModal();
+                alert(data.message || 'Salary permissions updated.');
+            } else {
+                errEl.textContent = data.message || 'Failed to update permissions';
+                errEl.style.display = 'block';
+            }
+        } catch(e) {
+            errEl.textContent = 'Network error';
+            errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false; btn.textContent = 'Save Permissions';
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // UNLOCK SALARY — Step 1: Admin Key
+    // ══════════════════════════════════════════════════════
+    async function openUnlockSalaryModal(mode) {
+        _ehUnlockMode = mode || 'salary';
+        document.getElementById('ehUnlockAdminKey').value = '';
+        document.getElementById('ehUnlockErr').style.display = 'none';
+        document.getElementById('ehUnlockTitle').textContent = _ehUnlockMode === 'credentials' ? 'Edit DB Credentials' : 'Unlock Salary';
+        document.getElementById('ehUnlockDescription').textContent = _ehUnlockMode === 'credentials'
+            ? 'Enter the admin key to edit salary database credentials.'
+            : 'Enter the admin key to unlock salary view.';
+        document.getElementById('ehUnlockModal').classList.add('open');
+        setTimeout(() => document.getElementById('ehUnlockAdminKey').focus(), 100);
+    }
+
+    function openDbCredentialEditor() {
+        openUnlockSalaryModal('credentials');
+    }
+
+    function closeUnlockSalaryModal() {
+        document.getElementById('ehUnlockModal').classList.remove('open');
+    }
+
+    async function submitUnlockSalary() {
+        const adminKey = document.getElementById('ehUnlockAdminKey').value;
+        const errEl    = document.getElementById('ehUnlockErr');
+        errEl.style.display = 'none';
+
+        if (!adminKey) { errEl.textContent = 'Enter the admin key'; errEl.style.display = 'block'; return; }
+
+        const btn = document.getElementById('ehUnlockSubmitBtn');
+        btn.disabled = true; btn.textContent = 'Verifying…';
+
+        try {
+            const res  = await fetch(`${apiBase}/VerifyAdminKey`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey })
+            });
+            const data = await res.json();
+            if (data.success) {
+                _ehUnlockAdminKeyForCreds = adminKey;
+                closeUnlockSalaryModal();
+                openDbCredModal(_ehUnlockMode !== 'credentials');          // Step 2 — DB password, or credential editor only
+            } else {
+                errEl.textContent = data.message || 'Admin key is incorrect';
+                errEl.style.display = 'block';
+            }
+        } catch(e) {
+            errEl.textContent = 'Network error'; errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false; btn.textContent = 'Verify';
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // UNLOCK SALARY — Step 2: Live DB Credentials
+    // Password is NEVER stored anywhere — used once and gone.
+    // ══════════════════════════════════════════════════════
+    async function openDbCredModal(requirePassword) {
+        _ehDbCredRequirePassword = requirePassword !== false;
+        document.getElementById('ehDbPassword').value = '';
+        document.getElementById('ehDbCredErr').style.display = 'none';
+        document.getElementById('ehDbCredModal').classList.add('open');
+        document.getElementById('ehDbCredTitle').textContent = _ehDbCredRequirePassword ? 'Database Authentication' : 'Database Credentials';
+        document.getElementById('ehDbCredIntro').textContent = _ehDbCredRequirePassword
+            ? 'Review or edit the salary database values, then enter the database password to retrieve salary data. The password is never stored or logged.'
+            : 'Edit the salary database server, database, and user id. The database password is not stored here.';
+        document.getElementById('ehDbPasswordWrap').style.display = _ehDbCredRequirePassword ? '' : 'none';
+        document.getElementById('ehDbCredSubmitBtn').style.display = _ehDbCredRequirePassword ? '' : 'none';
+
+        try {
+            const res = await fetch(`${apiBase}/GetSalaryDbCredentials?adminKey=${encodeURIComponent(_ehUnlockAdminKeyForCreds)}`);
+            const data = await res.json();
+            if (!data.success) {
+                setDbCredError(data.message || 'Could not load database values.');
+                return;
+            }
+
+            const creds = data.data ?? data.Data ?? {};
+            document.getElementById('ehDbServerName').value = creds.serverName ?? creds.ServerName ?? '';
+            document.getElementById('ehDbDatabaseName').value = creds.databaseName ?? creds.DatabaseName ?? '';
+            document.getElementById('ehDbUserId').value = creds.dbUserId ?? creds.DbUserId ?? '';
+        } catch(e) {
+            setDbCredError('Could not load database values.');
+        }
+
+        setTimeout(() => document.getElementById(_ehDbCredRequirePassword ? 'ehDbPassword' : 'ehDbServerName').focus(), 100);
+    }
+
+    function closeDbCredModal() {
+        // Overwrite field value before closing
+        document.getElementById('ehDbPassword').value = '';
+        document.getElementById('ehDbCredModal').classList.remove('open');
+    }
+
+    function setDbCredError(message) {
+        const errEl = document.getElementById('ehDbCredErr');
+        errEl.textContent = message || '';
+        errEl.style.display = message ? 'block' : 'none';
+    }
+
+    async function saveSalaryDbCredentials(showAlert) {
+        const serverName = document.getElementById('ehDbServerName').value.trim();
+        const databaseName = document.getElementById('ehDbDatabaseName').value.trim();
+        const dbUserId = document.getElementById('ehDbUserId').value.trim();
+
+        if (!serverName || !databaseName || !dbUserId) {
+            setDbCredError('Server, database, and user id are required.');
+            return false;
+        }
+
+        const btn = document.getElementById('ehDbCredSaveBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+        try {
+            const res = await fetch(`${apiBase}/UpdateSalaryDbCredentials`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminKey: _ehUnlockAdminKeyForCreds,
+                    serverName,
+                    databaseName,
+                    dbUserId
+                })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                setDbCredError(data.message || 'Could not save database values.');
+                return false;
+            }
+            setDbCredError('');
+            if (showAlert) alert(data.message || 'Database values saved.');
+            return true;
+        } catch(e) {
+            setDbCredError('Network error while saving database values.');
+            return false;
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Save Database Values'; }
+        }
+    }
+
+    async function submitDbCreds() {
+        if (!_ehDbCredRequirePassword) {
+            const saved = await saveSalaryDbCredentials(false);
+            if (saved) closeDbCredModal();
+            return;
+        }
+
+        const pwdField = document.getElementById('ehDbPassword');
+        const pwd      = pwdField.value;
+        const errEl    = document.getElementById('ehDbCredErr');
+        errEl.style.display = 'none';
+
+        if (!pwd) { errEl.textContent = 'Enter the database password'; errEl.style.display = 'block'; return; }
+
+        const btn = document.getElementById('ehDbCredSubmitBtn');
+        btn.disabled = true; btn.textContent = 'Connecting…';
+
+        try {
+            const saved = await saveSalaryDbCredentials(false);
+            if (!saved) return;
+
+            const res = await fetch(`${apiBase}/UnlockSalarySession`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dbPassword: pwd })
+            });
+            // Clear field immediately after send — before even reading response
+            pwdField.value = '';
+
+            const data = await res.json();
+            if (data.success) {
+                closeDbCredModal();
+                // Fetch salary data from session and inject into table
+                await loadAndShowSalary(data.expiresAt ?? data.ExpiresAt);
+            } else {
+                errEl.textContent = data.message || 'Connection failed. Check your credentials.';
+                errEl.style.display = 'block';
+            }
+        } catch(e) {
+            pwdField.value = '';
+            errEl.textContent = 'Network error'; errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false; btn.textContent = 'Connect';
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // SALARY COLUMN — inject / remove
+    // ══════════════════════════════════════════════════════
+    let _salaryTimerInterval = null;
+
+    async function loadAndShowSalary(expiresAt) {
+        try {
+            const res  = await fetch(`${apiBase}/GetSalarySessionData`);
+            const data = await res.json();
+            if (!data.success) { alert(data.message || 'Could not load salary data.'); return; }
+            const salaries = data.salaries ?? data.Salaries ?? {};
+            injectSalaryColumn(salaries);
+            startSalaryTimer(new Date(data.expiresAt ?? data.ExpiresAt ?? expiresAt));
+        } catch(e) { alert('Could not load salary data.'); }
+    }
+
+    function injectSalaryColumn(salaryMap) {
+        currentSalaryMap = salaryMap || {};
+        renderEmployeeTable();
+        document.querySelectorAll('.sal-col').forEach(el => el.style.display = '');
+        document.getElementById('salaryTimerBadge').style.display = 'flex';
+    }
+
+    function removeSalaryColumn() {
+        currentSalaryMap = {};
+        renderEmployeeTable();
+        document.querySelectorAll('.sal-col').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.sal-val').forEach(el => el.textContent = '—');
+        document.getElementById('salaryTimerBadge').style.display = 'none';
+        if (_salaryTimerInterval) { clearInterval(_salaryTimerInterval); _salaryTimerInterval = null; }
+    }
+
+    function startSalaryTimer(expiresAt) {
+        if (_salaryTimerInterval) clearInterval(_salaryTimerInterval);
+        const el = document.getElementById('salaryTimerText');
+
+        function tick() {
+            const remaining = Math.max(0, expiresAt - Date.now());
+            const mins = String(Math.floor(remaining / 60000)).padStart(2, '0');
+            const secs = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
+            if (el) el.textContent = `${mins}:${secs}`;
+            if (remaining <= 0) {
+                clearInterval(_salaryTimerInterval);
+                _salaryTimerInterval = null;
+                removeSalaryColumn();
+                fetch(`${apiBase}/ClearSalarySession`, { method: 'POST' });
+                alert('Salary session has expired. All salary data has been cleared.');
+            }
+        }
+
+        tick();
+        _salaryTimerInterval = setInterval(tick, 1000);
+    }
+
+    async function manualLockSalary() {
+        removeSalaryColumn();
+        try { await fetch(`${apiBase}/ClearSalarySession`, { method: 'POST' }); } catch(e) {}
+    }
+
+    // ── On page load: restore active salary session if still valid ──
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const res  = await fetch(`${apiBase}/GetSalarySessionData`);
+            const data = await res.json();
+            if (data.success) {
+                const salaries = data.salaries ?? data.Salaries ?? {};
+                injectSalaryColumn(salaries);
+                startSalaryTimer(new Date(data.expiresAt ?? data.ExpiresAt));
+            }
+        } catch(e) {}
+    });
+</script>
+
+<!-- ══ ADMIN KEY MODAL ══ -->
+<div class="eh-modal" id="ehAdminKeyModal">
+    <div class="eh-modal-box" style="max-width:440px">
+        <div class="eh-modal-title">
+            <span id="ehAdminKeyTitle">Admin Key</span>
+            <button type="button" class="eh-btn danger small" onclick="closeEhAdminKeyModal()">Close</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:16px">
+            Minimum 6 characters with at least one uppercase letter and one special character. If a key already exists, enter the current key first.
+        </p>
+        <div id="ehAk_old_wrap" style="display:none;margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Current Key *</label>
+            <input type="password" class="eh-input" id="ehAk_old" placeholder="Enter current admin key" />
+        </div>
+        <div style="margin-bottom:12px">
+            <label id="ehAk_new_label" style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Admin Key *</label>
+            <input type="password" class="eh-input" id="ehAk_new" placeholder="Example: Admin@1" />
+        </div>
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Confirm Admin Key *</label>
+            <input type="password" class="eh-input" id="ehAk_confirm" placeholder="Re-enter admin key" onkeydown="if(event.key==='Enter')submitEhAdminKey()" />
+        </div>
+        <div id="ehAdminKeyErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
+        <div class="eh-modal-actions">
+            <button type="button" class="eh-btn secondary" onclick="closeEhAdminKeyModal()">Cancel</button>
+            <button type="button" class="eh-btn" id="ehAdminKeySubmitBtn" onclick="submitEhAdminKey()">Save Key</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ SALARY PERMISSION MODAL ══ -->
+<div class="eh-modal" id="salPermModal">
+    <div class="eh-modal-box" style="max-width:560px">
+        <div class="eh-modal-title">
+            <span>Salary View Permission</span>
+            <button type="button" class="eh-btn danger small" onclick="closeSalaryPermModal()">Close</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:14px">
+            Check employees who should be allowed to view salary data. Uncheck to revoke access.
+        </p>
+        <div class="eh-search" style="margin-top:0;margin-bottom:12px">
+            <input type="text" id="salPermSearch" placeholder="Search name, code, role, designation, department..." autocomplete="off" oninput="filterSalaryPermissionList()" />
+        </div>
+        <div id="salPermList" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px"></div>
+        <div id="salPermErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-top:10px"></div>
+        <div class="eh-modal-actions">
+            <button type="button" class="eh-btn secondary" onclick="closeSalaryPermModal()">Cancel</button>
+            <button type="button" class="eh-btn" id="salPermSubmitBtn" onclick="submitSalaryPerm()">Save Permissions</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ UNLOCK SALARY MODAL ══ -->
+<div class="eh-modal" id="ehUnlockModal">
+    <div class="eh-modal-box" style="max-width:420px">
+        <div class="eh-modal-title">
+            <span id="ehUnlockTitle">Unlock Salary</span>
+            <button type="button" class="eh-btn danger small" onclick="closeUnlockSalaryModal()">Close</button>
+        </div>
+        <p id="ehUnlockDescription" style="font-size:12px;color:#64748b;margin-bottom:16px">
+            Enter the admin key to unlock salary view.
+        </p>
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Admin Key *</label>
+            <input type="password" class="eh-input" id="ehUnlockAdminKey" placeholder="Enter admin key" onkeydown="if(event.key==='Enter')submitUnlockSalary()" />
+        </div>
+        <div id="ehUnlockErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
+        <div class="eh-modal-actions">
+            <button type="button" class="eh-btn secondary" onclick="closeUnlockSalaryModal()">Cancel</button>
+            <button type="button" class="eh-btn" id="ehUnlockSubmitBtn" onclick="submitUnlockSalary()" style="background:#b91c1c">Verify</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ DB CREDENTIALS MODAL ══ -->
+<div class="eh-modal" id="ehDbCredModal">
+    <div class="eh-modal-box" style="max-width:440px">
+        <div class="eh-modal-title">
+            <span id="ehDbCredTitle">Database Authentication</span>
+            <button type="button" class="eh-btn danger small" onclick="closeDbCredModal()">Close</button>
+        </div>
+        <p id="ehDbCredIntro" style="font-size:12px;color:#64748b;margin-bottom:16px">
+            Review or edit the salary database values, then enter the database password to retrieve salary data. The password is never stored or logged.
+        </p>
+        <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#475569">
+            <div style="margin-bottom:10px">
+                <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:5px">Server *</label>
+                <input type="text" class="eh-input" id="ehDbServerName" placeholder="Server name" autocomplete="off" />
+            </div>
+            <div style="margin-bottom:10px">
+                <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:5px">Database *</label>
+                <input type="text" class="eh-input" id="ehDbDatabaseName" placeholder="Database name" autocomplete="off" />
+            </div>
+            <div style="margin-bottom:10px">
+                <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:5px">User Id *</label>
+                <input type="text" class="eh-input" id="ehDbUserId" placeholder="Database user id" autocomplete="off" />
+            </div>
+            <button type="button" class="eh-btn secondary small" id="ehDbCredSaveBtn" onclick="saveSalaryDbCredentials(true)">Save Database Values</button>
+        </div>
+        <div id="ehDbPasswordWrap" style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Password *</label>
+            <input
+                type="password"
+                class="eh-input"
+                id="ehDbPassword"
+                placeholder="Enter database password"
+                autocomplete="new-password"
+                onpaste="return false"
+                oncopy="return false"
+                oncut="return false"
+                ondrop="return false"
+                oncontextmenu="return false"
+                onkeydown="if(event.key==='Enter')submitDbCreds()"
+                style="letter-spacing:0.2em"
+            />
+            <div style="font-size:11px;color:#94a3b8;margin-top:5px">Paste and copy are disabled. Type the password manually.</div>
+        </div>
+        <div id="ehDbCredErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
+        <div class="eh-modal-actions">
+            <button type="button" class="eh-btn secondary" onclick="closeDbCredModal()">Cancel</button>
+            <button type="button" class="eh-btn" id="ehDbCredSubmitBtn" onclick="submitDbCreds()" style="background:#b91c1c">Connect &amp; Load Salaries</button>
+        </div>
+    </div>
+</div>

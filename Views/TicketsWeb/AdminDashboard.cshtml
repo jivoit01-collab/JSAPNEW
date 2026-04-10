@@ -780,11 +780,7 @@
                     <p class="ticket-description">${escapeHtml(ticket.description) || 'No description'}</p>
                     <div class="ticket-meta">
                         <span>📁 ${ticket.projectName}</span>
-                        <span>👤 ${ticket.from
-                            
-                            
-                            
-                            || 'N/A'}</span>
+                        <span>👤 ${ticket.fromUserName || 'N/A'}</span>
                         <span>📅 ${formatDate(ticket.createdOn)}</span>
                     </div>
                 </div>

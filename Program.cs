@@ -4,6 +4,7 @@ using System.Text;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using JSAPNEW.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -91,9 +92,11 @@ builder.Services.AddScoped<IAuth2Service, Auth2Service>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ITicketsService, TicketsService>();
+builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<CheckerService>();
 builder.Services.AddScoped<MakerService>();
 builder.Services.AddScoped<InvoicePaymentService>();
+builder.Services.AddScoped<IHierarchyService, HierarchyService>();
 
 // Add CORS
 builder.Services.AddCors(options =>

@@ -1,0 +1,3846 @@
+﻿@{
+    ViewData["Title"] = "Hierarchy Master";
+    bool isAdmin = ViewBag.IsAdmin is bool ia && ia;
+    string empCode = ViewBag.EmpCode?.ToString() ?? "";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+    :root {
+        --page-font-size: 13px;
+        --page-font-family: 'Sora',sans-serif;
+        --g1: #0b2c4d;
+        --g2: #1a4a7a;
+        --g3: #2563eb;
+        --bg: #ffffff;
+        --bg2: #f8fafc;
+        --bg3: #f1f5f9;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+        --danger: #dc2626;
+        --warn: #d97706;
+        --info: #2563eb;
+        --row-h: 44px
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0
+    }
+
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--page-font-family);
+        font-size: var(--page-font-size)
+    }
+
+    .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap
+    }
+
+    .topbar-title {
+        font-size: 16px;
+        font-weight: 700;
+        background: linear-gradient(90deg,var(--g2),var(--g3));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        white-space: nowrap
+    }
+
+    .stat-pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap
+    }
+
+    .stat-pill {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        white-space: nowrap
+    }
+
+        .stat-pill b {
+            color: var(--g2);
+            font-size: 13px;
+            margin-right: 3px
+        }
+
+    .topbar-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+        flex-wrap: wrap;
+        align-items: center
+    }
+
+    .btn {
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Sora',sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 7px 14px;
+        transition: all .15s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap
+    }
+
+    .btn-primary {
+        background: var(--g1);
+        color: #fff
+    }
+
+        .btn-primary:hover {
+            background: var(--g2);
+            transform: translateY(-1px)
+        }
+
+    .btn-add-employee {
+        background: #0ea5e9;
+    }
+
+        .btn-add-employee:hover {
+            background: #0284c7;
+        }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border)
+    }
+
+        .btn-ghost:hover {
+            color: var(--text);
+            border-color: var(--g1)
+        }
+
+    .btn-excel {
+        background: rgba(21,128,61,.2);
+        color: #4ade80;
+        border: 1px solid rgba(74,222,128,.3)
+    }
+
+        .btn-excel:hover {
+            background: rgba(21,128,61,.35)
+        }
+
+    .filterbar {
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        padding: 8px 20px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap
+    }
+
+    .search-box {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 6px 12px;
+        color: var(--text);
+        font-family: 'Sora',sans-serif;
+        font-size: 12px;
+        outline: none;
+        transition: border .2s;
+        width: 220px
+    }
+
+        .search-box:focus {
+            border-color: var(--g1)
+        }
+
+    .filter-sel {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 5px 10px;
+        color: var(--text);
+        font-family: 'Sora',sans-serif;
+        font-size: 12px;
+        outline: none;
+        cursor: pointer
+    }
+
+        .filter-sel:focus {
+            border-color: var(--g1)
+        }
+
+    .row-count {
+        font-size: 11px;
+        color: var(--muted);
+        margin-left: auto
+    }
+
+    .grid-wrap {
+        overflow: auto;
+        max-height: calc(100vh - 148px)
+    }
+
+    table.hm {
+        border-collapse: collapse;
+        width: max-content;
+        min-width: 100%
+    }
+
+        table.hm thead tr.grp th {
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            padding: 6px 10px;
+            text-align: center;
+            color: var(--muted)
+        }
+
+            table.hm thead tr.grp th.g-hod {
+                background: rgba(11,44,77,.07);
+                color: var(--g1)
+            }
+
+            table.hm thead tr.grp th.g-dept {
+                background: rgba(37,99,235,.05);
+                color: #2563eb
+            }
+
+            table.hm thead tr.grp th.g-sub {
+                background: rgba(11,44,77,.04);
+                color: var(--g2)
+            }
+
+            table.hm thead tr.grp th.g-exec {
+                background: rgba(255,255,255,.04);
+                color: var(--muted)
+            }
+
+            table.hm thead tr.grp th.g-act {
+                background: var(--bg)
+            }
+
+        table.hm thead tr.cols th {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: var(--bg3);
+            border-bottom: 2px solid var(--border);
+            padding: 7px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text);
+            text-align: left;
+            white-space: nowrap
+        }
+
+            table.hm thead tr.cols th.sk1 {
+                position: sticky;
+                left: 0;
+                z-index: 35;
+                background: var(--bg3);
+                box-shadow: 2px 0 8px rgba(0,0,0,.5)
+            }
+
+        table.hm tbody tr {
+            border-bottom: 1px solid rgba(42,52,65,.6);
+            transition: background .1s;
+            height: var(--row-h)
+        }
+
+            table.hm tbody tr:hover {
+                background: #f1f5f9
+            }
+
+            table.hm tbody tr.hod-border {
+                border-top: 2px solid rgba(14,125,75,.35)
+            }
+
+        table.hm tbody td {
+            padding: 6px 12px;
+            vertical-align: middle;
+            border-right: 1px solid rgba(42,52,65,.4);
+            white-space: nowrap;
+            max-width: 200px
+        }
+
+            table.hm tbody td.sk1 {
+                position: sticky;
+                left: 0;
+                z-index: 10;
+                background: var(--bg);
+                box-shadow: 2px 0 8px rgba(148,163,184,.18)
+            }
+
+        table.hm tbody tr:hover td {
+            background: #f1f5f9
+        }
+
+            table.hm tbody tr:hover td.sk1 {
+                background: #f1f5f9
+            }
+
+    .emp-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 2px
+    }
+
+    .emp-name {
+        font-weight: 700;
+        color: var(--g1);
+        font-size: 12px
+    }
+
+    .emp-code {
+        font-family: 'JetBrains Mono',monospace;
+        font-size: 10px;
+        color: var(--muted);
+        background: rgba(11,44,77,.05);
+        border-radius: 3px;
+        padding: 1px 5px;
+        display: inline-block;
+        width: fit-content
+    }
+
+        .emp-code.temp-code {
+            color: #dc2626;
+            background: rgba(220,38,38,.08);
+            border: 1px solid rgba(220,38,38,.2);
+            font-weight: 700
+        }
+
+    .cell-empty {
+        color: rgba(125,133,144,.3);
+        font-style: italic;
+        font-size: 11px
+    }
+
+    .dept-badge {
+        font-size: 11px;
+        font-weight: 600;
+        color: #1d4ed8;
+        background: rgba(37,99,235,.07);
+        border-radius: 4px;
+        padding: 2px 7px;
+        display: inline-block;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.4
+    }
+
+    .subdept-text {
+        font-size: 11px;
+        color: var(--muted)
+    }
+
+    .desig-text {
+        font-size: 11px;
+        color: var(--muted);
+        font-style: italic
+    }
+
+    .status-dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 600
+    }
+
+        .status-dot::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block
+        }
+
+        .status-dot.active {
+            color: #16a34a
+        }
+
+            .status-dot.active::before {
+                background: #16a34a;
+                box-shadow: 0 0 4px rgba(22,163,74,.4)
+            }
+
+        .status-dot.inactive {
+            color: var(--danger)
+        }
+
+            .status-dot.inactive::before {
+                background: var(--danger)
+            }
+
+    /* inline editing removed — use edit buttons instead */
+    .btn-deact {
+        border-color: rgba(220,38,38,.3);
+        color: var(--danger)
+    }
+
+        .btn-deact:hover {
+            background: rgba(220,38,38,.08)
+        }
+
+    .btn-pwd {
+        border-color: rgba(11,44,77,.3);
+        color: var(--g2)
+    }
+
+        .btn-pwd:hover {
+            background: rgba(11,44,77,.08)
+        }
+
+    .act-cell {
+        display: flex;
+        gap: 3px;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap
+    }
+
+    .btn-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 5px;
+        border: 1px solid;
+        background: transparent;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .15s;
+        flex-shrink: 0;
+        padding: 0;
+        font-family: 'Sora',sans-serif
+    }
+
+    .btn-edit-hod {
+        border-color: rgba(11,44,77,.3);
+        color: #0b2c4d
+    }
+
+        .btn-edit-hod:hover {
+            background: rgba(11,44,77,.1)
+        }
+
+    .btn-edit-sub {
+        border-color: rgba(37,99,235,.3);
+        color: #2563eb
+    }
+
+        .btn-edit-sub:hover {
+            background: rgba(37,99,235,.08)
+        }
+
+    .btn-edit-exec {
+        border-color: rgba(100,116,139,.3);
+        color: #64748b
+    }
+
+        .btn-edit-exec:hover {
+            background: rgba(100,116,139,.08)
+        }
+
+    .btn-edit-hod, .btn-edit-sub, .btn-edit-exec {
+        class: btn-icon
+    }
+
+    .grid-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 280px;
+        gap: 12px;
+        background: #fff
+    }
+
+    .ring {
+        width: 36px;
+        height: 36px;
+        border: 3px solid var(--border);
+        border-top-color: var(--g1);
+        border-radius: 50%;
+        animation: spinr .8s linear infinite
+    }
+
+    @@keyframes spinr {
+        to {
+            transform: rotate(360deg)
+        }
+    }
+
+    .toast-wrap {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 6px
+    }
+
+    .toast {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 10px 15px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 200px;
+        max-width: 340px;
+        animation: tin .25s ease;
+        box-shadow: 0 8px 24px rgba(0,0,0,.4)
+    }
+
+        .toast.ok {
+            border-left: 3px solid var(--g2)
+        }
+
+        .toast.err {
+            border-left: 3px solid var(--danger)
+        }
+
+        .toast.info {
+            border-left: 3px solid var(--info)
+        }
+
+    @@keyframes tin {
+        from {
+            opacity: 0;
+            transform: translateX(20px)
+        }
+
+        to {
+            opacity: 1;
+            transform: none
+        }
+    }
+
+    .hm-modal-overlay {
+        position: fixed;
+        inset: 0;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(11,44,77,.4);
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(3px)
+    }
+
+        .hm-modal-overlay.open {
+            display: flex
+        }
+
+    .hm-modal-box {
+        background: #fff !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 14px !important;
+        padding: 26px !important;
+        width: 540px;
+        max-width: 96vw;
+        max-height: 92vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 40px rgba(11,44,77,.15) !important;
+        position: relative;
+        z-index: 100000 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important
+    }
+
+    .hm-modal-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--g1);
+        margin-bottom: 18px
+    }
+
+    .fg {
+        margin-bottom: 12px
+    }
+
+    .fl {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 5px;
+        display: block
+    }
+
+    .fi, .fs {
+        width: 100%;
+        background: var(--bg2);
+        border: 1.5px solid var(--border);
+        border-radius: 7px;
+        padding: 8px 11px;
+        color: var(--text);
+        font-family: 'Sora',sans-serif;
+        font-size: 12px;
+        outline: none;
+        transition: border .2s
+    }
+
+        .fi:focus, .fs:focus {
+            border-color: var(--g1)
+        }
+
+    .f2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+    }
+
+    .hm-modal-foot {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border)
+    }
+
+    .level-tabs {
+        display: flex;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        overflow: hidden;
+        margin-bottom: 16px
+    }
+
+    .ltab {
+        flex: 1;
+        padding: 8px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .15s;
+        background: transparent;
+        color: var(--muted);
+        border: none;
+        font-family: 'Sora',sans-serif
+    }
+
+        .ltab:hover {
+            color: var(--text);
+            background: var(--bg3)
+        }
+
+        .ltab.on {
+            background: var(--g1);
+            color: #fff;
+            font-weight: 700
+        }
+
+    .upload-panel {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin: 0 0 0 0;
+        border-top: none
+    }
+
+    .upload-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--g2);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 7px
+    }
+
+    .drop-zone {
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all .2s;
+        background: rgba(255,255,255,.015)
+    }
+
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: var(--g1);
+            background: rgba(5,201,110,.05)
+        }
+
+        .drop-zone input[type=file] {
+            display: none
+        }
+
+    .drop-icon {
+        font-size: 26px;
+        margin-bottom: 6px
+    }
+
+    .drop-label {
+        color: var(--muted);
+        font-size: 12px
+    }
+
+        .drop-label b {
+            color: var(--g2);
+            cursor: pointer
+        }
+
+    .import-preview {
+        margin-top: 12px;
+        background: var(--bg3);
+        border-radius: 8px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        display: none
+    }
+
+    .preview-sample {
+        font-family: 'JetBrains Mono',monospace;
+        font-size: 10px;
+        color: var(--muted);
+        max-height: 72px;
+        overflow-y: auto;
+        line-height: 1.7;
+        margin-top: 6px
+    }
+
+    .import-result {
+        margin-top: 10px;
+        display: none;
+        background: var(--bg3);
+        border-radius: 8px;
+        padding: 12px 14px;
+        border: 1px solid var(--border)
+    }
+
+    .import-stat {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 6px
+    }
+
+        .import-stat span {
+            font-size: 11px
+        }
+
+            .import-stat span b {
+                font-size: 14px;
+                display: block
+            }
+
+    .ic {
+        color: var(--g2)
+    }
+
+    .iu {
+        color: var(--info)
+    }
+
+    .ir {
+        color: var(--g3)
+    }
+
+    .ie {
+        color: var(--danger)
+    }
+
+    .err-list {
+        font-size: 10px;
+        color: var(--danger);
+        max-height: 56px;
+        overflow-y: auto;
+        font-family: 'JetBrains Mono',monospace
+    }
+</style>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <span class="topbar-title">⊞ Hierarchy Master</span>
+    <div class="stat-pills">
+        <div class="stat-pill"><b id="sTotal">—</b>Employees</div>
+        <div class="stat-pill"><b id="sActive">—</b>Active</div>
+        <div class="stat-pill"><b id="sInactive">—</b>Inactive</div>
+        <div class="stat-pill"><b id="sHod">—</b>HODs</div>
+        <div class="stat-pill"><b id="sSub">—</b>SubHODs</div>
+        <div class="stat-pill"><b id="sExec">—</b>Execs</div>
+    </div>
+    <div class="topbar-actions">
+        @if (isAdmin)
+        {
+            <button class="btn btn-excel" onclick="toggleUpload()" id="uploadBtn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                Import Excel
+            </button>
+            <button class="btn btn-primary btn-add-employee" onclick="openAdd()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Add Employee
+            </button>
+            <button class="btn btn-ghost" onclick="openBulkAssign()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><path d="M20 8v6M23 11h-6" /></svg>
+                Bulk Assign
+            </button>
+        }
+        @if (isAdmin)
+        {
+            <button class="btn btn-ghost" onclick="openDeptManager()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                Departments
+            </button>
+            <button class="btn btn-ghost" onclick="openColumnManager()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>
+                Columns
+            </button>
+        }
+        @* <button class="btn btn-ghost" onclick="openPageSettings()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+            Page Settings
+        </button> *@
+        @if (isAdmin)
+        {
+            <button class="btn btn-ghost" onclick="openLogs()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                Logs
+            </button>
+        }
+        <button class="btn btn-ghost" onclick="openVisModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+            View
+        </button>
+        <button class="btn btn-ghost" onclick="loadGrid()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 100-.49" /></svg>
+            Refresh
+        </button>
+    </div>
+</div>
+
+<!-- EXCEL UPLOAD PANEL -->
+@if (isAdmin)
+{
+    <div class="upload-panel" id="uploadPanel" style="display:none">
+        <div class="upload-title">
+            📊 Import from HR Excel
+            <span style="font-size:10px;font-weight:400;color:var(--muted)">ORG_Chart format: Dept · HOD · SubDept · SubHOD · Exec with Employee Codes</span>
+        </div>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('xlFile').click()"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="onFileDrop(event)">
+            <input type="file" id="xlFile" accept=".xlsx,.xls" onchange="onFileSelect(event)" />
+            <div class="drop-icon">📊</div>
+            <div class="drop-label">Drop Excel here or <b>click to browse</b></div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">.xlsx / .xls</div>
+        </div>
+        <div class="import-preview" id="importPreview">
+            <div style="font-size:12px;color:var(--text)" id="previewInfo"></div>
+            <div class="preview-sample" id="previewSample"></div>
+            <div style="margin-top:10px;display:flex;gap:8px">
+                <button class="btn btn-primary" onclick="runImport()" id="importBtn">✓ Run Import</button>
+                <button class="btn btn-ghost" onclick="clearImport()">Clear</button>
+            </div>
+        </div>
+        <div class="import-result" id="importResult">
+            <div class="import-stat" id="importStats"></div>
+            <div class="err-list" id="importErrors"></div>
+        </div>
+    </div>
+}
+
+<!-- FILTER BAR -->
+<div class="filterbar">
+    <input type="text" class="search-box" id="searchBox" placeholder="🔍  Search name, code, dept…" oninput="applyFilters()" />
+    <select class="filter-sel" id="fDept" onchange="applyFilters()"><option value="">All Departments</option></select>
+    <select class="filter-sel" id="fStatus" onchange="applyFilters()">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+    </select>
+    <span class="row-count" id="rowCount"></span>
+</div>
+
+<!-- GRID -->
+<div class="grid-wrap" id="gridWrap">
+    <div class="grid-loading" id="gridLoading">
+        <div class="ring"></div>
+        <span style="color:var(--muted);font-size:12px">Loading hierarchy data…</span>
+    </div>
+    <div id="gridCont" style="display:none"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+
+<!-- ADD MODAL -->
+<div class="hm-modal-overlay" id="addModal">
+    <div class="hm-modal-box">
+        <div class="hm-modal-title">Add New Employee</div>
+        <div class="level-tabs">
+            <button class="ltab on" id="ltab1" onclick="setLvl(1)">HOD</button>
+            <button class="ltab" id="ltab2" onclick="setLvl(2)">SubHOD</button>
+            <button class="ltab" id="ltab3" onclick="setLvl(3)">Executive</button>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Employee Code *</label><input class="fi" id="f_code" placeholder="JWPL0001" /></div>
+            <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="f_name" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Email</label><input type="email" class="fi" id="f_email" placeholder="emp@jivowellness.com" /></div>
+            <div class="fg"><label class="fl">Phone</label><input type="tel" class="fi" id="f_phone" placeholder="9876543210" maxlength="20" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Designation</label><input class="fi" id="f_desig" /></div>
+            <div class="fg"><label class="fl">Date of Joining</label><input type="date" class="fi" id="f_doj" /></div>
+        </div>
+        <div id="s_mgr" style="display:none">
+            <div class="fg">
+                <label class="fl" id="f_hod_label">Reports To (HOD) <span style="color:var(--muted);font-weight:400">optional</span></label>
+                <select class="fs" id="f_hod" onchange="onHodChange()"><option value="">— Select HOD —</option></select>
+            </div>
+        </div>
+        <div id="s_dept" style="display:none">
+            <div class="f2">
+                <div class="fg">
+                    <label class="fl" id="f_dept_label">Department *</label>
+                    <select class="fs" id="f_dept" onchange="onAddDeptChange()"><option value="">— Select —</option></select>
+                </div>
+                <div class="fg" id="f_sdept_wrap">
+                    <label class="fl" id="f_sdept_label">Sub-Department</label>
+                    <select class="fs" id="f_sdept" onchange="onAddSubDeptChange()"><option value="">— Select —</option></select>
+                </div>
+            </div>
+        </div>
+        <div id="s_sub" style="display:none">
+            <div class="fg">
+                <label class="fl" id="f_sub_label">Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span></label>
+                <select class="fs" id="f_sub"><option value="">— Direct to HOD —</option></select>
+            </div>
+        </div>
+        <div id="addErr" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></div>
+        <div class="hm-modal-foot">
+            <button class="btn btn-ghost" onclick="closeAdd()">Cancel</button>
+            <button class="btn btn-primary" id="addBtn" onclick="submitAdd()">Create Employee</button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT EMPLOYEE MODAL -->
+<div class="hm-modal-overlay" id="editModal">
+    <div class="hm-modal-box" style="width:580px">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>✎ Edit Employee</span>
+            <span id="editEmpBadge" style="font-size:10px;font-weight:600;background:rgba(13,148,136,.15);color:var(--g2);padding:3px 10px;border-radius:20px;border:1px solid rgba(13,148,136,.3)"></span>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Employee Code *</label><input class="fi" id="e_code" placeholder="JWPL0001" /></div>
+            <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="e_name" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Designation</label><input class="fi" id="e_desig" placeholder="Manager, Officer…" /></div>
+            <div class="fg">
+                <label class="fl">Role *</label>
+                <select class="fs" id="e_role" onchange="onEditRoleChange()">
+                    <option value="1">HOD</option>
+                    <option value="2">Sub-HOD</option>
+                    <option value="3">Executive</option>
+                </select>
+            </div>
+        </div>
+        <div id="e_hod_row" style="display:none">
+            <div class="fg">
+                <label class="fl" id="e_hod_label">Reports To (HOD) *</label>
+                <select class="fs" id="e_hod" onchange="onEditHodChange()"><option value="">— Select HOD —</option></select>
+            </div>
+        </div>
+        <div class="f2">
+            <div class="fg">
+                <label class="fl" id="e_dept_label">Department</label>
+                <select class="fs" id="e_dept" onchange="onEditDeptChange()"><option value="">— Select —</option></select>
+            </div>
+            <div class="fg" id="e_sdept_wrap">
+                <label class="fl" id="e_sdept_label">Sub-Department</label>
+                <select class="fs" id="e_sdept" onchange="onEditSubDeptChange()"><option value="">— None —</option></select>
+            </div>
+        </div>
+        <div id="e_sub_row" style="display:none">
+            <div class="fg">
+                <label class="fl" id="e_sub_label">Reports To (SubHOD) — optional</label>
+                <select class="fs" id="e_sub"><option value="">— Direct to HOD —</option></select>
+            </div>
+        </div>
+        <div class="fg" style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <label class="fl" style="margin:0">Status</label>
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+                <input type="checkbox" id="e_active" style="width:16px;height:16px;accent-color:var(--g2)" />
+                <span style="font-size:12px;color:var(--text)" id="e_activeLabel">Active</span>
+            </label>
+        </div>
+        <div id="editErr" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></div>
+        <div class="hm-modal-foot">
+            <button class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+            <button class="btn btn-primary" id="editSaveBtn" onclick="submitEdit()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- DEPARTMENT MOVE CONFIRMATION MODAL -->
+<div class="hm-modal-overlay" id="deptMoveModal">
+    <div class="hm-modal-box" style="width:500px">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>⚠ Department Change — Team Impact</span>
+            <button onclick="deptMoveResolve('abort')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1">&times;</button>
+        </div>
+        <div id="deptMoveMsg" style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:16px"></div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px">
+            <div style="font-size:11px;font-weight:700;color:var(--g1);margin-bottom:8px">Choose an action:</div>
+            <div style="font-size:12px;color:var(--text);margin-bottom:6px"><strong style="color:var(--g2)">OK (Move Team)</strong> — The entire team moves with this person to the new department/sub-department.</div>
+            <div style="font-size:12px;color:var(--text)"><strong style="color:var(--warn)">Cancel (Save Without Team)</strong> — Only this person's department changes. The team stays behind and gets reassigned or detached.</div>
+        </div>
+        <div class="hm-modal-foot">
+            <button class="btn btn-ghost" onclick="deptMoveResolve('abort')">Cancel Edit</button>
+            <button class="btn" style="background:var(--warn);color:#fff;border:none;font-weight:600;padding:7px 16px;border-radius:7px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer" onclick="deptMoveResolve('detach')">Save Without Team</button>
+            <button class="btn btn-primary" onclick="deptMoveResolve('move')">OK — Move Team</button>
+        </div>
+    </div>
+</div>
+
+<!-- BULK ASSIGN MODAL -->
+<div class="hm-modal-overlay" id="bulkModal">
+    <div class="hm-modal-box" style="width:720px">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span id="bulkModalTitle">Bulk Assign Team</span>
+            <button class="btn btn-ghost" onclick="closeBulkAssign()" style="padding:4px 10px;font-size:11px">✕ Close</button>
+        </div>
+        <div class="level-tabs" style="margin-bottom:14px">
+            <button class="ltab on" id="bulkTabAssign" onclick="setBulkMode('assign')">Assign Team</button>
+            <button class="ltab" id="bulkTabReassign" onclick="setBulkMode('reassign')">Change SubHOD</button>
+        </div>
+        <div id="bulkModeHelp" style="font-size:12px;color:var(--muted);margin:-4px 0 14px 0">
+            Pick a HOD, department and executives to assign in one action.
+        </div>
+        <div class="bulk-grid">
+            <div class="fg">
+                <label class="fl">HOD *</label>
+                <select class="fs" id="b_hod" onchange="onBulkHodChange()"><option value="">— Select HOD —</option></select>
+            </div>
+            <div class="fg">
+                <label class="fl">Department *</label>
+                <select class="fs" id="b_dept" onchange="onBulkDeptChange()"><option value="">— Select —</option></select>
+            </div>
+        </div>
+        <div class="bulk-grid">
+            <div class="fg">
+                <label class="fl">Sub-Department</label>
+                <select class="fs" id="b_sdept" onchange="onBulkSubDeptChange()"><option value="">— None —</option></select>
+            </div>
+            <div class="fg" id="b_current_subhod_wrap" style="display:none">
+                <label class="fl">Current Sub-HOD</label>
+                <select class="fs" id="b_current_subhod" onchange="onCurrentSubHodChange()"><option value="">— Direct to HOD —</option></select>
+            </div>
+            <div class="fg">
+                <label class="fl" id="bulkSubHodLabel">Sub-HOD</label>
+                <select class="fs" id="b_subhod"><option value="">— Direct to HOD —</option></select>
+            </div>
+        </div>
+        <div class="fg">
+            <label class="fl">Executives</label>
+            <input class="fi" id="b_exec_search" placeholder="Search executive by name or code" oninput="renderBulkExecList()" />
+            <div class="bulk-exec-toolbar">
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="btn btn-ghost bulk-mini-btn" onclick="bulkSelectVisible(true)">Select Visible</button>
+                    <button type="button" class="btn btn-ghost bulk-mini-btn" onclick="bulkSelectVisible(false)">Clear Visible</button>
+                </div>
+                <div class="bulk-exec-summary" id="bulkExecSummary">0 selected</div>
+            </div>
+            <div class="bulk-exec-list" id="bulkExecList">
+                <div class="dm-empty">Select department above</div>
+            </div>
+        </div>
+        <div id="bulkErr" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></div>
+        <div class="hm-modal-foot">
+            <button class="btn btn-ghost" onclick="closeBulkAssign()">Cancel</button>
+            <button class="btn btn-primary" id="bulkAssignBtn" onclick="submitBulkAssign()">Assign Team</button>
+        </div>
+    </div>
+</div>
+
+<!-- DEPT / SUBDEPT MANAGER MODAL -->
+<div class="hm-modal-overlay" id="deptModal">
+    <div class="hm-modal-box" style="width:680px;max-height:85vh">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>🏢 Manage Departments</span>
+            <button class="btn btn-ghost" onclick="closeDeptModal()" style="padding:4px 10px;font-size:11px">✕ Close</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="level-tabs" style="margin-bottom:14px">
+            <button class="ltab on" id="dtab1" onclick="setDeptTab(1)">Departments</button>
+            <button class="ltab" id="dtab2" onclick="setDeptTab(2)">Sub-Departments</button>
+        </div>
+
+        <!-- DEPARTMENTS TAB -->
+        <div id="deptTab1">
+            <div class="f2" style="margin-bottom:12px">
+                <div class="fg" style="margin:0">
+                    <label class="fl">Department Name *</label>
+                    <input class="fi" id="nd_name" placeholder="e.g. Operations" />
+                </div>
+                <div class="fg" style="margin:0;display:flex;align-items:flex-end">
+                    <button class="btn btn-primary" style="width:100%" onclick="addDept()">+ Add Department</button>
+                </div>
+            </div>
+            <div id="deptErr" style="font-size:11px;color:var(--danger);margin:0 0 10px 0;display:none"></div>
+            <div id="deptList" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+        </div>
+
+        <!-- SUB-DEPARTMENTS TAB -->
+        <div id="deptTab2" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:12px;align-items:flex-end">
+                <div class="fg" style="margin:0">
+                    <label class="fl">Parent Department *</label>
+                    <select class="fs" id="nsd_dept" onchange="loadSubDeptList()"><option value="">— Select —</option></select>
+                </div>
+                <div class="fg" style="margin:0">
+                    <label class="fl">Sub-Department Name *</label>
+                    <input class="fi" id="nsd_name" placeholder="e.g. Payroll" />
+                </div>
+                <button class="btn btn-primary" onclick="addSubDept()">+ Add</button>
+            </div>
+            <div id="subDeptErr" style="font-size:11px;color:var(--danger);margin:0 0 10px 0;display:none"></div>
+            <div id="subDeptList" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dm-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px
+    }
+
+        .dm-row:last-child {
+            border-bottom: none
+        }
+
+        .dm-row:hover {
+            background: var(--bg2)
+        }
+
+    .dm-name {
+        flex: 1;
+        font-weight: 600;
+        color: var(--text)
+    }
+
+    .dm-actions {
+        display: inline-flex;
+        gap: 6px;
+        margin-left: auto;
+    }
+
+    .dm-btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--g1);
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 4px 8px;
+        cursor: pointer;
+    }
+
+        .dm-btn:hover {
+            border-color: var(--g1);
+            color: var(--g2);
+        }
+
+    .dm-btn.ghost {
+        color: var(--muted);
+    }
+
+    .dm-input {
+        flex: 1;
+        min-width: 0;
+        font-size: 12px;
+    }
+
+    .dm-parent {
+        font-size: 11px;
+        color: var(--muted);
+        background: rgba(37,99,235,.07);
+        padding: 2px 8px;
+        border-radius: 4px
+    }
+
+    .dm-empty {
+        padding: 20px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px
+    }
+
+    .bulk-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+    }
+
+    .bulk-exec-list {
+        margin-top: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-height: 220px;
+        overflow-y: auto;
+        background: #fff
+    }
+
+    .bulk-exec-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px
+    }
+
+        .bulk-exec-row:last-child {
+            border-bottom: none
+        }
+
+        .bulk-exec-row input[type=checkbox] {
+            width: 15px;
+            height: 15px;
+            accent-color: var(--g2)
+        }
+
+    .bulk-exec-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px
+    }
+
+    .bulk-exec-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px
+    }
+
+    .bulk-mini-btn {
+        padding: 5px 10px;
+        font-size: 11px
+    }
+
+    .bulk-exec-summary {
+        font-size: 11px;
+        color: var(--muted);
+        font-weight: 600
+    }
+
+    .bulk-exec-hint {
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45
+    }
+
+    .bulk-exec-meta small {
+        color: var(--muted);
+        font-family: 'JetBrains Mono',monospace;
+        font-size: 10px
+    }
+</style>
+
+<script>
+    const IS_ADMIN    = @(isAdmin ? "true" : "false");
+    const API         = '/api/Hierarchy';
+    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null;
+
+    document.addEventListener('DOMContentLoaded', async()=>{
+        ['addModal','editModal','deptMoveModal','deptModal','bulkModal'].forEach(id=>{
+            const modal=document.getElementById(id);
+            if(modal) document.body.appendChild(modal);
+        });
+        await Promise.all([loadGrid(), loadDeptsMeta(), loadHodsMeta()]);
+    });
+
+    async function loadGrid(){
+        setLoad(true);
+        try{
+            const [r, orphanRes] = await Promise.all([
+                api(`${API}/GetMasterFlatAdmin`),
+                IS_ADMIN ? api(`${API}/GetOrphanEmployees`) : Promise.resolve({success:false})
+            ]);
+            if(!r.success){toast(r.message||'Load failed','err');return;}
+            allRows=r.data||[];
+            // Add unassigned employees as rows in the grid so they appear in the table
+            if(orphanRes.success && orphanRes.data && orphanRes.data.length){
+                const maxIdx = allRows.length;
+                orphanRes.data.forEach((o, i) => {
+                    const role = o.roleTypeId;
+                    allRows.push({
+                        rowIndex: maxIdx + i + 1,
+                        hodEmployeeId: role === 1 ? o.employeeId : 0,
+                        hodCode: role === 1 ? (o.employeeCode||'') : '',
+                        hodName: role === 1 ? (o.employeeName||'') : '',
+                        hodDesignation: role === 1 ? (o.designation||'') : '',
+                        hodIsActive: true,
+                        departmentId: o.departmentId || null,
+                        departmentName: o.departmentName || '',
+                        subDepartmentId: o.subDepartmentId || null,
+                        subDepartmentName: o.subDepartmentName || '',
+                        subHodEmployeeId: role === 2 ? o.employeeId : 0,
+                        subHodCode: role === 2 ? (o.employeeCode||'') : '',
+                        subHodName: role === 2 ? (o.employeeName||'') : '',
+                        subHodDesignation: role === 2 ? (o.designation||'') : '',
+                        subHodIsActive: role === 2,
+                        execEmployeeId: role === 3 ? o.employeeId : 0,
+                        execCode: role === 3 ? (o.employeeCode||'') : '',
+                        execName: role === 3 ? (o.employeeName||'') : '',
+                        execDesignation: role === 3 ? (o.designation||'') : '',
+                        execIsActive: role === 3,
+                        _isOrphan: true
+                    });
+                });
+            }
+            updateStats(); populateDeptFilter(); applyFilters();
+        }catch(e){toast('Network error','err');}
+        finally{setLoad(false);}
+    }
+    function setLoad(v){
+        document.getElementById('gridLoading').style.display=v?'flex':'none';
+        document.getElementById('gridCont').style.display=v?'none':'block';
+    }
+    function updateStats(){
+        const ROLE_PRIORITY = { hod: 3, subhod: 2, exec: 1 };
+        const employees = new Map();
+
+        function registerEmployee(id, role, isActive){
+            if(!id || id <= 0) return;
+            const existing = employees.get(id);
+            const next = { role, isActive: !!isActive };
+            if(!existing || ROLE_PRIORITY[role] > ROLE_PRIORITY[existing.role]){
+                employees.set(id, next);
+                return;
+            }
+            if(existing.role === role){
+                existing.isActive = existing.isActive || !!isActive;
+            }
+        }
+
+        allRows.forEach(r=>{
+            registerEmployee(r.hodEmployeeId, 'hod', r.hodIsActive);
+            registerEmployee(r.subHodEmployeeId, 'subhod', r.subHodIsActive);
+            registerEmployee(r.execEmployeeId, 'exec', r.execIsActive);
+        });
+
+        let active = 0, activeH = 0, activeS = 0, activeE = 0;
+        employees.forEach(emp => {
+            if(!emp.isActive) return;
+            active++;
+            if(emp.role === 'hod') activeH++;
+            else if(emp.role === 'subhod') activeS++;
+            else if(emp.role === 'exec') activeE++;
+        });
+
+        const inactive = employees.size - active;
+        document.getElementById('sTotal').textContent = active;
+        document.getElementById('sActive').textContent = active;
+        document.getElementById('sInactive').textContent = inactive;
+        document.getElementById('sHod').textContent = activeH;
+        document.getElementById('sSub').textContent = activeS;
+        document.getElementById('sExec').textContent = activeE;
+    }
+
+    function renderGrid(rows){
+        if(!colVisState) initColVis();
+        const adm=IS_ADMIN, salCols=false;
+        const allCols = getEffectiveCols(salCols, adm);
+        const visCols = allCols.filter(c=>!c.hidden);
+
+        // Build colgroup
+        const colgroupHtml = '<colgroup>' + visCols.map(c=>`<col style="width:${c.width}">`).join('') + '</colgroup>';
+
+        // Build group header row (merge consecutive same-group)
+        let grpHtml=''; let gi=0;
+        while(gi<visCols.length){
+            const g=visCols[gi].group, cls=visCols[gi].groupCls;
+            let span=1;
+            while(gi+span<visCols.length && visCols[gi+span].group===g) span++;
+            grpHtml+=`<th class="${cls}" colspan="${span}">${g==='Actions'?'':g}</th>`;
+            gi+=span;
+        }
+
+        // Build column header row
+        const colsHtml = visCols.map(c=>{
+            const sticky=c.sticky?' class="sk1"':'';
+            return `<th${sticky} style="min-width:${c.minWidth}">${c.label}</th>`;
+        }).join('');
+
+        let h=`<table class="hm">${colgroupHtml}<thead><tr class="grp">${grpHtml}</tr><tr class="cols">${colsHtml}</tr></thead><tbody id="gb">`;
+
+        let prevH=null;
+        rows.forEach((row,ri)=>{
+            const nH=row.hodEmployeeId!==prevH; prevH=row.hodEmployeeId;
+            const leafOk=row.execEmployeeId>0?row.execIsActive:row.subHodEmployeeId>0?row.subHodIsActive:row.hodIsActive;
+            const hasS=row.subHodEmployeeId>0, hasE=row.execEmployeeId>0;
+            const hodEditBtn  = adm?`<button class="btn-icon btn-edit-hod"  onclick="openEdit(${row.hodEmployeeId})"    title="Edit HOD">H</button>` :'';
+            const subEditBtn  = adm&&hasS?`<button class="btn-icon btn-edit-sub"  onclick="openEdit(${row.subHodEmployeeId})" title="Edit SubHOD">S</button>`:'';
+            const execEditBtn = adm&&hasE?`<button class="btn-icon btn-edit-exec" onclick="openEdit(${row.execEmployeeId})"   title="Edit Exec">E</button>`:'';
+            const cellMap={
+                hod:`<td class="sk1">${eCell(row.hodName,row.hodCode)}</td>`,
+                dept:`<td class="td-wrap">${row.departmentName?`<span class="dept-badge">${esc(row.departmentName)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
+                subDept:`<td class="td-wrap">${row.subDepartmentName?`<span class="subdept-text">${esc(row.subDepartmentName)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
+                subHod:`<td>${hasS?eCell(row.subHodName,row.subHodCode):'<span class="cell-empty">—</span>'}</td>`,
+                subHodDesig:`<td>${row.subHodDesignation&&hasS?`<span class="desig-text">${esc(row.subHodDesignation)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
+                exec:`<td>${hasE?eCell(row.execName,row.execCode):'<span class="cell-empty">—</span>'}</td>`,
+                execDesig:`<td>${row.execDesignation&&hasE?`<span class="desig-text">${esc(row.execDesignation)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
+                status:`<td>${leafOk?'<span class="status-dot active">Active</span>':'<span class="status-dot inactive">Inactive</span>'}</td>`,
+                actions:adm?`<td><div class="act-cell">${hodEditBtn}${subEditBtn}${execEditBtn}</div></td>`:'',
+            };
+            h+=`<tr data-hod="${row.hodEmployeeId}" class="${nH?'hod-border':''}">${visCols.map(c=>cellMap[c.key]||'<td></td>').join('')}</tr>`;
+        });
+        h+=`</tbody></table>`;
+        document.getElementById('gridCont').innerHTML=h;
+        document.getElementById('rowCount').textContent=`${rows.length} rows`;
+    }
+
+    function eCell(n,c){
+        if(!n)return`<span class="cell-empty">—</span>`;
+        const isTemp = c && String(c).toUpperCase().startsWith('TEMP');
+        const codeClass = isTemp ? 'emp-code temp-code' : 'emp-code';
+        return`<div class="emp-cell"><span class="emp-name">${esc(n)}</span>${c?`<span class="${codeClass}">${esc(c)}</span>`:''}</div>`;
+    }
+    function startEdit(td){
+        if(td.classList.contains('editing'))return;
+        document.querySelectorAll('td.editing').forEach(e=>cancelEdit(e));
+        const ri=parseInt(td.dataset.ri), field=td.dataset.field, empId=parseInt(td.dataset.empid);
+        const row=allRows[ri]; const val=row[field]||'';
+        td.classList.add('editing');
+        td.innerHTML=`<input type="text" value="${esc(val)}" />`;
+        const inp=td.querySelector('input'); inp.focus(); inp.select();
+        inp.addEventListener('blur',()=>commitEdit(td,empId,field,ri,inp));
+        inp.addEventListener('keydown',e=>{
+            if(e.key==='Enter'){e.preventDefault();inp.blur();}
+            if(e.key==='Escape'){e.preventDefault();cancelEdit(td,ri,field);}
+        });
+    }
+    function cancelEdit(td,ri,field){
+        td.classList.remove('editing');
+        if(ri!==undefined){
+            const row=allRows[ri]; const val=row[field]||'';
+            if(field.includes('Name')) td.innerHTML=eCell(val,row[field.replace('Name','Code')]);
+            else td.innerHTML=val?`<span class="desig-text">${esc(val)}</span>`:`<span class="cell-empty">—</span>`;
+        }
+    }
+    async function commitEdit(td,empId,field,ri,inp){
+        const nv=inp.value.trim(), row=allRows[ri];
+        td.classList.remove('editing');
+        const pfx=field.startsWith('hod')?'hod':field.startsWith('subHod')?'subHod':'exec';
+        const payload={
+            employeeId:empId, employeeName:row[`${pfx}Name`]||'',
+            designation:row[`${pfx}Designation`]||null,
+            dateOfJoining:row[`${pfx}DateOfJoining`]||null, isActive:row[`${pfx}IsActive`]??true
+        };
+        if(field.includes('Name')) payload.employeeName=nv;
+        else if(field.includes('Desig')) payload.designation=nv||null;
+        row[field]=nv;
+        if(field.includes('Name')) td.innerHTML=eCell(nv,row[field.replace('Name','Code')]);
+        else td.innerHTML=nv?`<span class="desig-text">${esc(nv)}</span>`:`<span class="cell-empty">—</span>`;
+        td.classList.add('saving');
+        try{
+            const res=await api(`${API}/UpdateEmployeeBasic`,'POST',payload);
+            td.classList.remove('saving');
+            if(res.success){td.classList.add('save-ok');setTimeout(()=>td.classList.remove('save-ok'),600);}
+            else{td.classList.add('save-err');setTimeout(()=>td.classList.remove('save-err'),600);toast('Save failed: '+res.message,'err');}
+        }catch(e){td.classList.remove('saving');td.classList.add('save-err');setTimeout(()=>td.classList.remove('save-err'),600);toast('Network error','err');}
+    }
+
+    function applyFilters(){
+        const q=(document.getElementById('searchBox').value||'').toLowerCase();
+        const dept=(document.getElementById('fDept').value||'').trim();
+        const st=document.getElementById('fStatus').value||'';
+        const filtered=allRows.filter(r=>{
+            if(q){const hay=[r.hodName,r.hodCode,r.subHodName,r.subHodCode,r.execName,r.execCode,r.departmentName,r.subDepartmentName].join(' ').toLowerCase();if(!hay.includes(q))return false;}
+            if(dept && String(r.departmentId||'')!==dept)return false;
+            if(st){const a=r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;if(st==='active'&&!a)return false;if(st==='inactive'&&a)return false;}
+            return true;
+        });
+        renderGrid(filtered);
+    }
+    function populateDeptFilter(){
+        const sel=document.getElementById('fDept');
+        if(!sel)return;
+        const current=sel.value||'';
+        const depts=(deptsMeta||[]).map(d=>({
+            departmentId:d.departmentId,
+            departmentName:d.departmentName
+        })).filter(d=>d.departmentId&&d.departmentName);
+        const fallback=[...new Map(allRows
+            .filter(r=>r.departmentId&&r.departmentName)
+            .map(r=>[r.departmentId,{departmentId:r.departmentId,departmentName:r.departmentName}]))
+            .values()];
+        const list=(depts.length?depts:fallback).sort((a,b)=>String(a.departmentName).localeCompare(String(b.departmentName)));
+        sel.innerHTML='<option value="">All Departments</option>'+list.map(d=>`<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+        if(current && [...sel.options].some(o=>o.value===current)) sel.value=current;
+    }
+
+    function toggleUpload(){
+        const p=document.getElementById('uploadPanel');
+        p.style.display=p.style.display==='none'?'block':'none';
+    }
+    function onFileDrop(e){
+        e.preventDefault();document.getElementById('dropZone').classList.remove('drag-over');
+        const f=e.dataTransfer.files[0];if(f)processXl(f);
+    }
+    function onFileSelect(e){const f=e.target.files[0];if(f)processXl(f);}
+    function processXl(file){
+        if(!file.name.match(/\.xlsx?$/i)){toast('Upload .xlsx file','err');return;}
+        const reader=new FileReader();
+        reader.onload=e=>{
+            try{
+                const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+                const pickedSheetName = pickHierarchySheetName(wb);
+                if(!pickedSheetName){toast('Could not find a hierarchy data sheet in this workbook','err');return;}
+                const ws=wb.Sheets[pickedSheetName];
+                const json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+                pendingXl=[];
+                const headerRow=(json[0]||[]).map(normalizeHeader);
+                const hodNameIdx=findColumnIndex(headerRow,['hodname','hod']);
+                const hodCodeIdx=findColumnIndex(headerRow,['hodcode','hodemployeecode','hodempcode']);
+                const deptIdx=findColumnIndex(headerRow,['department','dept']);
+                const subDeptIdx=findColumnIndex(headerRow,['subdepartment','subdept']);
+                const subHodNameIdx=findColumnIndex(headerRow,['subhodname','subhod']);
+                const subHodCodeIdx=findColumnIndex(headerRow,['subhodcode','subhodemployeecode','subhodempcode']);
+                const subHodDesignationIdx=findColumnIndex(headerRow,['subhoddesignation','subhoddesig','subdesignation']);
+                const execNameIdx=findColumnIndex(headerRow,['executivename','execname','executive']);
+                const execCodeIdx=findColumnIndex(headerRow,['executivecode','execcode','executiveemployeecode']);
+                const execDesignationIdx=findColumnIndex(headerRow,['executivedesignation','execdesignation','execdesig']);
+                for(let i=1;i<json.length;i++){
+                    const r=json[i];
+                    const hodName=cl(sheetCellAt(ws, i, hodNameIdx, 2));
+                    const hodCode=cl(sheetCellAt(ws, i, hodCodeIdx, 13));
+                    const department=cl(sheetCellAt(ws, i, deptIdx, 1));
+                    const subDepartment=cl(sheetCellAt(ws, i, subDeptIdx, 3));
+                    const subHodName=cl(sheetCellAt(ws, i, subHodNameIdx, 5));
+                    const subHodCode=cl(sheetCellAt(ws, i, subHodCodeIdx, 12));
+                    const subHodDesignation=cl(sheetCellAt(ws, i, subHodDesignationIdx, null));
+                    const execName=cl(sheetCellAt(ws, i, execNameIdx, 7));
+                    if(!hodName&&!subHodName&&!execName)continue;
+                    pendingXl.push({
+                        rowNumber:i+1,
+                        hodName:hodName,
+                        hodCode:hodCode,
+                        department:department,
+                        subDepartment:subDepartment,
+                        subHodName:subHodName,
+                        subHodCode:subHodCode,
+                        subHodDesignation:subHodDesignation,
+                        execName:execName,
+                        execCode:cl(sheetCellAt(ws, i, execCodeIdx, 11)),
+                        execDesignation:cl(sheetCellAt(ws, i, execDesignationIdx, 6))
+                    });
+                }
+                const pv=document.getElementById('importPreview');
+                document.getElementById('previewInfo').textContent=`✓ ${pendingXl.length} rows found in "${file.name}" (${pickedSheetName})`;
+                document.getElementById('previewSample').innerHTML=pendingXl.slice(0,5).map(r=>`Row${r.rowNumber}: HOD=${r.hodCode||'?'}·${r.hodName} | ${r.department} | SubHOD=${r.subHodCode||'—'} | Exec=${r.execCode||'—'}·${r.execName}`).join('<br>');
+                pv.style.display='block';
+                document.getElementById('importResult').style.display='none';
+            }catch(e){toast('Excel read error: '+e.message,'err');}
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    function pickHierarchySheetName(wb){
+        const requiredHints=['department','hod','executivename'];
+        let bestName='';
+        let bestScore=-1;
+        (wb.SheetNames||[]).forEach(name=>{
+            const ws=wb.Sheets[name];
+            const json=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',range:0});
+            const headerRow=(json[0]||[]).map(normalizeHeader);
+            const score=requiredHints.reduce((acc,h)=>acc+(headerRow.some(col=>col.includes(h))?1:0),0)
+                + (headerRow.some(col=>col.includes('subhod'))?1:0)
+                + (headerRow.some(col=>col.includes('executivecode')||col.includes('execcode'))?1:0);
+            if(score>bestScore){
+                bestScore=score;
+                bestName=name;
+            }
+        });
+        return bestScore>=3 ? bestName : '';
+    }
+    function normalizeHeader(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+    function findColumnIndex(headers, aliases){
+        for(const alias of aliases){
+            const idx=headers.indexOf(alias);
+            if(idx!==-1)return idx;
+        }
+        return -1;
+    }
+    function rawSheetCellValue(ws,rowIdx,colIdx){
+        if(colIdx===null||colIdx===undefined||colIdx<0)return '';
+        const direct=ws[XLSX.utils.encode_cell({r:rowIdx,c:colIdx})];
+        if(direct && direct.v!==undefined && direct.v!==null) return direct.v;
+        const merges=ws['!merges']||[];
+        for(const merge of merges){
+            if(rowIdx>=merge.s.r && rowIdx<=merge.e.r && colIdx>=merge.s.c && colIdx<=merge.e.c){
+                const root=ws[XLSX.utils.encode_cell({r:merge.s.r,c:merge.s.c})];
+                return (root && root.v!==undefined && root.v!==null) ? root.v : '';
+            }
+        }
+        return '';
+    }
+    function sheetCellAt(ws,rowIdx,idx,fallbackIdx){
+        if(idx!==-1)return rawSheetCellValue(ws,rowIdx,idx);
+        if(fallbackIdx===null||fallbackIdx===undefined)return '';
+        return rawSheetCellValue(ws,rowIdx,fallbackIdx);
+    }
+    function cellAt(row, idx, fallbackIdx){
+        if(idx!==-1)return row[idx];
+        if(fallbackIdx===null||fallbackIdx===undefined)return '';
+        return row[fallbackIdx];
+    }
+    function cl(v){if(!v&&v!==0)return'';const s=String(v).trim();if(!s||s==='0'||s.startsWith('=')||s==='#N/A'||s.startsWith('#'))return'';return s;}
+    function clNumber(v){
+        if(v===null||v===undefined||v==='')return null;
+        const s=String(v).replace(/,/g,'').replace(/[^\d.-]/g,'').trim();
+        if(!s)return null;
+        const n=Number(s);
+        return Number.isFinite(n)?n:null;
+    }
+    function clearImport(){
+        pendingXl=[];
+        document.getElementById('importPreview').style.display='none';
+        document.getElementById('importResult').style.display='none';
+        document.getElementById('xlFile').value='';
+    }
+    async function runImport(){
+        if(!pendingXl.length){toast('No rows','err');return;}
+        const btn=document.getElementById('importBtn');
+        btn.disabled=true;btn.textContent='Importing…';
+        toast(`Importing ${pendingXl.length} rows…`,'info');
+        try{
+            const res=await api(`${API}/ImportFromExcel`,'POST',pendingXl);
+            if(!res.success){toast(res.message||'Import failed','err');return;}
+            const d=res.data;
+            document.getElementById('importStats').innerHTML=
+                `<span class="ic"><b>${d.employeesCreated}</b>Created</span>
+                 <span class="iu"><b>${d.employeesUpdated}</b>Updated</span>
+                 <span class="ir"><b>${d.relationshipsCreated}</b>Relationships</span>
+                 ${d.tempCodesGenerated>0?`<span class="iu"><b>${d.tempCodesGenerated}</b>TEMP codes</span>`:''}
+                 ${d.errors>0?`<span class="ie"><b>${d.errors}</b>Errors</span>`:''}`;
+
+            // Show TEMP codes list if any
+            let extraHtml = '';
+            if(d.tempCodes && d.tempCodes.length > 0){
+                extraHtml += `<div style="margin-top:8px;font-size:10px;color:var(--warn)">
+                    <b>TEMP codes generated (update with real codes later):</b><br>
+                    ${d.tempCodes.map(t=>esc(t)).join('<br>')}
+                </div>`;
+            }
+            if((d.errorDetails||[]).length > 0){
+                extraHtml += `<div style="margin-top:6px" class="err-list">${(d.errorDetails||[]).map(e=>esc(e)).join('<br>')}</div>`;
+            }
+            document.getElementById('importErrors').innerHTML = extraHtml;
+            document.getElementById('importResult').style.display='block';
+            toast(`Done — ${d.employeesCreated} created, ${d.employeesUpdated} updated`,'ok');
+            loadGrid();
+        }catch(e){toast('Error: '+e.message,'err');}
+        finally{btn.disabled=false;btn.textContent='✓ Run Import';}
+    }
+
+    async function openAdd(){
+        await loadHodsMeta();
+        setLvl(1);
+        clearAddForm();
+        document.getElementById('addModal').classList.add('open');
+    }
+    function closeAdd(){document.getElementById('addModal').classList.remove('open');}
+    function setInlineMessage(el, msg, type='err'){
+        if(!el) return;
+        el.textContent=msg||'';
+        el.style.display=msg?'block':'none';
+        el.style.color=type==='ok' ? '#16a34a' : type==='info' ? 'var(--info)' : 'var(--danger)';
+        el.style.fontSize=type==='ok' ? '15px' : '11px';
+        el.style.fontWeight=type==='ok' ? '700' : '500';
+        el.style.lineHeight='1.5';
+    }
+    function showAddError(msg, type='err'){
+        const el=document.getElementById('addErr');
+        setInlineMessage(el, msg, type);
+    }
+    function showEditError(msg, type='err'){
+        const el=document.getElementById('editErr');
+        setInlineMessage(el, msg, type);
+    }
+    function setLabelHtml(id, html){
+        const el=document.getElementById(id);
+        if(el) el.innerHTML=html;
+    }
+    function updateAddFormLabels(){
+        const role=addLvl;
+        setLabelHtml('f_hod_label', role>=2 ? 'Reports To (HOD) *' : 'Reports To (HOD) <span style="color:var(--muted);font-weight:400">optional</span>');
+        setLabelHtml('f_dept_label', role>=1 ? 'Department *' : 'Department');
+        setLabelHtml('f_sdept_label', role===2 ? 'Sub-Department *' : 'Sub-Department');
+        setLabelHtml('f_sub_label', 'Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span>');
+    }
+    function updateEditFormLabels(){
+        const role=parseInt(document.getElementById('e_role')?.value)||1;
+        setLabelHtml('e_hod_label', role>=2 ? 'Reports To (HOD) *' : 'Reports To (HOD)');
+        setLabelHtml('e_dept_label', role>=1 ? 'Department *' : 'Department');
+        setLabelHtml('e_sdept_label', role===2 ? 'Sub-Department *' : 'Sub-Department');
+        setLabelHtml('e_sub_label', 'Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span>');
+    }
+    function clearAddForm(clearMessage=true){
+        ['f_code','f_name','f_email','f_phone','f_desig','f_doj'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+        ['f_hod','f_sub','f_dept','f_sdept'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+        const s=document.getElementById('f_sal');if(s)s.value='';
+        renderDeptOptions('f_dept', deptsMeta);
+        document.getElementById('f_sub').innerHTML='<option value="">— Direct to HOD —</option>';
+        updateAddFormLabels();
+        if(clearMessage) showAddError('');
+    }
+    function setLvl(l){
+        addLvl=l;[1,2,3].forEach(i=>document.getElementById(`ltab${i}`).classList.toggle('on',i===l));
+        document.getElementById('s_mgr').style.display=l>=2?'block':'none';
+        document.getElementById('s_sub').style.display=l===3?'block':'none';
+        document.getElementById('s_dept').style.display='block';
+        document.getElementById('f_sdept_wrap').style.display=l>=2?'block':'none';
+        updateAddFormLabels();
+        if(l<2) document.getElementById('f_sdept').value='';
+        if(l===1){
+            renderDeptOptions('f_dept', deptsMeta);
+            document.getElementById('f_sub').innerHTML='<option value="">— Direct to HOD —</option>';
+        }else if(document.getElementById('f_hod').value){
+            onHodChange();
+        }
+    }
+    function renderDeptOptions(selId, departments){
+        const s=document.getElementById(selId);
+        if(!s)return;
+        s.innerHTML='<option value="">— Select —</option>'+(departments||[]).map(d=>`<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+    }
+    function ensureSelectOption(selId, value, label){
+        const s = document.getElementById(selId);
+        if(!s || value===null || value===undefined || value==='') return;
+        const normalized = String(value);
+        const exists = [...s.options].some(o => o.value === normalized);
+        if(!exists){
+            s.innerHTML += `<option value="${normalized}">${esc(label || normalized)}</option>`;
+        }
+    }
+    function isValidEmail(email){
+        if(!email) return true;
+        const atChar=String.fromCharCode(64);
+        const parts=String(email).trim().split(atChar);
+        if(parts.length!==2) return false;
+        if(!parts[0] || !parts[1]) return false;
+        if(parts[0].includes(' ') || parts[1].includes(' ')) return false;
+        if(!parts[1].includes('.')) return false;
+        return !parts[1].startsWith('.') && !parts[1].endsWith('.');
+    }
+    function normalizePhone(phone){
+        return String(phone||'').replace(/\D/g,'');
+    }
+    function isValidMobile(phone){
+        if(!phone) return true;
+        const digits=normalizePhone(phone);
+        return digits.length===10;
+    }
+    async function loadDeptsMeta(){
+        try{const r=await api(`${API}/GetDepartments?includeSubDepartments=true`);
+        if(r.success){
+        deptsMeta=r.data?.departments||r.data||[];
+        renderDeptOptions('f_dept',deptsMeta);
+        const editDept=document.getElementById('e_dept');
+        if(editDept && !document.getElementById('e_hod')?.value) renderDeptOptions('e_dept',deptsMeta);
+        populateDeptFilter();
+        }}catch(e){}
+    }
+    async function loadHodsMeta(){
+        try{
+        let r=await api(`${API}/GetActiveHODs`);
+        let list=(r.success ? (r.data||[]) : []);
+        if(!list.length){
+            const fallback=await api(`${API}/SearchEmployees?roleTypeId=1&isActive=true&pageSize=500`);
+            list=fallback.success ? (fallback.data||[]) : [];
+        }
+        hodsMeta=list;
+        renderHodOptions('f_hod', hodsMeta);
+        renderHodOptions('e_hod', hodsMeta);
+        renderHodOptions('b_hod', hodsMeta);
+        }catch(e){}
+    }
+    function renderHodOptions(selId, hods){
+        const s=document.getElementById(selId);
+        if(!s)return;
+        s.innerHTML='<option value="">— Select HOD —</option>'+(hods||[]).map(e=>`<option value="${e.employeeId||e.EmployeeId}">${esc(e.employeeName||e.EmployeeName)} (${esc(e.employeeCode||e.EmployeeCode||'')})</option>`).join('');
+    }
+    function getSubHodsForDepartment(hodId, deptId, subDeptId){
+        const hodKey = Number(hodId) || 0;
+        const deptKey = Number(deptId) || 0;
+        const subDeptKey = Number(subDeptId) || 0;
+        const items=new Map();
+        allRows
+            .filter(r=>{
+                const rowHodId = Number(r.hodEmployeeId) || 0;
+                const rowSubHodId = Number(r.subHodEmployeeId) || 0;
+                const rowDeptId = Number(r.departmentId) || 0;
+                const rowSubDeptId = Number(r.subDepartmentId) || 0;
+                if(rowHodId !== hodKey || rowSubHodId <= 0) return false;
+                if(deptKey && rowDeptId !== deptKey) return false;
+                if(subDeptKey && rowSubDeptId !== subDeptKey) return false;
+                return true;
+            })
+            .forEach(r=>{
+                const rowSubHodId = Number(r.subHodEmployeeId) || 0;
+                if(!items.has(rowSubHodId)){
+                    items.set(rowSubHodId,{ employeeId:rowSubHodId, employeeName:r.subHodName, employeeCode:r.subHodCode });
+                }
+            });
+        return [...items.values()];
+    }
+    async function populateAddSubHods(hodId, deptId){
+        const subDeptId=parseInt(document.getElementById('f_sdept').value)||0;
+        const sel=document.getElementById('f_sub');
+        sel.innerHTML='<option value="">— Direct to HOD —</option>';
+        if(addLvl!==3 || !hodId || !deptId)return;
+        let subHods=getSubHodsForDepartment(hodId, deptId, subDeptId);
+        if(!subHods.length){
+            try{
+                const r=await api(`${API}/GetSubHODsForEdit?hodId=${hodId}`);
+                if(r.success){
+                    subHods=(r.data||[]).map(e=>({
+                        employeeId:e.employeeId||e.EmployeeId,
+                        employeeName:e.employeeName||e.EmployeeName,
+                        employeeCode:e.employeeCode||e.EmployeeCode
+                    }));
+                }
+            }catch(e){}
+        }
+        subHods.forEach(e=>{
+            sel.innerHTML+=`<option value="${e.employeeId}">${esc(e.employeeName)} (${e.employeeCode})</option>`;
+        });
+    }
+    async function onHodChange(){
+        const hId=parseInt(document.getElementById('f_hod').value)||0;
+        document.getElementById('f_dept').value='';
+        document.getElementById('f_sdept').innerHTML='<option value="">— Select —</option>';
+        document.getElementById('f_sub').innerHTML='<option value="">— Direct to HOD —</option>';
+        if(!hId){
+            renderDeptOptions('f_dept', addLvl>=2 ? [] : deptsMeta);
+            return;
+        }
+        try{
+            const r=await api(`${API}/GetDepartmentsForHOD/${hId}`);
+            if(!r.success){toast(r.message||'Failed to load HOD departments','err');renderDeptOptions('f_dept',[]);return;}
+            renderDeptOptions('f_dept', r.data||[]);
+        }catch(e){renderDeptOptions('f_dept',[]);toast('Error loading HOD departments','err');}
+    }
+    async function onAddDeptChange(){
+        const deptId=parseInt(document.getElementById('f_dept').value)||0;
+        const hodId=parseInt(document.getElementById('f_hod').value)||0;
+        await loadSubDepts(deptId,'f_sdept');
+        await populateAddSubHods(hodId, deptId);
+    }
+    function onAddSubDeptChange(){
+        const deptId=parseInt(document.getElementById('f_dept').value)||0;
+        const hodId=parseInt(document.getElementById('f_hod').value)||0;
+        populateAddSubHods(hodId, deptId);
+    }
+    async function loadSubDepts(dId,selId){
+        const sel=document.getElementById(selId);if(!sel)return;
+        sel.innerHTML='<option value="">— Select —</option>';if(!dId)return;
+        try{const r=await api(`${API}/GetSubDepartments/${dId}`);
+        if(r.success)(r.data||[]).forEach(s=>{sel.innerHTML+=`<option value="${s.subDepartmentId}">${esc(s.subDepartmentName)}</option>`;});}catch(e){}
+    }
+    function validateHierarchySequence(role, prefix){
+        const deptId=parseInt(document.getElementById(`${prefix}_dept`)?.value)||0;
+        const subDeptId=parseInt(document.getElementById(`${prefix}_sdept`)?.value)||0;
+        const hodId=role>=2 ? (parseInt(document.getElementById(`${prefix}_hod`)?.value)||0) : 0;
+        const subHodId=role===3 ? (parseInt(document.getElementById(`${prefix}_sub`)?.value)||0) : 0;
+        if(role>=2 && !hodId) return 'Select HOD first';
+        if(!deptId) return 'Select Department after HOD';
+        if(role===2 && !subDeptId) return 'Select Sub-Department before saving Sub-HOD';
+        if(role===3 && subHodId && !subDeptId) return 'Select Sub-Department before choosing Sub-HOD';
+        return '';
+    }
+    async function submitAdd(){
+        const code=document.getElementById('f_code').value.trim(), name=document.getElementById('f_name').value.trim();
+        const email = document.getElementById('f_email').value.trim();
+        const phone = document.getElementById('f_phone').value.trim();
+        showAddError('');
+        if(!code||!name){showAddError('Code and Name are required');return;}
+        const hierarchyError=validateHierarchySequence(addLvl,'f');
+        if(hierarchyError){showAddError(hierarchyError);return;}
+        if(email && !isValidEmail(email)){showAddError('Enter a valid email address');return;}
+        if(phone && !isValidMobile(phone)){showAddError('Enter a valid 10-digit mobile number');return;}
+        const btn=document.getElementById('addBtn');btn.disabled=true;btn.textContent='Creating…';
+        const payload={employeeCode:code,employeeName:name,email:email||null,phone:phone?normalizePhone(phone):null,designation:document.getElementById('f_desig').value.trim()||null,
+            dateOfJoining:document.getElementById('f_doj').value||null,
+            roleTypeId:addLvl,primaryDepartmentId:document.getElementById('f_dept')?.value?parseInt(document.getElementById('f_dept').value):null,isActive:true};
+        try{
+            const r=await api(`${API}/CreateEmployee`,'POST',payload);
+            if(!r.success || !r.data?.employeeId){showAddError(r.message||'Employee not created');return;}
+            const nId=r.data?.employeeId;
+            if(addLvl>=2&&nId){
+                const hId=parseInt(document.getElementById('f_hod').value);
+                const sId=document.getElementById('f_sub')?.value;
+                const dId=parseInt(document.getElementById('f_dept').value);
+                const sdId=document.getElementById('f_sdept')?.value?parseInt(document.getElementById('f_sdept').value):null;
+                const relRes = await api(`${API}/AddRelationship`,'POST',{employeeId:nId,reportsToEmployeeId:sId?parseInt(sId):hId,departmentId:dId,subDepartmentId:sdId,isPrimary:true});
+                if(!relRes.success){
+                    showAddError(`Employee created but reporting link failed: ${relRes.message||'Unknown error'}`);
+                    return;
+                }
+            }
+            clearAddForm(false);
+            showAddError(r.message||`${name} created successfully`,'ok');
+            await loadGrid();
+        }catch(e){showAddError('Error: '+e.message);}
+        finally{btn.disabled=false;btn.textContent='Create Employee';}
+    }
+
+    async function api(url,method='GET',body=null){
+        const o={method,headers:{'Content-Type':'application/json'}};
+        if(body)o.body=JSON.stringify(body);
+        return (await fetch(url,o)).json();
+    }
+    function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+    function escAttr(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function routeModalMessage(msg, type='err'){
+        const text = String(msg || '');
+        if(!text) return false;
+
+        const editModal = document.getElementById('editModal');
+        if(editModal?.classList.contains('open')){
+            const errEl = document.getElementById('editErr');
+            if(errEl){
+                errEl.textContent = text;
+                errEl.style.display = '';
+                errEl.style.color = type==='ok' ? 'var(--g2)' : type==='info' ? 'var(--info)' : 'var(--danger)';
+                return true;
+            }
+        }
+
+        const addModal = document.getElementById('addModal');
+        if(addModal?.classList.contains('open')){
+            showAddError(text, type);
+            return true;
+        }
+
+        const deptModal = document.getElementById('deptModal');
+        if(deptModal?.classList.contains('open')){
+            const deptTab2 = document.getElementById('deptTab2');
+            if(deptTab2 && deptTab2.style.display !== 'none'){
+                showSubDeptError(text, type);
+            } else {
+                showDeptError(text, type);
+            }
+            return true;
+        }
+
+        const bulkModal = document.getElementById('bulkModal');
+        if(bulkModal?.classList.contains('open')){
+            showBulkError(text, type);
+            return true;
+        }
+
+        return false;
+    }
+    function toast(msg,type='ok',dur=3500){
+        if(routeModalMessage(msg, type)) return;
+        const w=document.getElementById('toastWrap'),t=document.createElement('div');
+        t.className=`toast ${type}`;t.innerHTML=`<span>${type==='ok'?'✓':type==='err'?'✕':'ℹ'}</span> ${esc(String(msg))}`;
+        w.appendChild(t);setTimeout(()=>t.remove(),dur);
+    }
+    // ── DEPARTMENT MOVE CONFIRMATION ─────────────────────────────
+    let deptMoveResolve = null;
+    function showDeptMoveModal(message) {
+        document.getElementById('deptMoveMsg').innerHTML = message;
+        document.getElementById('deptMoveModal').classList.add('open');
+        return new Promise(resolve => {
+            deptMoveResolve = (choice) => {
+                document.getElementById('deptMoveModal').classList.remove('open');
+                resolve(choice); // 'move' | 'detach' | 'abort'
+            };
+        });
+    }
+
+    // ── EDIT MODAL STATE ─────────────────────────────────────────
+    let editEmpId = null;
+    let editContextRow = null;
+
+    async function openEdit(empId) {
+        editEmpId = empId;
+        editContextRow = null;
+        showEditError('');
+        updateEditFormLabels();
+        document.getElementById('editSaveBtn').disabled = false;
+        document.getElementById('editSaveBtn').textContent = 'Save Changes';
+        document.getElementById('e_sdept_wrap').style.display = '';
+
+        // Find the row where this empId appears — check all 3 positions
+        const hodRow  = allRows.find(r => r.hodEmployeeId    === empId);
+        const subRow  = allRows.find(r => r.subHodEmployeeId === empId);
+        const execRow = allRows.find(r => r.execEmployeeId   === empId);
+
+        if (!hodRow && !subRow && !execRow) {
+            showToast('Employee not found in grid', 'err'); return;
+        }
+
+        // Determine role and row based on where the empId was found
+        let empName, empCode, empDesig, roleTypeId, reportsToHodId, reportsToSubId, row;
+        if (hodRow && hodRow.hodEmployeeId === empId && !subRow && !execRow) {
+            // HOD — only appears as HOD
+            row = hodRow;
+            empName = row.hodName; empCode = row.hodCode;
+            empDesig = row.hodDesignation || ''; roleTypeId = 1;
+            reportsToHodId = null; reportsToSubId = null;
+        } else if (subRow && subRow.subHodEmployeeId === empId) {
+            row = subRow;
+            empName = row.subHodName; empCode = row.subHodCode;
+            empDesig = row.subHodDesignation || ''; roleTypeId = 2;
+            reportsToHodId = row.hodEmployeeId; reportsToSubId = null;
+        } else if (execRow && execRow.execEmployeeId === empId) {
+            row = execRow;
+            empName = row.execName; empCode = row.execCode;
+            empDesig = row.execDesignation || ''; roleTypeId = 3;
+            reportsToHodId = row.hodEmployeeId;
+            reportsToSubId = row.subHodEmployeeId || null;
+        } else {
+            // Fallback: it's a HOD
+            row = hodRow || subRow || execRow;
+            empName = row.hodName; empCode = row.hodCode;
+            empDesig = ''; roleTypeId = 1;
+            reportsToHodId = null; reportsToSubId = null;
+        }
+        editContextRow = row;
+        editCurrentDateOfJoining = roleTypeId === 1 ? row.hodDateOfJoining : roleTypeId === 2 ? row.subHodDateOfJoining : row.execDateOfJoining;
+
+        let employeeDetail = null;
+        try {
+            const empRes = await api(`${API}/GetEmployee/${empId}`);
+            if (empRes.success) employeeDetail = empRes.data || null;
+        } catch (e) {}
+
+        const detailDesig = employeeDetail?.designation ?? employeeDetail?.Designation ?? null;
+        const detailPrimaryDeptId = employeeDetail?.primaryDepartmentId ?? employeeDetail?.PrimaryDepartmentId ?? null;
+
+        if (detailDesig !== null && detailDesig !== undefined) empDesig = detailDesig || '';
+
+        // Pre-fill fields
+        document.getElementById('e_code').value  = empCode  || '';
+        document.getElementById('e_name').value  = empName  || '';
+        document.getElementById('e_desig').value = empDesig || '';
+        document.getElementById('e_role').value  = String(roleTypeId);
+        document.getElementById('e_active').checked = roleTypeId === 1 ? row.hodIsActive :
+                                                       roleTypeId === 2 ? row.subHodIsActive : row.execIsActive;
+        document.getElementById('e_activeLabel').textContent =
+            document.getElementById('e_active').checked ? 'Active' : 'Inactive';
+        document.getElementById('e_active').onchange = function(){
+            document.getElementById('e_activeLabel').textContent = this.checked ? 'Active' : 'Inactive';
+        };
+
+        // Badge
+        const roleNames = {1:'HOD', 2:'Sub-HOD', 3:'Executive'};
+        document.getElementById('editEmpBadge').textContent = roleNames[roleTypeId] || '';
+
+        // Load departments
+        await ensureDepts();
+        const deptSel = document.getElementById('e_dept');
+        deptSel.innerHTML = '<option value="">— Select —</option>' +
+            deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+
+        // Set dept
+        const deptId = roleTypeId === 1 ? (detailPrimaryDeptId || row.departmentId || '') : (row.departmentId || detailPrimaryDeptId || '');
+        deptSel.value = String(deptId);
+        await loadSubDepts(deptId, 'e_sdept');
+        ensureSelectOption('e_sdept', row.subDepartmentId || '', row.subDepartmentName || 'Current Sub-Department');
+        document.getElementById('e_sdept').value = roleTypeId === 1 ? '' : String(row.subDepartmentId || '');
+        document.getElementById('e_sdept_wrap').style.display = roleTypeId >= 2 ? '' : 'none';
+
+        // Load reporting dropdowns
+        await onEditRoleChange(reportsToHodId, reportsToSubId, row.subDepartmentId || null);
+
+        document.getElementById('editModal').classList.add('open');
+    }
+
+    async function onEditRoleChange(presetHodId, presetSubId, presetSubDeptId) {
+        const role = parseInt(document.getElementById('e_role').value);
+        const hodRow = document.getElementById('e_hod_row');
+        const subRow = document.getElementById('e_sub_row');
+        const subDeptWrap = document.getElementById('e_sdept_wrap');
+        hodRow.style.display = role >= 2 ? '' : 'none';
+        subRow.style.display = role === 3 ? '' : 'none';
+        subDeptWrap.style.display = role >= 2 ? '' : 'none';
+        updateEditFormLabels();
+        if (role < 2) document.getElementById('e_sdept').value = '';
+
+        if (role >= 2) {
+            await loadHodsMeta();
+            const hodSel = document.getElementById('e_hod');
+            if (presetHodId) {
+                hodSel.value = String(presetHodId);
+                await onEditHodChange(presetSubId, parseInt(document.getElementById('e_dept').value) || null, true, presetSubDeptId);
+            }
+        }
+    }
+
+    async function onEditDeptChange(presetSubHod, keepCurrentSubDept = false, presetSubDeptId = null) {
+        const role = parseInt(document.getElementById('e_role').value);
+        const deptId = parseInt(document.getElementById('e_dept').value) || null;
+        await loadSubDepts(deptId, 'e_sdept');
+        if (keepCurrentSubDept && (presetSubDeptId || editContextRow?.subDepartmentId)) {
+            const selectedSubDeptId = presetSubDeptId || editContextRow?.subDepartmentId;
+            ensureSelectOption('e_sdept', selectedSubDeptId, editContextRow?.subDepartmentName || 'Current Sub-Department');
+            document.getElementById('e_sdept').value = String(selectedSubDeptId);
+        }
+        if (!keepCurrentSubDept) document.getElementById('e_sdept').value = '';
+        await populateEditSubHods(presetSubHod);
+    }
+
+    async function populateEditSubHods(presetSubHod) {
+        const role = parseInt(document.getElementById('e_role').value);
+        const hodId = parseInt(document.getElementById('e_hod').value) || null;
+        const deptId = parseInt(document.getElementById('e_dept').value) || null;
+        const subDeptId = parseInt(document.getElementById('e_sdept').value) || null;
+        const subSel = document.getElementById('e_sub');
+        subSel.innerHTML = '<option value="">— Direct to HOD —</option>';
+        if (role !== 3 || !hodId || !deptId) return;
+        getSubHodsForDepartment(hodId, deptId, subDeptId).forEach(s => {
+            subSel.innerHTML += `<option value="${s.employeeId}">${esc(s.employeeName)} (${s.employeeCode})</option>`;
+        });
+        if (presetSubHod) document.getElementById('e_sub').value = String(presetSubHod);
+    }
+
+    async function onEditSubDeptChange() {
+        await populateEditSubHods();
+    }
+
+    async function onEditHodChange(presetSubHod, presetDeptId, keepCurrentSubDept = false, presetSubDeptId = null) {
+        const hodId = parseInt(document.getElementById('e_hod').value) || null;
+        if (!hodId) {
+            renderDeptOptions('e_dept', deptsMeta);
+            document.getElementById('e_sub').innerHTML = '<option value="">— Direct to HOD —</option>';
+            return;
+        }
+        try{
+            const r = await api(`${API}/GetDepartmentsForHOD/${hodId}`);
+            if(r.success){
+                renderDeptOptions('e_dept', r.data||[]);
+                if (presetDeptId && editContextRow?.departmentName) {
+                    ensureSelectOption('e_dept', presetDeptId, editContextRow.departmentName);
+                }
+                if (presetDeptId) document.getElementById('e_dept').value = String(presetDeptId);
+            }else{
+                toast(r.message || 'Failed to load HOD departments','err');
+            }
+        }catch(e){
+            toast('Error loading HOD departments','err');
+        }
+        await onEditDeptChange(presetSubHod, keepCurrentSubDept, presetSubDeptId);
+    }
+
+    function closeEdit() {
+        document.getElementById('editModal').classList.remove('open');
+        editEmpId = null;
+        editContextRow = null;
+        editCurrentDateOfJoining = null;
+    }
+
+    async function submitEdit() {
+        const btn = document.getElementById('editSaveBtn');
+        showEditError('');
+
+        const code = document.getElementById('e_code').value.trim();
+        const name = document.getElementById('e_name').value.trim();
+        const role = parseInt(document.getElementById('e_role').value);
+
+        if (!code || !name) { showEditError('Code and Name are required'); return; }
+        const hierarchyError = validateHierarchySequence(role,'e');
+        if (hierarchyError) { showEditError(hierarchyError); return; }
+        // ReportsTo is optional — exec/subhod can report directly or have no manager
+
+        const currentRow = editContextRow || allRows.find(r => r.hodEmployeeId===editEmpId || r.subHodEmployeeId===editEmpId || r.execEmployeeId===editEmpId);
+        const deptRaw = document.getElementById('e_dept').value;
+        const subDeptRaw = document.getElementById('e_sdept').value;
+        const deptId = deptRaw !== ''
+            ? (parseInt(deptRaw) || null)
+            : (role >= 2 ? (currentRow?.departmentId || null) : null);
+        const subDeptId = subDeptRaw !== ''
+            ? (parseInt(subDeptRaw) || null)
+            : (role >= 2 ? (currentRow?.subDepartmentId || null) : null);
+        const hodRow2   = document.getElementById('e_hod_row');
+        const hodRaw = document.getElementById('e_hod').value;
+        const hodId = hodRow2.style.display !== 'none'
+            ? (hodRaw !== '' ? (parseInt(hodRaw) || null) : (currentRow?.hodEmployeeId || null))
+            : null;
+        const subRow2   = document.getElementById('e_sub_row');
+        const subRaw = document.getElementById('e_sub').value;
+        const subHodId = subRow2.style.display !== 'none'
+            ? (subRaw !== '' ? (parseInt(subRaw) || null) : (currentRow?.subHodEmployeeId || null))
+            : null;
+        const reportsTo = role === 3 ? (subHodId || hodId || null) : role === 2 ? (hodId || null) : null;
+        let moveTeamWithDepartment = false;
+
+        btn.disabled = true; btn.textContent = 'Saving…';
+        try {
+            const currentDeptId = currentRow?.departmentId || null;
+            const currentSubDeptId = currentRow?.subDepartmentId || null;
+            // Detect original role from grid context
+            const originalRole = currentRow ? (currentRow.subHodEmployeeId === editEmpId ? 2 : currentRow.hodEmployeeId === editEmpId ? 1 : 3) : role;
+            const roleChangedFromSubToHod = originalRole === 2 && role === 1;
+            const changedDept = (currentDeptId !== deptId || currentSubDeptId !== subDeptId) && (role <= 2 || originalRole <= 2);
+            if(changedDept || roleChangedFromSubToHod){
+                const impactRes = await api(`${API}/GetDepartmentChangeImpact`, 'POST', {
+                    employeeId: editEmpId,
+                    roleTypeId: role,
+                    departmentId: deptId,
+                    subDepartmentId: subDeptId,
+                    currentDepartmentId: currentDeptId,
+                    currentSubDepartmentId: currentSubDeptId
+                });
+                const impact = impactRes?.data || impactRes?.Data;
+                if(impactRes?.success && impact?.requiresMoveTeam){
+                    const msg = impact.message || `This ${role===1?'HOD':'Sub-HOD'} has ${(impact.directReportCount||0)} linked employees. What would you like to do?`;
+                    const choice = await showDeptMoveModal(msg);
+                    if(choice === 'abort'){
+                        btn.disabled = false; btn.textContent = 'Save Changes';
+                        return;
+                    }
+                    moveTeamWithDepartment = (choice === 'move');
+                }
+            }
+            const r = await fetch(`${API}/UpdateEmployeeFull`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    employeeId:      editEmpId,
+                    employeeCode:    code,
+                    employeeName:    name,
+                    designation:     document.getElementById('e_desig').value.trim() || null,
+                    dateOfJoining:   editCurrentDateOfJoining,
+                    roleTypeId:      role,
+                    departmentId:    deptId,
+                    subDepartmentId: subDeptId,
+                    reportsToEmpId:  reportsTo,
+                    isActive:        document.getElementById('e_active').checked,
+                    moveTeamWithDepartment: moveTeamWithDepartment
+                })
+            });
+            const d = await r.json();
+            if (d.success) {
+                showEditError(d.message || 'Employee updated successfully', 'ok');
+                await loadGrid();
+                btn.disabled = false; btn.textContent = 'Save Changes';
+            } else {
+                showEditError(d.message || 'Update failed');
+                btn.disabled = false; btn.textContent = 'Save Changes';
+            }
+        } catch(ex) {
+            showEditError('Network error: ' + ex.message);
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        }
+    }
+
+    async function ensureDepts() {
+        if (deptsMeta.length) return;
+        const r = await fetch(`${API}/GetDepartments?includeSubDepartments=true`);
+        const d = await r.json();
+        if (d.success) {
+            deptsMeta = d.data?.departments || d.data || [];
+            // also populate add modal dept dropdown
+            const addDept = document.getElementById('f_dept');
+            if (addDept) {
+                addDept.innerHTML = '<option value="">— Select —</option>' +
+                    deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+            }
+        }
+    }
+
+
+    function showToast(msg, type='ok') {
+        const wrap = document.getElementById('toastWrap');
+        if (!wrap) { console.log(msg); return; }
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        const icons = {ok:'✓', err:'✕', info:'ℹ'};
+        t.innerHTML = `<span style="font-size:15px">${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+        wrap.appendChild(t);
+        setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .4s'; setTimeout(()=>t.remove(), 400); }, 3000);
+    }
+
+    function showBulkError(msg, type='err') {
+        const el = document.getElementById('bulkErr');
+        setInlineMessage(el, msg, type);
+    }
+
+    async function openBulkAssign() {
+        await ensureDepts();
+        showBulkError('');
+        bulkExecsMeta = [];
+        bulkSelectedExecIds = new Set();
+        renderDeptOptions('b_dept', deptsMeta);
+        document.getElementById('b_hod').innerHTML = '<option value="">— Select HOD —</option>' + (hodsMeta||[]).map(h=>`<option value="${h.employeeId}">${esc(h.employeeName)} (${esc(h.employeeCode)})</option>`).join('');
+        document.getElementById('b_hod').value = '';
+        document.getElementById('b_dept').value = '';
+        document.getElementById('b_sdept').innerHTML = '<option value="">— None —</option>';
+        document.getElementById('b_subhod').innerHTML = '<option value="">— Direct to HOD —</option>';
+        document.getElementById('b_current_subhod').innerHTML = '<option value="">— Direct to HOD —</option>';
+        document.getElementById('b_current_subhod_wrap').style.display = 'none';
+        document.getElementById('b_exec_search').value = '';
+        document.getElementById('bulkExecList').innerHTML = '<div class="dm-empty">Select department above</div>';
+        updateBulkExecSummary();
+        document.getElementById('bulkModal').classList.add('open');
+        await setBulkMode('assign');
+    }
+
+    function closeBulkAssign() {
+        document.getElementById('bulkModal').classList.remove('open');
+    }
+
+    async function setBulkMode(mode) {
+        bulkMode = mode === 'reassign' ? 'reassign' : 'assign';
+        const assignMode = bulkMode === 'assign';
+        document.getElementById('bulkTabAssign').classList.toggle('on', assignMode);
+        document.getElementById('bulkTabReassign').classList.toggle('on', !assignMode);
+        document.getElementById('bulkModalTitle').textContent = assignMode ? 'Bulk Assign Team' : 'Bulk Change SubHOD';
+        document.getElementById('bulkModeHelp').textContent = assignMode
+            ? 'Pick a HOD, department and executives to assign in one action.'
+            : 'Select a HOD, department and sub-department to move executives to a new SubHOD.';
+        document.getElementById('bulkSubHodLabel').textContent = assignMode ? 'Sub-HOD' : 'New Sub-HOD';
+        document.getElementById('bulkAssignBtn').textContent = assignMode ? 'Assign Team' : 'Change SubHOD';
+        // Show/hide current sub-HOD dropdown
+        document.getElementById('b_current_subhod_wrap').style.display = assignMode ? 'none' : '';
+        // Re-fetch executives and sub-HODs based on the new mode
+        await renderBulkSubHodOptions();
+        await refreshBulkExecutives();
+    }
+
+    async function renderBulkSubHodOptions() {
+        const hodId = parseInt(document.getElementById('b_hod').value) || 0;
+        const deptId = parseInt(document.getElementById('b_dept').value) || 0;
+        const subDeptId = parseInt(document.getElementById('b_sdept').value) || 0;
+        const sel = document.getElementById('b_subhod');
+        const currentSel = document.getElementById('b_current_subhod');
+        sel.innerHTML = '<option value="">— Direct to HOD —</option>';
+        if(!hodId || !deptId) return;
+
+        if (bulkMode === 'reassign') {
+            // CHANGE SUBHOD mode:
+            // "Current Sub-HOD" = who currently manages executives in this HOD/Dept/SubDept
+            // Find all unique sub-HODs from grid rows matching HOD+Dept+SubDept
+            const currentSubHods = new Map();
+            (allRows || []).forEach(r => {
+                if (r.hodEmployeeId !== hodId) return;
+                if (deptId && r.departmentId !== deptId) return;
+                if (subDeptId && r.subDepartmentId !== subDeptId) return;
+                if (r.subHodEmployeeId > 0 && !currentSubHods.has(r.subHodEmployeeId)) {
+                    currentSubHods.set(r.subHodEmployeeId, { employeeId: r.subHodEmployeeId, employeeName: r.subHodName, employeeCode: r.subHodCode });
+                }
+            });
+            currentSel.innerHTML = '<option value="">— Direct to HOD —</option>';
+            currentSubHods.forEach(e => {
+                currentSel.innerHTML += `<option value="${e.employeeId}">${esc(e.employeeName)} (${esc(e.employeeCode||'')})</option>`;
+            });
+            // Auto-select if only one sub-HOD
+            if (currentSubHods.size === 1) {
+                currentSel.value = String([...currentSubHods.keys()][0]);
+            }
+
+            // "New Sub-HOD" = all available sub-HODs under this HOD to move executives to
+            const added = new Set();
+            const allSubHods = getSubHodsForDepartment(hodId, 0, 0);
+            allSubHods.forEach(e => {
+                added.add(e.employeeId);
+                sel.innerHTML += `<option value="${e.employeeId}">${esc(e.employeeName)} (${esc(e.employeeCode)})</option>`;
+            });
+            try {
+                const r = await api(`${API}/SearchEmployees?roleTypeId=2&isActive=true&pageSize=500`);
+                if (r.success) {
+                    (r.data || []).forEach(e => {
+                        if (!added.has(e.employeeId)) {
+                            added.add(e.employeeId);
+                            sel.innerHTML += `<option value="${e.employeeId}">${esc(e.employeeName)} (${esc(e.employeeCode||'')})</option>`;
+                        }
+                    });
+                }
+            } catch(e){}
+        } else {
+            // ASSIGN TEAM mode: show all sub-HODs from grid + all active from API
+            const fromGrid = getSubHodsForDepartment(hodId, deptId, subDeptId);
+            const added = new Set();
+            fromGrid.forEach(e => {
+                added.add(e.employeeId);
+                sel.innerHTML += `<option value="${e.employeeId}">${esc(e.employeeName)} (${esc(e.employeeCode)})</option>`;
+            });
+            try {
+                const r = await api(`${API}/SearchEmployees?roleTypeId=2&isActive=true&pageSize=500`);
+                if(r.success) {
+                    (r.data||[]).forEach(e=>{
+                        if(!added.has(e.employeeId)){
+                            added.add(e.employeeId);
+                            sel.innerHTML += `<option value="${e.employeeId}">${esc(e.employeeName)} (${esc(e.employeeCode||'')})</option>`;
+                        }
+                    });
+                }
+            } catch(e){}
+        }
+    }
+
+    async function onCurrentSubHodChange() {
+        // When user changes the "Current Sub-HOD" in reassign mode, refresh executives
+        await refreshBulkExecutives();
+    }
+
+    function getSelectedBulkExecIds() {
+        return [...bulkSelectedExecIds].filter(Boolean);
+    }
+
+    function updateBulkExecSummary() {
+        const total = bulkExecsMeta.length;
+        const selected = getSelectedBulkExecIds().length;
+        const label = total ? `${selected} selected of ${total}` : '0 selected';
+        document.getElementById('bulkExecSummary').textContent = label;
+    }
+
+    function getCurrentBulkExecRows() {
+        const q = (document.getElementById('b_exec_search').value || '').toLowerCase();
+        return bulkExecsMeta.filter(e => !q || `${e.employeeName||''} ${e.employeeCode||''}`.toLowerCase().includes(q));
+    }
+
+    function bulkSelectVisible(selectVisible) {
+        getCurrentBulkExecRows().forEach(e => {
+            if (selectVisible) bulkSelectedExecIds.add(e.employeeId);
+            else bulkSelectedExecIds.delete(e.employeeId);
+        });
+        renderBulkExecList();
+    }
+
+    function onBulkExecToggle(employeeId, checked) {
+        if (checked) bulkSelectedExecIds.add(employeeId);
+        else bulkSelectedExecIds.delete(employeeId);
+        updateBulkExecSummary();
+    }
+
+    function collectBulkExecRowsFromGrid(hodId, deptId, subDeptId) {
+        const map = new Map();
+        (allRows || []).forEach(r => {
+            if (!(r.execEmployeeId > 0)) return;
+            if (hodId && r.hodEmployeeId !== hodId) return;
+            if (deptId && r.departmentId !== deptId) return;
+            if (subDeptId && r.subDepartmentId !== subDeptId) return;
+            if (!map.has(r.execEmployeeId)) {
+                map.set(r.execEmployeeId, {
+                    employeeId: r.execEmployeeId,
+                    employeeName: r.execName,
+                    employeeCode: r.execCode || '',
+                    currentSubHodName: r.subHodName || '',
+                    currentSubDepartmentName: r.subDepartmentName || '',
+                    currentDepartmentName: r.departmentName || '',
+                    currentHodName: r.hodName || ''
+                });
+            }
+        });
+        return [...map.values()];
+    }
+
+    async function refreshBulkExecutives() {
+        const hodId = parseInt(document.getElementById('b_hod').value) || 0;
+        const deptId = parseInt(document.getElementById('b_dept').value) || 0;
+        const subDeptId = parseInt(document.getElementById('b_sdept').value) || 0;
+        bulkSelectedExecIds = new Set();
+        bulkExecsMeta = [];
+        if (!deptId) {
+            document.getElementById('bulkExecList').innerHTML = '<div class="dm-empty">Select department above</div>';
+            updateBulkExecSummary();
+            return;
+        }
+
+        if (bulkMode === 'reassign') {
+            // CHANGE SUBHOD mode: show only executives under the selected CURRENT sub-HOD
+            const currentSubHodId = parseInt(document.getElementById('b_current_subhod').value) || 0;
+            const map = new Map();
+            (allRows || []).forEach(r => {
+                if (!(r.execEmployeeId > 0)) return;
+                if (r.hodEmployeeId !== hodId) return;
+                if (deptId && r.departmentId !== deptId) return;
+                if (subDeptId && r.subDepartmentId !== subDeptId) return;
+                // Filter by current sub-HOD: 0 means "Direct to HOD" (no sub-HOD)
+                const rowSubHod = r.subHodEmployeeId || 0;
+                if (rowSubHod !== currentSubHodId) return;
+                if (!map.has(r.execEmployeeId)) {
+                    map.set(r.execEmployeeId, {
+                        employeeId: r.execEmployeeId,
+                        employeeName: r.execName,
+                        employeeCode: r.execCode || '',
+                        currentSubHodName: r.subHodName || 'Direct to HOD',
+                        currentSubDepartmentName: r.subDepartmentName || '',
+                        currentDepartmentName: r.departmentName || '',
+                        currentHodName: r.hodName || ''
+                    });
+                }
+            });
+            bulkExecsMeta = [...map.values()].sort((a,b)=>(a.employeeName||'').localeCompare(b.employeeName||''));
+            // Pre-select all since we're moving the whole group
+            bulkExecsMeta.forEach(e => bulkSelectedExecIds.add(e.employeeId));
+        } else {
+            // ASSIGN TEAM mode: show all available executives for creating new teams
+            const fromGrid = collectBulkExecRowsFromGrid(hodId, deptId, subDeptId);
+            const merged = new Map(fromGrid.map(e => [e.employeeId, e]));
+
+            // Load ALL active executives so new teams can pick from any available executive
+            try {
+                const r = await api(`${API}/SearchEmployees?roleTypeId=3&isActive=true&pageSize=500`);
+                if (r.success) {
+                    (r.data || []).forEach(e => {
+                        if (!merged.has(e.employeeId)) {
+                            merged.set(e.employeeId, {
+                                employeeId: e.employeeId,
+                                employeeName: e.employeeName,
+                                employeeCode: e.employeeCode || '',
+                                currentSubHodName: '',
+                                currentSubDepartmentName: '',
+                                currentDepartmentName: e.primaryDepartmentName || '',
+                                currentHodName: ''
+                            });
+                        }
+                    });
+                }
+            } catch (e) {}
+
+            bulkExecsMeta = [...merged.values()].sort((a,b)=>(a.employeeName||'').localeCompare(b.employeeName||''));
+        }
+
+        renderBulkExecList();
+    }
+
+    function renderBulkExecList() {
+        const el = document.getElementById('bulkExecList');
+        if(!bulkExecsMeta.length){
+            el.innerHTML = bulkMode === 'reassign'
+                ? '<div class="dm-empty">No executives found in this HOD / department / sub-department</div>'
+                : '<div class="dm-empty">No executives found</div>';
+            updateBulkExecSummary();
+            return;
+        }
+        const rows = getCurrentBulkExecRows();
+        el.innerHTML = rows.length
+            ? rows.map(e=>{
+                const managerLabel = e.currentSubHodName ? `Current SubHOD: ${e.currentSubHodName}` : 'Current manager: Direct to HOD';
+                const scopeParts = [e.currentDepartmentName, e.currentSubDepartmentName, e.currentHodName].filter(Boolean);
+                return `<label class="bulk-exec-row"><input type="checkbox" class="bulk-exec-check" value="${e.employeeId}" ${bulkSelectedExecIds.has(e.employeeId)?'checked':''} onchange="onBulkExecToggle(${e.employeeId}, this.checked)" /><span class="bulk-exec-meta"><span>${esc(e.employeeName)}</span><small>${esc(e.employeeCode||'')}</small><div class="bulk-exec-hint">${esc(managerLabel)}${scopeParts.length?` - ${esc(scopeParts.join(' / '))}`:''}</div></span></label>`;
+            }).join('')
+            : '<div class="dm-empty">No executives match search</div>';
+        updateBulkExecSummary();
+    }
+
+    async function onBulkHodChange() {
+        document.getElementById('b_dept').value = '';
+        document.getElementById('b_sdept').innerHTML = '<option value="">— None —</option>';
+        document.getElementById('b_subhod').innerHTML = '<option value="">— Direct to HOD —</option>';
+        document.getElementById('bulkExecList').innerHTML = '<div class="dm-empty">Select department above</div>';
+        bulkExecsMeta = [];
+        bulkSelectedExecIds = new Set();
+        const hodId = parseInt(document.getElementById('b_hod').value) || 0;
+        if(!hodId){
+            renderDeptOptions('b_dept', deptsMeta);
+            updateBulkExecSummary();
+            return;
+        }
+        if (bulkMode === 'reassign') {
+            // Change SubHOD mode: only show departments already assigned to this HOD
+            try {
+                const r = await api(`${API}/GetDepartmentsForHOD/${hodId}`);
+                renderDeptOptions('b_dept', r.success ? (r.data || []) : []);
+            } catch(e) {
+                renderDeptOptions('b_dept', []);
+            }
+        } else {
+            // Assign Team mode: show ALL departments
+            renderDeptOptions('b_dept', deptsMeta);
+        }
+        updateBulkExecSummary();
+    }
+
+    async function onBulkDeptChange() {
+        const deptId = parseInt(document.getElementById('b_dept').value) || 0;
+        await loadSubDepts(deptId, 'b_sdept');
+        await renderBulkSubHodOptions();
+        await refreshBulkExecutives();
+    }
+
+    async function onBulkSubDeptChange() {
+        await renderBulkSubHodOptions();
+        await refreshBulkExecutives();
+    }
+
+    async function submitBulkAssign() {
+        showBulkError('');
+        const hodId = parseInt(document.getElementById('b_hod').value) || 0;
+        const deptId = parseInt(document.getElementById('b_dept').value) || 0;
+        const subDeptId = parseInt(document.getElementById('b_sdept').value) || null;
+        const subHodId = parseInt(document.getElementById('b_subhod').value) || null;
+        const execIds = getSelectedBulkExecIds();
+        if(!hodId){ showBulkError('Select a HOD'); return; }
+        if(!deptId){ showBulkError('Select a department'); return; }
+        if(bulkMode === 'reassign' && !subDeptId){ showBulkError('Select a sub-department'); return; }
+        if(bulkMode === 'reassign' && !execIds.length){ showBulkError('Select at least one executive'); return; }
+        const btn = document.getElementById('bulkAssignBtn');
+        btn.disabled = true; btn.textContent = 'Assigning…';
+        try{
+            const r = await api(`${API}/BulkAssignTeam`, 'POST', {
+                hodEmployeeId: hodId,
+                departmentId: deptId,
+                subDepartmentId: subDeptId,
+                subHodEmployeeId: subHodId,
+                executiveEmployeeIds: execIds
+            });
+            if(r.success){
+                const okMsg = bulkMode === 'reassign'
+                    ? (r.message || `${execIds.length} executive(s) moved successfully`)
+                    : (r.message || 'Team assigned successfully');
+                showBulkError(okMsg, 'ok');
+                await loadGrid();
+                await refreshBulkExecutives();
+            }else{
+                showBulkError(r.message || 'Bulk assign failed');
+            }
+        }catch(e){
+            showBulkError('Error: ' + e.message);
+        }finally{
+            btn.disabled = false; btn.textContent = bulkMode === 'assign' ? 'Assign Team' : 'Change SubHOD';
+        }
+    }
+
+
+
+
+        // ══════════════════════════════════════════════════════
+        // DEPT / SUBDEPT MANAGER
+        // ══════════════════════════════════════════════════════
+        let editingDeptId = null;
+        let editingSubDeptId = null;
+        let subDeptMeta = [];
+
+        function openDeptManager() {
+            setDeptTab(1);
+            renderDeptList();
+            showDeptError('');
+            showSubDeptError('');
+            const sel = document.getElementById('nsd_dept');
+            if (sel) {
+                sel.innerHTML = '<option value="">— Select —</option>' +
+                    deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+            }
+            document.getElementById('deptModal').classList.add('open');
+        }
+
+        function closeDeptModal() {
+            document.getElementById('deptModal').classList.remove('open');
+        }
+
+        function showDeptError(msg, type='err') {
+            const el = document.getElementById('deptErr');
+            setInlineMessage(el, msg, type);
+        }
+
+        function showSubDeptError(msg, type='err') {
+            const el = document.getElementById('subDeptErr');
+            setInlineMessage(el, msg, type);
+        }
+
+        function setDeptTab(n) {
+            [1,2].forEach(i => {
+                const tab = document.getElementById(`dtab${i}`);
+                const panel = document.getElementById(`deptTab${i}`);
+                if (tab) tab.classList.toggle('on', i === n);
+                if (panel) panel.style.display = i === n ? '' : 'none';
+            });
+            if (n === 2) {
+                const sel = document.getElementById('nsd_dept');
+                if (sel && sel.options.length <= 1) {
+                    sel.innerHTML = '<option value="">— Select —</option>' +
+                        deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+                }
+            }
+        }
+
+        function renderDeptList() {
+            const el = document.getElementById('deptList');
+            if (!el) return;
+            if (!deptsMeta.length) {
+                el.innerHTML = '<div class="dm-empty">No departments loaded</div>'; return;
+            }
+            el.innerHTML = deptsMeta.map(d =>
+                `<div class="dm-row">
+                    ${editingDeptId === d.departmentId
+                        ? `<input class="fi dm-input" id="edit_dept_${d.departmentId}" value="${escAttr(d.departmentName)}" />`
+                        : `<span class="dm-name">${esc(d.departmentName)}</span>`}
+                    <span style="font-size:10px;color:var(--muted)">ID: ${d.departmentId}</span>
+                    <div class="dm-actions">
+                        ${editingDeptId === d.departmentId
+                            ? `<button class="dm-btn" onclick="saveDeptEdit(${d.departmentId})">Save</button>
+                               <button class="dm-btn ghost" onclick="cancelDeptEdit()">Cancel</button>`
+                            : `<button class="dm-btn" onclick="startDeptEdit(${d.departmentId})">Edit</button>`}
+                    </div>
+                </div>`
+            ).join('');
+        }
+
+        function startDeptEdit(id) {
+            editingDeptId = id;
+            renderDeptList();
+        }
+
+        function cancelDeptEdit() {
+            editingDeptId = null;
+            renderDeptList();
+        }
+
+        async function saveDeptEdit(id) {
+            const input = document.getElementById(`edit_dept_${id}`);
+            const name = input ? input.value.trim() : '';
+            if (!name) { showDeptError('Enter department name'); return; }
+            showDeptError('');
+            try {
+                const r = await api(`${API}/UpdateDepartment`, 'POST', { departmentId: id, departmentName: name, isActive: true });
+                if (r.success) {
+                    showDeptError(r.message || 'Department updated', 'ok');
+                    editingDeptId = null;
+                    await loadDeptsMeta();
+                    renderDeptList();
+                    renderDeptOptions('f_dept', deptsMeta);
+                    const sel = document.getElementById('nsd_dept');
+                    if (sel) sel.innerHTML = '<option value="">— Select —</option>' +
+                        deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+                } else { showDeptError(r.message || 'Failed'); }
+            } catch (e) { showDeptError('Error: ' + e.message); }
+        }
+
+        async function addDept() {
+            const name = document.getElementById('nd_name').value.trim();
+            showDeptError('');
+            if (!name) { showDeptError('Enter department name'); return; }
+            try {
+                const r = await api(`${API}/AddDepartment`, 'POST', { departmentName: name, isActive: true });
+                if (r.success) {
+                    showDeptError(r.message || `"${name}" created`, 'ok');
+                    document.getElementById('nd_name').value = '';
+                    await loadDeptsMeta();
+                    renderDeptList();
+                    await loadGrid();
+                    renderDeptOptions('f_dept', deptsMeta);
+                    const sel = document.getElementById('nsd_dept');
+                    if (sel) sel.innerHTML = '<option value="">— Select —</option>' +
+                        deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+                } else { showDeptError(r.message || 'Failed'); }
+            } catch(e) { showDeptError('Error: ' + e.message); }
+        }
+
+        async function addSubDept() {
+            const deptId = parseInt(document.getElementById('nsd_dept').value);
+            const name   = document.getElementById('nsd_name').value.trim();
+            showSubDeptError('');
+            if (!deptId) { showSubDeptError('Select a department'); return; }
+            if (!name)   { showSubDeptError('Enter sub-department name'); return; }
+            try {
+                const r = await api(`${API}/AddSubDepartment`, 'POST', { departmentId: deptId, subDepartmentName: name, isActive: true });
+                if (r.success) {
+                    showSubDeptError(r.message || `"${name}" created`, 'ok');
+                    document.getElementById('nsd_name').value = '';
+                    await loadDeptsMeta();
+                    loadSubDeptList();
+                } else { showSubDeptError(r.message || 'Failed'); }
+            } catch(e) { showSubDeptError('Error: ' + e.message); }
+        }
+
+        async function loadSubDeptList() {
+            const deptId = document.getElementById('nsd_dept').value;
+            const el = document.getElementById('subDeptList');
+            if (!el) return;
+            if (!deptId) { el.innerHTML = '<div class="dm-empty">Select a department above</div>'; return; }
+            try {
+                const r = await api(`${API}/GetSubDepartments/${deptId}`);
+                subDeptMeta = r.data || [];
+                renderSubDeptList();
+            } catch(e) { el.innerHTML = '<div class="dm-empty">Error loading</div>'; }
+        }
+
+        function renderSubDeptList() {
+            const el = document.getElementById('subDeptList');
+            if (!el) return;
+            if (!subDeptMeta.length) { el.innerHTML = '<div class="dm-empty">No sub-departments yet</div>'; return; }
+
+            const deptLookup = new Map(deptsMeta.map(d => [d.departmentId, d.departmentName]));
+            el.innerHTML = subDeptMeta.map(s => {
+                const deptName = deptLookup.get(s.departmentId) || '';
+                return `<div class="dm-row">
+                    ${editingSubDeptId === s.subDepartmentId
+                        ? `<input class="fi dm-input" id="edit_subdept_${s.subDepartmentId}" value="${escAttr(s.subDepartmentName)}" />`
+                        : `<span class="dm-name">${esc(s.subDepartmentName)}</span>`}
+                    ${deptName ? `<span class="dm-parent">${esc(deptName)}</span>` : ''}
+                    <span style="font-size:10px;color:var(--muted)">ID: ${s.subDepartmentId}</span>
+                    <div class="dm-actions">
+                        ${editingSubDeptId === s.subDepartmentId
+                            ? `<button class="dm-btn" onclick="saveSubDeptEdit(${s.subDepartmentId}, ${s.departmentId})">Save</button>
+                               <button class="dm-btn ghost" onclick="cancelSubDeptEdit()">Cancel</button>`
+                            : `<button class="dm-btn" onclick="startSubDeptEdit(${s.subDepartmentId})">Edit</button>`}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function startSubDeptEdit(id) {
+            editingSubDeptId = id;
+            renderSubDeptList();
+        }
+
+        function cancelSubDeptEdit() {
+            editingSubDeptId = null;
+            renderSubDeptList();
+        }
+
+        async function saveSubDeptEdit(id, deptId) {
+            const input = document.getElementById(`edit_subdept_${id}`);
+            const name = input ? input.value.trim() : '';
+            if (!name) { showSubDeptError('Enter sub-department name'); return; }
+            showSubDeptError('');
+            try {
+                const r = await api(`${API}/UpdateSubDepartment`, 'POST', { subDepartmentId: id, departmentId: deptId, subDepartmentName: name, isActive: true });
+                if (r.success) {
+                    showSubDeptError(r.message || 'Sub-department updated', 'ok');
+                    editingSubDeptId = null;
+                    await loadDeptsMeta();
+                    loadSubDeptList();
+                } else { showSubDeptError(r.message || 'Failed'); }
+            } catch (e) { showSubDeptError('Error: ' + e.message); }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // AUDIT LOG VIEWER
+        // ══════════════════════════════════════════════════════
+        let logPage = 1;
+
+        async function openLogs() {
+            logPage = 1;
+            document.getElementById('logSearch').value = '';
+            document.getElementById('logAction').value = '';
+            await loadLogs();
+            document.getElementById('logModal').classList.add('open');
+        }
+
+        function closeLogs() {
+            document.getElementById('logModal').classList.remove('open');
+        }
+
+        async function loadLogs() {
+            const search = document.getElementById('logSearch').value.trim();
+            const action = document.getElementById('logAction').value;
+            let url = `${API}/GetAuditLogs?pageNumber=${logPage}&pageSize=30`;
+            if (search) url += `&searchTerm=${encodeURIComponent(search)}`;
+            if (action) url += `&actionType=${encodeURIComponent(action)}`;
+
+            const el = document.getElementById('logBody');
+            el.innerHTML = '<div class="dm-empty">Loading…</div>';
+
+            try {
+                const r = await api(url);
+                if (!r.success) { el.innerHTML = '<div class="dm-empty">Error: ' + esc(r.message || '') + '</div>'; return; }
+                const logs = r.data || [];
+                if (!logs.length) { el.innerHTML = '<div class="dm-empty">No logs found</div>'; return; }
+
+                el.innerHTML = logs.map(l => {
+                    const d = new Date(l.createdOn);
+                    const time = d.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+                    const actionBadge = getActionBadge(l.actionType);
+                    return `<div class="log-row">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <span class="log-action ${actionBadge.cls}">${esc(l.actionType)}</span>
+                            <span style="font-weight:700;color:var(--g1)">${esc(l.employeeName || '')}</span>
+                            <span class="emp-code">${esc(l.employeeCode || '')}</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--text);margin-top:4px">${esc(l.description || '')}</div>
+                        <div style="display:flex;gap:12px;margin-top:4px;font-size:10px;color:var(--muted)">
+                            <span>By: <strong>${esc(l.changedByName || 'System')}</strong></span>
+                            <span>${time}</span>
+                        </div>
+                        ${l.oldValues || l.newValues ? `<div class="log-vals">
+                            ${l.oldValues ? '<div><span style="color:var(--danger);font-weight:600">Old:</span> ' + esc(l.oldValues) + '</div>' : ''}
+                            ${l.newValues ? '<div><span style="color:#059669;font-weight:600">New:</span> ' + esc(l.newValues) + '</div>' : ''}
+                        </div>` : ''}
+                    </div>`;
+                }).join('');
+
+                document.getElementById('logPageInfo').textContent = `Page ${logPage}`;
+                document.getElementById('logPrev').disabled = logPage <= 1;
+                document.getElementById('logNext').disabled = logs.length < 30;
+            } catch (e) { el.innerHTML = '<div class="dm-empty">Network error</div>'; }
+        }
+
+        function getActionBadge(action) {
+            if (!action) return { cls: '' };
+            const a = action.toLowerCase();
+            if (a.includes('create')) return { cls: 'la-create' };
+            if (a.includes('deactivate') || a.includes('detach')) return { cls: 'la-danger' };
+            if (a.includes('role') || a.includes('dept') || a.includes('move')) return { cls: 'la-warn' };
+            if (a.includes('bulk') || a.includes('import')) return { cls: 'la-info' };
+            return { cls: 'la-default' };
+        }
+
+        function logPrev() { if (logPage > 1) { logPage--; loadLogs(); } }
+        function logNext() { logPage++; loadLogs(); }
+
+</script>
+
+<!-- AUDIT LOG MODAL -->
+<div class="hm-modal-overlay" id="logModal">
+    <div class="hm-modal-box" style="width:750px;max-height:90vh">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>📋 Hierarchy Change Logs</span>
+            <button class="btn btn-ghost" onclick="closeLogs()" style="padding:4px 10px;font-size:11px">✕ Close</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <input class="search-box" id="logSearch" placeholder="Search name, code…" style="flex:1;min-width:150px" onkeydown="if(event.key==='Enter'){logPage=1;loadLogs();}" />
+            <select class="filter-sel" id="logAction" onchange="logPage=1;loadLogs()">
+                <option value="">All Actions</option>
+                <option value="Create">Create</option>
+                <option value="Update">Update</option>
+                <option value="RoleChange">Role Change</option>
+                <option value="DeptChange">Dept Change</option>
+                <option value="MoveTeam">Move Team</option>
+                <option value="DetachTeam">Detach Team</option>
+                <option value="BulkAssign">Bulk Assign</option>
+                <option value="Import">Import</option>
+                <option value="Deactivate">Deactivate</option>
+                <option value="SetPassword">Set Password</option>
+                <option value="AddDept">Add Dept</option>
+                <option value="AddSubDept">Add SubDept</option>
+            </select>
+            <button class="btn btn-ghost" onclick="logPage=1;loadLogs()" style="padding:5px 10px;font-size:11px">Search</button>
+        </div>
+        <div id="logBody" style="max-height:55vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+            <button class="btn btn-ghost" id="logPrev" onclick="logPrev()" style="padding:5px 12px;font-size:11px">← Prev</button>
+            <span id="logPageInfo" style="font-size:11px;color:var(--muted)">Page 1</span>
+            <button class="btn btn-ghost" id="logNext" onclick="logNext()" style="padding:5px 12px;font-size:11px">Next →</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .log-row {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .log-row:last-child {
+            border-bottom: none;
+        }
+
+        .log-row:hover {
+            background: var(--bg2);
+        }
+
+    .log-action {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+    }
+
+    .la-create {
+        background: rgba(5,150,105,.1);
+        color: #059669;
+    }
+
+    .la-danger {
+        background: rgba(220,38,38,.1);
+        color: #dc2626;
+    }
+
+    .la-warn {
+        background: rgba(217,119,6,.1);
+        color: #d97706;
+    }
+
+    .la-info {
+        background: rgba(37,99,235,.1);
+        color: #2563eb;
+    }
+
+    .la-default {
+        background: var(--bg3);
+        color: var(--muted);
+    }
+
+    .log-vals {
+        margin-top: 6px;
+        font-family: 'JetBrains Mono',monospace;
+        font-size: 10px;
+        background: var(--bg3);
+        padding: 6px 8px;
+        border-radius: 5px;
+        color: var(--muted);
+        word-break: break-all;
+        line-height: 1.5;
+    }
+</style>
+
+<!-- COLUMN MANAGER MODAL -->
+<div class="hm-modal-overlay" id="colModal">
+    <div class="hm-modal-box" style="width:580px;max-height:85vh">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>⊞ Manage Custom Columns</span>
+            <button class="btn btn-ghost" onclick="closeColumnManager()" style="padding:4px 10px;font-size:11px">✕ Close</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;margin-bottom:14px;align-items:flex-end">
+            <div class="fg" style="margin:0">
+                <label class="fl">Column Name *</label>
+                <input class="fi" id="cf_name" placeholder="e.g. Gender, Blood Group" />
+            </div>
+            <div class="fg" style="margin:0">
+                <label class="fl">Type</label>
+                <select class="fs" id="cf_type" onchange="onCfTypeChange()">
+                    <option value="Text">Text</option>
+                    <option value="Number">Number</option>
+                    <option value="Date">Date</option>
+                    <option value="Dropdown">Dropdown</option>
+                    <option value="Boolean">Yes/No</option>
+                </select>
+            </div>
+            <div class="fg" style="margin:0;display:flex;align-items:flex-end">
+                <button class="btn btn-primary" onclick="addCustomField()" style="width:100%">+ Add</button>
+            </div>
+        </div>
+        <div id="cf_options_wrap" style="display:none;margin-bottom:12px">
+            <label class="fl">Dropdown Options (comma separated) *</label>
+            <input class="fi" id="cf_options" placeholder="Male, Female, Other" />
+        </div>
+        <div id="cfErr" style="font-size:11px;color:var(--danger);margin:0 0 10px 0;display:none"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">ACTIVE COLUMNS</div>
+        <div id="cfList" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+    </div>
+</div>
+
+<style>
+    .page-settings-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .ps-row {
+        display: grid;
+        grid-template-columns: 140px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        font-size: 12px;
+    }
+
+    .ps-label {
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .ps-slider {
+        width: 100%;
+        accent-color: var(--g2);
+    }
+
+    .ps-color {
+        width: 44px;
+        height: 34px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        padding: 2px;
+    }
+
+    .ps-value {
+        min-width: 50px;
+        text-align: right;
+        font-weight: 700;
+        color: var(--g2);
+        font-size: 11px;
+    }
+
+    .ps-preview {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--bg2), var(--bg));
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .ps-preview-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--g1);
+    }
+
+    .ps-preview-note {
+        color: var(--muted);
+        line-height: 1.5;
+    }
+</style>
+
+<div class="hm-modal-overlay" id="pageSettingsModal">
+    <div class="hm-modal-box" style="width:520px;max-height:88vh;display:flex;flex-direction:column">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Page Settings</span>
+            <button class="btn btn-ghost" onclick="closePageSettings()" style="padding:4px 10px;font-size:11px">✕ Close</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px">
+            Change text size and page colors for this screen. Your choices are saved in this browser.
+        </p>
+        <div class="page-settings-grid">
+            <div class="ps-row">
+                <label class="ps-label" for="psFontSize">Text Size</label>
+                <input class="ps-slider" id="psFontSize" type="range" min="11" max="18" step="1" oninput="previewPageSettings()" />
+                <span class="ps-value" id="psFontSizeVal">13px</span>
+            </div>
+            <div class="ps-row">
+                <label class="ps-label" for="psFontFamily">Text Style</label>
+                <select class="fs" id="psFontFamily" onchange="previewPageSettings()">
+                    <option value="'Sora',sans-serif">Sora</option>
+                    <option value="Georgia,serif">Georgia</option>
+                    <option value="'Trebuchet MS',sans-serif">Trebuchet</option>
+                    <option value="'JetBrains Mono',monospace">Mono</option>
+                </select>
+                <span class="ps-value" id="psFontFamilyVal">Sora</span>
+            </div>
+            <div class="ps-row">
+                <label class="ps-label" for="psTextColor">Text Color</label>
+                <input class="ps-color" id="psTextColor" type="color" oninput="previewPageSettings()" />
+                <span class="ps-value" id="psTextColorVal"></span>
+            </div>
+            <div class="ps-row">
+                <label class="ps-label" for="psAccentColor">Accent Color</label>
+                <input class="ps-color" id="psAccentColor" type="color" oninput="previewPageSettings()" />
+                <span class="ps-value" id="psAccentColorVal"></span>
+            </div>
+            <div class="ps-row">
+                <label class="ps-label" for="psBgColor">Background</label>
+                <input class="ps-color" id="psBgColor" type="color" oninput="previewPageSettings()" />
+                <span class="ps-value" id="psBgColorVal"></span>
+            </div>
+        </div>
+        <div class="ps-preview" style="margin-top:14px">
+            <div class="ps-preview-title">Live Preview</div>
+            <div class="ps-preview-note">Headings, labels, table text, and the general page theme will use these values after apply.</div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px">
+            <button class="btn btn-ghost" onclick="resetPageSettings()">Reset Default</button>
+            <button class="btn btn-primary" onclick="applyPageSettings()">Apply</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cf-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+    }
+
+        .cf-row:last-child {
+            border-bottom: none;
+        }
+
+        .cf-row:hover {
+            background: var(--bg2);
+        }
+
+    .cf-name {
+        flex: 1;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .cf-type {
+        font-size: 10px;
+        color: var(--muted);
+        background: var(--bg3);
+        padding: 2px 8px;
+        border-radius: 20px;
+    }
+
+    .cf-del {
+        background: none;
+        border: 1px solid rgba(220,38,38,.3);
+        color: var(--danger);
+        border-radius: 5px;
+        padding: 3px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'Sora',sans-serif;
+    }
+
+        .cf-del:hover {
+            background: rgba(220,38,38,.08);
+        }
+</style>
+
+<!-- COLUMN VISIBILITY MODAL -->
+<div class="hm-modal-overlay" id="visModal">
+    <div class="hm-modal-box" style="width:430px;max-height:88vh;display:flex;flex-direction:column">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+            <span>👁 Column Visibility &amp; Order</span>
+            <button class="btn btn-ghost" onclick="closeVisModal()" style="padding:4px 10px;font-size:11px">✕ Close</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;flex-shrink:0">
+            Check/uncheck to show or hide columns. Use ▲▼ to reorder.
+        </p>
+        <div id="visColList" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;min-height:0"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:space-between;flex-shrink:0">
+            <button class="btn btn-ghost" onclick="resetColVis()" style="font-size:11px">↩ Reset Default</button>
+            <button class="btn btn-primary" onclick="applyColVis()" style="font-size:11px">✓ Apply &amp; Refresh</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .vis-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+    }
+
+        .vis-row:last-child {
+            border-bottom: none;
+        }
+
+        .vis-row:hover {
+            background: var(--bg2);
+        }
+
+    .vis-col-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        cursor: pointer;
+    }
+
+        .vis-col-label input[type=checkbox] {
+            cursor: pointer;
+            accent-color: var(--g2);
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+    .vis-col-name {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--text);
+    }
+
+    .vis-group-badge {
+        font-size: 10px;
+        color: var(--muted);
+        background: var(--bg3);
+        padding: 2px 8px;
+        border-radius: 20px;
+        flex-shrink: 0;
+    }
+
+    .vis-arrows {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .vis-arrow {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 9px;
+        cursor: pointer;
+        color: var(--muted);
+        font-family: 'Sora',sans-serif;
+        line-height: 1.5;
+    }
+
+        .vis-arrow:hover:not(:disabled) {
+            background: var(--bg3);
+            color: var(--text);
+            border-color: var(--g1);
+        }
+
+        .vis-arrow:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+    .vis-row-hidden .vis-col-name {
+        color: var(--muted);
+        text-decoration: line-through;
+    }
+</style>
+
+<script>
+    const PAGE_SETTINGS_KEY = 'hmPageSettings_v1';
+    const PAGE_FONT_BASE_SIZE = 13;
+    const DEFAULT_PAGE_SETTINGS = {
+        fontSize: PAGE_FONT_BASE_SIZE,
+        fontFamily: "'Sora',sans-serif",
+        textColor: '#0f172a',
+        accentColor: '#0b2c4d',
+        backgroundColor: '#ffffff'
+    };
+    let pageSettingsObserver = null;
+
+    // Register modals for body append
+    (function(){
+        ['logModal','colModal','visModal','pageSettingsModal'].forEach(function(id){
+            const m = document.getElementById(id);
+            if(m) document.body.appendChild(m);
+        });
+    })();
+
+    function getStoredPageSettings() {
+        try {
+            const raw = localStorage.getItem(PAGE_SETTINGS_KEY);
+            if (!raw) return { ...DEFAULT_PAGE_SETTINGS };
+            return { ...DEFAULT_PAGE_SETTINGS, ...JSON.parse(raw) };
+        } catch (e) {
+            return { ...DEFAULT_PAGE_SETTINGS };
+        }
+    }
+
+    function applyPageSettingsToDocument(settings) {
+        const root = document.documentElement;
+        const fontSize = parseInt(settings.fontSize, 10) || DEFAULT_PAGE_SETTINGS.fontSize;
+        const textColor = settings.textColor || DEFAULT_PAGE_SETTINGS.textColor;
+        const accentColor = settings.accentColor || DEFAULT_PAGE_SETTINGS.accentColor;
+        const backgroundColor = settings.backgroundColor || DEFAULT_PAGE_SETTINGS.backgroundColor;
+
+        root.style.setProperty('--page-font-size', `${fontSize}px`);
+        root.style.setProperty('--page-font-family', settings.fontFamily || DEFAULT_PAGE_SETTINGS.fontFamily);
+        root.style.setProperty('--text', textColor);
+        root.style.setProperty('--g1', accentColor);
+        root.style.setProperty('--g2', accentColor);
+        root.style.setProperty('--g3', accentColor);
+        root.style.setProperty('--bg', backgroundColor);
+        root.style.setProperty('--bg2', mixColor(backgroundColor, '#f8fafc', 0.55));
+        root.style.setProperty('--bg3', mixColor(backgroundColor, '#e2e8f0', 0.45));
+        root.style.setProperty('--muted', mixColor(textColor, '#94a3b8', 0.5));
+        applyFontScaleToScope(document.body, settings);
+    }
+
+    function loadPageSettings() {
+        const settings = getStoredPageSettings();
+        applyPageSettingsToDocument(settings);
+        return settings;
+    }
+
+    function openPageSettings() {
+        const settings = getStoredPageSettings();
+        document.getElementById('psFontSize').value = settings.fontSize;
+        document.getElementById('psFontFamily').value = settings.fontFamily;
+        document.getElementById('psTextColor').value = settings.textColor;
+        document.getElementById('psAccentColor').value = settings.accentColor;
+        document.getElementById('psBgColor').value = settings.backgroundColor;
+        previewPageSettings();
+        document.getElementById('pageSettingsModal').classList.add('open');
+    }
+
+    function closePageSettings() {
+        document.getElementById('pageSettingsModal').classList.remove('open');
+        applyPageSettingsToDocument(getStoredPageSettings());
+    }
+
+    function getPageSettingsFromInputs() {
+        return {
+            fontSize: parseInt(document.getElementById('psFontSize').value, 10) || DEFAULT_PAGE_SETTINGS.fontSize,
+            fontFamily: document.getElementById('psFontFamily').value || DEFAULT_PAGE_SETTINGS.fontFamily,
+            textColor: document.getElementById('psTextColor').value || DEFAULT_PAGE_SETTINGS.textColor,
+            accentColor: document.getElementById('psAccentColor').value || DEFAULT_PAGE_SETTINGS.accentColor,
+            backgroundColor: document.getElementById('psBgColor').value || DEFAULT_PAGE_SETTINGS.backgroundColor
+        };
+    }
+
+    function previewPageSettings() {
+        const settings = getPageSettingsFromInputs();
+        document.getElementById('psFontSizeVal').textContent = `${settings.fontSize}px`;
+        document.getElementById('psFontFamilyVal').textContent = getFontFamilyLabel(settings.fontFamily);
+        document.getElementById('psTextColorVal').textContent = settings.textColor.toUpperCase();
+        document.getElementById('psAccentColorVal').textContent = settings.accentColor.toUpperCase();
+        document.getElementById('psBgColorVal').textContent = settings.backgroundColor.toUpperCase();
+        applyPageSettingsToDocument(settings);
+    }
+
+    function applyPageSettings() {
+        const settings = getPageSettingsFromInputs();
+        localStorage.setItem(PAGE_SETTINGS_KEY, JSON.stringify(settings));
+        applyPageSettingsToDocument(settings);
+        closePageSettings();
+        toast('Page settings applied', 'ok');
+    }
+
+    function resetPageSettings() {
+        localStorage.removeItem(PAGE_SETTINGS_KEY);
+        document.getElementById('psFontSize').value = DEFAULT_PAGE_SETTINGS.fontSize;
+        document.getElementById('psFontFamily').value = DEFAULT_PAGE_SETTINGS.fontFamily;
+        document.getElementById('psTextColor').value = DEFAULT_PAGE_SETTINGS.textColor;
+        document.getElementById('psAccentColor').value = DEFAULT_PAGE_SETTINGS.accentColor;
+        document.getElementById('psBgColor').value = DEFAULT_PAGE_SETTINGS.backgroundColor;
+        previewPageSettings();
+        toast('Page settings reset', 'ok');
+    }
+
+    function getFontFamilyLabel(fontFamily) {
+        switch (fontFamily) {
+            case 'Georgia,serif': return 'Georgia';
+            case "'Trebuchet MS',sans-serif": return 'Trebuchet';
+            case "'JetBrains Mono',monospace": return 'Mono';
+            default: return 'Sora';
+        }
+    }
+
+    function initPageSettingsObserver() {
+        if (pageSettingsObserver || !document.body || typeof MutationObserver === 'undefined') return;
+
+        pageSettingsObserver = new MutationObserver(mutations => {
+            const settings = getStoredPageSettings();
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (!(node instanceof HTMLElement)) return;
+                    applyFontScaleToScope(node, settings);
+                });
+            });
+        });
+
+        pageSettingsObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function applyFontScaleToScope(scope, settings) {
+        if (!(scope instanceof HTMLElement)) return;
+
+        const fontScale = (parseInt(settings?.fontSize, 10) || DEFAULT_PAGE_SETTINGS.fontSize) / PAGE_FONT_BASE_SIZE;
+        const targets = [scope, ...scope.querySelectorAll('*')];
+
+        targets.forEach(el => {
+            if (!isFontScalableElement(el)) return;
+
+            const baseFontSize = getBaseFontSize(el);
+            if (!baseFontSize) return;
+
+            el.style.fontSize = `${roundFontSize(baseFontSize * fontScale)}px`;
+        });
+    }
+
+    function isFontScalableElement(el) {
+        if (!(el instanceof HTMLElement)) return false;
+        if (el.closest('svg')) return false;
+
+        const tag = el.tagName;
+        return !['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'NOSCRIPT', 'BR'].includes(tag);
+    }
+
+    function getBaseFontSize(el) {
+        const cached = parseFloat(el.dataset.hmBaseFontSize || '');
+        if (Number.isFinite(cached) && cached > 0) return cached;
+
+        const computed = parseFloat(window.getComputedStyle(el).fontSize || '');
+        if (!Number.isFinite(computed) || computed <= 0) return null;
+
+        el.dataset.hmBaseFontSize = `${computed}`;
+        return computed;
+    }
+
+    function roundFontSize(value) {
+        return Math.round(value * 100) / 100;
+    }
+
+    function mixColor(primary, secondary, ratio) {
+        const a = hexToRgb(primary);
+        const b = hexToRgb(secondary);
+        const mix = (x, y) => Math.round((x * (1 - ratio)) + (y * ratio));
+        return `rgb(${mix(a.r, b.r)}, ${mix(a.g, b.g)}, ${mix(a.b, b.b)})`;
+    }
+
+    function hexToRgb(hex) {
+        const value = (hex || '').replace('#', '');
+        const normalized = value.length === 3
+            ? value.split('').map(ch => ch + ch).join('')
+            : value.padEnd(6, '0').slice(0, 6);
+
+        return {
+            r: parseInt(normalized.slice(0, 2), 16) || 0,
+            g: parseInt(normalized.slice(2, 4), 16) || 0,
+            b: parseInt(normalized.slice(4, 6), 16) || 0
+        };
+    }
+
+    initPageSettingsObserver();
+    loadPageSettings();
+
+    // ══════════════════════════════════════════════════════
+    // CUSTOM COLUMN MANAGER
+    // ══════════════════════════════════════════════════════
+    let customFieldsMeta = [];
+    let customValuesMap = {};  // { employeeId: { fieldId: value } }
+
+    async function loadCustomFields() {
+        try {
+            const r = await api(`${API}/GetCustomFields`);
+            if (r.success) customFieldsMeta = r.data || [];
+        } catch(e) {}
+    }
+
+    async function loadCustomValues() {
+        try {
+            const r = await api(`${API}/GetEmployeeCustomValues`);
+            if (r.success) {
+                customValuesMap = {};
+                (r.data || []).forEach(v => {
+                    if (!customValuesMap[v.employeeId]) customValuesMap[v.employeeId] = {};
+                    customValuesMap[v.employeeId][v.fieldId] = v.value;
+                });
+            }
+        } catch(e) {}
+    }
+
+    // Override loadGrid to also load custom fields
+    const _origLoadGrid = loadGrid;
+    loadGrid = async function() {
+        await Promise.all([loadCustomFields(), loadCustomValues()]);
+        await _origLoadGrid();
+    };
+
+    function onCfTypeChange() {
+        document.getElementById('cf_options_wrap').style.display =
+            document.getElementById('cf_type').value === 'Dropdown' ? '' : 'none';
+    }
+
+    function showCfError(msg) {
+        const el = document.getElementById('cfErr');
+        el.textContent = msg || '';
+        el.style.display = msg ? 'block' : 'none';
+    }
+
+    async function openColumnManager() {
+        showCfError('');
+        document.getElementById('cf_name').value = '';
+        document.getElementById('cf_type').value = 'Text';
+        document.getElementById('cf_options').value = '';
+        document.getElementById('cf_options_wrap').style.display = 'none';
+        await loadCustomFields();
+        renderCfList();
+        document.getElementById('colModal').classList.add('open');
+    }
+
+    function closeColumnManager() {
+        document.getElementById('colModal').classList.remove('open');
+    }
+
+    function renderCfList() {
+        const el = document.getElementById('cfList');
+        if (!customFieldsMeta.length) {
+            el.innerHTML = '<div class="dm-empty">No custom columns yet</div>';
+            return;
+        }
+        el.innerHTML = customFieldsMeta.map(f =>
+            `<div class="cf-row">
+                <span class="cf-name">${esc(f.fieldName)}</span>
+                <span class="cf-type">${esc(f.fieldType)}</span>
+                ${f.isRequired ? '<span class="cf-type" style="color:var(--danger)">Required</span>' : ''}
+                <button class="cf-del" onclick="removeCustomField(${f.fieldId},'${esc(f.fieldName)}')">✕ Remove</button>
+            </div>`
+        ).join('');
+    }
+
+    async function addCustomField() {
+        showCfError('');
+        const name = document.getElementById('cf_name').value.trim();
+        const type = document.getElementById('cf_type').value;
+        if (!name) { showCfError('Enter column name'); return; }
+
+        let options = null;
+        if (type === 'Dropdown') {
+            const raw = document.getElementById('cf_options').value.trim();
+            if (!raw) { showCfError('Enter dropdown options'); return; }
+            options = JSON.stringify(raw.split(',').map(s => s.trim()).filter(Boolean));
+        }
+
+        try {
+            const r = await api(`${API}/AddCustomField`, 'POST', { fieldName: name, fieldType: type, isRequired: false, options: options });
+            if (r.success) {
+                document.getElementById('cf_name').value = '';
+                document.getElementById('cf_options').value = '';
+                await loadCustomFields();
+                renderCfList();
+                showCfError('');
+                toast(`Column "${name}" added`, 'ok');
+                await loadGrid();
+            } else {
+                showCfError(r.message || 'Failed');
+            }
+        } catch(e) { showCfError('Error: ' + e.message); }
+    }
+
+    async function removeCustomField(fieldId, name) {
+        if (!confirm(`Remove column "${name}"? Data will be hidden but not deleted.`)) return;
+        try {
+            const r = await api(`${API}/RemoveCustomField/${fieldId}`, 'DELETE');
+            if (r.success) {
+                await loadCustomFields();
+                renderCfList();
+                toast(`Column "${name}" removed`, 'ok');
+                await loadGrid();
+            } else { showCfError(r.message || 'Failed'); }
+        } catch(e) { showCfError('Error'); }
+    }
+
+    async function saveCustomValue(empId, fieldId, value) {
+        try {
+            await api(`${API}/SetEmployeeCustomValue`, 'POST', { employeeId: empId, fieldId: fieldId, value: value });
+            if (!customValuesMap[empId]) customValuesMap[empId] = {};
+            customValuesMap[empId][fieldId] = value;
+        } catch(e) {}
+    }
+
+    function getCustomValue(empId, fieldId) {
+        return customValuesMap[empId]?.[fieldId] || '';
+    }
+
+    // ── Inject custom columns into renderGrid ──
+    const _origRenderGrid = renderGrid;
+    renderGrid = function(rows) {
+        if (!customFieldsMeta.length) { _origRenderGrid(rows); return; }
+
+        // Call original to build base grid
+        _origRenderGrid(rows);
+
+        // Now inject custom columns into the existing table
+        const table = document.querySelector('table.hm');
+        if (!table) return;
+
+        const cf = customFieldsMeta;
+
+        // Add headers to group row
+        const grpRow = table.querySelector('thead tr.grp');
+        if (grpRow) {
+            const th = document.createElement('th');
+            th.className = 'g-act';
+            th.colSpan = cf.length;
+            th.textContent = 'CUSTOM';
+            th.style.cssText = 'background:rgba(147,51,234,.05);color:#9333ea';
+            grpRow.insertBefore(th, grpRow.lastElementChild); // before Actions
+        }
+
+        // Add headers to cols row
+        const colsRow = table.querySelector('thead tr.cols');
+        if (colsRow) {
+            cf.forEach(f => {
+                const th = document.createElement('th');
+                th.style.minWidth = '100px';
+                th.textContent = f.fieldName;
+                colsRow.insertBefore(th, colsRow.lastElementChild); // before Actions
+            });
+        }
+
+        // Add colgroup cols
+        const colgroup = table.querySelector('colgroup');
+        if (colgroup && IS_ADMIN) {
+            const actCol = colgroup.lastElementChild;
+            cf.forEach(() => {
+                const col = document.createElement('col');
+                col.style.width = '110px';
+                colgroup.insertBefore(col, actCol);
+            });
+        }
+
+        // Add data cells to each row
+        const bodyRows = table.querySelectorAll('tbody tr');
+        bodyRows.forEach((tr, ri) => {
+            const row = rows[ri];
+            if (!row) return;
+            // Find the leaf employee for this row
+            const empId = row.execEmployeeId > 0 ? row.execEmployeeId : row.subHodEmployeeId > 0 ? row.subHodEmployeeId : row.hodEmployeeId;
+            const actTd = IS_ADMIN ? tr.lastElementChild : null;
+
+            cf.forEach(f => {
+                const td = document.createElement('td');
+                const val = getCustomValue(empId, f.fieldId);
+
+                if (IS_ADMIN) {
+                    if (f.fieldType === 'Dropdown') {
+                        let opts = [];
+                        try { opts = JSON.parse(f.options || '[]'); } catch(e) {}
+                        td.innerHTML = `<select class="filter-sel" style="font-size:11px;padding:3px 6px;min-width:80px" onchange="saveCustomValue(${empId},${f.fieldId},this.value)"><option value="">—</option>${opts.map(o => `<option value="${esc(o)}" ${val === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+                    } else if (f.fieldType === 'Boolean') {
+                        td.innerHTML = `<select class="filter-sel" style="font-size:11px;padding:3px 6px" onchange="saveCustomValue(${empId},${f.fieldId},this.value)"><option value="">—</option><option value="Yes" ${val === 'Yes' ? 'selected' : ''}>Yes</option><option value="No" ${val === 'No' ? 'selected' : ''}>No</option></select>`;
+                    } else if (f.fieldType === 'Date') {
+                        td.innerHTML = `<input type="date" class="fi" style="font-size:11px;padding:3px 6px;width:120px" value="${esc(val)}" onchange="saveCustomValue(${empId},${f.fieldId},this.value)" />`;
+                    } else {
+                        td.innerHTML = `<input type="${f.fieldType === 'Number' ? 'number' : 'text'}" class="fi" style="font-size:11px;padding:3px 6px;width:100px" value="${esc(val)}" onblur="saveCustomValue(${empId},${f.fieldId},this.value)" />`;
+                    }
+                } else {
+                    td.innerHTML = val ? `<span style="font-size:11px">${esc(val)}</span>` : '<span class="cell-empty">—</span>';
+                }
+
+                if (actTd) tr.insertBefore(td, actTd);
+                else tr.appendChild(td);
+            });
+        });
+    };
+
+    // ══════════════════════════════════════════════════════
+    // COLUMN VISIBILITY & ORDER
+    // ══════════════════════════════════════════════════════
+    const ALL_COL_DEFS = [
+        { key:'hod',         label:'HOD',             group:'HOD',        groupCls:'g-hod',  sticky:true,  width:'140px', minWidth:'180px' },
+        { key:'dept',        label:'Department',      group:'Department', groupCls:'g-dept',               width:'175px', minWidth:'130px' },
+        { key:'subDept',     label:'Sub-Dept',        group:'Department', groupCls:'g-dept',               width:'130px', minWidth:'115px' },
+        { key:'subHod',      label:'SubHOD',          group:'SubHOD',     groupCls:'g-sub',                width:'155px', minWidth:'170px' },
+        { key:'subHodDesig', label:'SubHOD Desig.',   group:'SubHOD',     groupCls:'g-sub',                width:'105px', minWidth:'115px' },
+        { key:'exec',        label:'Executive',       group:'Executive',  groupCls:'g-exec',               width:'155px', minWidth:'170px' },
+        { key:'execDesig',   label:'Exec Desig.',     group:'Executive',  groupCls:'g-exec',               width:'105px', minWidth:'115px' },
+        { key:'status',      label:'Status',          group:'Status',     groupCls:'g-act',                width:'85px',  minWidth:'78px'  },
+        { key:'actions',     label:'Actions',         group:'Actions',    groupCls:'g-act',  adminOnly:true, noHide:true, width:'115px', minWidth:'68px' },
+    ];
+    const COL_LS_KEY = 'hmColVis_v1';
+    let colVisState = null;
+
+    function initColVis() {
+        const defaults = { order: ALL_COL_DEFS.map(c=>c.key), hidden: [] };
+        try {
+            const s = localStorage.getItem(COL_LS_KEY);
+            if (s) { const p = JSON.parse(s); if(p&&Array.isArray(p.order)) defaults.order=p.order; if(p&&Array.isArray(p.hidden)) defaults.hidden=p.hidden; }
+        } catch(e) {}
+        colVisState = { order: defaults.order.slice(), hidden: new Set(defaults.hidden) };
+    }
+
+    function saveColVis() {
+        localStorage.setItem(COL_LS_KEY, JSON.stringify({ order: colVisState.order, hidden: [...colVisState.hidden] }));
+    }
+
+    function getEffectiveCols(salCols, adm) {
+        if (!colVisState) initColVis();
+        const available = new Set(ALL_COL_DEFS.filter(c=>!(c.salOnly&&!salCols)&&!(c.adminOnly&&!adm)).map(c=>c.key));
+        const ordered = colVisState.order.filter(k=>available.has(k));
+        ALL_COL_DEFS.forEach(c=>{ if(available.has(c.key)&&!ordered.includes(c.key)) ordered.push(c.key); });
+        return ordered.map(k=>{ const d=ALL_COL_DEFS.find(c=>c.key===k); return d?{...d, hidden:colVisState.hidden.has(k)}:null; }).filter(Boolean);
+    }
+
+    function openVisModal() {
+        if (!colVisState) initColVis();
+        renderVisModalList();
+        document.getElementById('visModal').classList.add('open');
+    }
+    function closeVisModal() { document.getElementById('visModal').classList.remove('open'); }
+
+    function renderVisModalList() {
+        const salCols = false;
+        const adm = IS_ADMIN;
+        const cols = getEffectiveCols(salCols, adm);
+        document.getElementById('visColList').innerHTML = cols.map((c,i)=>`
+            <div class="vis-row${c.hidden?' vis-row-hidden':''}">
+                <label class="vis-col-label">
+                    <input type="checkbox" ${c.hidden?'':'checked'} ${c.noHide?'disabled':''} onchange="toggleColVis('${c.key}',this.checked)" />
+                    <span class="vis-col-name">${c.label}</span>
+                </label>
+                <span class="vis-group-badge">${c.group}</span>
+                <div class="vis-arrows">
+                    <button class="vis-arrow" onclick="moveCol('${c.key}',-1)" ${i===0?'disabled':''}>▲</button>
+                    <button class="vis-arrow" onclick="moveCol('${c.key}',1)"  ${i===cols.length-1?'disabled':''}>▼</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function toggleColVis(key, visible) {
+        if (!colVisState) initColVis();
+        if (visible) colVisState.hidden.delete(key); else colVisState.hidden.add(key);
+        saveColVis();
+        renderVisModalList();
+    }
+
+    function moveCol(key, dir) {
+        if (!colVisState) initColVis();
+        const cols = getEffectiveCols(false, IS_ADMIN);
+        const keys = cols.map(c=>c.key);
+        const idx = keys.indexOf(key);
+        if (idx < 0) return;
+        const newIdx = idx + dir;
+        if (newIdx < 0 || newIdx >= keys.length) return;
+        const bKey = keys[newIdx];
+        const a = colVisState.order.indexOf(key);
+        const b = colVisState.order.indexOf(bKey);
+        if (a >= 0 && b >= 0) {
+            [colVisState.order[a], colVisState.order[b]] = [colVisState.order[b], colVisState.order[a]];
+        } else {
+            colVisState.order = keys.slice();
+            const na = colVisState.order.indexOf(key);
+            if (na >= 0 && na + dir >= 0 && na + dir < colVisState.order.length)
+                [colVisState.order[na], colVisState.order[na+dir]] = [colVisState.order[na+dir], colVisState.order[na]];
+        }
+        saveColVis();
+        renderVisModalList();
+    }
+
+    function applyColVis() { closeVisModal(); loadGrid(); }
+
+    function resetColVis() {
+        colVisState = { order: ALL_COL_DEFS.map(c=>c.key), hidden: new Set() };
+        saveColVis();
+        renderVisModalList();
+        toast('Column settings reset to default', 'ok');
+    }
+</script>
+

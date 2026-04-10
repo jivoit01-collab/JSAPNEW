@@ -2,9 +2,16 @@
     ViewData["Title"] = "Task Manager";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
     <link rel="stylesheet" href="~/css/task-management.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
+</head>
+<body>
     <!-- Loader -->
     <div id="loaderOverlay" style="display: none;">
         <div class="loader"></div>
@@ -38,7 +45,6 @@
                 <div class="stat-details">
                     <h3 id="inProgressTasks">0</h3>
                     <p>In Progress</p>
-               
                 </div>
             </div>
             <div class="stat-card stat-completed">
@@ -63,7 +69,71 @@
                 <div class="bar">
                     <span class="percentage-text">0%</span>
                 </div>
-            <div class="task-info"></div> 
+            </div>
+            <p class="task-info">Track your completion progress here.</p>
+        </div>
+
+        <div class="report-container">
+            <div class="report-header">
+                <div>
+                    <h2><i class="fas fa-chart-column"></i> Task Reports</h2>
+                    <p>Generate a summary from tasks created in the selected period.</p>
+                </div>
+                <div class="report-actions">
+                    <button type="button" class="btn btn-secondary report-btn active" data-report-type="WEEKLY" onclick="loadTaskReport('WEEKLY')">
+                        <i class="fas fa-calendar-week"></i> Weekly Report
+                    </button>
+                    <button type="button" class="btn btn-secondary report-btn" data-report-type="MONTHLY" onclick="loadTaskReport('MONTHLY')">
+                        <i class="fas fa-calendar-alt"></i> Monthly Report
+                    </button>
+                </div>
+            </div>
+
+            <div id="reportSummary" class="report-summary-grid">
+                <div class="report-summary-card">
+                    <span class="report-summary-label">Period</span>
+                    <strong id="reportPeriodLabel">-</strong>
+                </div>
+                <div class="report-summary-card">
+                    <span class="report-summary-label">Total</span>
+                    <strong id="reportTotalTasks">0</strong>
+                </div>
+                <div class="report-summary-card">
+                    <span class="report-summary-label">Pending</span>
+                    <strong id="reportPendingTasks">0</strong>
+                </div>
+                <div class="report-summary-card">
+                    <span class="report-summary-label">In Progress</span>
+                    <strong id="reportInProgressTasks">0</strong>
+                </div>
+                <div class="report-summary-card">
+                    <span class="report-summary-label">Completed</span>
+                    <strong id="reportCompletedTasks">0</strong>
+                </div>
+                <div class="report-summary-card">
+                    <span class="report-summary-label">Completion Rate</span>
+                    <strong id="reportCompletionRate">0%</strong>
+                </div>
+            </div>
+
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Task ID</th>
+                            <th>Task Name</th>
+                            <th>Project</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Created On</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <tr>
+                            <td colspan="6" class="report-empty">Select a report option to view task summary.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -155,6 +225,17 @@
                             </label>
                             <input type="date" id="expectedEndDate" required />
                         </div>
+                        <div class="form-group">
+                            <label for="slot">
+                                <i class="fas fa-clock"></i> Time Slot <span class="required">*</span>
+                            </label>
+                            <select id="slot" required>
+                                <option value="">Select Slot</option>
+                                <option value="10AM-1PM">10AM-1PM</option>
+                                <option value="1PM-4PM">1PM-4PM</option>
+                                <option value="4PM-7PM">4PM-7PM</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="modal-footer">
@@ -176,5 +257,6 @@
         console.log('Company ID:', companyId);
         console.log('User ID:', userId);
     </script>
-    <script src="~/js/task-management.js"></script>
-
+    <script src="~/js/task-management.js?v=20260332"></script>
+</body>
+</html>

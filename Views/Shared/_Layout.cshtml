@@ -28,7 +28,7 @@
     if (companies.Count == 0)
     {
         // Option 1: Redirect to login
-        // return Redirect("/Account/Login");
+        // return Redirect("/Login/Index");
 
         // Option 2: Just display a message (we'll handle with JS later)
     }
@@ -40,13 +40,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@ViewData["Title"]</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
 
     <style>
         /* ============================================
-                           ROOT VARIABLES
-                           ============================================ */
+                                                           ROOT VARIABLES
+                                                           ============================================ */
         :root {
             --primary-color: #0b2c4d;
             --primary-light: #1c3f5d;
@@ -57,8 +58,8 @@
         }
 
         /* ============================================
-                           COMPANY DROPDOWN STYLING
-                           ============================================ */
+                                                           COMPANY DROPDOWN STYLING
+                                                           ============================================ */
         #companyDropdown {
             color: var(--primary-color);
             appearance: none;
@@ -95,8 +96,8 @@
         }
 
         /* ============================================
-                           BASE STYLES
-                           ============================================ */
+                                                           BASE STYLES
+                                                           ============================================ */
         * {
             margin: 0;
             padding: 0;
@@ -110,8 +111,8 @@
         }
 
         /* ============================================
-                           HEADER STYLING
-                           ============================================ */
+                                                           HEADER STYLING
+                                                           ============================================ */
         .header {
             position: fixed;
             top: 0;
@@ -135,9 +136,35 @@
                 font-weight: 700;
             }
 
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-settings-btn {
+            border: 2px solid #e2e8f0;
+            background: #fff;
+            color: var(--primary-color);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+        }
+
+            .page-settings-btn:hover {
+                border-color: var(--primary-color);
+                box-shadow: 0 6px 18px rgba(11, 44, 77, 0.12);
+                transform: translateY(-1px);
+            }
+
         /* ============================================
-                           HAMBURGER MENU BUTTON
-                           ============================================ */
+                                                           HAMBURGER MENU BUTTON
+                                                           ============================================ */
         .hamburger-btn {
             background: none;
             border: none;
@@ -172,8 +199,8 @@
             }
 
         /* ============================================
-                           SIDEBAR STYLING - FIXED VERSION
-                           ============================================ */
+                                                           SIDEBAR STYLING - FIXED VERSION
+                                                           ============================================ */
         .sidebar {
             position: fixed;
             top: var(--header-height);
@@ -208,8 +235,8 @@
         }
 
         /* ============================================
-                           MENU ITEM STYLING - ENLARGED
-                           ============================================ */
+                                                           MENU ITEM STYLING - ENLARGED
+                                                           ============================================ */
         .sidebar .menu-item {
             padding: 16px 20px;
             cursor: pointer;
@@ -273,8 +300,8 @@
         }
 
         /* ============================================
-                           SUBMENU STYLING - ENLARGED
-                           ============================================ */
+                                                           SUBMENU STYLING - ENLARGED
+                                                           ============================================ */
         .submenu {
             display: none;
             background-color: rgba(0, 0, 0, 0.2);
@@ -328,8 +355,8 @@
         }
 
         /* ============================================
-                           COLLAPSED SIDEBAR STYLES
-                           ============================================ */
+                                                           COLLAPSED SIDEBAR STYLES
+                                                           ============================================ */
         .sidebar.collapsed .menu-text,
         .sidebar.collapsed .arrow,
         .sidebar.collapsed .submenu,
@@ -354,8 +381,8 @@
             }
 
         /* ============================================
-                           SIDEBAR USER SECTION
-                           ============================================ */
+                                                           SIDEBAR USER SECTION
+                                                           ============================================ */
         .sidebar-user {
             margin-top: auto;
             padding: 20px;
@@ -395,8 +422,8 @@
             }
 
         /* ============================================
-                           MAIN CONTENT AREA
-                           ============================================ */
+                                                           MAIN CONTENT AREA
+                                                           ============================================ */
         .main-body {
             margin-left: var(--sidebar-width);
             margin-top: var(--header-height);
@@ -410,8 +437,8 @@
             }
 
         /* ============================================
-                           CARDS AND INFO SECTIONS
-                           ============================================ */
+                                                           CARDS AND INFO SECTIONS
+                                                           ============================================ */
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -446,8 +473,8 @@
             }
 
         /* ============================================
-                           FOOTER
-                           ============================================ */
+                                                           FOOTER
+                                                           ============================================ */
         footer {
             background-color: var(--primary-color);
             color: white;
@@ -462,8 +489,8 @@
         }
 
         /* ============================================
-                           BOOTSTRAP OVERRIDES
-                           ============================================ */
+                                                           BOOTSTRAP OVERRIDES
+                                                           ============================================ */
         .card {
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(11, 44, 77, 0.08);
@@ -493,8 +520,8 @@
             }
 
         /* ============================================
-                           LOADING STATES
-                           ============================================ */
+                                                           LOADING STATES
+                                                           ============================================ */
         .menu-loading {
             text-align: center;
             padding: 30px 20px;
@@ -527,8 +554,8 @@
         }
 
         /* ============================================
-                           PERMISSION DENIED OVERLAY
-                           ============================================ */
+                                                           PERMISSION DENIED OVERLAY
+                                                           ============================================ */
         .permission-denied-overlay {
             display: none;
             position: fixed;
@@ -631,8 +658,8 @@
             }
 
         /* ============================================
-                           SCROLLBAR STYLING
-                           ============================================ */
+                                                           SCROLLBAR STYLING
+                                                           ============================================ */
         .sidebar::-webkit-scrollbar {
             width: 6px;
         }
@@ -651,8 +678,8 @@
             }
 
         /* ============================================
-                           RESPONSIVE DESIGN
-                           ============================================ */
+                                                           RESPONSIVE DESIGN
+                                                           ============================================ */
         @@media (max-width: 1024px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -686,6 +713,15 @@
                 font-size: 12px;
             }
 
+            .header-actions {
+                gap: 8px;
+            }
+
+            .page-settings-btn {
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+
             .main-body {
                 padding: 15px;
             }
@@ -694,26 +730,172 @@
                 grid-template-columns: 1fr;
             }
         }
-            @@media (max-width: 768px) {
 
-                .bill-ui table {
-                    font-size: 12px;
-                }
+        @@media (max-width: 768px) {
 
-                .bill-ui .btn {
-                    font-size: 12px;
-                    padding: 4px 6px;
-                }
-
-                .bill-ui input,
-                .bill-ui select {
-                    font-size: 12px;
-                }
-
-                .bill-ui iframe {
-                    height: 70vh !important;
-                }
+            .bill-ui table {
+                font-size: 12px;
             }
+
+            .bill-ui .btn {
+                font-size: 12px;
+                padding: 4px 6px;
+            }
+
+            .bill-ui input,
+            .bill-ui select {
+                font-size: 12px;
+            }
+
+            .bill-ui iframe {
+                height: 70vh !important;
+            }
+        }
+
+        .global-settings-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 22, 38, 0.45);
+            backdrop-filter: blur(4px);
+            z-index: 1200;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+            .global-settings-modal.open {
+                display: flex;
+            }
+
+        .global-settings-box {
+            width: min(560px, 100%);
+            max-height: 88vh;
+            overflow: auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 30px 80px rgba(11, 44, 77, 0.28);
+            padding: 22px;
+        }
+
+        .global-settings-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .global-settings-title {
+            color: var(--primary-color);
+            font-size: 22px;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .global-settings-note {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+
+        .global-settings-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .gs-row {
+            display: grid;
+            grid-template-columns: 150px 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .gs-label {
+            color: var(--primary-color);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .gs-slider {
+            width: 100%;
+            accent-color: var(--primary-color);
+        }
+
+        .gs-value {
+            min-width: 72px;
+            text-align: right;
+            color: var(--primary-color);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .gs-color {
+            width: 50px;
+            height: 36px;
+            border: 1px solid #dbe4ef;
+            border-radius: 10px;
+            background: transparent;
+            padding: 3px;
+            cursor: pointer;
+        }
+
+        .gs-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .gs-check {
+            border: 1px solid #dbe4ef;
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fbff;
+        }
+
+            .gs-check input {
+                accent-color: var(--primary-color);
+                width: 15px;
+                height: 15px;
+            }
+
+        .gs-preview {
+            margin-top: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+            padding: 16px;
+        }
+
+            .gs-preview h6 {
+                margin: 0 0 8px 0;
+                color: var(--primary-color);
+                font-size: 16px;
+                font-weight: 800;
+            }
+
+            .gs-preview p {
+                margin: 0;
+                color: #64748b;
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+        .gs-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .page-custom-scope {
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
     </style>
 </head>
 <body>
@@ -727,14 +909,14 @@
                     <span></span>
                 </button>
                 <img src="~/images/JSAP-LOGO.png" height="35" width="35" style="margin-right:10px" alt="Logo">
-                <h4><strong>Jivo Infotech</strong></h4>
+                <h4><strong>JSAP</strong></h4>
             </div>
 
             <div id="sessionError" class="alert alert-danger" style="display:none; margin:0; padding:10px;">
-                Session expired or invalid. Please <a href="/Account/Login">login again</a>.
+                Session expired or invalid. Please <a href="/Login/Index">login again</a>.
             </div>
 
-            <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="header-actions">
                 <div>
                     <div style="display: flex; align-items: center;">
                         <label for="companyDropdown" style="margin-right: 10px; font-weight: 650; font-size: 15px; color: var(--primary-color);">Company:</label>
@@ -760,6 +942,9 @@
                         </select>
                     </div>
                 </div>
+                <button type="button" class="page-settings-btn" onclick="openGlobalPageSettings()">
+                    <i class="fas fa-sliders-h"></i> Page Settings
+                </button>
                 <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
@@ -800,14 +985,308 @@
             </div>
         </div>
 
+        <div class="global-settings-modal" id="globalPageSettingsModal">
+            <div class="global-settings-box">
+                <div class="global-settings-head">
+                    <h3 class="global-settings-title">Page Settings</h3>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeGlobalPageSettings()">Close</button>
+                </div>
+                <div class="global-settings-note">
+                    Current page ke liye text size, style, color aur formatting change kar sakte ho. Yeh setting isi page ke liye browser me save rahegi.
+                </div>
+
+                <div class="global-settings-grid">
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalFontSize">Text Size</label>
+                        <input class="gs-slider" id="globalFontSize" type="range" min="11" max="22" step="1" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalFontSizeValue">13px</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalFontFamily">Text Style</label>
+                        <select id="globalFontFamily" class="form-control form-control-sm" onchange="previewGlobalPageSettings()">
+                            <option value="">Default</option>
+                            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                            <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                        </select>
+                        <span class="gs-value" id="globalFontFamilyValue">Default</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalTextColor">Text Color</label>
+                        <input class="gs-color" id="globalTextColor" type="color" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalTextColorValue">Default</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalAccentColor">Accent</label>
+                        <input class="gs-color" id="globalAccentColor" type="color" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalAccentColorValue">Default</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalBgColor">Page Background</label>
+                        <input class="gs-color" id="globalBgColor" type="color" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalBgColorValue">Default</span>
+                    </div>
+
+                    <div>
+                        <div class="gs-label" style="margin-bottom:10px;">Formatting</div>
+                        <div class="gs-checks">
+                            <label class="gs-check"><input type="checkbox" id="globalBoldToggle" onchange="previewGlobalPageSettings()" /> Bold</label>
+                            <label class="gs-check"><input type="checkbox" id="globalUnderlineToggle" onchange="previewGlobalPageSettings()" /> Underline</label>
+                            <label class="gs-check"><input type="checkbox" id="globalHighlightToggle" onchange="previewGlobalPageSettings()" /> Highlight</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gs-preview">
+                    <h6>Live Preview</h6>
+                    <p>Open page ke content par ye changes lagenge. Har page apni alag setting use kar sakta hai.</p>
+                </div>
+
+                <div class="gs-actions">
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetGlobalPageSettings()">Reset Default</button>
+                    <button type="button" class="btn btn-primary" onclick="applyGlobalPageSettings()">Apply</button>
+                </div>
+            </div>
+        </div>
+
         <!-- MAIN CONTENT -->
-        <div class="main-body" id="mainBody">
+        <div class="main-body page-custom-scope" id="mainBody">
             @RenderBody()
         </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-       
+    <!-- At the end of body -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const GLOBAL_PAGE_SETTINGS_BASE = 13;
+        const GLOBAL_PAGE_SETTINGS_PREFIX = 'jsap_page_settings::';
+        const GLOBAL_PAGE_SETTINGS_DEFAULTS = {
+            fontSize: GLOBAL_PAGE_SETTINGS_BASE,
+            fontFamily: '',
+            textColor: '',
+            accentColor: '',
+            bgColor: '',
+            bold: false,
+            underline: false,
+            highlight: false
+        };
+        let globalPageSettingsObserver = null;
+
+        function getGlobalPageSettingsKey() {
+            return `${GLOBAL_PAGE_SETTINGS_PREFIX}${window.location.pathname.toLowerCase()}`;
+        }
+
+        function getStoredGlobalPageSettings() {
+            try {
+                const raw = localStorage.getItem(getGlobalPageSettingsKey());
+                if (!raw) return { ...GLOBAL_PAGE_SETTINGS_DEFAULTS };
+                return { ...GLOBAL_PAGE_SETTINGS_DEFAULTS, ...JSON.parse(raw) };
+            } catch (e) {
+                return { ...GLOBAL_PAGE_SETTINGS_DEFAULTS };
+            }
+        }
+
+        function openGlobalPageSettings() {
+            const settings = getStoredGlobalPageSettings();
+            document.getElementById('globalFontSize').value = settings.fontSize || GLOBAL_PAGE_SETTINGS_BASE;
+            document.getElementById('globalFontFamily').value = settings.fontFamily || '';
+            document.getElementById('globalTextColor').value = settings.textColor || '#0f172a';
+            document.getElementById('globalAccentColor').value = settings.accentColor || '#0b2c4d';
+            document.getElementById('globalBgColor').value = settings.bgColor || '#f8f9fa';
+            document.getElementById('globalBoldToggle').checked = !!settings.bold;
+            document.getElementById('globalUnderlineToggle').checked = !!settings.underline;
+            document.getElementById('globalHighlightToggle').checked = !!settings.highlight;
+            previewGlobalPageSettings();
+            document.getElementById('globalPageSettingsModal').classList.add('open');
+        }
+
+        function closeGlobalPageSettings() {
+            document.getElementById('globalPageSettingsModal').classList.remove('open');
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), getStoredGlobalPageSettings());
+        }
+
+        function getGlobalPageSettingsFromInputs() {
+            return {
+                fontSize: parseInt(document.getElementById('globalFontSize').value, 10) || GLOBAL_PAGE_SETTINGS_BASE,
+                fontFamily: document.getElementById('globalFontFamily').value || '',
+                textColor: document.getElementById('globalTextColor').value || '',
+                accentColor: document.getElementById('globalAccentColor').value || '',
+                bgColor: document.getElementById('globalBgColor').value || '',
+                bold: document.getElementById('globalBoldToggle').checked,
+                underline: document.getElementById('globalUnderlineToggle').checked,
+                highlight: document.getElementById('globalHighlightToggle').checked
+            };
+        }
+
+        function previewGlobalPageSettings() {
+            const settings = getGlobalPageSettingsFromInputs();
+            document.getElementById('globalFontSizeValue').textContent = `${settings.fontSize}px`;
+            document.getElementById('globalFontFamilyValue').textContent = getGlobalFontFamilyLabel(settings.fontFamily);
+            document.getElementById('globalTextColorValue').textContent = settings.textColor ? settings.textColor.toUpperCase() : 'Default';
+            document.getElementById('globalAccentColorValue').textContent = settings.accentColor ? settings.accentColor.toUpperCase() : 'Default';
+            document.getElementById('globalBgColorValue').textContent = settings.bgColor ? settings.bgColor.toUpperCase() : 'Default';
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), settings);
+        }
+
+        function applyGlobalPageSettings() {
+            const settings = getGlobalPageSettingsFromInputs();
+            localStorage.setItem(getGlobalPageSettingsKey(), JSON.stringify(settings));
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), settings);
+            closeGlobalPageSettings();
+        }
+
+        function resetGlobalPageSettings() {
+            localStorage.removeItem(getGlobalPageSettingsKey());
+            document.getElementById('globalFontSize').value = GLOBAL_PAGE_SETTINGS_BASE;
+            document.getElementById('globalFontFamily').value = '';
+            document.getElementById('globalTextColor').value = '#0f172a';
+            document.getElementById('globalAccentColor').value = '#0b2c4d';
+            document.getElementById('globalBgColor').value = '#f8f9fa';
+            document.getElementById('globalBoldToggle').checked = false;
+            document.getElementById('globalUnderlineToggle').checked = false;
+            document.getElementById('globalHighlightToggle').checked = false;
+            previewGlobalPageSettings();
+        }
+
+        function applyGlobalPageSettingsToScope(scope, settings) {
+            if (!(scope instanceof HTMLElement)) return;
+
+            scope.style.backgroundColor = settings.bgColor || '';
+            scope.style.color = settings.textColor || '';
+            scope.style.setProperty('--primary-color', settings.accentColor || '#0b2c4d');
+            scope.style.setProperty('--primary-light', settings.accentColor ? mixGlobalColors(settings.accentColor, '#ffffff', 0.18) : '#1c3f5d');
+            scope.style.setProperty('--primary-dark', settings.accentColor ? mixGlobalColors(settings.accentColor, '#051626', 0.35) : '#051626');
+
+            applyGlobalFontScale(scope, settings);
+            applyGlobalFormatting(scope, settings);
+        }
+
+        function applyGlobalFontScale(scope, settings) {
+            const scale = (parseInt(settings.fontSize, 10) || GLOBAL_PAGE_SETTINGS_BASE) / GLOBAL_PAGE_SETTINGS_BASE;
+            const nodes = [scope, ...scope.querySelectorAll('*')];
+
+            nodes.forEach(el => {
+                if (!(el instanceof HTMLElement) || !isScalableGlobalElement(el)) return;
+
+                const baseSize = getGlobalBaseFontSize(el);
+                if (!baseSize) return;
+
+                el.style.fontSize = `${Math.round(baseSize * scale * 100) / 100}px`;
+            });
+        }
+
+        function applyGlobalFormatting(scope, settings) {
+            const nodes = [scope, ...scope.querySelectorAll('*')];
+
+            nodes.forEach(el => {
+                if (!(el instanceof HTMLElement) || !isScalableGlobalElement(el)) return;
+
+                const hasText = hasDirectTextContent(el);
+                el.style.fontFamily = settings.fontFamily || '';
+
+                if (hasText) {
+                    el.style.color = settings.textColor || '';
+                    el.style.fontWeight = settings.bold ? '700' : '';
+                    el.style.textDecoration = settings.underline ? 'underline' : '';
+                    el.style.textDecorationThickness = settings.underline ? '1.5px' : '';
+                    el.style.textUnderlineOffset = settings.underline ? '2px' : '';
+                    el.style.backgroundColor = settings.highlight ? 'rgba(255, 235, 59, 0.35)' : '';
+                    el.style.boxShadow = settings.highlight ? 'inset 0 -0.55em 0 rgba(255, 235, 59, 0.35)' : '';
+                } else {
+                    el.style.fontWeight = '';
+                    el.style.textDecoration = '';
+                    el.style.textDecorationThickness = '';
+                    el.style.textUnderlineOffset = '';
+                    if (!isContainerElement(el)) {
+                        el.style.backgroundColor = '';
+                        el.style.boxShadow = '';
+                    }
+                }
+            });
+        }
+
+        function isScalableGlobalElement(el) {
+            if (el.closest('svg')) return false;
+            return !['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'NOSCRIPT', 'BR'].includes(el.tagName);
+        }
+
+        function isContainerElement(el) {
+            return ['DIV', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE', 'NAV'].includes(el.tagName);
+        }
+
+        function hasDirectTextContent(el) {
+            return Array.from(el.childNodes || []).some(node => node.nodeType === Node.TEXT_NODE && String(node.textContent || '').trim().length > 0);
+        }
+
+        function getGlobalBaseFontSize(el) {
+            const cached = parseFloat(el.dataset.globalBaseFontSize || '');
+            if (Number.isFinite(cached) && cached > 0) return cached;
+
+            const computed = parseFloat(window.getComputedStyle(el).fontSize || '');
+            if (!Number.isFinite(computed) || computed <= 0) return null;
+
+            el.dataset.globalBaseFontSize = `${computed}`;
+            return computed;
+        }
+
+        function initGlobalPageSettingsObserver() {
+            const scope = document.getElementById('mainBody');
+            if (!scope || globalPageSettingsObserver || typeof MutationObserver === 'undefined') return;
+
+            globalPageSettingsObserver = new MutationObserver(mutations => {
+                const settings = getStoredGlobalPageSettings();
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node instanceof HTMLElement) {
+                            applyGlobalPageSettingsToScope(node, settings);
+                        }
+                    });
+                });
+            });
+
+            globalPageSettingsObserver.observe(scope, { childList: true, subtree: true });
+        }
+
+        function mixGlobalColors(primary, secondary, ratio) {
+            const a = hexToRgbGlobal(primary);
+            const b = hexToRgbGlobal(secondary);
+            const mix = (x, y) => Math.round((x * (1 - ratio)) + (y * ratio));
+            return `rgb(${mix(a.r, b.r)}, ${mix(a.g, b.g)}, ${mix(a.b, b.b)})`;
+        }
+
+        function hexToRgbGlobal(hex) {
+            const clean = String(hex || '').replace('#', '');
+            const normalized = clean.length === 3 ? clean.split('').map(x => x + x).join('') : clean.padEnd(6, '0').slice(0, 6);
+            return {
+                r: parseInt(normalized.slice(0, 2), 16) || 0,
+                g: parseInt(normalized.slice(2, 4), 16) || 0,
+                b: parseInt(normalized.slice(4, 6), 16) || 0
+            };
+        }
+
+        function getGlobalFontFamilyLabel(fontFamily) {
+            switch (fontFamily) {
+                case "'Segoe UI', sans-serif": return 'Segoe UI';
+                case "'Trebuchet MS', sans-serif": return 'Trebuchet';
+                case 'Georgia, serif': return 'Georgia';
+                case "'JetBrains Mono', monospace": return 'JetBrains Mono';
+                default: return 'Default';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initGlobalPageSettingsObserver();
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), getStoredGlobalPageSettings());
+        });
+    </script>
+
     <script>
         // ============================================================
         // MENU CONFIGURATION - CUSTOMIZE THIS SECTION
@@ -875,10 +1354,10 @@
                         displayName: 'IT Dashboard',
                         url: '@Url.Action("ITdashboard", "DashboardWeb")'
                     },
-                    'Dashboard_Task': {
-                        displayName: 'Task Dashboard',
-                        url: '@Url.Action("TaskDashboard", "DashboardWeb")'
-                    },
+                    // 'Dashboard_Task': {
+                    //     displayName: 'Task Dashboard',
+                    //     url: '@Url.Action("TaskDashboard", "DashboardWeb")'
+                    // },
                     'Dashboard_Client': {
                         displayName: 'Client Dashboard',
                         url: '@Url.Action("ClientDashboard", "DashboardWeb")'
@@ -985,12 +1464,16 @@
             },
 
              'Daily Task': {
-                displayName: 'Daily Task',
+                displayName: 'Task Manager',
                 icon: 'fas fa-list-check',
                 permissions: {
                     'Creator': {
                         displayName: 'Task',
                         url: '@Url.Action("Tasks", "TaskWeb")'
+                    },
+                    'Admin_task': {
+                        displayName: 'Task',
+                        url: '@Url.Action("Dashboard", "TaskWeb")'
                     }
                 }
             },
@@ -1016,39 +1499,63 @@
                     }
                 }
             },
-            'Bill Verification': {
-            displayName: 'Bill Verification',
-            icon: 'fas fa-file-invoice',
-            permissions: {
-            'Maker': {
-            displayName: 'Maker',
-            url: '/Maker/MakerPage'
-            },
-            'Checker': {
-            displayName: 'Checker',
-            url: '/Checker/CheckerPage'
-            },
-            'InvoicePayment': {
-            displayName: 'Invoice Payment',
-            url: '/InvoicePayment/InvoicePaymentPage'
-            },
-            'Admin': {
-            displayName: 'Admin',
-            url: '/Admin/AdminPage'  
-            }// ✅ FIXED
-            }
-            }
-            };
-            
-                  
-            
-                           
-           
 
-                
-            // Add more modules as they come from the API...
-        
-        
+            // NEW: EMPLOYEE HIERARCHY MODULE
+            'Employee Hierarchy': {
+                displayName: 'Employee Hierarchy',
+                icon: 'fas fa-sitemap',
+                permissions: {
+                    'Hierarchy_Admin': {
+                        displayName: 'Hierarchy View',
+                        url: '@Url.Action("Index", "HierarchyWeb")'
+                    },
+                    'Hierarchy_Master': {
+                        displayName: 'Hierarchy Master',
+                        url: '@Url.Action("HierarchyMaster", "HierarchyWeb")'
+                        //links: [
+                        //    { displayName: 'Hierarchy Master', url: '@Url.Action("HierarchyMaster", "HierarchyWeb")' },
+                        //    { displayName: 'Employee Hierarchy', url: '@Url.Action("EmployeeHierarchy", "HierarchyWeb")' }
+                        //]
+                    },
+                    'Employee_Master': {
+                        displayName: 'Employee Hierarchy',
+                        url: '@Url.Action("EmployeeHierarchy", "HierarchyWeb")'
+                    },
+                    'Hierarchy_HOD': {
+                        displayName: 'Hierarchy View',
+                        url: '@Url.Action("Index", "HierarchyWeb")'
+                    },
+                    'Hierarchy_SubHOD': {
+                        displayName: 'Hierarchy View',
+                        url: '@Url.Action("Index", "HierarchyWeb")'
+                    }
+                }
+            },
+
+            'Bill Verification': {
+                displayName: 'Bill Verification',
+                icon: 'fas fa-file-invoice',
+                permissions: {
+                    'Maker': {
+                        displayName: 'Maker',
+                        url: '/Maker/MakerPage'
+                    },
+                    'Checker': {
+                        displayName: 'Checker',
+                        url: '/Checker/CheckerPage'
+                    },
+                    'InvoicePayment': {
+                        displayName: 'Invoice Payment',
+                        url: '/InvoicePayment/InvoicePaymentPage'
+                    },
+                    'Admin': {
+                        displayName: 'Admin',
+                        url: '/Admin/AdminPage'
+                    }// ✅ FIXED
+                }
+            }
+        };
+
 
         // ============================================================
         // PERMISSION CHECK FUNCTIONS
@@ -1069,15 +1576,19 @@
 
                 for (const permType in config.permissions) {
                     const permConfig = config.permissions[permType];
-                    const permUrl = permConfig.url.toLowerCase();
+                    const permissionLinks = permConfig.links || [{ url: permConfig.url }];
 
-                    if (currentPath.includes(permUrl) || permUrl.includes(currentPath)) {
-                        // Check if user has this permission
-                        const hasPermission = userPermissions.some(p =>
-                            p.moduleName === apiModuleName && p.permissionType === permType
-                        );
+                    for (const link of permissionLinks) {
+                        const permUrl = link.url.toLowerCase();
 
-                        return hasPermission;
+                        if (currentPath.includes(permUrl) || permUrl.includes(currentPath)) {
+                            // Check if user has this permission
+                            const hasPermission = userPermissions.some(p =>
+                                p.moduleName === apiModuleName && p.permissionType === permType
+                            );
+
+                            return hasPermission;
+                        }
                     }
                 }
             }
@@ -1225,7 +1736,7 @@
                 }
                 groupedPermissions[perm.moduleName].push(perm);
             });
-            
+
 
             // Generate HTML
             let menuHtml = '';
@@ -1263,11 +1774,14 @@
             key.toLowerCase().trim() === perm.permissionType.toLowerCase().trim()
             );
 
-            const permConfig = config.permissions[permKey];
+                    const permConfig = config.permissions[permKey];
 
                     if (permConfig) {
                         // Use configured submenu
-                        menuHtml += `<a href="${permConfig.url}">${permConfig.displayName}</a>`;
+                        const permissionLinks = permConfig.links || [{ displayName: permConfig.displayName, url: permConfig.url }];
+                        permissionLinks.forEach(link => {
+                            menuHtml += `<a href="${link.url}">${link.displayName}</a>`;
+                        });
                     } else {
                         // Fallback: create a menu item with formatted permission name
                         console.warn(`No configuration found for permission: ${perm.permissionType} in module ${apiModuleName}`);
@@ -1321,7 +1835,7 @@
             }
         });
     </script>
-    
+
     @RenderSection("scripts", required: false)
 </body>
 </html>
