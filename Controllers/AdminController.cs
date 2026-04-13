@@ -29,18 +29,7 @@ namespace JSAPNEW.Controllers
             conn.Open();
 
             var cmd = new SqlCommand(@"
-               /* SELECT 
-                    COUNT(DISTINCT A.VchNumber)                                     AS TotalBills,
-                    SUM(CASE WHEN AU.Status = 'Pending'          THEN 1 ELSE 0 END) AS PendingMaker,
-                    SUM(CASE WHEN AU.CheckerStatus = 'Approved'  THEN 1 ELSE 0 END) AS ApprovedChecker,
-                    SUM(CASE WHEN G.RefName IS NOT NULL          THEN 1 ELSE 0 END) AS TotalPaid
-                FROM PurchaseHeader A 
-                LEFT JOIN AttachmentUpload AU 
-                    ON AU.VchNumber = A.VchNumber
-                LEFT JOIN RefMaster G 
-                    ON G.RefName    = A.SupplierRef
-                    AND G.AccountID = A.AccountID
-                    AND G.ToBy      = 43 */
+              
 DECLARE @StartDate DATE = '2026-04-01';
 
 SELECT 
