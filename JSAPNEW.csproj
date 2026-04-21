@@ -44,9 +44,10 @@
     <Folder Include="wwwroot\lib\jquery\" />
     <Folder Include="wwwroot\lib\jquery\dist\" />
     <Folder Include="wwwroot\TempDownloads\" />
-    <Folder Include="wwwroot\Uploads\BOM\" />
-    <Folder Include="wwwroot\Uploads\BPmaster\" />
-    <Folder Include="wwwroot\Uploads\Ticket\" />
+    <Folder Include="wwwroot\uploads\BOM\" />
+    <Folder Include="wwwroot\uploads\BPmaster\" />
+    <Folder Include="wwwroot\uploads\maker\" />
+    <Folder Include="wwwroot\uploads\Ticket\" />
   </ItemGroup>
     
 

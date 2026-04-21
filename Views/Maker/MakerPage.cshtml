@@ -247,12 +247,13 @@
     }
     </td>
     <td>${statusBadge}</td>
-    <td>
-    ${item.attachmentPath
-    ? `<span class="text-success">Uploaded</span>`
-    : `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`
-    }
-    </td>
+   
+<td class="actionCell">
+${item.attachmentPath
+? `<button class="editBtn btn btn-info btn-sm" data-vch="${item.vchNumber}">Edit</button>`
+: `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`
+}
+</td>
     <td>${item.totalQuantity ?? 0}</td>
     <td>${item.totalItemValue ?? 0}</td>
     <td>${item.totalItems ?? 0}</td>
@@ -327,6 +328,61 @@
     }
     });
     });
+    // ---------------- EDIT BUTTON — show inputs ----------------
+$(document).on("click", ".editBtn", function () {
+    let row       = $(this).closest("tr");
+    let vchNumber = $(this).data("vch");
+
+    // Replace View button with a file input
+    row.find("td:nth-child(8)").html(
+        `<input type="file" class="fileInput form-control form-control-sm">`
+    );
+    // Replace remark text with an input
+    row.find("td:nth-child(9)").html(
+        `<input type="text" class="remarkInput form-control form-control-sm" placeholder="New remark">`
+    );
+    // Replace Edit button with Save + Cancel
+    row.find(".actionCell").html(`
+        <button class="confirmEditBtn btn btn-danger btn-sm me-1" data-vch="${vchNumber}">Save</button>
+        <button class="cancelEditBtn btn btn-secondary btn-sm">Cancel</button>
+    `);
+});
+
+// ---------------- SAVE EDIT ----------------
+$(document).on("click", ".confirmEditBtn", function () {
+    let row       = $(this).closest("tr");
+    let vchNumber = $(this).data("vch");
+    let fileInput = row.find(".fileInput")[0];
+    let remark    = row.find(".remarkInput").val();
+
+    if (!fileInput || !fileInput.files.length) {
+        alert("Please select a replacement file");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append("vchNumber",   vchNumber);
+    formData.append("file",        fileInput.files[0]);
+    formData.append("makerRemark", remark);
+
+    $.ajax({
+        url:         "/Maker/EditBill",
+        type:        "POST",
+        data:        formData,
+        contentType: false,
+        processData: false,
+        success: function (res) {
+            if (res.success) { alert("✅ Updated Successfully"); loadData(); }
+            else             { alert("❌ Update failed: " + res.message); }
+        },
+        error: function () { alert("❌ Error occurred"); }
+    });
+});
+
+// ---------------- CANCEL EDIT ----------------
+$(document).on("click", ".cancelEditBtn", function () {
+    loadData();
+});
 
 </script>
 
