@@ -32,9 +32,9 @@ namespace JSAPNEW.Controllers
 
         // get bill detail//
         [HttpGet]
-        public IActionResult GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName, decimal? serialNumber = null) 
+        public IActionResult GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName, decimal? serialNumber = null)
         {
-            var data = _service.GetBillDetails(fromDate, toDate, accountName, serialNumber );
+            var data = _service.GetBillDetails(fromDate, toDate, accountName, serialNumber);
 
 
             return Json(data);
@@ -124,4 +124,3 @@ namespace JSAPNEW.Controllers
         }
     }
 }
-

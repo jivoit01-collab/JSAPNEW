@@ -821,11 +821,13 @@ async function loadTasks(extra = {}) {
             priority: document.getElementById('filterPriority').value || null,
             taskType: document.getElementById('filterTaskType').value || null,
             employeeId: EMPLOYEE_ID, roleTypeId: ROLE_TYPE_ID,
-            viewMode: isAllHodView ? 'ALL' : currentViewMode, sortBy: 'created_on', sortOrder: 'DESC',
+            // Sub-HOD My Overview: use ALL scope so HOD-assigned tasks appear alongside self tasks
+            viewMode: isAllHodView ? 'ALL' : (ROLE_TYPE_ID === 2 && isMyView ? 'ALL' : currentViewMode), sortBy: 'created_on', sortOrder: 'DESC',
             // My Overview: tasks assigned TO me (by anyone including myself)
             ...(isMyView ? { assignedToEmployeeId: EMPLOYEE_ID } : {}),
-            // Team Overview: tasks created BY me assigned to team (not to myself)
-            ...(isTeamView ? { createdByEmployeeId: EMPLOYEE_ID } : {}),
+            // HOD team view is creator-scoped. Sub-HOD team view is assignee-scoped
+            // so team members still show tasks assigned by the HOD.
+            ...(isTeamView && ROLE_TYPE_ID === 1 ? { createdByEmployeeId: EMPLOYEE_ID } : {}),
             // All HOD Overview: HOD tasks created BY me
             ...(isAllHodView ? { createdByEmployeeId: EMPLOYEE_ID } : {}),
             ...currentTaskFilterOverrides
@@ -864,6 +866,9 @@ async function loadTasks(extra = {}) {
                     applyScopedTeamData(allTeamTasks);
                     renderHODTable(allTeamTasks);
                 } else {
+                    tasks = tasks.filter(function (t) {
+                        return String(getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId')) === String(EMPLOYEE_ID);
+                    });
                     lastOwnTasks = tasks.slice();
                     updateStatGroup('my', summarizeTasks(tasks));
                     renderTaskList(tasks);
@@ -871,14 +876,19 @@ async function loadTasks(extra = {}) {
                 }
             } else if (ROLE_TYPE_ID === 2) {
                 if (subHODCurrentTab === 'team') {
-                    // Team Overview: only tasks assigned BY me to others (not myself)
-                    tasks = tasks.filter(function (t) {
-                        return String(getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId')) !== String(EMPLOYEE_ID);
-                    });
-                    const scopedTeamTasks = applyScopedTeamData(tasks);
+                    // Team Overview: all tasks assigned to direct reports, regardless of who created them.
+                    tasks = filterTasksToKnownTeam(tasks);
+                    allScopedTeamTasks = tasks;
+                    employeeProgressMap = buildEmployeeProgressMap(tasks);
+                    breakdownData = buildBreakdownFromTasks(tasks, getKnownTeamMembers());
+                    updateStatGroup('team', summarizeTasks(tasks));
+                    renderSubHODTeamPanel();
                     lastOwnTasks = [];
-                    renderSubHODTaskList(scopedTeamTasks);
+                    renderSubHODTaskList(tasks);
                 } else {
+                    tasks = tasks.filter(function (t) {
+                        return String(getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId')) === String(EMPLOYEE_ID);
+                    });
                     // My Overview — own tasks only; fetch team tasks separately for progress map
                     lastOwnTasks = tasks.slice();
                     updateStatGroup('my', summarizeTasks(tasks));
@@ -905,7 +915,8 @@ async function loadSubHODTeamProgressMap() {
             body: JSON.stringify({
                 page: 1, limit: 1000,
                 employeeId: EMPLOYEE_ID, roleTypeId: ROLE_TYPE_ID,
-                viewMode: 'TEAM', sortBy: 'created_on', sortOrder: 'DESC'
+                viewMode: 'TEAM',
+                sortBy: 'created_on', sortOrder: 'DESC'
             })
         });
         const result = await res.json();
@@ -2226,7 +2237,7 @@ function renderSubHODTaskList(tasks) {
     // Exclude Sub-HOD's own tasks from team view (safety net in case SP doesn't filter)
     tasks = tasks.filter(function (t) {
         var assignedId = getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId');
-        return assignedId !== EMPLOYEE_ID;
+        return String(assignedId) !== String(EMPLOYEE_ID);
     });
 
     const headerHtml = `
