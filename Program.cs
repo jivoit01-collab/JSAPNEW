@@ -92,10 +92,11 @@ builder.Services.AddScoped<IAuth2Service, Auth2Service>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ITicketsService, TicketsService>();
-builder.Services.AddScoped<AdminService>();
-builder.Services.AddScoped<CheckerService>();
-builder.Services.AddScoped<MakerService>();
-builder.Services.AddScoped<InvoicePaymentService>();
+builder.Services.AddScoped<IMakerService, MakerService>();
+builder.Services.AddScoped<ICheckerService, CheckerService>();
+builder.Services.AddScoped<IInvoicePaymentService, InvoicePaymentService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<PaymentCheckerService>();
 builder.Services.AddScoped<IHierarchyService, HierarchyService>();
 
 // Add CORS
