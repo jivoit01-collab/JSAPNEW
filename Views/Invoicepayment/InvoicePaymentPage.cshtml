@@ -221,11 +221,13 @@ function renderTable(data) {
 //------------------------------------
 // DATE FORMAT
 //------------------------------------
-function formatDate(dateString) {
-    if (!dateString) return "-";
+    // ✅ CORRECT
+    function formatDate(dateString) {
+    if (!dateString || dateString === "-") return "-";
     let d = new Date(dateString);
+    if (isNaN(d)) return "-";
     return d.toISOString().split('T')[0];
-}
+    }
 /// open pdf
 function openPdf(path) {
     document.getElementById("pdfFrame").src = path;

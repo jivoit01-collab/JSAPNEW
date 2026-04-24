@@ -1,12 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
     public class PaymentCheckerController : Controller
     {
-        private readonly PaymentCheckerService _service;
+        private readonly IPaymentCheckerService _service;
 
-        public PaymentCheckerController(PaymentCheckerService service)
+        public PaymentCheckerController(IPaymentCheckerService service)
         {
             _service = service;
         }
@@ -16,7 +17,7 @@ namespace JSAPNEW.Controllers
         // ============================
         public IActionResult PaymentCheckerPage()
         {
-            return View();
+            return View("~/Views/PaymentChecker/PaymentCheckerPage.cshtml");
         }
 
         // ============================
@@ -39,14 +40,5 @@ namespace JSAPNEW.Controllers
             return Json(data);
         }
 
-        // ============================
-        // ACCOUNT SUGGESTIONS
-        // ============================
-        [HttpGet]
-        public IActionResult GetAccountSuggestions(string term, DateTime? fromDate, DateTime? toDate)
-        {
-            var data = _service.GetAccountSuggestions(term, fromDate, toDate);
-            return Json(data);
-        }
     }
 }

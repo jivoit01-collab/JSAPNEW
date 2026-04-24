@@ -11,6 +11,7 @@
         public string DueDate { get; set; }
         public string PaymentDate { get; set; }
         public string AttachmentPath { get; set; }
+        public string Attachment { get; set; }  // "File" or "No File"
         public string MakerRemark { get; set; }
         public string CheckerRemark { get; set; }
         public string CheckerStatus { get; set; }

@@ -442,10 +442,9 @@
     let term = $(this).val().trim();
     if (term.length < 2) { $("#suggestionBox").empty(); return; }
 
-    $.get("/PaymentChecker/GetAccountSuggestions", {
-    term:     term,
-    fromDate: $("#fromDate").val() || null,
-    toDate:   $("#toDate").val()   || null
+    
+    $.get("/Maker/GetAccountSuggestions", {
+    term: term
     }, function (data) {
     let html = "";
     if (!data || data.length === 0) {
@@ -466,14 +465,12 @@
     });
 
 
-    // -----------------------------------------------
-    // DATE FORMAT
-    // -----------------------------------------------
+    // ✅ CORRECT
     function formatDate(dateString) {
     if (!dateString || dateString === "-") return "-";
     let d = new Date(dateString);
-    return isNaN(d) ? dateString : d.toISOString().split("T")[0];
+    if (isNaN(d)) return "-";
+    return d.toISOString().split('T')[0];
     }
-
 </script>
 

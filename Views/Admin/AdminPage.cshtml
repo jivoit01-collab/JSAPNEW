@@ -149,6 +149,7 @@
     /* Modal fix for Bootstrap 4 */
     .modal-backdrop.show { opacity: 0.5; }
 </style>
+
 <div class="bill-ui">
 <div class="container-fluid mt-4">
 
@@ -227,6 +228,7 @@
         <button class="admin-tab active" onclick="switchTab('maker', this)">Maker Activity</button>
         <button class="admin-tab" onclick="switchTab('checker', this)">Checker Activity</button>
         <button class="admin-tab" onclick="switchTab('invoice', this)">Invoice Payment</button>
+        <button class="admin-tab" onclick="switchTab('payment', this)">Payment Checker</button> 
     </div>
 
     <!-- MAKER TABLE -->
@@ -319,7 +321,37 @@
             </div>
         </div>
     </div>
+       <!-- payment checker  TABLE -->
+<div class="admin-section" id="section-payment">
+    <div class="table-card">
+        <div class="table-card-header">
+            <h5>Payment Checker Activity</h5>
+            <input class="table-search" placeholder="Filter..."
+                   oninput="filterTable('paymentTable', this.value)" />
+        </div>
 
+        <div class="table-responsive">
+            <table class="admin-table" id="paymentTable">
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        <th>Voucher</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Remark</th>
+                        <th>Attachment</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentBody">
+                    <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
 </div>
 
 <!-- DELETE MODAL — Bootstrap 4 style -->
@@ -696,6 +728,35 @@ function loadInvoice() {
         $('#invoiceBody').html(html);
     });
 }
+// LOAD PAYMENT CHECKER//
+
+function loadPaymentChecker() {
+    $('#paymentBody').html('<tr><td colspan="8">Loading...</td></tr>');
+
+    $.get('/Admin/GetPaymentCheckerActivity', getFilters(), function(data) {
+
+        if (!data || !data.length) {
+            $('#paymentBody').html('<tr><td colspan="8" class="text-center text-muted">No records</td></tr>');
+            return;
+        }
+
+        let html = '';
+        data.forEach(item => {
+            html += `<tr>
+                 <td>${item.accountName}</td>
+                <td>${item.vchNumber}</td>
+                <td>${item.voucherDate}</td>   <!-- ✅ FIX -->
+                <td>${item.billAmount}</td>    <!-- ✅ FIX -->
+                <td>${badge(item.paymentStatus)}</td> <!-- ✅ FIX -->
+                <td>${item.checkerRemark ?? '-'}</td> <!-- ✅ FIX -->
+                <td>${attachHtml(item)}</td>
+                <td>${deleteBtn(item)}</td>
+            </tr>`;
+        });
+
+        $('#paymentBody').html(html);
+    });
+}
 
 // OPEN MODAL
 window.openDelete = function(vchNumber, btn) {
@@ -751,6 +812,7 @@ $('#searchBtn').on('click', function() {
     loadMaker();
     loadChecker();
     loadInvoice();
+    loadPaymentChecker();
 });
 
 // INIT
@@ -759,7 +821,9 @@ $(document).ready(function() {
     loadMaker();
     loadChecker();
     loadInvoice();
+    loadPaymentChecker();
 });
 
 </script>
+
 }
