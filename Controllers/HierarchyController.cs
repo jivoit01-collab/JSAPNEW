@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Dapper;
 using JSAPNEW.Models;
@@ -8,6 +9,7 @@ namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class HierarchyController : ControllerBase
     {
         private readonly IHierarchyService _hierarchyService;

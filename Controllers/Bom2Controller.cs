@@ -6,11 +6,13 @@ using Microsoft.Data.SqlClient;
 using System.Data.Common;
 using System.Text.Json;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Microsoft.AspNetCore.Authorization;
 
 namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class Bom2Controller : ControllerBase
     {
 

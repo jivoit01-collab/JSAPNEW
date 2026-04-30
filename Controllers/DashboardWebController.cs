@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 
 namespace JSAPNEW.Controllers
 {
-    public class DashboardWebController : Controller
+public class DashboardWebController : Controller
     {
         public IActionResult Index()
         {

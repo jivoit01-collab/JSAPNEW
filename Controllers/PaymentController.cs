@@ -3,6 +3,7 @@ using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using ServiceStack.Messaging;
 
@@ -10,6 +11,7 @@ namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class PaymentController : ControllerBase
     {
         private readonly IPaymentService _paymentService; //An interface for bom-related operations

@@ -58,10 +58,12 @@
 //}
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize]
     public class CheckerController : Controller
     {
         private readonly ICheckerService _service;

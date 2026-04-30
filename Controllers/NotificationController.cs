@@ -14,6 +14,7 @@ namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _notificationService; //An interface for user-related operations

@@ -40,7 +40,7 @@ namespace JSAPNEW.Services
         private static string? EncryptSalary(decimal? salary)
         {
             if (!salary.HasValue) return null;
-            return Encryption.Encrypt(salary.Value.ToString(CultureInfo.InvariantCulture));
+            return salary.Value.ToString(CultureInfo.InvariantCulture);
         }
 
         private static bool IsValidAdminKeyFormat(string value)
@@ -76,19 +76,6 @@ namespace JSAPNEW.Services
 
             if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.CurrentCulture, out plainDecimal))
                 return plainDecimal.ToString(CultureInfo.InvariantCulture);
-
-            try
-            {
-                var decrypted = Encryption.Decrypt(raw)?.Trim();
-                if (string.IsNullOrWhiteSpace(decrypted)) return null;
-
-                if (decimal.TryParse(decrypted, NumberStyles.Any, CultureInfo.InvariantCulture, out var dec))
-                    return dec.ToString(CultureInfo.InvariantCulture);
-
-                if (decimal.TryParse(decrypted, NumberStyles.Any, CultureInfo.CurrentCulture, out dec))
-                    return dec.ToString(CultureInfo.InvariantCulture);
-            }
-            catch { }
 
             return null;
         }
@@ -2027,8 +2014,10 @@ VALUES (@EmployeeId, @ReportsToEmployeeId, 1, @DepartmentId, @SubDepartmentId, 1
                 var row = await conn.QueryFirstOrDefaultAsync<dynamic>(
                     "SELECT ConfigValue FROM [Hie].[SalaryConfig] WHERE ConfigKey = 'SalaryMasterKey'");
                 if (row == null || string.IsNullOrEmpty(row.ConfigValue as string)) return false;
-                var decrypted = Encryption.Decrypt((string)row.ConfigValue);
-                return decrypted == adminKey;
+                var storedHash = (string)row.ConfigValue;
+                if (PasswordHasher.IsBcryptHash(storedHash))
+                    return PasswordHasher.VerifyPassword(adminKey, storedHash);
+                return false;
             }
             catch { return false; }
         }
@@ -2042,37 +2031,35 @@ VALUES (@EmployeeId, @ReportsToEmployeeId, 1, @DepartmentId, @SubDepartmentId, 1
             {
                 using var conn = new SqlConnection(_connectionString);
 
-                // 1. Check permission in SalaryKeyManager
                 var hasPerm = await conn.ExecuteScalarAsync<int>(
                     "SELECT COUNT(1) FROM [Hie].[SalaryKeyManager] WHERE UserId = @UserId AND IsActive = 1",
                     new { UserId = setByUserId });
                 if (hasPerm == 0)
                     return (false, "You do not have permission to manage the admin salary key");
 
-                // 2. Check if a key already exists
                 var existing = await conn.QueryFirstOrDefaultAsync<dynamic>(
                     "SELECT ConfigValue FROM [Hie].[SalaryConfig] WHERE ConfigKey = 'SalaryMasterKey'");
-                string? existingEncrypted = existing?.ConfigValue as string;
-                bool keyExists = !string.IsNullOrEmpty(existingEncrypted);
+                string? existingHash = existing?.ConfigValue as string;
+                bool keyExists = !string.IsNullOrEmpty(existingHash);
 
                 if (keyExists)
                 {
-                    // 3. Old key must be provided and must match
                     if (string.IsNullOrWhiteSpace(oldKey))
                         return (false, "Current key is required to change the admin salary key");
-                    var decrypted = Encryption.Decrypt(existingEncrypted!);
-                    if (decrypted != oldKey)
+                    bool validOld = PasswordHasher.IsBcryptHash(existingHash!)
+                        ? PasswordHasher.VerifyPassword(oldKey, existingHash!)
+                        : false;
+                    if (!validOld)
                         return (false, "Current key is incorrect");
                 }
 
-                // 4. Save new key (encrypted)
-                var encrypted = Encryption.Encrypt(newKey);
+                var hashed = PasswordHasher.HashPassword(newKey);
                 await conn.ExecuteAsync(
                     @"IF EXISTS (SELECT 1 FROM [Hie].[SalaryConfig] WHERE ConfigKey = 'SalaryMasterKey')
                           UPDATE [Hie].[SalaryConfig] SET ConfigValue = @Val, UpdatedAt = GETDATE(), UpdatedBy = @By WHERE ConfigKey = 'SalaryMasterKey'
                       ELSE
                           INSERT INTO [Hie].[SalaryConfig] (ConfigKey, ConfigValue, UpdatedAt, UpdatedBy) VALUES ('SalaryMasterKey', @Val, GETDATE(), @By)",
-                    new { Val = encrypted, By = setByUserId });
+                    new { Val = hashed, By = setByUserId });
 
                 _ = LogAuditAsync("SetAdminSalaryKey", "SalaryConfig", null, null, null, null,
                     keyExists ? "Admin salary master key changed" : "Admin salary master key created", setByUserId);

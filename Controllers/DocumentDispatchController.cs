@@ -1,6 +1,7 @@
 ﻿using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ServiceStack.Text;
 using System.Configuration;
 
@@ -8,6 +9,7 @@ namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class DocumentDispatchController : ControllerBase
     {
         private readonly IConfiguration _configuration;

@@ -10,7 +10,7 @@ namespace JSAPNEW.Services.Interfaces
 {
     public interface IUserService
     {
-        Task<LoginResponse> ValidateUserAsync(LoginRequest request);
+        Task<LoginResult> ValidateUserAsync(LoginRequest request);
         Task<UserDto> GetUserByIdAsync(int userId);
         Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request);
         Task<ChangePasswordResponse> ChangePasswordAsync2(ChangePasswordRequest2 request);

@@ -692,7 +692,7 @@
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- jQuery already loaded in _Layout.cshtml -->
 <script>
     let standardsChart = null;
     let allData = [];
@@ -710,14 +710,24 @@
     };
 
     $(document).ready(function () {
-        // Initialize chart
+        console.log("TOKEN:", localStorage.getItem("accessToken") ? "✅ Present (length: " + localStorage.getItem("accessToken").length + ")" : "❌ Missing");
+
+        if (!localStorage.getItem("accessToken")) {
+            console.error("No access token found, redirecting to login");
+            window.location.href = "/Login";
+            return;
+        }
+
+        console.log("🚀 Loading IT Dashboard data...");
         initChart();
 
-        // Fetch summary
-        fetchSummary();
+        fetchSummary().always(function(xhr) {
+            console.log("📊 GetSummary response:", xhr.status, xhr.responseText ? xhr.responseText.substring(0, 100) : "no response");
+        });
 
-        // Fetch all IT standards
-        loadStandards();
+        loadStandards().always(function(xhr) {
+            console.log("📋 GetMaster response:", xhr.status, xhr.responseText ? xhr.responseText.substring(0, 100) : "no response");
+        });
 
         // Filter button handlers
         $('.filter-btn').click(function () {
@@ -808,23 +818,25 @@
 
     // Fetch summary data
     function fetchSummary() {
-        $.getJSON('/api/Dashboard/GetSummary', function (response) {
-            if (response && response.success && response.data) {
-                const summary = response.data;
-
-                // Update cards with animation
-                animateNumber('#p1Count', summary.p1 || 0);
-                animateNumber('#p2Count', summary.p2 || 0);
-                animateNumber('#p3Count', summary.p3 || 0);
-                animateNumber('#highGap', summary.high || 0);
-                animateNumber('#mediumGap', summary.medium || 0);
-                animateNumber('#lowGap', summary.low || 0);
-
-                // Update chart
-                updateChart(summary);
+        return $.ajax({
+            url: '/api/Dashboard/GetSummary',
+            method: 'GET',
+            success: function (response) {
+                console.log("✅ GetSummary success:", JSON.stringify(response).substring(0, 100));
+                if (response && (response.success || response.Success) && (response.data || response.Data)) {
+                    const summary = response.data || response.Data;
+                    animateNumber('#p1Count', summary.p1 || 0);
+                    animateNumber('#p2Count', summary.p2 || 0);
+                    animateNumber('#p3Count', summary.p3 || 0);
+                    animateNumber('#highGap', summary.high || 0);
+                    animateNumber('#mediumGap', summary.medium || 0);
+                    animateNumber('#lowGap', summary.low || 0);
+                    updateChart(summary);
+                }
+            },
+            error: function(xhr, status, err) {
+                console.error("❌ Failed to fetch summary:", status, err, xhr.responseText ? xhr.responseText.substring(0, 100) : "");
             }
-        }).fail(function() {
-            console.error('Failed to fetch summary');
         });
     }
 
@@ -868,16 +880,24 @@
             apiUrl += `?priority=${priorityFilter}`;
         }
 
-        $.getJSON(apiUrl, function (response) {
-            if (response && response.success && response.data && response.data.length > 0) {
-                allData = response.data;
-                renderSummaryTable(allData);
-                renderFullDetailsTable(allData);
-            } else {
+        return $.ajax({
+            url: apiUrl,
+            method: 'GET',
+            success: function (response) {
+                const data = response.data || response.Data;
+                console.log("✅ GetMaster success, items:", data ? data.length : 0);
+                if (response && (response.success || response.Success) && data && data.length > 0) {
+                    allData = data;
+                    renderSummaryTable(allData);
+                    renderFullDetailsTable(allData);
+                } else {
+                    showNoData();
+                }
+            },
+            error: function(xhr, status, err) {
+                console.error("❌ Failed to load standards:", status, err, xhr.responseText ? xhr.responseText.substring(0, 100) : "");
                 showNoData();
             }
-        }).fail(function() {
-            showNoData();
         });
     }
 

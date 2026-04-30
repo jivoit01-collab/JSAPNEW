@@ -1,6 +1,7 @@
 ﻿using JSAPNEW.Services.Interfaces;
 using JSAPNEW.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BPmasterController : ControllerBase
     {
         private readonly IConfiguration _configuration;

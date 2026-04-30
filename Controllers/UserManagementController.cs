@@ -3,9 +3,11 @@ using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize]
     public class UserManagementController : Controller
     {
         private readonly IUserService _userService;

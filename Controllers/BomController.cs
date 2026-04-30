@@ -5,11 +5,13 @@ using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 
 namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BomController : ControllerBase
     {
         private readonly IConfiguration _configuration;

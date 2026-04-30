@@ -193,46 +193,76 @@
         </div>
     </div>
     <script>
+        let loginInProgress = false;
         document.getElementById("loginForm").addEventListener("submit", async function (e) {
             e.preventDefault();
+            if (loginInProgress) return;
+            loginInProgress = true;
+
+            const submitBtn = e.target.querySelector("button[type='submit']");
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "Signing in...";
+
             const loginUser = document.getElementById("username").value;
             const loginPassword = document.getElementById("password").value;
+            const errorEl = document.getElementById("error");
 
             try {
-                const loginRes = await fetch('/api/auth/Login', {
+                const loginRes = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ loginUser: loginUser, password: loginPassword }) // 🔧 fixed key
+                    credentials: 'include',
+                    body: JSON.stringify({ loginUser: loginUser, password: loginPassword })
                 });
 
-
-                if (!loginRes.ok) throw new Error("Invalid login");
+                if (!loginRes.ok) {
+                    const errText = await loginRes.text();
+                    let errData;
+                    try { errData = JSON.parse(errText); } catch { errData = { message: "Login failed" }; }
+                    throw new Error(errData.message || "Invalid login credentials");
+                }
 
                 const loginData = await loginRes.json();
-                console.log("Login Response:", loginData);
+                if (!loginData.success || !loginData.user) {
+                    throw new Error(loginData.message || "Login failed");
+                }
 
                 const userId = loginData.user.userId;
-                const userName = loginData.user.userName;
+                const userName = loginData.user.userName || loginData.user.firstName + " " + loginData.user.lastName;
+                const accessToken = loginData.accessToken;
 
-                const companyRes = await fetch(`/api/auth/getcompanies?userId=${userId}`);
-                const companyData = await companyRes.json();
-                console.log(userId);
-                if (!companyData.success) throw new Error("Company fetch failed");
+                if (!userId || userId === 0) {
+                    throw new Error("Invalid user data received");
+                }
 
-                // Store data temporarily in sessionStorage
-                sessionStorage.setItem("userId", userId);
-                sessionStorage.setItem("userName", userName);
-                sessionStorage.setItem("companies", JSON.stringify(companyData.data));
+                const companyRes = await fetch(`/api/auth/getcompanies?userId=${userId}`, {
+                    credentials: 'include'
+                });
+                if (!companyRes.ok) {
+                    throw new Error("Failed to fetch companies");
+                }
+                const companyText = await companyRes.text();
+                let companyData;
+                try {
+                    companyData = JSON.parse(companyText);
+                } catch {
+                    throw new Error("Server returned invalid response for companies");
+                }
 
-                // Store login info temporarily
-                sessionStorage.setItem("userId", userId);
-                sessionStorage.setItem("userName", userName);
-                sessionStorage.setItem("companies", JSON.stringify(companyData.data));
+                if (!companyData.success || !companyData.data) {
+                    throw new Error(companyData.message || "No companies found for your account");
+                }
 
-                // 🔸 Call WebSession API to store session
-                await fetch('/websession/set', {
+                localStorage.setItem("userId", userId);
+                localStorage.setItem("userName", userName);
+                localStorage.setItem("accessToken", accessToken);
+                localStorage.setItem("companies", JSON.stringify(companyData.data));
+
+                const sessionRes = await fetch('/websession/set', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         userId: userId,
                         userName: userName,
@@ -240,11 +270,39 @@
                     })
                 });
 
-                // ✅ Redirect after session is set
+                if (!sessionRes.ok) {
+                    const sessText = await sessionRes.text();
+                    console.error("Session set failed:", sessText);
+                    throw new Error("Failed to initialize session");
+                }
+
+                const sessionData = await sessionRes.json();
+                console.log("Session set response:", sessionData);
+
                 window.location.href = "/DashboardWeb/Index";
 
             } catch (err) {
-                document.getElementById("error").innerText = err.message;
+                console.error("Login error:", err);
+                if (errorEl) {
+                    errorEl.innerText = err.message || "An unexpected error occurred";
+                    errorEl.style.display = "block";
+                } else {
+                    alert(err.message || "An unexpected error occurred");
+                }
+                loginInProgress = false;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const errorEl = document.getElementById("error");
+            if (errorEl) errorEl.style.display = "none";
+
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+                console.log("Existing token found, redirecting to dashboard...");
+                window.location.href = "/DashboardWeb/Index";
             }
         });
     </script>

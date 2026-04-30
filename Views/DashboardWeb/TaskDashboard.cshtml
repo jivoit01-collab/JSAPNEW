@@ -1022,6 +1022,11 @@
     const pieColors = ['#0b2c4d', '#1a4a7a', '#2d6a9f', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
     document.addEventListener('DOMContentLoaded', function () {
+        console.log("TOKEN:", localStorage.getItem("accessToken") ? "Present" : "Missing");
+        if (!localStorage.getItem("accessToken")) {
+            window.location.href = "/Login";
+            return;
+        }
         loadDashboard();
     });
 
@@ -1050,7 +1055,9 @@
 
     async function loadStats() {
         const params = getFilterParams();
-        const response = await fetch(`${API_BASE}/stats?group_by=${currentGroupBy}&${params}`);
+        const response = await fetch(`${API_BASE}/stats?group_by=${currentGroupBy}&${params}`, {
+            headers: window.APP.getAuthHeaders()
+        });
         const result = await response.json();
         const data = result.data || result.Data || result;
 
@@ -1088,7 +1095,9 @@
 
     async function loadStatusDistribution() {
         const params = getFilterParams();
-        const response = await fetch(`${API_BASE}/status-distribution?group_by=${currentGroupBy}&${params}`);
+        const response = await fetch(`${API_BASE}/status-distribution?group_by=${currentGroupBy}&${params}`, {
+            headers: window.APP.getAuthHeaders()
+        });
         const result = await response.json();
         renderStatusBars(result.data || result.Data || result);
     }
@@ -1114,7 +1123,9 @@
 
     async function loadEmployeeDistribution() {
         const params = getFilterParams();
-        const response = await fetch(`${API_BASE}/employee-stats?group_by=${currentGroupBy}&${params}`);
+        const response = await fetch(`${API_BASE}/employee-stats?group_by=${currentGroupBy}&${params}`, {
+            headers: window.APP.getAuthHeaders()
+        });
         const result = await response.json();
         renderPieChart(result.data || result.Data || result);
     }
@@ -1148,7 +1159,9 @@
 
     async function loadTrendChart() {
         const params = getFilterParams();
-        const response = await fetch(`${API_BASE}/trend?days=7&group_by=${currentGroupBy}&${params}`);
+        const response = await fetch(`${API_BASE}/trend?days=7&group_by=${currentGroupBy}&${params}`, {
+            headers: window.APP.getAuthHeaders()
+        });
         const result = await response.json();
         renderLineChart(result.data || result.Data || result);
     }
@@ -1201,7 +1214,9 @@
 
     async function loadTasks() {
         const params = getFilterParams();
-        const response = await fetch(`${API_BASE}/list?group_by=${currentGroupBy}&${params}`);
+        const response = await fetch(`${API_BASE}/list?group_by=${currentGroupBy}&${params}`, {
+            headers: window.APP.getAuthHeaders()
+        });
         const result = await response.json();
         renderTaskTable(result.data || result.Data || result);
     }
@@ -1236,8 +1251,8 @@
     async function loadFilters() {
         try {
             const [projectRes, empRes] = await Promise.all([
-                fetch(`${API_BASE}/projects`),
-                fetch(`${API_BASE}/employees`)
+                fetch(`${API_BASE}/projects`, { headers: window.APP.getAuthHeaders() }),
+                fetch(`${API_BASE}/employees`, { headers: window.APP.getAuthHeaders() })
             ]);
 
             const projectsResult = await projectRes.json();
@@ -1316,7 +1331,9 @@
         modalBody.innerHTML = '<div class="modal-loading"><div class="spinner"></div></div>';
 
         try {
-            const response = await fetch(`${API_BASE}/details?taskId=${taskId}`);
+            const response = await fetch(`${API_BASE}/details?taskId=${taskId}`, {
+                headers: window.APP.getAuthHeaders()
+            });
             const result = await response.json();
             if (result.success || result.Success) {
                 renderTaskDetails(result.data || result.Data);

@@ -492,15 +492,21 @@
 <script>
     const API_BASE = '/api/Dashboard';
 
-    // Initialize Dashboard
     document.addEventListener('DOMContentLoaded', function () {
+        console.log("TOKEN:", localStorage.getItem("accessToken") ? "Present" : "Missing");
+        if (!localStorage.getItem("accessToken")) {
+            window.location.href = "/Login";
+            return;
+        }
         loadMasterSummary();
     });
 
     // Load Master Summary
     async function loadMasterSummary() {
         try {
-            const response = await fetch(`${API_BASE}/GetDashboardMaster`);
+            const response = await fetch(`${API_BASE}/GetDashboardMaster`, {
+                headers: window.APP.getAuthHeaders()
+            });
             const result = await response.json();
 
             if (result.success) {
@@ -619,7 +625,9 @@
         const container = document.getElementById(`body_${clientId}`);
 
         try {
-            const response = await fetch(`${API_BASE}/GetDashboardByCompany?clientName=${encodeURIComponent(clientName)}`);
+            const response = await fetch(`${API_BASE}/GetDashboardByCompany?clientName=${encodeURIComponent(clientName)}`, {
+                headers: window.APP.getAuthHeaders()
+            });
             const result = await response.json();
 
             if (result.success && result.data.length > 0) {
@@ -725,7 +733,9 @@
         const container = document.getElementById(`moduleContainer_${projectId}`);
 
         try {
-            const response = await fetch(`${API_BASE}/GetDashboardProject?projectId=${projectId}`);
+            const response = await fetch(`${API_BASE}/GetDashboardProject?projectId=${projectId}`, {
+                headers: window.APP.getAuthHeaders()
+            });
             const result = await response.json();
 
             if (result.success && result.data.length > 0) {

@@ -104,10 +104,10 @@
 </div>
 
 <script>
-    // Load data from sessionStorage
-    const userId = sessionStorage.getItem("userId") || "N/A";
-    const userName = sessionStorage.getItem("userName") || "Guest";
-    const companies = JSON.parse(sessionStorage.getItem("companies") || "[]");
+    // Load data from localStorage
+    const userId = localStorage.getItem("userId") || "N/A";
+    const userName = localStorage.getItem("userName") || "Guest";
+    const companies = JSON.parse(localStorage.getItem("companies") || "[]");
 
     // Update welcome message
     document.getElementById("welcomeUserName").textContent = userName;

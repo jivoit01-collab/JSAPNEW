@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System;
@@ -8,8 +9,8 @@ using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
-    [Route("websession")]
-    public class WebSessionController : Controller
+[Route("websession")]
+public class WebSessionController : Controller
     {
         private readonly IUserService _userService;
 
@@ -19,6 +20,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("set")]
+        [AllowAnonymous]
         public async Task<IActionResult> SetSession([FromBody] SessionRequest request)
         {
             try

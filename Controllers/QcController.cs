@@ -2,6 +2,7 @@
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using Sap.Data.Hana;
@@ -10,6 +11,7 @@ namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class QcController : ControllerBase
     {
         private readonly IConfiguration _configuration;

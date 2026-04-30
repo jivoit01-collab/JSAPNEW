@@ -7,11 +7,13 @@ using System.Text.Json;
 using ServiceStack.Text;
 using Microsoft.Extensions.Hosting.Internal;
 using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 
 namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class AdvanceRequestController : ControllerBase
     {
         private readonly IAdvanceRequestService _advanceService; //An interface for user-related operations

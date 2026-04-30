@@ -45,21 +45,20 @@ namespace JSAPNEW.Models
     public class UserDto
     {
         public int userId { get; set; }
-        public string userName { get; set; }
+        public string userName { get; set; } = string.Empty;
         public int userPhoneNumber { get; set; }
-        public string userEmail { get; set; }
-        public string password { get; set; }
+        public string userEmail { get; set; } = string.Empty;
         public int isActive { get; set; }
-        public string isActiveBy { get; set; }
+        public string isActiveBy { get; set; } = string.Empty;
         public DateTime isActiveOn { get; set; }
-        public string loginUser { get; set; }
+        public string loginUser { get; set; } = string.Empty;
         public DateTime createdOn { get; set; }
-        public string createdBy { get; set; }
-        public string Comment { get; set; }
-        public string firstName { get; set; }
-        public string lastName { get; set; }
+        public string createdBy { get; set; } = string.Empty;
+        public string Comment { get; set; } = string.Empty;
+        public string firstName { get; set; } = string.Empty;
+        public string lastName { get; set; } = string.Empty;
         public int changePassword { get; set; }
-
+        public string? Role { get; set; }
     }
     public class VarietyModel
     {

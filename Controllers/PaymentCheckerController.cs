@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize]
     public class PaymentCheckerController : Controller
     {
         private readonly IPaymentCheckerService _service;

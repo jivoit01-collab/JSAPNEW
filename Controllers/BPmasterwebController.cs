@@ -1,5 +1,6 @@
 ﻿using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using JSAPNEW.Models;
 using ServiceStack;
 

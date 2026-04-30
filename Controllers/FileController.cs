@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using Renci.SshNet.Common;
 using Renci.SshNet;
@@ -11,6 +12,7 @@ namespace JSAPNEW.Controllers
 
     [Route("api/files")]
     [ApiController]
+    [Authorize]
     public class FileController : ControllerBase
     {
 

@@ -1063,6 +1063,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- At the end of body -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/auth.js"></script>
 
     <script>
         const GLOBAL_PAGE_SETTINGS_BASE = 13;
@@ -1820,21 +1821,48 @@
         }
     </script>
     <script>
+        (function() {
+            const token = localStorage.getItem("accessToken");
+            const userId = localStorage.getItem("userId");
+            const currentPath = window.location.pathname.toLowerCase();
+            if (!token || !userId) {
+                if (!currentPath.includes("/login")) {
+                    console.log("No auth token found, redirecting to login");
+                    localStorage.clear();
+                    window.location.href = "/Login";
+                }
+                return;
+            }
+            window.APP = {
+                getAuthHeaders: function() {
+                    return {
+                        "Authorization": "Bearer " + localStorage.getItem("accessToken"),
+                        "Content-Type": "application/json"
+                    };
+                },
+                getAuthFetch: function(url, options) {
+                    options = options || {};
+                    options.headers = Object.assign({}, this.getAuthHeaders(), options.headers || {});
+                    options.credentials = options.credentials || "include";
+                    return fetch(url, options);
+                },
+                userId: userId,
+                userName: localStorage.getItem("userName") || "",
+                companies: JSON.parse(localStorage.getItem("companies") || "[]")
+            };
+        })();
+
+        // auth.js handles $.ajaxSetup, fetch interceptor, error handlers, and window.APP
+        // Only logout button handler remains here
         $('#logoutBtn').on('click', function () {
             if (confirm('Are you sure you want to logout?')) {
-                $.ajax({
-                    url: '/api/Auth/Logout',
+                fetch('/api/Auth/Logout', {
                     method: 'POST',
-                    success: function (res) {
-                        if (res.success) {
-                            window.location.href = '/Login/Index';
-                        } else {
-                            alert('Logout failed: ' + res.message);
-                        }
-                    },
-                    error: function () {
-                        alert('Logout failed. Please try again.');
-                    }
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken"), "Content-Type": "application/json" },
+                    credentials: 'include'
+                }).finally(function() {
+                    localStorage.clear();
+                    window.location.href = '/Login';
                 });
             }
         });

@@ -125,12 +125,14 @@
 //    
 //
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize]
     public class MakerController : Controller
     {
         private readonly IMakerService _service;

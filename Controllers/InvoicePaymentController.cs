@@ -46,10 +46,12 @@
 //    }
 //}
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize]
     public class InvoicePaymentController : Controller
     {
         private readonly IInvoicePaymentService _service;

@@ -44,6 +44,30 @@ function hideLoader() {
     document.getElementById("loaderOverlay").style.display = "none";
 }
 
+async function safeFetch(url, options) {
+    try {
+        const response = await fetch(url, options || {});
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) return null;
+            throw new Error("HTTP " + response.status);
+        }
+        const data = await response.json();
+        if (data && data.success === false) {
+            if (window.APP && window.APP.showError) {
+                window.APP.showApiError(data.message || "Request failed");
+            }
+            return null;
+        }
+        return data;
+    } catch (err) {
+        console.error("safeFetch error:", url, err);
+        if (window.APP && window.APP.showApiError) {
+            window.APP.showApiError("Failed to load data. Please try again.");
+        }
+        return null;
+    }
+}
+
 function getDate() {
     const month = document.getElementById('month').value
     const year = document.getElementById('year').value
@@ -172,23 +196,13 @@ async function getBudgetData(date) {
     if (date) {
         try {
             const url = `/api/auth/GetAllBudgetInsight?company=${companyId}&month=${date}`
-            const response = await fetch(url)
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json()
-            let budgetData = data.data
-
+            const data = await safeFetch(url);
+            if (!data || !data.data) return [];
+            let budgetData = data.data;
             budgetData = budgetData.filter(budget => budget.type === 'Budget')
-
-            // Cache the data
             cachedData[date] = budgetData;
             globalData = budgetData;
-            console.log(`Data cached for ${date}`);
             return budgetData;
-
         } catch (error) {
             console.error('Error Fetching Data', error);
             return [];
@@ -492,13 +506,13 @@ async function getExcelBudgetData() {
     showLoader();
     try {
         const url = `/api/auth/GetAllBudgetSummaryAmount?company=${companyId}&month=${getDate()}`
-        const response = await fetch(url);
-        if (!response.ok) return;
-        const result = await response.json()
-        data = result.data
+        const result = await safeFetch(url);
+        if (!result || !result.data) return [];
+        data = result.data;
         return data;
     } catch (err) {
         console.log("Error in Execution : ", err)
+        return [];
     } finally {
         hideLoader();
     }
@@ -657,28 +671,17 @@ async function getBudgetbyCompany() {
         if (type === 'number') {
             console.log('Executing via docentry')
             const url = `/api/Reports/GetBudgetByCompany?company=${companyId}&month=${month}&docEntry=${searchTerm}`
-            const result = await fetch(url);
-            if (!result.ok) {
-                console.log("No Result Found");
-                return null;
-            }
-            const data = await result.json()
+            const data = await safeFetch(url);
             return data;
         }
         else if (type === 'string') {
             const url = `/api/Reports/GetBudgetByCompany?company=${companyId}&month=${month}&cardName=${searchTerm}`
-            const result = await fetch(url);
-            if (!result.ok) {
-                console.log("No Result Found");
-                return null;
-            }
-            const data = await result.json()
+            const data = await safeFetch(url);
             return data;
         }
     }
     catch (err) {
         console.error("Error Occurred:", err);
-        alert("An error occurred while fetching data");
     } finally {
         hideLoader();
     }
@@ -857,14 +860,9 @@ async function getSingleData(status, id, data) {
     const url = `/api/auth/get${status}budgetwithdetails?userId=${id}&company=${companyId}&month=${date}`;
     showLoader();
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            console.error(`Failed to fetch ${status} data`);
-            return null;
-        }
-        const result = await response.json();
-        const statusData = result.data;
-        return statusData;
+        const result = await safeFetch(url);
+        if (!result || !result.data) return null;
+        return result.data;
     } catch (err) {
         console.error("Error Occurred: ", err);
         return null;
@@ -966,13 +964,9 @@ async function getBudgetFlow(budgetId) {
     const url = `/api/auth/GetBudgetApprovalFlow?budgetId=${budgetId}`
     showLoader();
     try {
-        const response = await fetch(url)
-        if (!response.ok) return;
-
-        const result = await response.json();
-        const data = result.data
-        flowData = data;
-
+        const result = await safeFetch(url);
+        if (!result || !result.data) return;
+        flowData = result.data;
     } catch (err) {
         console.err(err)
     } finally {
