@@ -9,8 +9,8 @@ using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
-[Route("websession")]
-public class WebSessionController : Controller
+    [Route("websession")]
+    public class WebSessionController : Controller
     {
         private readonly IUserService _userService;
 
@@ -42,7 +42,7 @@ public class WebSessionController : Controller
                 HttpContext.Session.SetInt32("userId", request.UserId);
                 HttpContext.Session.SetString("username", request.UserName ?? "Guest");
                 HttpContext.Session.SetString("companyList", JsonConvert.SerializeObject(companies));
-                HttpContext.Session.SetInt32("selectedCompanyId", companies[0].id); // Default to first
+                HttpContext.Session.SetInt32("selectedCompanyId", companies[0].id);
 
                 return Ok(new { success = true });
             }
@@ -68,20 +68,27 @@ public class WebSessionController : Controller
             }
             catch (Exception ex)
             {
-                // Log the exception
                 Console.WriteLine($"Error in UpdateSelectedCompany: {ex.Message}");
                 return StatusCode(500, new { success = false, message = "An error occurred while updating company selection" });
             }
         }
 
-        // Add a method to check if session is valid
+        // Check if user is authenticated via cookie
         [HttpGet("checksession")]
+        [AllowAnonymous]
         public IActionResult CheckSession()
         {
             try
             {
+                // Check both cookie auth and session
                 var userId = HttpContext.Session.GetInt32("userId");
                 var companyList = HttpContext.Session.GetString("companyList");
+
+                // Also check if user is authenticated via cookie
+                if (User.Identity?.IsAuthenticated == true)
+                {
+                    return Json(new { valid = true, userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value });
+                }
 
                 if (!userId.HasValue || string.IsNullOrEmpty(companyList))
                 {

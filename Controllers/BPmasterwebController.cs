@@ -6,6 +6,7 @@ using ServiceStack;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize]
     public class BPmasterwebController : Controller
     {
         private readonly IBPmasterService _BPService;

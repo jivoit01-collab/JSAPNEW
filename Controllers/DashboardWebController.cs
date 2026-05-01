@@ -4,7 +4,8 @@ using Newtonsoft.Json;
 
 namespace JSAPNEW.Controllers
 {
-public class DashboardWebController : Controller
+    [Authorize]
+    public class DashboardWebController : Controller
     {
         public IActionResult Index()
         {

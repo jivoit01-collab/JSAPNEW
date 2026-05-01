@@ -346,14 +346,14 @@ async function completeTask(taskId) {
         } else {
             showNotification(result.message || 'Failed to complete task', 'error');
         }
-    } catch (error) {
-        console.error('Error completing task:', error);
-        showNotification('Error completing task', 'error');
-    } finally {
-        hideLoader();
-        location.reload()
+        } catch (error) {
+            console.error('Error completing task:', error);
+            showNotification('Error completing task', 'error');
+        } finally {
+            hideLoader();
+            // REMOVED: location.reload() - was causing infinite reload
+        }
     }
-}
 
 // ============================================
 // DELETE TASK
@@ -382,14 +382,15 @@ async function deleteTask(taskId) {
         } else {
             showNotification(result.message || 'Failed to delete task', 'error');
         }
-    } catch (error) {
-        console.error('Error deleting task:', error);
-        showNotification('Error deleting task', 'error');
-    } finally {
-        hideLoader();
-        location.reload()
-
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            showNotification('Error deleting task', 'error');
+        } finally {
+            hideLoader();
+            // REMOVED: location.reload() - was causing infinite reload
+        }
     }
+}
 }
 
 

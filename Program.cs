@@ -1,160 +1,81 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Text;
-using System.Threading.RateLimiting;
+﻿using Microsoft.OpenApi.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using JSAPNEW.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using JSAPNEW.Filters;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using JSAPNEW.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddControllersWithViews(options =>
-{
-    options.Filters.Add<SessionAuthFilter>();
-});
+builder.Services.AddControllersWithViews();
 
-var jwtSecret = builder.Configuration["Jwt:SecretKey"];
-if (string.IsNullOrWhiteSpace(jwtSecret))
-    throw new InvalidOperationException("JWT SecretKey must be configured in appsettings.json.");
+// ============================================
+// COOKIE AUTHENTICATION (SECURE - PRIMARY)
+// ============================================
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "JSAP.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.LoginPath = "/Login";
+        options.AccessDeniedPath = "/Login";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.SlidingExpiration = true;
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context =>
+            {
+                if (context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.ContentType = "application/json";
+                    return context.Response.WriteAsync("{\"success\":false,\"message\":\"Authentication required\"}");
+                }
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            },
+            OnRedirectToAccessDenied = context =>
+            {
+                if (context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    context.Response.StatusCode = 403;
+                    context.Response.ContentType = "application/json";
+                    return context.Response.WriteAsync("{\"success\":false,\"message\":\"Access forbidden\"}");
+                }
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
+    });
 
-var jwtSecretBytes = Encoding.UTF8.GetBytes(jwtSecret);
-if (jwtSecretBytes.Length < 32)
-    throw new InvalidOperationException("JWT secret must be at least 256 bits (32 bytes).");
-
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "JSAP";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "JSAPClients";
-
+// Session for storing additional user data (company list, etc.)
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromDays(builder.Configuration.GetValue<int>("Session:TimeoutDays"));
+    options.IdleTimeout = TimeSpan.FromDays(7);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-    options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict;
-    options.Cookie.MaxAge = TimeSpan.FromDays(7);
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "JSAP API", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
-    });
 });
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = true;
-        options.SaveToken = false;
-        options.Events = new JwtBearerEvents
-        {
-            OnTokenValidated = async context =>
-            {
-                var jti = context.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-                if (string.IsNullOrWhiteSpace(jti))
-                {
-                    context.Fail("Token is missing jti.");
-                    return;
-                }
-
-                var authSecurity = context.HttpContext.RequestServices.GetRequiredService<IAuthSecurityService>();
-                if (await authSecurity.IsAccessTokenRevokedAsync(jti))
-                    context.Fail("Token has been revoked.");
-            },
-            OnChallenge = context =>
-            {
-                context.HandleResponse();
-                context.Response.StatusCode = 401;
-                context.Response.ContentType = "application/json";
-                return context.Response.WriteAsync("{\"success\":false,\"message\":\"Authentication required\"}");
-            },
-            OnForbidden = context =>
-            {
-                context.Response.StatusCode = 403;
-                context.Response.ContentType = "application/json";
-                return context.Response.WriteAsync("{\"success\":false,\"message\":\"Access forbidden\"}");
-            }
-        };
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(jwtSecretBytes),
-            ClockSkew = TimeSpan.Zero,
-            RequireExpirationTime = true
-        };
-    });
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin", "Super User"));
     options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole("SuperAdmin", "Super User"));
 });
-
-// Rate limiting disabled for development - uncomment for production
-/*
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("LoginPolicy", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            $"login:{context.Connection.RemoteIpAddress}",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
-
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-    {
-        var userId = context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var partitionKey = !string.IsNullOrWhiteSpace(userId)
-            ? $"user:{userId}"
-            : $"ip:{context.Connection.RemoteIpAddress}";
-
-        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 100,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0,
-            AutoReplenishment = true
-        });
-    });
-});
-*/
-
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? Array.Empty<string>();
 
 var appUrl = builder.Configuration["App:Url"] ?? "http://localhost:5000";
 
@@ -170,8 +91,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuthSecurityService, AuthSecurityService>();
 builder.Services.AddScoped<IBomService, BomService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
@@ -248,7 +167,6 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AllowSpecificOrigin");
 app.UseSession();
-// app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -257,11 +175,11 @@ app.MapControllerRoute(
     pattern: "{controller=Login}/{action=Index}/{id?}");
 app.MapControllers();
 
-app.MapGet("/health", [AllowAnonymous] () => Results.Ok(new
+app.MapGet("/health", () => Results.Ok(new
 {
     status = "healthy",
     timestamp = DateTime.UtcNow,
     app = "JSAP"
-}));
+})).AllowAnonymous();
 
 app.Run();

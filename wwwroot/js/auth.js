@@ -2,70 +2,39 @@
     if (window.__authInitialized) return;
     window.__authInitialized = true;
 
-    function getToken() {
-        try { return localStorage.getItem("accessToken") || ""; } catch (e) { return ""; }
-    }
-
     /* ========== FETCH INTERCEPTOR ========== */
     (function () {
         var originalFetch = window.fetch;
         window.fetch = function () {
             var args = Array.prototype.slice.call(arguments);
-            var url = args[0];
             var options = args[1] || {};
-            var headers = new Headers(options.headers || {});
-            var token = getToken();
-            if (token && url.toString().indexOf("/api/") !== -1) {
-                headers.set("Authorization", "Bearer " + token);
-            }
-            if (!headers.has("Content-Type") && options.body) {
-                headers.set("Content-Type", "application/json");
-            }
-            options.headers = headers;
             options.credentials = options.credentials || "include";
             args[1] = options;
             return originalFetch.apply(this, args).then(function (response) {
                 if (response.status === 401) {
-                    response.clone().text().then(function (text) {
-                        try {
-                            var data = JSON.parse(text);
-                            if (data && (data.message === "Authentication required" || data.Message === "Authentication required")) {
-                                console.warn("Session expired (401), redirecting to login");
-                                try { localStorage.clear(); } catch (e) { }
-                                if (window.location.pathname.toLowerCase() !== "/login") {
-                                    window.location.href = "/Login";
-                                }
-                            }
-                        } catch (e) { }
-                    }).catch(function () { });
+                    console.warn("API returned 401 (unauthorized). Check authentication.");
+                    // 不要自动重定向 - 让服务器 [Authorize] 处理页面级重定向
+                    // 只会影响到 API 调用的错误处理
                 }
                 return response;
             });
         };
     })();
 
-    /* ========== JQUERY AJAX SETUP (runs when jQuery available) ========== */
+    /* ========== JQUERY AJAX SETUP ========== */
     function setupJQueryAuth() {
         if (typeof jQuery === "undefined") return;
         var $ = jQuery;
 
         $.ajaxSetup({
-            beforeSend: function (xhr, settings) {
-                var token = getToken();
-                if (token) {
-                    xhr.setRequestHeader("Authorization", "Bearer " + token);
-                }
-            }
+            xhrFields: { withCredentials: true }
         });
 
         $(document).ajaxError(function (event, xhr, settings, thrownError) {
             if (xhr.status === 0 || thrownError === "abort") return;
             if (xhr.status === 401) {
-                console.warn("Session expired (401), redirecting to login");
-                try { localStorage.clear(); } catch (e) { }
-                if (window.location.pathname.toLowerCase() !== "/login") {
-                    window.location.href = "/Login";
-                }
+                console.warn("API returned 401 (unauthorized). Check authentication.");
+                // 不要自动重定向 - 让服务器处理
                 return;
             }
             if (xhr.status === 403) {
@@ -135,51 +104,21 @@
         if (overlay) overlay.style.display = "none";
     };
 
-    window.APP.getAuthHeaders = function () {
-        return {
-            "Authorization": "Bearer " + getToken(),
-            "Content-Type": "application/json"
-        };
-    };
-
     window.APP.getAuthFetch = function (url, options) {
         options = options || {};
-        options.headers = Object.assign({}, this.getAuthHeaders(), options.headers || {});
         options.credentials = options.credentials || "include";
         return fetch(url, options);
     };
 
-    window.APP.userId = (function () { try { return localStorage.getItem("userId") || ""; } catch (e) { return ""; } })();
-    window.APP.userName = (function () { try { return localStorage.getItem("userName") || ""; } catch (e) { return ""; } })();
-    window.APP.companies = (function () { try { return JSON.parse(localStorage.getItem("companies") || "[]"); } catch (e) { return []; } })();
-
-    /* ========== TOKEN CHECK ON PAGE LOAD ========== */
-    (function () {
-        var token = getToken();
-        var userId = window.APP.userId;
-        var currentPath = window.location.pathname.toLowerCase();
-        if (!token || !userId) {
-            if (!currentPath.includes("/login")) {
-                console.log("No auth token found, redirecting to login");
-                try { localStorage.clear(); } catch (e) { }
-                window.location.href = "/Login";
-            }
-            return;
-        }
-    })();
-
     /* ========== INIT ========== */
-    // Setup jQuery now if already loaded
     setupJQueryAuth();
 
-    // Also setup when DOM ready (covers cases where jQuery loads after this script)
     if (typeof document !== "undefined") {
         document.addEventListener("DOMContentLoaded", function () {
             setupJQueryAuth();
         });
     }
 
-    // Poll briefly in case jQuery loads shortly after
     (function pollJQuery() {
         if (typeof jQuery !== "undefined") {
             setupJQueryAuth();

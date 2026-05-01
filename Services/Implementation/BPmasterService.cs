@@ -189,13 +189,41 @@ namespace JSAPNEW.Services.Implementation
                 throw new ArgumentException($"Invalid company ID: {company}");
             using (var connection = new HanaConnection(settings.ConnectionString))
             {
-                var query = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBSNAME\"()";
+                try
+                {
+                    // Try BPGETDISTINCTBSNAME first, fallback to BPGETDISTINCTSLPNAME if not found
+                    var proceduresToTry = new[] { "BPGETDISTINCTBSNAME", "BPGETDISTINCTSLPNAME" };
+                    IEnumerable<SLPnameModel> result = null;
 
-                var result = await connection.QueryAsync<SLPnameModel>(
-                     query
-                 );
+                    foreach (var procName in proceduresToTry)
+                    {
+                        try
+                        {
+                            var query = $"CALL \"{settings.Schema}\".\"{procName}\"()";
+                            result = await connection.QueryAsync<SLPnameModel>(query);
+                            break; // Success, exit loop
+                        }
+                        catch (HanaException ex) when (ex.ErrorCode == -104 || ex.Message.Contains("not found"))
+                        {
+                            // Procedure not found, try next one
+                            continue;
+                        }
+                    }
 
-                return result;
+                    if (result == null)
+                    {
+                        // Return empty list instead of crashing
+                        return Enumerable.Empty<SLPnameModel>();
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    // Log error and return empty list to prevent 500 error on page load
+                    Console.WriteLine($"Error in GetSLPnameAsync: {ex.Message}");
+                    return Enumerable.Empty<SLPnameModel>();
+                }
             }
         }
         public async Task<IEnumerable<ChainModel>> GetChainAsync(int company, string BPType, string IsStaff)

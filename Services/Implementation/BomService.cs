@@ -24,13 +24,13 @@ namespace JSAPNEW.Services.Implementation
         private readonly IUserService _userService;
         private readonly IBom2Service _bom2Service;
         private readonly string _sapBaseUrl;
-        public BomService(IConfiguration configuration, Interfaces.ITokenService tokenService, IWebHostEnvironment hostingEnvironment, IBom2Service bom2Service, INotificationService notificationService, IUserService userService)
+        public BomService(IConfiguration configuration, IWebHostEnvironment hostingEnvironment, IBom2Service bom2Service, INotificationService notificationService, IUserService userService)
         {
             _configuration = configuration;
             _connectionString = _configuration.GetConnectionString("DefaultConnection");
             var activeEnv = configuration["ActiveEnvironment"];  // "Test" or "Live"
             _hanaSettings = configuration.GetSection($"HanaSettings:{activeEnv}")
-                                         .Get<Dictionary<int, HanaCompanySettings>>();
+                                             .Get<Dictionary<int, HanaCompanySettings>>();
             _hostingEnvironment = hostingEnvironment;
             _notificationService = notificationService;
             _userService = userService;

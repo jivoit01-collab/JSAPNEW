@@ -15,7 +15,7 @@ namespace JSAPNEW.Services.Implementation
         private readonly string _connectionString;
         private readonly INotificationService _notificationService;
 
-        public Auth2Service(IConfiguration configuration, Interfaces.ITokenService tokenService, INotificationService notificationService)
+        public Auth2Service(IConfiguration configuration, INotificationService notificationService)
         {
             _configuration = configuration;
             _connectionString = _configuration.GetConnectionString("DefaultConnection");

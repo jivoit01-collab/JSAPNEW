@@ -25,10 +25,9 @@ namespace JSAPNEW.Services.Implementation
         private readonly INotificationService _notificationService;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IConfiguration configuration, Interfaces.ITokenService tokenService, INotificationService notificationService, ILogger<UserService> logger)
+        public UserService(IConfiguration configuration, INotificationService notificationService, ILogger<UserService> logger)
         {
             _configuration = configuration;
-            // _tokenService = tokenService;
             _connectionString = _configuration.GetConnectionString("DefaultConnection");
             _notificationService = notificationService;
             _logger = logger;
