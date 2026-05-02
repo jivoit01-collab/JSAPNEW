@@ -70,6 +70,29 @@ namespace JSAPNEW.Services.Implementation
                 _ => throw new ArgumentException("Invalid company ID (only 1, 2, and 3 are allowed).")
             };
         }
+
+        private static (object? Variety, object? SubGroup) MapToDb(string? uiVariety, string? uiSubGroup)
+        {
+            return (uiSubGroup, uiVariety);
+        }
+
+        private static void MapFromDb(dynamic item)
+        {
+            var dbVariety = item.Variety;
+            item.Variety = item.SubGroup;
+            item.SubGroup = dbVariety;
+        }
+
+        private static IEnumerable<T> MapFromDb<T>(IEnumerable<T> items)
+        {
+            var materialized = items.ToList();
+            foreach (var item in materialized)
+            {
+                MapFromDb((dynamic)item!);
+            }
+            return materialized;
+        }
+
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
         {
             if (!_hanaSettings.TryGetValue(company, out var settings))
@@ -613,7 +636,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                return result;
+                return MapFromDb(result);
             }
         }
         public async Task<IEnumerable<ItemFullDetailModel>> GetFullItemDetailsAsync(int itemId)
@@ -629,7 +652,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                return result;
+                return MapFromDb(result);
             }
         }
 
@@ -646,7 +669,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                return result;
+                return MapFromDb(result);
             }
         }
 
@@ -663,7 +686,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                return result;
+                return MapFromDb(result);
             }
         }
 
@@ -696,6 +719,7 @@ namespace JSAPNEW.Services.Implementation
                 {
                     CommandType = CommandType.StoredProcedure
                 };
+                var dbInit = MapToDb(request.Variety, request.SubGroup);
 
                 cmd.Parameters.AddWithValue("@userId", request.UserId);
                 cmd.Parameters.AddWithValue("@company", request.Company);
@@ -707,8 +731,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@variety", (object?)request.SubGroup ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@subGroup", (object?)request.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@variety", dbInit.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", dbInit.SubGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -863,6 +887,7 @@ namespace JSAPNEW.Services.Implementation
                 {
                     CommandType = CommandType.StoredProcedure
                 };
+                var dbInit = MapToDb(request.Variety, request.SubGroup);
 
                 cmd.Parameters.AddWithValue("@id", request.Id);
                 cmd.Parameters.AddWithValue("@company", (object?)request.Company ?? DBNull.Value);
@@ -874,8 +899,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@variety", (object?)request.SubGroup ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@subGroup", (object?)request.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@variety", dbInit.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", dbInit.SubGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -1012,19 +1037,19 @@ namespace JSAPNEW.Services.Implementation
                 // Add status and filter out records with bomId == 0 or null
                 var allItems = new List<MergedItemModel>();
 
-                foreach (var Items in pendingItems)
+                foreach (var Items in MapFromDb(pendingItems))
                 {
                     Items.Status = "Pending";
                     allItems.Add(Items);
                 }
 
-                foreach (var Items in approvedItems)
+                foreach (var Items in MapFromDb(approvedItems))
                 {
                     Items.Status = "Approved";
                     allItems.Add(Items);
                 }
 
-                foreach (var Items in rejectedItems)
+                foreach (var Items in MapFromDb(rejectedItems))
                 {
                     Items.Status = "Rejected";
                     allItems.Add(Items);
@@ -1134,6 +1159,7 @@ namespace JSAPNEW.Services.Implementation
                 using (var cmd = new SqlCommand("[imc].[jsInsertFullItemData]", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
+                    var dbInit = MapToDb(model.Variety, model.SubGroup);
 
                     // Input Parameters
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
@@ -1146,8 +1172,8 @@ namespace JSAPNEW.Services.Implementation
                         ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@unit", (object?)model.Unit ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@brand", (object?)model.Brand ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@variety", (object?)model.SubGroup ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@subGroup", (object?)model.Variety ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@variety", dbInit.Variety ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@subGroup", dbInit.SubGroup ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@sku", (object?)model.Sku ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@isLitre", (object?)model.IsLitre ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Litre", (object?)model.Litre ?? DBNull.Value);
@@ -1376,7 +1402,7 @@ namespace JSAPNEW.Services.Implementation
                     parameters,
                     commandType: CommandType.StoredProcedure
                 );
-                return result.ToList();
+                return MapFromDb(result).ToList();
             }
         }
 
@@ -1614,8 +1640,8 @@ namespace JSAPNEW.Services.Implementation
                     ChapterID = int.TryParse(first.ChapterId, out int chapterId) ? chapterId : 0,
                     U_Unit = first.Unit,
                     U_Brand = first.Brand,
-                    U_Sub_Group = first.SubGroup,
-                    U_Variety = first.Variety,
+                    U_Sub_Group = first.Variety,
+                    U_Variety = first.SubGroup,
                     U_SKU = first.Sku,
                     U_IsLitre = first.IsLitre,
                     U_Gross_Weight = first.GrossWeight,
@@ -2860,10 +2886,11 @@ namespace JSAPNEW.Services.Implementation
             var sqlQuery = "EXEC [imc].[jsGetItemByUserId] @userId,@company,@month";
             using (var connection = new SqlConnection(_connectionString))
             {
-                return await connection.QueryAsync<GetItemByIdModel>(
+                var result = await connection.QueryAsync<GetItemByIdModel>(
                     sqlQuery,
                     new { userId, company, month } // Parameters for the stored procedure
                 );
+                return MapFromDb(result);
             }
         }
 
