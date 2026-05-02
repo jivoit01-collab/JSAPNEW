@@ -707,8 +707,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@variety", (object?)request.Variety ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@subGroup", (object?)request.SubGroup ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@variety", (object?)request.SubGroup ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", (object?)request.Variety ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -874,8 +874,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@variety", (object?)request.Variety ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@subGroup", (object?)request.SubGroup ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@variety", (object?)request.SubGroup ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", (object?)request.Variety ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -1146,8 +1146,8 @@ namespace JSAPNEW.Services.Implementation
                         ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@unit", (object?)model.Unit ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@brand", (object?)model.Brand ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@variety", (object?)model.Variety ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@subGroup", (object?)model.SubGroup ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@variety", (object?)model.SubGroup ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@subGroup", (object?)model.Variety ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@sku", (object?)model.Sku ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@isLitre", (object?)model.IsLitre ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Litre", (object?)model.Litre ?? DBNull.Value);
