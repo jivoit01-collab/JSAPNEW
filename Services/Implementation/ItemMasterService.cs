@@ -431,7 +431,8 @@ namespace JSAPNEW.Services.Implementation
                     var sapStatuses  = new List<string>();
                     var martStatuses = new List<string>();
 
-                    // ── Step 1: Check if this is the last approval stage (pending items exist) ──
+                    // ── Step 1: Check if this is the last approval stage ──
+                    bool isFinalApprovalStage = await IsItemLastStageAsync(request.itemId);
                     List<PendingItemApiInsertionsModel> pendingItems = null;
                     for (int i = 0; i < 3; i++)
                     {
@@ -441,10 +442,23 @@ namespace JSAPNEW.Services.Implementation
                         await Task.Delay(1000);
                     }
 
-                    bool isLastStage = pendingItems != null && pendingItems.Count > 0;
+                    bool hasSapPayload = pendingItems != null && pendingItems.Count > 0;
+                    bool isLastStage = isFinalApprovalStage || hasSapPayload;
+
+                    if (isFinalApprovalStage && !hasSapPayload)
+                    {
+                        return new ItemMasterModel
+                        {
+                            Success        = false,
+                            Message        = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}. Please check [imc].[jsGetPendingItemApiInsertions].",
+                            ApprovalStatus = "Blocked",
+                            SapStatus      = "Failed: SAP payload not found",
+                            MartStatus     = "Skipped"
+                        };
+                    }
 
                     // ── Step 2: If last stage, POST to SAP FIRST before approving ──
-                    if (isLastStage)
+                    if (hasSapPayload)
                     {
                         Console.WriteLine($"[INFO] Last approval stage for FlowId: {request.itemId}. Posting to SAP before approving...");
                         Console.WriteLine($"[INFO] {pendingItems.Count} pending item(s) fetched for FlowId: {request.itemId}");
@@ -452,7 +466,7 @@ namespace JSAPNEW.Services.Implementation
                         var apiResults = await PostItemsToSAPAsync(pendingItems);
 
                         // Collect SAP and MART statuses from results
-                        bool allSapSuccess = true;
+                        bool allSapSuccess = apiResults != null && apiResults.Count > 0;
                         var sapErrors = new List<string>();
 
                         foreach (var r in apiResults)
@@ -471,7 +485,9 @@ namespace JSAPNEW.Services.Implementation
                         // ── If SAP creation failed, DO NOT approve — return exact error to frontend ──
                         if (!allSapSuccess)
                         {
-                            string errorDetail = string.Join("; ", sapErrors);
+                            string errorDetail = sapErrors.Count > 0
+                                ? string.Join("; ", sapErrors)
+                                : "SAP creation failed: no response returned from SAP posting flow.";
                             Console.WriteLine($"[ERROR] SAP creation failed for FlowId: {request.itemId}. Approval blocked. Errors: {errorDetail}");
 
                             return new ItemMasterModel
@@ -484,7 +500,7 @@ namespace JSAPNEW.Services.Implementation
                             };
                         }
 
-                        resultMessages.Add("SAP item created successfully");
+                        resultMessages.Add(string.Join("; ", apiResults.Select(r => r.Message).Where(m => !string.IsNullOrWhiteSpace(m))));
                     }
 
                     // ── Step 3: SAP succeeded (or intermediate stage) — now approve in DB ──
@@ -500,7 +516,7 @@ namespace JSAPNEW.Services.Implementation
                         approvalStatus = "Done";
                         resultMessages.Add(result?.ToString() ?? $"Approved Document of FlowId {request.itemId}");
 
-                        if (isLastStage)
+                        if (hasSapPayload)
                             resultMessages.Add("API Triggered after final approval");
                     }
 
@@ -596,6 +612,18 @@ namespace JSAPNEW.Services.Implementation
                 // WaitAsync; removing it here would let a future GetOrAdd create a fresh lock,
                 // defeating mutual exclusion. Memory cost is bounded by the active FlowId set.
             }
+        }
+
+
+        private async Task<bool> IsItemLastStageAsync(int flowId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "EXEC [imc].[jsGetItemCurrentStage] @flowId",
+                new { flowId }
+            );
+
+            return result != null && Convert.ToBoolean(result.isLastStage);
         }
 
 
@@ -1831,7 +1859,7 @@ namespace JSAPNEW.Services.Implementation
                         IsSuccess = false,
                         Message = errMsg
                     });
-                    await UpdateItemApiStatusAsync(first.InitId, errMsg, false.ToString());
+                    await UpdateItemApiStatusAsync(first.InitId, errMsg, "N");
                 }
                 }
                 finally
