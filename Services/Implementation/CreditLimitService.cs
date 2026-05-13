@@ -699,7 +699,7 @@ namespace JSAPNEW.Services.Implementation
                     fileName = fileNameWithoutExt,
                     fileExt = cleanExt
                 },
-                    protocol: "https"
+                    protocol: "http"
                 );
             }
 

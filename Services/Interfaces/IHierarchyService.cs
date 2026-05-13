@@ -124,6 +124,7 @@ namespace JSAPNEW.Services
         #region Full Employee Edit
 
         Task<HierarchyApiResponse<bool>> UpdateEmployeeFullAsync(UpdateEmployeeFullRequest request, int updatedBy);
+        Task<HierarchyApiResponse<bool>> SyncHodDepartmentsAsync(SyncHodDepartmentsRequest request, int updatedBy);
         Task<DepartmentChangeImpactDto> GetDepartmentChangeImpactAsync(DepartmentChangeImpactRequest request);
         Task<HierarchyApiResponse<BulkAssignTeamResult>> BulkAssignTeamAsync(BulkAssignTeamRequest request, int updatedBy);
         Task<List<EmployeeDropdownDto>> GetActiveHODsAsync();
@@ -161,6 +162,7 @@ namespace JSAPNEW.Services
         Task<HierarchyApiResponse<int>> AddCustomFieldAsync(AddCustomFieldRequest request, int createdBy);
         Task<HierarchyApiResponse<bool>> RemoveCustomFieldAsync(int fieldId);
         Task<List<EmployeeCustomValueDto>> GetEmployeeCustomValuesAsync(int? employeeId = null);
+        Task<EmployeeModalExtrasDto?> GetEmployeeModalExtrasAsync(int employeeId);
         Task<HierarchyApiResponse<bool>> SetEmployeeCustomValueAsync(SetCustomValueRequest request);
 
         #endregion

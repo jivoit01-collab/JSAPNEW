@@ -91,6 +91,12 @@
         color: #0f172a;
     }
 
+    .eh-btn.secondary.filter-active {
+        background: #123f6d;
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(18, 63, 109, .18);
+    }
+
     .eh-btn.danger {
         background: #fee2e2;
         color: #991b1b;
@@ -530,13 +536,9 @@
                     Unlock Salary
                 </button>
             }
-            @if (canManageAdminKey)
-            {
-                <button type="button" class="eh-btn" id="dbCredEhBtn" onclick="openDbCredentialEditor()" style="background:#7c3aed;font-size:13px">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
-                    DB Credentials
-                </button>
-            }
+            <button type="button" class="eh-btn secondary" id="sikhOnlyBtn" onclick="toggleSikhOnly()" title="Show only Sikh employees">
+                Sikh Only
+            </button>
         </div>
     </div>
 
@@ -727,6 +729,7 @@
     let filteredEmployees = [];
     let employeeCurrentPage = @pageNumber;
     let currentSalaryMap = {};
+    let showSikhOnly = false;
 
     function ensureSingleEditModalInstance() {
         const modalIds = [
@@ -861,8 +864,14 @@
         const subDepartmentId = toInt(pick(firstReport, ['subDepartmentId', 'SubDepartmentId'], null));
         const managerId = toInt(pick(firstReport, ['managerId', 'ManagerId'], null));
         const roleName = getRoleName(employee) || (roleTypeId === 1 ? 'HOD' : roleTypeId === 2 ? 'Sub-HOD' : 'Executive');
-        const baseDepartmentName = getDepartmentName(employee) || pick(firstReport, ['departmentName', 'DepartmentName'], '') || '';
-        const subDepartmentName = getSubDepartmentName(employee) || pick(firstReport, ['subDepartmentName', 'SubDepartmentName'], '') || '';
+        const baseDepartmentName = getDepartmentName(employee)
+            || pick(firstReport, ['departmentName', 'DepartmentName'], '')
+            || getDepartmentNameById(departmentId)
+            || '';
+        const subDepartmentName = getSubDepartmentName(employee)
+            || pick(firstReport, ['subDepartmentName', 'SubDepartmentName'], '')
+            || getSubDepartmentNameById(departmentId, subDepartmentId)
+            || '';
         const departmentName = roleTypeId === 1
             ? await getHodDepartmentsText(getEmployeeId(employee), baseDepartmentName)
             : baseDepartmentName;
@@ -1005,6 +1014,38 @@
     function getEmail(employee) { return pick(employee, ['email', 'Email'], ''); }
     function getPhone(employee) { return pick(employee, ['phone', 'Phone'], ''); }
     function isActiveEmployee(employee) { return Boolean(pick(employee, ['isActive', 'IsActive'], false)); }
+    function getSikhNonSikh(employee) { return pick(employee, ['sikhNonSikh', 'SikhNonSikh'], ''); }
+
+    function getDepartmentNameById(departmentId) {
+        if (!departmentId) return '';
+        const department = departments.find(item =>
+            String(pick(item, ['departmentId', 'DepartmentId'], '')) === String(departmentId)
+        );
+        return department ? pick(department, ['departmentName', 'DepartmentName'], '') : '';
+    }
+
+    function getSubDepartmentNameById(departmentId, subDepartmentId) {
+        if (!subDepartmentId) return '';
+        const department = departments.find(item =>
+            !departmentId || String(pick(item, ['departmentId', 'DepartmentId'], '')) === String(departmentId)
+        );
+        const subDepartments = department
+            ? pick(department, ['subDepartments', 'SubDepartments'], [])
+            : departments.flatMap(item => pick(item, ['subDepartments', 'SubDepartments'], []));
+        const subDepartment = (subDepartments || []).find(item =>
+            String(pick(item, ['subDepartmentId', 'SubDepartmentId'], '')) === String(subDepartmentId)
+        );
+        return subDepartment ? pick(subDepartment, ['subDepartmentName', 'SubDepartmentName'], '') : '';
+    }
+
+    function isSikhEmployee(employee) {
+        const compact = normalizeText(getSikhNonSikh(employee)).replace(/[\s/_-]+/g, '');
+        return compact === 'sikh'
+            || compact === 'yes'
+            || compact === 'true'
+            || compact === '1'
+            || (compact.startsWith('sikh') && !compact.startsWith('nonsikh'));
+    }
 
     function getEmployeeSearchBlob(employee) {
         return normalizeText([
@@ -1021,10 +1062,29 @@
 
     function getFilteredEmployees() {
         const term = normalizeText(document.getElementById('employeeOmniSearch')?.value);
-        if (!term) {
-            return [...allEmployees];
+        let items = [...allEmployees];
+        if (showSikhOnly) {
+            items = items.filter(isSikhEmployee);
         }
-        return allEmployees.filter(employee => getEmployeeSearchBlob(employee).includes(term));
+        if (!term) {
+            return items;
+        }
+        return items.filter(employee => getEmployeeSearchBlob(employee).includes(term));
+    }
+
+    function syncSikhOnlyButton() {
+        const button = document.getElementById('sikhOnlyBtn');
+        if (!button) return;
+        button.classList.toggle('filter-active', showSikhOnly);
+        button.setAttribute('aria-pressed', showSikhOnly ? 'true' : 'false');
+        button.textContent = showSikhOnly ? 'Sikh Only On' : 'Sikh Only';
+    }
+
+    function toggleSikhOnly() {
+        showSikhOnly = !showSikhOnly;
+        employeeCurrentPage = 1;
+        syncSikhOnlyButton();
+        renderEmployeeTable();
     }
 
     function updateEmployeeTableMeta(totalRecords, totalPages) {
@@ -1061,7 +1121,8 @@
         updateEmployeeTableMeta(filteredEmployees.length, totalPages);
 
         if (!pageItems.length) {
-            tbody.innerHTML = `<tr><td colspan="${canManageEmployeeHierarchy ? 7 : 6}"><div class="eh-empty">No employees found.</div></td></tr>`;
+            const emptyMessage = showSikhOnly ? 'No Sikh employees found.' : 'No employees found.';
+            tbody.innerHTML = `<tr><td colspan="${canManageEmployeeHierarchy ? 7 : 6}"><div class="eh-empty">${emptyMessage}</div></td></tr>`;
             renderEmployeePagination(totalPages);
             return;
         }
@@ -1160,8 +1221,11 @@
         const departmentText = document.getElementById('editDepartmentText');
         const subDepartmentText = document.getElementById('editSubDepartmentText');
 
-        if (departmentViewRow) departmentViewRow.style.display = resolvedRoleTypeId === 1 ? '' : 'none';
-        if (subDepartmentViewRow) subDepartmentViewRow.style.display = resolvedRoleTypeId === 2 ? '' : 'none';
+        const showDepartment = resolvedRoleTypeId === 1 || resolvedRoleTypeId === 2 || resolvedRoleTypeId === 3;
+        const showSubDepartment = resolvedRoleTypeId === 2 || resolvedRoleTypeId === 3;
+
+        if (departmentViewRow) departmentViewRow.style.display = showDepartment ? '' : 'none';
+        if (subDepartmentViewRow) subDepartmentViewRow.style.display = showSubDepartment ? '' : 'none';
         if (departmentLabel) departmentLabel.textContent = 'Department';
         if (departmentText) departmentText.value = departmentName || '-';
         if (subDepartmentText) subDepartmentText.value = subDepartmentName || '-';
@@ -1204,6 +1268,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         ensureSingleEditModalInstance();
+        syncSikhOnlyButton();
         const searchInput = document.getElementById('employeeOmniSearch');
         if (searchInput) {
             searchInput.addEventListener('input', () => {
@@ -1218,9 +1283,6 @@
     // ADMIN KEY MODAL
     // ══════════════════════════════════════════════════════
     let _ehAkKeyExists = false;
-    let _ehUnlockAdminKeyForCreds = '';
-    let _ehUnlockMode = 'salary';
-    let _ehDbCredRequirePassword = true;
 
     function validateAdminKeyFormat(value) {
         return value
@@ -1420,188 +1482,57 @@
     }
 
     // ══════════════════════════════════════════════════════
-    // UNLOCK SALARY — Step 1: Admin Key
+    // UNLOCK SALARY — Tankha Payee API
     // ══════════════════════════════════════════════════════
-    async function openUnlockSalaryModal(mode) {
-        _ehUnlockMode = mode || 'salary';
-        document.getElementById('ehUnlockAdminKey').value = '';
-        document.getElementById('ehUnlockErr').style.display = 'none';
-        document.getElementById('ehUnlockTitle').textContent = _ehUnlockMode === 'credentials' ? 'Edit DB Credentials' : 'Unlock Salary';
-        document.getElementById('ehUnlockDescription').textContent = _ehUnlockMode === 'credentials'
-            ? 'Enter the admin key to edit salary database credentials.'
-            : 'Enter the admin key to unlock salary view.';
-        document.getElementById('ehUnlockModal').classList.add('open');
-        setTimeout(() => document.getElementById('ehUnlockAdminKey').focus(), 100);
-    }
-
-    function openDbCredentialEditor() {
-        openUnlockSalaryModal('credentials');
+    function openUnlockSalaryModal() {
+        document.getElementById('ehTankhaUsername').value = '';
+        document.getElementById('ehTankhaPassword').value = '';
+        document.getElementById('ehTankhaAction').value = 'belowfourtyemployee';
+        document.getElementById('ehTankhaErr').style.display = 'none';
+        document.getElementById('ehTankhaModal').classList.add('open');
+        setTimeout(() => document.getElementById('ehTankhaUsername').focus(), 100);
     }
 
     function closeUnlockSalaryModal() {
-        document.getElementById('ehUnlockModal').classList.remove('open');
+        document.getElementById('ehTankhaPassword').value = '';
+        document.getElementById('ehTankhaModal').classList.remove('open');
     }
 
-    async function submitUnlockSalary() {
-        const adminKey = document.getElementById('ehUnlockAdminKey').value;
-        const errEl    = document.getElementById('ehUnlockErr');
-        errEl.style.display = 'none';
-
-        if (!adminKey) { errEl.textContent = 'Enter the admin key'; errEl.style.display = 'block'; return; }
-
-        const btn = document.getElementById('ehUnlockSubmitBtn');
-        btn.disabled = true; btn.textContent = 'Verifying…';
-
-        try {
-            const res  = await fetch(`${apiBase}/VerifyAdminKey`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey })
-            });
-            const data = await res.json();
-            if (data.success) {
-                _ehUnlockAdminKeyForCreds = adminKey;
-                closeUnlockSalaryModal();
-                openDbCredModal(_ehUnlockMode !== 'credentials');          // Step 2 — DB password, or credential editor only
-            } else {
-                errEl.textContent = data.message || 'Admin key is incorrect';
-                errEl.style.display = 'block';
-            }
-        } catch(e) {
-            errEl.textContent = 'Network error'; errEl.style.display = 'block';
-        } finally {
-            btn.disabled = false; btn.textContent = 'Verify';
-        }
-    }
-
-    // ══════════════════════════════════════════════════════
-    // UNLOCK SALARY — Step 2: Live DB Credentials
-    // Password is NEVER stored anywhere — used once and gone.
-    // ══════════════════════════════════════════════════════
-    async function openDbCredModal(requirePassword) {
-        _ehDbCredRequirePassword = requirePassword !== false;
-        document.getElementById('ehDbPassword').value = '';
-        document.getElementById('ehDbCredErr').style.display = 'none';
-        document.getElementById('ehDbCredModal').classList.add('open');
-        document.getElementById('ehDbCredTitle').textContent = _ehDbCredRequirePassword ? 'Database Authentication' : 'Database Credentials';
-        document.getElementById('ehDbCredIntro').textContent = _ehDbCredRequirePassword
-            ? 'Review or edit the salary database values, then enter the database password to retrieve salary data. The password is never stored or logged.'
-            : 'Edit the salary database server, database, and user id. The database password is not stored here.';
-        document.getElementById('ehDbPasswordWrap').style.display = _ehDbCredRequirePassword ? '' : 'none';
-        document.getElementById('ehDbCredSubmitBtn').style.display = _ehDbCredRequirePassword ? '' : 'none';
-
-        try {
-            const res = await fetch(`${apiBase}/GetSalaryDbCredentials?adminKey=${encodeURIComponent(_ehUnlockAdminKeyForCreds)}`);
-            const data = await res.json();
-            if (!data.success) {
-                setDbCredError(data.message || 'Could not load database values.');
-                return;
-            }
-
-            const creds = data.data ?? data.Data ?? {};
-            document.getElementById('ehDbServerName').value = creds.serverName ?? creds.ServerName ?? '';
-            document.getElementById('ehDbDatabaseName').value = creds.databaseName ?? creds.DatabaseName ?? '';
-            document.getElementById('ehDbUserId').value = creds.dbUserId ?? creds.DbUserId ?? '';
-        } catch(e) {
-            setDbCredError('Could not load database values.');
-        }
-
-        setTimeout(() => document.getElementById(_ehDbCredRequirePassword ? 'ehDbPassword' : 'ehDbServerName').focus(), 100);
-    }
-
-    function closeDbCredModal() {
-        // Overwrite field value before closing
-        document.getElementById('ehDbPassword').value = '';
-        document.getElementById('ehDbCredModal').classList.remove('open');
-    }
-
-    function setDbCredError(message) {
-        const errEl = document.getElementById('ehDbCredErr');
-        errEl.textContent = message || '';
-        errEl.style.display = message ? 'block' : 'none';
-    }
-
-    async function saveSalaryDbCredentials(showAlert) {
-        const serverName = document.getElementById('ehDbServerName').value.trim();
-        const databaseName = document.getElementById('ehDbDatabaseName').value.trim();
-        const dbUserId = document.getElementById('ehDbUserId').value.trim();
-
-        if (!serverName || !databaseName || !dbUserId) {
-            setDbCredError('Server, database, and user id are required.');
-            return false;
-        }
-
-        const btn = document.getElementById('ehDbCredSaveBtn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-
-        try {
-            const res = await fetch(`${apiBase}/UpdateSalaryDbCredentials`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    adminKey: _ehUnlockAdminKeyForCreds,
-                    serverName,
-                    databaseName,
-                    dbUserId
-                })
-            });
-            const data = await res.json();
-            if (!data.success) {
-                setDbCredError(data.message || 'Could not save database values.');
-                return false;
-            }
-            setDbCredError('');
-            if (showAlert) alert(data.message || 'Database values saved.');
-            return true;
-        } catch(e) {
-            setDbCredError('Network error while saving database values.');
-            return false;
-        } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Save Database Values'; }
-        }
-    }
-
-    async function submitDbCreds() {
-        if (!_ehDbCredRequirePassword) {
-            const saved = await saveSalaryDbCredentials(false);
-            if (saved) closeDbCredModal();
-            return;
-        }
-
-        const pwdField = document.getElementById('ehDbPassword');
+    async function submitTankhaFetch() {
+        const username = document.getElementById('ehTankhaUsername').value.trim();
+        const pwdField = document.getElementById('ehTankhaPassword');
         const pwd      = pwdField.value;
-        const errEl    = document.getElementById('ehDbCredErr');
+        const action   = document.getElementById('ehTankhaAction').value;
+        const errEl    = document.getElementById('ehTankhaErr');
         errEl.style.display = 'none';
 
-        if (!pwd) { errEl.textContent = 'Enter the database password'; errEl.style.display = 'block'; return; }
+        if (!username) { errEl.textContent = 'Username is required'; errEl.style.display = 'block'; return; }
+        if (!pwd)      { errEl.textContent = 'Password is required';  errEl.style.display = 'block'; return; }
+        if (!action)   { errEl.textContent = 'Action is required';    errEl.style.display = 'block'; return; }
 
-        const btn = document.getElementById('ehDbCredSubmitBtn');
-        btn.disabled = true; btn.textContent = 'Connecting…';
+        const btn = document.getElementById('ehTankhaSubmitBtn');
+        btn.disabled = true; btn.textContent = 'Loading…';
 
         try {
-            const saved = await saveSalaryDbCredentials(false);
-            if (!saved) return;
-
             const res = await fetch(`${apiBase}/UnlockSalarySession`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dbPassword: pwd })
+                body: JSON.stringify({ username, password: pwd, action })
             });
-            // Clear field immediately after send — before even reading response
             pwdField.value = '';
 
             const data = await res.json();
             if (data.success) {
-                closeDbCredModal();
-                // Fetch salary data from session and inject into table
+                closeUnlockSalaryModal();
                 await loadAndShowSalary(data.expiresAt ?? data.ExpiresAt);
             } else {
-                errEl.textContent = data.message || 'Connection failed. Check your credentials.';
+                errEl.textContent = data.message || 'Failed. Check your credentials and try again.';
                 errEl.style.display = 'block';
             }
         } catch(e) {
             pwdField.value = '';
             errEl.textContent = 'Network error'; errEl.style.display = 'block';
         } finally {
-            btn.disabled = false; btn.textContent = 'Connect';
+            btn.disabled = false; btn.textContent = 'Load Salaries';
         }
     }
 
@@ -1731,74 +1662,34 @@
 </div>
 
 <!-- ══ UNLOCK SALARY MODAL ══ -->
-<div class="eh-modal" id="ehUnlockModal">
+<div class="eh-modal" id="ehTankhaModal">
     <div class="eh-modal-box" style="max-width:420px">
         <div class="eh-modal-title">
-            <span id="ehUnlockTitle">Unlock Salary</span>
+            <span>Unlock Salary</span>
             <button type="button" class="eh-btn danger small" onclick="closeUnlockSalaryModal()">Close</button>
         </div>
-        <p id="ehUnlockDescription" style="font-size:12px;color:#64748b;margin-bottom:16px">
-            Enter the admin key to unlock salary view.
+        <p style="font-size:12px;color:#64748b;margin-bottom:16px">
+            Enter your Tankha Payee portal credentials and select the employee category to load salary data.
         </p>
         <div style="margin-bottom:12px">
-            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Admin Key *</label>
-            <input type="password" class="eh-input" id="ehUnlockAdminKey" placeholder="Enter admin key" onkeydown="if(event.key==='Enter')submitUnlockSalary()" />
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Username *</label>
+            <input type="text" class="eh-input" id="ehTankhaUsername" placeholder="Enter username" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('ehTankhaPassword').focus()" />
         </div>
-        <div id="ehUnlockErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Password *</label>
+            <input type="password" class="eh-input" id="ehTankhaPassword" placeholder="Enter password" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('ehTankhaAction').focus()" />
+        </div>
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Action *</label>
+            <select class="eh-input" id="ehTankhaAction" onkeydown="if(event.key==='Enter')submitTankhaFetch()">
+                <option value="belowfourtyemployee">Below 40 Employees</option>
+                <option value="equalandabovefourty">Equal and Above 40 Employees</option>
+            </select>
+        </div>
+        <div id="ehTankhaErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
         <div class="eh-modal-actions">
             <button type="button" class="eh-btn secondary" onclick="closeUnlockSalaryModal()">Cancel</button>
-            <button type="button" class="eh-btn" id="ehUnlockSubmitBtn" onclick="submitUnlockSalary()" style="background:#b91c1c">Verify</button>
-        </div>
-    </div>
-</div>
-
-<!-- ══ DB CREDENTIALS MODAL ══ -->
-<div class="eh-modal" id="ehDbCredModal">
-    <div class="eh-modal-box" style="max-width:440px">
-        <div class="eh-modal-title">
-            <span id="ehDbCredTitle">Database Authentication</span>
-            <button type="button" class="eh-btn danger small" onclick="closeDbCredModal()">Close</button>
-        </div>
-        <p id="ehDbCredIntro" style="font-size:12px;color:#64748b;margin-bottom:16px">
-            Review or edit the salary database values, then enter the database password to retrieve salary data. The password is never stored or logged.
-        </p>
-        <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#475569">
-            <div style="margin-bottom:10px">
-                <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:5px">Server *</label>
-                <input type="text" class="eh-input" id="ehDbServerName" placeholder="Server name" autocomplete="off" />
-            </div>
-            <div style="margin-bottom:10px">
-                <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:5px">Database *</label>
-                <input type="text" class="eh-input" id="ehDbDatabaseName" placeholder="Database name" autocomplete="off" />
-            </div>
-            <div style="margin-bottom:10px">
-                <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:5px">User Id *</label>
-                <input type="text" class="eh-input" id="ehDbUserId" placeholder="Database user id" autocomplete="off" />
-            </div>
-            <button type="button" class="eh-btn secondary small" id="ehDbCredSaveBtn" onclick="saveSalaryDbCredentials(true)">Save Database Values</button>
-        </div>
-        <div id="ehDbPasswordWrap" style="margin-bottom:12px">
-            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Password *</label>
-            <input
-                type="password"
-                class="eh-input"
-                id="ehDbPassword"
-                placeholder="Enter database password"
-                autocomplete="new-password"
-                onpaste="return false"
-                oncopy="return false"
-                oncut="return false"
-                ondrop="return false"
-                oncontextmenu="return false"
-                onkeydown="if(event.key==='Enter')submitDbCreds()"
-                style="letter-spacing:0.2em"
-            />
-            <div style="font-size:11px;color:#94a3b8;margin-top:5px">Paste and copy are disabled. Type the password manually.</div>
-        </div>
-        <div id="ehDbCredErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
-        <div class="eh-modal-actions">
-            <button type="button" class="eh-btn secondary" onclick="closeDbCredModal()">Cancel</button>
-            <button type="button" class="eh-btn" id="ehDbCredSubmitBtn" onclick="submitDbCreds()" style="background:#b91c1c">Connect &amp; Load Salaries</button>
+            <button type="button" class="eh-btn" id="ehTankhaSubmitBtn" onclick="submitTankhaFetch()" style="background:#b91c1c">Load Salaries</button>
         </div>
     </div>
 </div>

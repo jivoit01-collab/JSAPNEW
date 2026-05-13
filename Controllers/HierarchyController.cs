@@ -399,7 +399,9 @@ WHERE EmployeeCode = @EmployeeCode",
                 if (!IsUserLoggedIn())
                     return Ok(new { Success = false, Message = "User not logged in" });
 
+                var userId = GetUserId()!.Value;
                 var userInfo = await GetUserInfoFromDatabaseAsync();
+                var canManageHierarchy = await HasHierarchyMasterPermissionAsync(userId);
 
                 var request = new EmployeeSearchRequest
                 {
@@ -411,7 +413,7 @@ WHERE EmployeeCode = @EmployeeCode",
                     PageSize = pageSize
                 };
 
-                var employees = await _hierarchyService.GetEmployeesAsync(request, userInfo.EmpId, userInfo.IsAdmin);
+                var employees = await _hierarchyService.GetEmployeesAsync(request, userInfo.EmpId, canManageHierarchy || userInfo.IsAdmin);
                 return Ok(new { Success = true, Data = employees });
             }
             catch (Exception ex)
@@ -944,6 +946,22 @@ WHERE EmployeeCode = @EmployeeCode",
             catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
         }
 
+        [HttpPost("SyncHODDepartments")]
+        public async Task<IActionResult> SyncHODDepartments([FromBody] SyncHodDepartmentsRequest request)
+        {
+            try
+            {
+                if (!IsUserLoggedIn()) return Ok(new { Success = false, Message = "Not logged in" });
+                if (!await HasHierarchyMasterPermissionAsync(GetUserId()!.Value)) return Ok(new { Success = false, Message = "Admin only" });
+                if (!ModelState.IsValid)
+                    return Ok(new { Success = false, Message = "Validation failed", Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
+
+                var result = await _hierarchyService.SyncHodDepartmentsAsync(request, GetUserId() ?? 0);
+                return Ok(new { Success = result.Success, Message = result.Message });
+            }
+            catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
+        }
+
         [HttpPost("GetDepartmentChangeImpact")]
         public async Task<IActionResult> GetDepartmentChangeImpact([FromBody] DepartmentChangeImpactRequest request)
         {
@@ -1250,9 +1268,9 @@ WHERE EmployeeCode = @EmployeeCode",
 
         /// <summary>
         /// POST /api/Hierarchy/UnlockSalarySession
-        /// Opens a read-only connection to the live DB using the user-supplied password,
-        /// loads hie.vw_employee_salary, stores ONLY the salary map (not the password)
-        /// in the server-side session for 30 minutes, then immediately discards the password.
+        /// Calls the Tankha Payee API with user-supplied credentials and action,
+        /// stores ONLY the resulting salary map in session for 30 minutes,
+        /// then immediately discards the credentials.
         /// </summary>
         [HttpPost("UnlockSalarySession")]
         public async Task<IActionResult> UnlockSalarySession([FromBody] UnlockSalaryRequest request)
@@ -1260,60 +1278,81 @@ WHERE EmployeeCode = @EmployeeCode",
             if (!IsUserLoggedIn())
                 return Ok(new { Success = false, Message = "Not logged in" });
 
-            if (string.IsNullOrWhiteSpace(request?.DbPassword))
-                return Ok(new { Success = false, Message = "Password is required" });
+            if (string.IsNullOrWhiteSpace(request?.Username) || string.IsNullOrWhiteSpace(request?.Password))
+                return Ok(new { Success = false, Message = "Username and password are required" });
+
+            if (string.IsNullOrWhiteSpace(request?.Action))
+                return Ok(new { Success = false, Message = "Action is required" });
+
+            var apiUrl = _configuration["TankhaPayeeApi:Url"];
+            if (string.IsNullOrWhiteSpace(apiUrl))
+                return Ok(new { Success = false, Message = "Tankha Payee API URL is not configured." });
 
             var userId = GetUserId() ?? 0;
             var currentEmployee = await GetCurrentHierarchyEmployeeAsync();
-
-            var credentials = await _hierarchyService.GetSalaryDbCredentialAsync();
-            if (credentials == null)
-                return Ok(new { Success = false, Message = "Salary database credentials are not configured." });
-
-            // Build connection string in a local variable - never passed to logs
-            string cs = new SqlConnectionStringBuilder
-            {
-                DataSource = credentials.ServerName,
-                InitialCatalog = credentials.DatabaseName,
-                UserID = credentials.DbUserId,
-                Password = request.DbPassword,
-                ApplicationIntent = ApplicationIntent.ReadOnly,
-                ConnectTimeout = 15,
-                Encrypt = SqlConnectionEncryptOption.Mandatory,
-                TrustServerCertificate = true
-            }.ConnectionString;
+            var action = request.Action;
 
             Dictionary<string, decimal> salaryMap;
             int count;
             try
             {
-                using var conn = new SqlConnection(cs);
-                await conn.OpenAsync();
-                var rows = await conn.QueryAsync<dynamic>(
-                    "SELECT EmployeeCode, Salary FROM [hie].[vw_employee_salary]");
-                salaryMap = rows
-                    .Where(r => r.EmployeeCode != null)
-                    .GroupBy(r => (string)r.EmployeeCode)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => (decimal)(g.First().Salary ?? 0m));
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{request.Username}:{request.Password}"));
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encoded);
+
+                // Discard credentials immediately after building the header
+                request.Username = null;
+                request.Password = null;
+
+                var body = System.Text.Json.JsonSerializer.Serialize(new { action });
+                var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+                var response = await client.PostAsync(apiUrl, content);
+
+                if (!response.IsSuccessStatusCode)
+                    return Ok(new { Success = false, Message = $"API returned status {(int)response.StatusCode}." });
+
+                var json = await response.Content.ReadAsStringAsync();
+                var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                // Response may be a root array or wrapped in a data/Data property
+                System.Text.Json.JsonElement arr;
+                if (root.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    arr = root;
+                else if (root.TryGetProperty("data", out var d) && d.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    arr = d;
+                else if (root.TryGetProperty("Data", out var d2) && d2.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    arr = d2;
+                else
+                    return Ok(new { Success = false, Message = "Unexpected response format from Tankha Payee API." });
+
+                salaryMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in arr.EnumerateArray())
+                {
+                    string empCode = null;
+                    decimal ctcAmount = 0;
+
+                    if (item.TryGetProperty("empcode", out var ec) || item.TryGetProperty("EmpCode", out ec))
+                        empCode = ec.GetString();
+
+                    if (item.TryGetProperty("ctc_amount", out var ctc) || item.TryGetProperty("CTC_Amount", out ctc))
+                        ctc.TryGetDecimal(out ctcAmount);
+
+                    if (!string.IsNullOrWhiteSpace(empCode))
+                        salaryMap[empCode] = ctcAmount;
+                }
                 count = salaryMap.Count;
             }
             catch
             {
-                // Deliberately generic — do NOT surface ex.Message (may contain conn info)
-                request.DbPassword = null;
-                cs = null;
-                return Ok(new { Success = false, Message = "Database connection failed. Please verify your credentials." });
-            }
-            finally
-            {
-                // Overwrite before GC
-                request.DbPassword = null;
-                cs = null;
+                request.Username = null;
+                request.Password = null;
+                return Ok(new { Success = false, Message = "API call failed. Please verify your credentials and try again." });
             }
 
-            // Store ONLY salary data in session — password is already gone
+            // Store ONLY salary data in session — credentials are already discarded
             var expiresAt = DateTime.UtcNow.AddMinutes(30);
             var sessionData = System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -1322,9 +1361,8 @@ WHERE EmployeeCode = @EmployeeCode",
             });
             HttpContext.Session.SetString(SalarySessionKey, sessionData);
 
-            // Audit log — no password, no connection string
             _ = LogSalaryEventAsync(userId, currentEmployee?.EmployeeId, "SalaryUnlock",
-                $"Salary session opened. {count} employee records loaded. Expires {expiresAt:HH:mm:ss} UTC.");
+                $"Salary session opened via Tankha Payee API (action: {action}). {count} records loaded. Expires {expiresAt:HH:mm:ss} UTC.");
 
             return Ok(new { Success = true, ExpiresAt = expiresAt, Count = count,
                 Message = $"Salary data loaded for {count} employees. Access expires in 30 minutes." });
@@ -1521,6 +1559,17 @@ WHERE EmployeeCode = @EmployeeCode",
             {
                 var values = await _hierarchyService.GetEmployeeCustomValuesAsync(employeeId);
                 return Ok(new { Success = true, Data = values });
+            }
+            catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
+        }
+
+        [HttpGet("GetEmployeeModalExtras")]
+        public async Task<IActionResult> GetEmployeeModalExtras([FromQuery] int employeeId)
+        {
+            try
+            {
+                var extras = await _hierarchyService.GetEmployeeModalExtrasAsync(employeeId);
+                return Ok(new { Success = true, Data = extras });
             }
             catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
         }

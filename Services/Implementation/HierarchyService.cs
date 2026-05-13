@@ -3,6 +3,7 @@ using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using Microsoft.Data.SqlClient;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace JSAPNEW.Services
@@ -173,8 +174,57 @@ namespace JSAPNEW.Services
                 }
             }
 
+            await EnrichTreeDateOfJoiningAsync(connection, hods);
             DecryptTreeSalaries(hods);
             return hods;
+        }
+
+        private async Task EnrichTreeDateOfJoiningAsync(SqlConnection connection, List<HODTreeNodeDto> hods)
+        {
+            var employeeIds = hods
+                .Select(h => h.EmployeeId)
+                .Concat(hods.SelectMany(h => h.SubHODs ?? new List<SubHODTreeNodeDto>()).Select(s => s.EmployeeId))
+                .Concat(hods.SelectMany(h => h.SubHODs ?? new List<SubHODTreeNodeDto>())
+                    .SelectMany(s => s.Executives ?? new List<ExecutiveTreeNodeDto>())
+                    .Select(e => e.EmployeeId))
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (!employeeIds.Any()) return;
+
+            var rows = await connection.QueryAsync<dynamic>(
+                "SELECT EmployeeId, DateOfJoining FROM [Hie].[Employees] WHERE EmployeeId IN @EmployeeIds",
+                new { EmployeeIds = employeeIds });
+
+            var dates = rows.ToDictionary(
+                x => (int)x.EmployeeId,
+                x => TryGetDate(x.DateOfJoining));
+            var sikhValues = await GetSikhValuesByEmployeeIdsAsync(connection, employeeIds);
+
+            foreach (var hod in hods)
+            {
+                if (dates.TryGetValue(hod.EmployeeId, out var hodDate))
+                    hod.DateOfJoining = hodDate;
+                if (sikhValues.TryGetValue(hod.EmployeeId, out var hodSikh))
+                    hod.SikhNonSikh = hodSikh ?? string.Empty;
+
+                foreach (var subHod in hod.SubHODs ?? new List<SubHODTreeNodeDto>())
+                {
+                    if (dates.TryGetValue(subHod.EmployeeId, out var subHodDate))
+                        subHod.DateOfJoining = subHodDate;
+                    if (sikhValues.TryGetValue(subHod.EmployeeId, out var subHodSikh))
+                        subHod.SikhNonSikh = subHodSikh ?? string.Empty;
+
+                    foreach (var exec in subHod.Executives ?? new List<ExecutiveTreeNodeDto>())
+                    {
+                        if (dates.TryGetValue(exec.EmployeeId, out var execDate))
+                            exec.DateOfJoining = execDate;
+                        if (sikhValues.TryGetValue(exec.EmployeeId, out var execSikh))
+                            exec.SikhNonSikh = execSikh ?? string.Empty;
+                    }
+                }
+            }
         }
 
         private async Task<List<HODTreeNodeDto>> GetHierarchyTreeWithoutSalaryAsync(SqlConnection connection, string employeeCode, bool isAdmin)
@@ -615,8 +665,101 @@ ORDER BY e.EmployeeName";
                 employees = await SearchEmployeesWithoutSalaryAsync(connection, request);
             }
 
+            await PopulateEmployeeSikhValuesAsync(connection, employees);
             employees.ForEach(DecryptEmployeeSalary);
             return employees;
+        }
+
+        private async Task PopulateEmployeeSikhValuesAsync(SqlConnection connection, List<EmployeeDto> employees)
+        {
+            if (employees == null || employees.Count == 0)
+                return;
+
+            var employeeIds = employees
+                .Where(e => e.EmployeeId > 0)
+                .Select(e => e.EmployeeId)
+                .Distinct()
+                .ToList();
+
+            if (employeeIds.Count == 0)
+                return;
+
+            var valuesByEmployeeId = await GetSikhValuesByEmployeeIdsAsync(connection, employeeIds);
+
+            foreach (var employee in employees)
+            {
+                if (employee.EmployeeId > 0 && valuesByEmployeeId.TryGetValue(employee.EmployeeId, out var sikhValue))
+                    employee.SikhNonSikh = sikhValue ?? string.Empty;
+            }
+        }
+
+        private async Task<Dictionary<int, string?>> GetSikhValuesByEmployeeIdsAsync(SqlConnection connection, IReadOnlyCollection<int> employeeIds)
+        {
+            var valuesByEmployeeId = new Dictionary<int, string?>();
+            if (employeeIds == null || employeeIds.Count == 0)
+                return valuesByEmployeeId;
+
+            var employeeColumns = (await connection.QueryAsync<string>(
+                "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')"))
+                .ToList();
+
+            string? sikhNonSikhColumn = FindFirstExistingColumn(
+                employeeColumns,
+                "Sikh / Non-Sikh",
+                "Sikh/Non-Sikh",
+                "SikhNonSikh",
+                "Sikh_Non_Sikh");
+
+            if (!string.IsNullOrWhiteSpace(sikhNonSikhColumn))
+            {
+                string sql = $@"
+SELECT
+    EmployeeId,
+    {BuildOptionalStringColumnExpression(sikhNonSikhColumn)} AS SikhNonSikh
+FROM [Hie].[Employees]
+WHERE EmployeeId IN @EmployeeIds";
+
+                var employeeValues = await connection.QueryAsync<EmployeeSikhValueRow>(sql, new { EmployeeIds = employeeIds.ToArray() });
+                foreach (var row in employeeValues)
+                {
+                    if (row.EmployeeId > 0 && !string.IsNullOrWhiteSpace(row.SikhNonSikh))
+                        valuesByEmployeeId[row.EmployeeId] = row.SikhNonSikh;
+                }
+            }
+
+            var customFieldNames = new[]
+            {
+                "Sikh / Non-Sikh",
+                "Sikh/Non-Sikh",
+                "SikhNonSikh",
+                "Sikh_Non_Sikh"
+            };
+
+            const string customFieldSql = @"
+SELECT
+    ecv.EmployeeId,
+    CONVERT(NVARCHAR(255), ecv.Value) AS SikhNonSikh
+FROM [Hie].[EmployeeCustomValues] ecv
+INNER JOIN [Hie].[CustomFields] cf ON cf.FieldId = ecv.FieldId
+WHERE ecv.EmployeeId IN @EmployeeIds
+  AND cf.FieldName IN @FieldNames";
+
+            var customValues = await connection.QueryAsync<EmployeeSikhValueRow>(customFieldSql, new
+            {
+                EmployeeIds = employeeIds.ToArray(),
+                FieldNames = customFieldNames
+            });
+
+            foreach (var row in customValues)
+            {
+                if (row.EmployeeId <= 0 || string.IsNullOrWhiteSpace(row.SikhNonSikh))
+                    continue;
+
+                if (!valuesByEmployeeId.ContainsKey(row.EmployeeId))
+                    valuesByEmployeeId[row.EmployeeId] = row.SikhNonSikh;
+            }
+
+            return valuesByEmployeeId;
         }
 
         private async Task<List<EmployeeDto>> SearchEmployeesWithoutSalaryAsync(SqlConnection connection, EmployeeSearchRequest request)
@@ -889,10 +1032,31 @@ VALUES
                 int? originalHodId = origInfo?.OriginalHodId == null ? null : (int?)origInfo.OriginalHodId;
                 int? originalDeptId = origInfo?.PrimaryDepartmentId == null ? null : (int?)origInfo.PrimaryDepartmentId;
 
+                if (req.IsUnassigned)
+                {
+                    req.DepartmentId = null;
+                    req.SubDepartmentId = null;
+                    req.ReportsToEmpId = null;
+                    req.MoveTeamWithDepartment = false;
+                }
+
                 if (req.ReportsToEmpId.HasValue && req.ReportsToEmpId.Value == req.EmployeeId)
                 {
                     tx.Rollback();
                     return HierarchyApiResponse<bool>.ErrorResponse("An employee cannot report to themselves.");
+                }
+
+                if (req.ReportsToEmpId.HasValue && req.ReportsToEmpId.Value > 0)
+                {
+                    var managerInfo = await conn.QueryFirstOrDefaultAsync<dynamic>(
+                        "SELECT TOP 1 RoleTypeId, IsActive FROM [Hie].[Employees] WHERE EmployeeId = @EmployeeId",
+                        new { EmployeeId = req.ReportsToEmpId.Value }, tx);
+                    bool managerActive = managerInfo != null && Convert.ToBoolean(managerInfo.IsActive);
+                    if (!managerActive)
+                    {
+                        tx.Rollback();
+                        return HierarchyApiResponse<bool>.ErrorResponse("Selected manager is inactive. Please choose an active HOD/Sub-HOD.");
+                    }
                 }
 
                 // SP 2: Get department change impact
@@ -902,8 +1066,31 @@ VALUES
                 impact ??= new DepartmentChangeImpactDto();
 
                 bool roleChangedFromSubHodToHod = originalRoleTypeId == (int)RoleTypeEnum.SubHOD && req.RoleTypeId == (int)RoleTypeEnum.HOD;
+                bool roleChangedFromSubHodToExecutive = originalRoleTypeId == (int)RoleTypeEnum.SubHOD && req.RoleTypeId == (int)RoleTypeEnum.Executive;
+                int? originalScopeDeptId = req.RoleTypeId == (int)RoleTypeEnum.HOD
+                    ? req.CurrentDepartmentId ?? await GetActivePrimaryScopeDepartmentIdAsync(conn, tx, req.EmployeeId)
+                    : originalDeptId;
 
-                const string updateEmployeeSql = @"
+                bool departmentChanged = !req.IsUnassigned
+                    && originalScopeDeptId != req.DepartmentId
+                    && originalRoleTypeId == req.RoleTypeId
+                    && (req.RoleTypeId == (int)RoleTypeEnum.HOD || req.RoleTypeId == (int)RoleTypeEnum.SubHOD);
+
+                var employeeColumns = (await conn.QueryAsync<string>(
+                    "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')",
+                    transaction: tx)).ToList();
+
+                string? genderColumn = FindFirstExistingColumn(employeeColumns, "Gender");
+                string? qualificationColumn = FindFirstExistingColumn(employeeColumns, "Qualification", "Qulaification");
+                string? areaColumn = FindFirstExistingColumn(employeeColumns, "Area");
+                string? sikhNonSikhColumn = FindFirstExistingColumn(
+                    employeeColumns,
+                    "Sikh / Non-Sikh",
+                    "Sikh/Non-Sikh",
+                    "SikhNonSikh",
+                    "Sikh_Non_Sikh");
+
+                var updateEmployeeSql = new StringBuilder(@"
 UPDATE [Hie].[Employees]
 SET EmployeeName = @EmployeeName,
     EmployeeCode = @EmployeeCode,
@@ -911,16 +1098,33 @@ SET EmployeeName = @EmployeeName,
     DateOfJoining = @DateOfJoining,
     RoleTypeId = @RoleTypeId,
     PrimaryDepartmentId = @DepartmentId,
-    IsActive = @IsActive
-WHERE EmployeeId = @EmployeeId";
+    IsActive = @IsActive");
 
-                var rowsAffected = await conn.ExecuteAsync(updateEmployeeSql, new
+                if (!string.IsNullOrWhiteSpace(genderColumn))
+                    updateEmployeeSql.AppendLine($",    [{genderColumn.Replace("]", "]]")}] = @Gender");
+
+                if (!string.IsNullOrWhiteSpace(qualificationColumn))
+                    updateEmployeeSql.AppendLine($",    [{qualificationColumn.Replace("]", "]]")}] = @Qualification");
+
+                if (!string.IsNullOrWhiteSpace(areaColumn))
+                    updateEmployeeSql.AppendLine($",    [{areaColumn.Replace("]", "]]")}] = @Area");
+
+                if (!string.IsNullOrWhiteSpace(sikhNonSikhColumn))
+                    updateEmployeeSql.AppendLine($",    [{sikhNonSikhColumn.Replace("]", "]]")}] = @SikhNonSikh");
+
+                updateEmployeeSql.AppendLine("WHERE EmployeeId = @EmployeeId");
+
+                var rowsAffected = await conn.ExecuteAsync(updateEmployeeSql.ToString(), new
                 {
                     req.EmployeeId,
                     req.EmployeeName,
                     req.EmployeeCode,
                     req.Designation,
                     req.DateOfJoining,
+                    Gender = string.IsNullOrWhiteSpace(req.Gender) ? null : req.Gender.Trim(),
+                    Qualification = string.IsNullOrWhiteSpace(req.Qualification) ? null : req.Qualification.Trim(),
+                    Area = string.IsNullOrWhiteSpace(req.Area) ? null : req.Area.Trim(),
+                    SikhNonSikh = string.IsNullOrWhiteSpace(req.SikhNonSikh) ? null : req.SikhNonSikh.Trim(),
                     req.RoleTypeId,
                     req.DepartmentId,
                     req.IsActive
@@ -934,13 +1138,51 @@ WHERE EmployeeId = @EmployeeId";
 
                 string message = "Employee updated successfully";
 
-                // SP 3: Sync relationships
-                await conn.ExecuteAsync(
-                    "EXEC [Hie].[sp_SyncEmployeeRelationships] @EmployeeId, @RoleTypeId, @ReportsToEmpId, @DepartmentId, @SubDepartmentId",
-                    new { req.EmployeeId, req.RoleTypeId, req.ReportsToEmpId, req.DepartmentId, req.SubDepartmentId }, tx);
+                // HOD has no parent relationship to sync. Keeping this SP away from HOD edits prevents
+                // existing Sub-HOD/Executive reporting links from being detached during department changes.
+                if (req.RoleTypeId != (int)RoleTypeEnum.HOD)
+                {
+                    await conn.ExecuteAsync(
+                        "EXEC [Hie].[sp_SyncEmployeeRelationships] @EmployeeId, @RoleTypeId, @ReportsToEmpId, @DepartmentId, @SubDepartmentId",
+                        new { req.EmployeeId, req.RoleTypeId, req.ReportsToEmpId, req.DepartmentId, req.SubDepartmentId }, tx);
+                }
+
+                if (req.IsUnassigned)
+                {
+                    await conn.ExecuteAsync(@"
+UPDATE [Hie].[EmployeeReportingRelationships]
+SET IsActive = 0,
+    EffectiveTo = COALESCE(EffectiveTo, GETDATE())
+WHERE EmployeeId = @EmployeeId
+  AND IsActive = 1",
+                        new { req.EmployeeId }, tx);
+                }
 
                 string detachInfo = "";
-                if (impact.RequiresMoveTeam)
+                if (req.IsUnassigned
+                    && originalRoleTypeId == (int)RoleTypeEnum.SubHOD
+                    && originalHodId.HasValue
+                    && originalHodId.Value > 0)
+                {
+                    var reassignedExecutives = await ReassignSubHodExecutivesToHodForDepartmentChangeAsync(
+                        conn,
+                        tx,
+                        req.EmployeeId,
+                        originalHodId);
+                    if (reassignedExecutives > 0)
+                        detachInfo = $" {reassignedExecutives} executive(s) now report directly to HOD.";
+                }
+                else if (departmentChanged && req.RoleTypeId == (int)RoleTypeEnum.SubHOD)
+                {
+                    var reassignedExecutives = await ReassignSubHodExecutivesToHodForDepartmentChangeAsync(
+                        conn,
+                        tx,
+                        req.EmployeeId,
+                        originalHodId);
+                    if (reassignedExecutives > 0)
+                        detachInfo = $" {reassignedExecutives} executive(s) now report directly to HOD.";
+                }
+                else if (!req.IsUnassigned && req.RoleTypeId != (int)RoleTypeEnum.HOD && impact.RequiresMoveTeam)
                 {
                     if (req.MoveTeamWithDepartment)
                     {
@@ -958,27 +1200,44 @@ WHERE EmployeeId = @EmployeeId";
                         if (detachedCount > 0) detachInfo = $" {detachedCount} team member(s) were detached and may need reassignment.";
                     }
                 }
-                else if (roleChangedFromSubHodToHod)
+
+                if (roleChangedFromSubHodToHod || roleChangedFromSubHodToExecutive)
                 {
-                    // SP 6: Reassign execs on role change
+                    // SP 6: Reassign execs from the old Sub-HOD to the HOD on role change
                     var reassignResult = await conn.QueryFirstOrDefaultAsync<dynamic>(
                         "EXEC [Hie].[sp_ReassignExecsOnRoleChange] @EmployeeId, @OriginalHodId",
                         new { req.EmployeeId, OriginalHodId = originalHodId }, tx);
                     int reassigned = (int)(reassignResult?.ReassignedCount ?? 0);
                     if (reassigned > 0) detachInfo = $" {reassigned} executive(s) reassigned to HOD.";
                 }
+
+                if (req.RoleTypeId == (int)RoleTypeEnum.SubHOD && req.ReportsToEmpId.HasValue && req.ReportsToEmpId.Value > 0)
+                {
+                    if (!departmentChanged)
+                    {
+                        var adopted = await MoveDirectExecutivesToSubHodAsync(
+                            conn,
+                            tx,
+                            req.EmployeeId,
+                            req.ReportsToEmpId.Value,
+                            req.DepartmentId,
+                            req.SubDepartmentId);
+                        if (adopted > 0) detachInfo += $" {adopted} direct executive(s) moved under Sub-HOD.";
+                    }
+                }
                 tx.Commit();
 
                 // Audit log
                 var actions = new List<string>();
-                if (roleChangedFromSubHodToHod) actions.Add("RoleChange");
-                if (impact.RequiresMoveTeam && req.MoveTeamWithDepartment) actions.Add("MoveTeam");
-                if (impact.RequiresMoveTeam && !req.MoveTeamWithDepartment) actions.Add("DetachTeam");
+                if (req.IsUnassigned) actions.Add("Unassign");
+                if (roleChangedFromSubHodToHod || roleChangedFromSubHodToExecutive) actions.Add("RoleChange");
+                if (!departmentChanged && impact.RequiresMoveTeam && req.MoveTeamWithDepartment) actions.Add("MoveTeam");
+                if (!departmentChanged && impact.RequiresMoveTeam && !req.MoveTeamWithDepartment) actions.Add("DetachTeam");
                 if (impact.DepartmentChanged) actions.Add("DeptChange");
                 string actionType = actions.Count > 0 ? string.Join("+", actions) : "Update";
                 _ = LogAuditAsync(actionType, "Employee", req.EmployeeId, req.EmployeeId,
                     ToJson(new { RoleTypeId = originalRoleTypeId, DepartmentId = originalDeptId }),
-                    ToJson(new { req.RoleTypeId, req.DepartmentId, req.SubDepartmentId, req.ReportsToEmpId, req.IsActive }),
+                    ToJson(new { req.RoleTypeId, req.DepartmentId, req.SubDepartmentId, req.ReportsToEmpId, req.IsUnassigned, req.IsActive, req.DateOfJoining, req.Gender, req.Qualification, req.Area }),
                     $"Updated {req.EmployeeName} ({req.EmployeeCode}).{detachInfo}", updatedBy);
 
                 string finalMessage = string.IsNullOrWhiteSpace(message) ? "Employee updated successfully" : message;
@@ -994,6 +1253,345 @@ WHERE EmployeeId = @EmployeeId";
                 "EXEC [Hie].[sp_GetDeptChangeImpact] @EmployeeId, @NewDepartmentId, @NewSubDepartmentId",
                 new { request.EmployeeId, NewDepartmentId = request.DepartmentId, NewSubDepartmentId = request.SubDepartmentId });
             return result ?? new DepartmentChangeImpactDto();
+        }
+
+        public async Task<HierarchyApiResponse<bool>> SyncHodDepartmentsAsync(SyncHodDepartmentsRequest request, int updatedBy)
+        {
+            var departmentIds = (request.DepartmentIds ?? new List<int>())
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (request.HodEmployeeId <= 0)
+                return HierarchyApiResponse<bool>.ErrorResponse("HOD is required.");
+
+            if (!departmentIds.Any())
+                return HierarchyApiResponse<bool>.ErrorResponse("Select at least one department.");
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                using var tx = conn.BeginTransaction();
+                await EnsureHodDepartmentAssignmentsTableAsync(conn, tx);
+
+                var hod = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+SELECT TOP 1 EmployeeId, EmployeeName, EmployeeCode, RoleTypeId, PrimaryDepartmentId
+FROM [Hie].[Employees]
+WHERE EmployeeId = @HodEmployeeId",
+                    new { request.HodEmployeeId }, tx);
+
+                if (hod == null)
+                {
+                    tx.Rollback();
+                    return HierarchyApiResponse<bool>.ErrorResponse("HOD not found.");
+                }
+
+                if ((int)hod.RoleTypeId != (int)RoleTypeEnum.HOD)
+                {
+                    tx.Rollback();
+                    return HierarchyApiResponse<bool>.ErrorResponse("Department multi-select is only allowed for HOD.");
+                }
+
+                var oldDepartmentIds = (await conn.QueryAsync<int>(@"
+SELECT DISTINCT rr.DepartmentId
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+  AND rr.DepartmentId IS NOT NULL
+UNION
+SELECT e.PrimaryDepartmentId
+FROM [Hie].[Employees] e
+WHERE e.EmployeeId = @HodEmployeeId
+  AND e.PrimaryDepartmentId IS NOT NULL
+UNION
+SELECT hda.DepartmentId
+FROM [Hie].[HodDepartmentAssignments] hda
+WHERE hda.HodEmployeeId = @HodEmployeeId
+  AND hda.IsActive = 1",
+                    new { request.HodEmployeeId }, tx)).ToList();
+                var removedDepartmentIds = oldDepartmentIds
+                    .Distinct()
+                    .Except(departmentIds)
+                    .ToList();
+
+                await conn.ExecuteAsync(@"
+UPDATE [Hie].[Employees]
+SET PrimaryDepartmentId = @PrimaryDepartmentId
+WHERE EmployeeId = @HodEmployeeId",
+                    new { request.HodEmployeeId, PrimaryDepartmentId = departmentIds.First() }, tx);
+
+                await conn.ExecuteAsync(@"
+UPDATE [Hie].[HodDepartmentAssignments]
+SET IsActive = 0,
+    ModifiedOn = GETDATE(),
+    ModifiedBy = @UpdatedBy
+WHERE HodEmployeeId = @HodEmployeeId
+  AND IsActive = 1
+  AND DepartmentId NOT IN @DepartmentIds;
+
+UPDATE hda
+SET hda.IsActive = 1,
+    hda.ModifiedOn = GETDATE(),
+    hda.ModifiedBy = @UpdatedBy
+FROM [Hie].[HodDepartmentAssignments] hda
+WHERE hda.HodEmployeeId = @HodEmployeeId
+  AND hda.DepartmentId IN @DepartmentIds
+  AND hda.IsActive = 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM [Hie].[HodDepartmentAssignments] activeRow
+      WHERE activeRow.HodEmployeeId = hda.HodEmployeeId
+        AND activeRow.DepartmentId = hda.DepartmentId
+        AND activeRow.IsActive = 1
+  );
+
+INSERT INTO [Hie].[HodDepartmentAssignments] (HodEmployeeId, DepartmentId, IsActive, CreatedOn, CreatedBy)
+SELECT @HodEmployeeId, selected.DepartmentId, 1, GETDATE(), @UpdatedBy
+FROM (
+    SELECT DISTINCT CAST(value AS INT) AS DepartmentId
+    FROM STRING_SPLIT(@DepartmentIdCsv, ',')
+    WHERE TRY_CAST(value AS INT) IS NOT NULL
+) selected
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM [Hie].[HodDepartmentAssignments] existing
+    WHERE existing.HodEmployeeId = @HodEmployeeId
+      AND existing.DepartmentId = selected.DepartmentId
+      AND existing.IsActive = 1
+);",
+                    new
+                    {
+                        request.HodEmployeeId,
+                        DepartmentIds = departmentIds,
+                        DepartmentIdCsv = string.Join(",", departmentIds),
+                        UpdatedBy = updatedBy
+                    }, tx);
+
+                var unassignedDirectExecutives = 0;
+                foreach (var removedDepartmentId in removedDepartmentIds)
+                {
+                    unassignedDirectExecutives += await UnassignDirectExecutivesForHodDepartmentChangeAsync(
+                        conn,
+                        tx,
+                        request.HodEmployeeId,
+                        removedDepartmentId);
+                }
+
+                tx.Commit();
+
+                _ = LogAuditAsync("HODDepartmentSync", "Employee", request.HodEmployeeId, request.HodEmployeeId,
+                    ToJson(new { DepartmentIds = oldDepartmentIds }),
+                    ToJson(new { DepartmentIds = departmentIds }),
+                    $"Updated HOD department selection. {unassignedDirectExecutives} direct executive(s) from removed department(s) moved to unassigned.",
+                    updatedBy);
+
+                return HierarchyApiResponse<bool>.SuccessResponse(true, "HOD departments updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                return HierarchyApiResponse<bool>.ErrorResponse(ex.Message);
+            }
+        }
+
+        private static async Task EnsureHodDepartmentAssignmentsTableAsync(SqlConnection conn, SqlTransaction? tx = null)
+        {
+            const string sql = @"
+IF OBJECT_ID(N'[Hie].[HodDepartmentAssignments]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [Hie].[HodDepartmentAssignments](
+        HodDepartmentAssignmentId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        HodEmployeeId INT NOT NULL,
+        DepartmentId INT NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_HodDepartmentAssignments_IsActive DEFAULT(1),
+        CreatedOn DATETIME NOT NULL CONSTRAINT DF_HodDepartmentAssignments_CreatedOn DEFAULT(GETDATE()),
+        CreatedBy INT NULL,
+        ModifiedOn DATETIME NULL,
+        ModifiedBy INT NULL
+    );
+
+    CREATE UNIQUE INDEX UX_HodDepartmentAssignments_Active
+        ON [Hie].[HodDepartmentAssignments](HodEmployeeId, DepartmentId, IsActive);
+END;";
+
+            await conn.ExecuteAsync(sql, transaction: tx);
+        }
+
+        private async Task<int?> GetActivePrimaryScopeDepartmentIdAsync(SqlConnection conn, SqlTransaction tx, int hodEmployeeId)
+        {
+            const string sql = @"
+SELECT TOP 1 rr.DepartmentId
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+ORDER BY
+    CASE WHEN rr.IsPrimary = 1 THEN 0 ELSE 1 END,
+    rr.RelationshipId DESC";
+
+            return await conn.QueryFirstOrDefaultAsync<int?>(sql, new { HodEmployeeId = hodEmployeeId }, tx);
+        }
+
+        private async Task<int> UnassignDirectExecutivesForHodDepartmentChangeAsync(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int hodEmployeeId,
+            int? originalDepartmentId)
+        {
+            const string sql = @"
+IF EXISTS (
+    SELECT 1
+    FROM [Hie].[EmployeeReportingRelationships] rr
+    INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
+    WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+      AND rr.IsActive = 1
+      AND e.RoleTypeId = 2
+      AND ISNULL(rr.DepartmentId, 0) = ISNULL(@OriginalDepartmentId, 0)
+)
+BEGIN
+    SELECT CAST(0 AS INT);
+    RETURN;
+END;
+
+DECLARE @Unassigned TABLE (EmployeeId INT);
+
+INSERT INTO @Unassigned (EmployeeId)
+SELECT rr.EmployeeId
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+  AND e.RoleTypeId = 3
+  AND ISNULL(rr.DepartmentId, 0) = ISNULL(@OriginalDepartmentId, 0);
+
+UPDATE rr
+SET rr.IsActive = 0,
+    rr.IsPrimary = 0,
+    rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN @Unassigned u ON u.EmployeeId = rr.EmployeeId
+WHERE rr.IsActive = 1;
+
+UPDATE e
+SET e.PrimaryDepartmentId = NULL
+FROM [Hie].[Employees] e
+INNER JOIN @Unassigned u ON u.EmployeeId = e.EmployeeId;
+
+SELECT COUNT(*) FROM @Unassigned;";
+
+            return await conn.ExecuteScalarAsync<int>(sql, new
+            {
+                HodEmployeeId = hodEmployeeId,
+                OriginalDepartmentId = originalDepartmentId
+            }, tx);
+        }
+
+        private async Task<int> ReassignSubHodExecutivesToHodForDepartmentChangeAsync(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int subHodEmployeeId,
+            int? originalHodId)
+        {
+            if (!originalHodId.HasValue || originalHodId.Value <= 0) return 0;
+
+            const string sql = @"
+DECLARE @Moved TABLE (EmployeeId INT, DepartmentId INT, SubDepartmentId INT);
+
+INSERT INTO @Moved (EmployeeId, DepartmentId, SubDepartmentId)
+SELECT rr.EmployeeId, rr.DepartmentId, rr.SubDepartmentId
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @SubHodEmployeeId
+  AND rr.IsActive = 1
+  AND e.RoleTypeId = 3;
+
+UPDATE rr
+SET rr.IsActive = 0,
+    rr.IsPrimary = 0,
+    rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN @Moved m ON m.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @SubHodEmployeeId
+  AND rr.IsActive = 1;
+
+INSERT INTO [Hie].[EmployeeReportingRelationships]
+    (EmployeeId, ReportsToEmployeeId, ReportingTypeId, DepartmentId, SubDepartmentId, IsPrimary, EffectiveFrom, EffectiveTo, IsActive)
+SELECT m.EmployeeId, @OriginalHodId, 1, m.DepartmentId, m.SubDepartmentId, 1, GETDATE(), NULL, 1
+FROM @Moved m
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM [Hie].[EmployeeReportingRelationships] existing
+    WHERE existing.EmployeeId = m.EmployeeId
+      AND existing.ReportsToEmployeeId = @OriginalHodId
+      AND existing.IsActive = 1
+      AND ISNULL(existing.DepartmentId, 0) = ISNULL(m.DepartmentId, 0)
+      AND ISNULL(existing.SubDepartmentId, 0) = ISNULL(m.SubDepartmentId, 0)
+);
+
+SELECT COUNT(*) FROM @Moved;";
+
+            return await conn.ExecuteScalarAsync<int>(sql, new
+            {
+                SubHodEmployeeId = subHodEmployeeId,
+                OriginalHodId = originalHodId.Value
+            }, tx);
+        }
+
+        private async Task<int> MoveDirectExecutivesToSubHodAsync(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int subHodEmployeeId,
+            int hodEmployeeId,
+            int? departmentId,
+            int? subDepartmentId)
+        {
+            const string sql = @"
+DECLARE @Moved TABLE (EmployeeId INT, DepartmentId INT, SubDepartmentId INT);
+
+INSERT INTO @Moved (EmployeeId, DepartmentId, SubDepartmentId)
+SELECT rr.EmployeeId, rr.DepartmentId, rr.SubDepartmentId
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+  AND e.RoleTypeId = 3
+  AND rr.EmployeeId <> @SubHodEmployeeId
+  AND ISNULL(rr.DepartmentId, 0) = ISNULL(@DepartmentId, 0)
+  AND ISNULL(rr.SubDepartmentId, 0) = ISNULL(@SubDepartmentId, 0);
+
+UPDATE rr
+SET rr.IsActive = 0,
+    rr.IsPrimary = 0,
+    rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN @Moved m ON m.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+  AND ISNULL(rr.DepartmentId, 0) = ISNULL(@DepartmentId, 0)
+  AND ISNULL(rr.SubDepartmentId, 0) = ISNULL(@SubDepartmentId, 0);
+
+INSERT INTO [Hie].[EmployeeReportingRelationships]
+    (EmployeeId, ReportsToEmployeeId, ReportingTypeId, DepartmentId, SubDepartmentId, IsPrimary, EffectiveFrom, EffectiveTo, IsActive)
+SELECT m.EmployeeId, @SubHodEmployeeId, 1, m.DepartmentId, m.SubDepartmentId, 1, GETDATE(), NULL, 1
+FROM @Moved m
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM [Hie].[EmployeeReportingRelationships] existing
+    WHERE existing.EmployeeId = m.EmployeeId
+      AND existing.ReportsToEmployeeId = @SubHodEmployeeId
+      AND existing.IsActive = 1
+      AND ISNULL(existing.DepartmentId, 0) = ISNULL(m.DepartmentId, 0)
+      AND ISNULL(existing.SubDepartmentId, 0) = ISNULL(m.SubDepartmentId, 0)
+);
+
+SELECT COUNT(*) FROM @Moved;";
+
+            return await conn.ExecuteScalarAsync<int>(sql, new
+            {
+                SubHodEmployeeId = subHodEmployeeId,
+                HodEmployeeId = hodEmployeeId,
+                DepartmentId = departmentId,
+                SubDepartmentId = subDepartmentId
+            }, tx);
         }
 
         // Private helpers replaced by stored procedures:
@@ -1243,7 +1841,36 @@ WHERE EmployeeId = @EmployeeId";
         {
             const string sql = "EXEC [Hie].[sp_GetDepartmentsForHOD] @HODId";
             using var connection = new SqlConnection(_connectionString);
-            return (await connection.QueryAsync<HODDepartmentDto>(sql, new { HODId = hodId })).ToList();
+            await connection.OpenAsync();
+            var departments = (await connection.QueryAsync<HODDepartmentDto>(sql, new { HODId = hodId })).ToList();
+
+            await EnsureHodDepartmentAssignmentsTableAsync(connection);
+            var assignedDepartments = (await connection.QueryAsync<HODDepartmentDto>(@"
+SELECT
+    d.DepartmentId,
+    d.DepartmentName,
+    CAST(0 AS INT) AS SubDeptCount,
+    CAST(0 AS INT) AS SubHODCount,
+    CAST(0 AS INT) AS ExecutiveCount
+FROM [Hie].[HodDepartmentAssignments] hda
+INNER JOIN [Hie].[Departments] d ON d.DepartmentId = hda.DepartmentId
+WHERE hda.HodEmployeeId = @HODId
+  AND hda.IsActive = 1",
+                new { HODId = hodId })).ToList();
+
+            return departments
+                .Concat(assignedDepartments)
+                .GroupBy(d => d.DepartmentId)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    first.SubDeptCount = g.Max(x => x.SubDeptCount);
+                    first.SubHODCount = g.Max(x => x.SubHODCount);
+                    first.ExecutiveCount = g.Max(x => x.ExecutiveCount);
+                    return first;
+                })
+                .OrderBy(d => d.DepartmentName)
+                .ToList();
         }
 
         #endregion
@@ -1427,6 +2054,43 @@ WHERE EmployeeId = @EmployeeId";
                 // Map flat rows to admin rows with metadata
                 var adminRows = flatRows.Select(r => MapTreeRowToAdminRow(r, employeeMeta)).ToList();
 
+                await AddHodPrimaryDepartmentRowsAsync(adminRows);
+
+                var existingEmployeeIds = new HashSet<int>(
+                    adminRows.SelectMany(r => new[] { r.HodEmployeeId, r.SubHodEmployeeId, r.ExecEmployeeId })
+                        .Where(id => id > 0));
+
+                var orphanRows = (await GetOrphanEmployeesAsync())
+                    .Where(e => e.EmployeeId > 0 && !existingEmployeeIds.Contains(e.EmployeeId))
+                    .Select(e => new MasterFlatAdminRowDto
+                    {
+                        HodEmployeeId = 0,
+                        HodCode = "",
+                        HodName = "",
+                        HodDesignation = "",
+                        HodIsActive = false,
+                        DepartmentName = e.DepartmentName,
+                        SubDepartmentName = e.SubDepartmentName,
+                        SubHodEmployeeId = e.RoleTypeId == (int)RoleTypeEnum.SubHOD ? e.EmployeeId : 0,
+                        SubHodCode = e.RoleTypeId == (int)RoleTypeEnum.SubHOD ? e.EmployeeCode : "",
+                        SubHodName = e.RoleTypeId == (int)RoleTypeEnum.SubHOD ? e.EmployeeName : "",
+                        SubHodDesignation = e.RoleTypeId == (int)RoleTypeEnum.SubHOD ? e.Designation : "",
+                        SubHodIsActive = e.RoleTypeId == (int)RoleTypeEnum.SubHOD && e.IsActive,
+                        ExecEmployeeId = e.RoleTypeId == (int)RoleTypeEnum.Executive ? e.EmployeeId : 0,
+                        ExecCode = e.RoleTypeId == (int)RoleTypeEnum.Executive ? e.EmployeeCode : "",
+                        ExecName = e.RoleTypeId == (int)RoleTypeEnum.Executive ? e.EmployeeName : "",
+                        ExecDesignation = e.RoleTypeId == (int)RoleTypeEnum.Executive ? e.Designation : "",
+                        ExecIsActive = e.RoleTypeId == (int)RoleTypeEnum.Executive && e.IsActive
+                    });
+
+                adminRows.AddRange(orphanRows);
+
+                existingEmployeeIds = new HashSet<int>(
+                    adminRows.SelectMany(r => new[] { r.HodEmployeeId, r.SubHodEmployeeId, r.ExecEmployeeId })
+                        .Where(id => id > 0));
+
+                await AddMissingInactiveEmployeeRowsAsync(adminRows, existingEmployeeIds);
+
                 // Deduplicate and sort
                 var deduped = adminRows
                     .GroupBy(GetMasterFlatAdminKey)
@@ -1451,6 +2115,146 @@ WHERE EmployeeId = @EmployeeId";
 
         private static string GetMasterFlatKey(MasterFlatRowDto row) =>
             $"{row.HodEmployeeId}|{row.DepartmentId}|{row.SubDepartmentId}|{row.SubHodEmployeeId}|{row.ExecEmployeeId}";
+
+        private async Task AddMissingInactiveEmployeeRowsAsync(List<MasterFlatAdminRowDto> rows, HashSet<int> existingEmployeeIds)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            var inactiveEmployees = await conn.QueryAsync<dynamic>(@"
+SELECT
+    e.EmployeeId,
+    e.EmployeeCode,
+    e.EmployeeName,
+    e.Designation,
+    e.RoleTypeId,
+    e.DateOfJoining,
+    e.IsActive,
+    e.PrimaryDepartmentId AS DepartmentId,
+    d.DepartmentName
+FROM [Hie].[Employees] e
+LEFT JOIN [Hie].[Departments] d ON d.DepartmentId = e.PrimaryDepartmentId
+WHERE e.IsActive = 0
+  AND e.EmployeeId NOT IN @ExistingEmployeeIds",
+                new { ExistingEmployeeIds = existingEmployeeIds.Any() ? existingEmployeeIds : new HashSet<int> { -1 } });
+
+            foreach (var e in inactiveEmployees)
+            {
+                int roleTypeId = e.RoleTypeId == null ? 0 : Convert.ToInt32(e.RoleTypeId);
+                var row = new MasterFlatAdminRowDto
+                {
+                    DepartmentId = e.DepartmentId == null ? null : (int?)Convert.ToInt32(e.DepartmentId),
+                    DepartmentName = e.DepartmentName ?? "",
+                    SubDepartmentName = ""
+                };
+
+                if (roleTypeId == (int)RoleTypeEnum.HOD)
+                {
+                    row.HodEmployeeId = Convert.ToInt32(e.EmployeeId);
+                    row.HodCode = e.EmployeeCode ?? "";
+                    row.HodName = e.EmployeeName ?? "";
+                    row.HodDesignation = e.Designation ?? "";
+                    row.HodDateOfJoining = TryGetDate(e.DateOfJoining);
+                    row.HodIsActive = false;
+                }
+                else if (roleTypeId == (int)RoleTypeEnum.SubHOD)
+                {
+                    row.SubHodEmployeeId = Convert.ToInt32(e.EmployeeId);
+                    row.SubHodCode = e.EmployeeCode ?? "";
+                    row.SubHodName = e.EmployeeName ?? "";
+                    row.SubHodDesignation = e.Designation ?? "";
+                    row.SubHodDateOfJoining = TryGetDate(e.DateOfJoining);
+                    row.SubHodIsActive = false;
+                }
+                else if (roleTypeId == (int)RoleTypeEnum.Executive)
+                {
+                    row.ExecEmployeeId = Convert.ToInt32(e.EmployeeId);
+                    row.ExecCode = e.EmployeeCode ?? "";
+                    row.ExecName = e.EmployeeName ?? "";
+                    row.ExecDesignation = e.Designation ?? "";
+                    row.ExecDateOfJoining = TryGetDate(e.DateOfJoining);
+                    row.ExecIsActive = false;
+                }
+                else
+                {
+                    continue;
+                }
+
+                rows.Add(row);
+            }
+        }
+
+        private async Task AddHodPrimaryDepartmentRowsAsync(List<MasterFlatAdminRowDto> rows)
+        {
+            var hodIds = rows
+                .Where(r => r.HodEmployeeId > 0)
+                .Select(r => r.HodEmployeeId)
+                .Distinct()
+                .ToList();
+
+            if (!hodIds.Any()) return;
+
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureHodDepartmentAssignmentsTableAsync(conn);
+            var hodDepartments = await conn.QueryAsync<dynamic>(@"
+SELECT
+    e.EmployeeId,
+    e.EmployeeCode,
+    e.EmployeeName,
+    e.Designation,
+    e.DateOfJoining,
+    e.IsActive,
+    e.PrimaryDepartmentId AS DepartmentId,
+    d.DepartmentName
+FROM [Hie].[Employees] e
+LEFT JOIN [Hie].[Departments] d ON d.DepartmentId = e.PrimaryDepartmentId
+WHERE e.EmployeeId IN @HodIds
+  AND e.RoleTypeId = 1
+  AND e.PrimaryDepartmentId IS NOT NULL
+UNION
+SELECT
+    e.EmployeeId,
+    e.EmployeeCode,
+    e.EmployeeName,
+    e.Designation,
+    e.DateOfJoining,
+    e.IsActive,
+    hda.DepartmentId,
+    d.DepartmentName
+FROM [Hie].[HodDepartmentAssignments] hda
+INNER JOIN [Hie].[Employees] e ON e.EmployeeId = hda.HodEmployeeId
+INNER JOIN [Hie].[Departments] d ON d.DepartmentId = hda.DepartmentId
+WHERE hda.HodEmployeeId IN @HodIds
+  AND hda.IsActive = 1
+  AND e.RoleTypeId = 1",
+                new { HodIds = hodIds });
+
+            foreach (var h in hodDepartments)
+            {
+                int hodId = h.EmployeeId;
+                int deptId = h.DepartmentId;
+                bool alreadyVisible = rows.Any(r =>
+                    r.HodEmployeeId == hodId
+                    && (r.DepartmentId ?? 0) == deptId
+                    && (r.SubHodEmployeeId > 0 || r.ExecEmployeeId > 0));
+
+                if (alreadyVisible) continue;
+
+                rows.Add(new MasterFlatAdminRowDto
+                {
+                    HodEmployeeId = hodId,
+                    HodCode = h.EmployeeCode ?? "",
+                    HodName = h.EmployeeName ?? "",
+                    HodDesignation = h.Designation ?? "",
+                    HodDateOfJoining = TryGetDate(h.DateOfJoining),
+                    HodIsActive = TryGetBool(h.IsActive, true),
+                    DepartmentId = deptId,
+                    DepartmentName = h.DepartmentName ?? "",
+                    SubDepartmentName = "",
+                    SubHodEmployeeId = 0,
+                    ExecEmployeeId = 0
+                });
+            }
+        }
 
         private static MasterFlatAdminRowDto MapTreeRowToAdminRow(
             MasterFlatRowDto row,
@@ -2393,21 +3197,41 @@ SELECT
         WHEN 3 THEN 'Executive'
         ELSE 'Employee'
     END AS RoleName,
-    d.DepartmentName,
-    CAST(NULL AS NVARCHAR(100)) AS SubDepartmentName,
+    COALESCE(rd.DepartmentName, d.DepartmentName) AS DepartmentName,
+    sd.SubDepartmentName,
     CAST(NULL AS DECIMAL(18, 2)) AS Salary,
     e.IsActive
 FROM [Hie].[Employees] e
+OUTER APPLY (
+    SELECT TOP 1 rr.ReportsToEmployeeId, rr.DepartmentId, rr.SubDepartmentId
+    FROM [Hie].[EmployeeReportingRelationships] rr
+    WHERE rr.EmployeeId = e.EmployeeId
+      AND rr.IsActive = 1
+    ORDER BY CASE WHEN rr.IsPrimary = 1 THEN 0 ELSE 1 END, rr.RelationshipId DESC
+) activeRel
+LEFT JOIN [Hie].[Employees] mgr
+    ON mgr.EmployeeId = activeRel.ReportsToEmployeeId
 LEFT JOIN [Hie].[Departments] d
     ON d.DepartmentId = e.PrimaryDepartmentId
+LEFT JOIN [Hie].[Departments] rd
+    ON rd.DepartmentId = activeRel.DepartmentId
+LEFT JOIN [Hie].[SubDepartments] sd
+    ON sd.SubDepartmentId = activeRel.SubDepartmentId
 WHERE e.IsActive = 1
   AND e.RoleTypeId IN (2, 3)
-  AND NOT EXISTS
-  (
-      SELECT 1
-      FROM [Hie].[EmployeeReportingRelationships] rr
-      WHERE rr.EmployeeId = e.EmployeeId
-        AND rr.IsActive = 1
+  AND (
+      activeRel.ReportsToEmployeeId IS NULL
+      OR (
+          e.RoleTypeId = 3
+          AND mgr.RoleTypeId = 2
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM [Hie].[EmployeeReportingRelationships] mgrRel
+              WHERE mgrRel.EmployeeId = mgr.EmployeeId
+                AND mgrRel.IsActive = 1
+          )
+      )
   )
   AND NOT EXISTS
   (
@@ -2521,6 +3345,39 @@ ORDER BY e.EmployeeName";
                 new { EmployeeId = employeeId })).ToList();
         }
 
+        public async Task<EmployeeModalExtrasDto?> GetEmployeeModalExtrasAsync(int employeeId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            var columns = (await conn.QueryAsync<string>(
+                "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')"))
+                .ToList();
+
+            string? genderColumn = FindFirstExistingColumn(columns, "Gender");
+            string? qualificationColumn = FindFirstExistingColumn(columns, "Qualification", "Qulaification");
+            string? areaColumn = FindFirstExistingColumn(columns, "Area");
+            string? sikhNonSikhColumn = FindFirstExistingColumn(
+                columns,
+                "Sikh / Non-Sikh",
+                "Sikh/Non-Sikh",
+                "SikhNonSikh",
+                "Sikh_Non_Sikh");
+
+            string sql = $@"
+SELECT TOP (1)
+    EmployeeId,
+    EmployeeCode,
+    DateOfJoining,
+    {BuildOptionalStringColumnExpression(genderColumn)} AS Gender,
+    {BuildOptionalStringColumnExpression(qualificationColumn)} AS Qualification,
+    {BuildOptionalStringColumnExpression(areaColumn)} AS Area,
+    {BuildOptionalStringColumnExpression(sikhNonSikhColumn)} AS SikhNonSikh
+FROM [Hie].[Employees]
+WHERE EmployeeId = @EmployeeId";
+
+            return await conn.QueryFirstOrDefaultAsync<EmployeeModalExtrasDto>(sql, new { EmployeeId = employeeId });
+        }
+
         public async Task<HierarchyApiResponse<bool>> SetEmployeeCustomValueAsync(SetCustomValueRequest request)
         {
             try
@@ -2532,6 +3389,32 @@ ORDER BY e.EmployeeName";
                 return HierarchyApiResponse<bool>.SuccessResponse(true, "Value saved");
             }
             catch (Exception ex) { return HierarchyApiResponse<bool>.ErrorResponse(ex.Message); }
+        }
+
+        private static string? FindFirstExistingColumn(IEnumerable<string> columns, params string[] candidates)
+        {
+            foreach (var candidate in candidates)
+            {
+                var match = columns.FirstOrDefault(col => string.Equals(col, candidate, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(match))
+                    return match;
+            }
+
+            return null;
+        }
+
+        private static string BuildOptionalStringColumnExpression(string? columnName)
+        {
+            if (string.IsNullOrWhiteSpace(columnName))
+                return "CAST(NULL AS NVARCHAR(255))";
+
+            return $"CONVERT(NVARCHAR(255), [{columnName.Replace("]", "]]")}])";
+        }
+
+        private sealed class EmployeeSikhValueRow
+        {
+            public int EmployeeId { get; set; }
+            public string? SikhNonSikh { get; set; }
         }
 
         #endregion

@@ -234,6 +234,7 @@ namespace JSAPNEW.Models
         public int ManagerCount { get; set; }
         public string Salary { get; set; }
         public bool ViewSalary { get; set; }
+        public string SikhNonSikh { get; set; }
     }
 
     public class EmployeeDetailDto : EmployeeDto
@@ -316,6 +317,8 @@ namespace JSAPNEW.Models
         public string EmployeeCode { get; set; }
         public string EmployeeName { get; set; }
         public string Designation { get; set; }
+        public DateTime? DateOfJoining { get; set; }
+        public string SikhNonSikh { get; set; }
         public string Salary { get; set; }
         public int DepartmentCount { get; set; }
         public int SubHODCount { get; set; }
@@ -331,6 +334,8 @@ namespace JSAPNEW.Models
         public string EmployeeCode { get; set; }
         public string EmployeeName { get; set; }
         public string Designation { get; set; }
+        public DateTime? DateOfJoining { get; set; }
+        public string SikhNonSikh { get; set; }
         public string DepartmentName { get; set; }
         public string SubDepartmentName { get; set; }
         public int SubDepartmentId { get; set; }
@@ -347,6 +352,8 @@ namespace JSAPNEW.Models
         public string EmployeeCode { get; set; }
         public string EmployeeName { get; set; }
         public string Designation { get; set; }
+        public DateTime? DateOfJoining { get; set; }
+        public string SikhNonSikh { get; set; }
         public string DepartmentName { get; set; }
         public string SubDepartmentName { get; set; }
         public bool IsPrimary { get; set; }
@@ -585,10 +592,17 @@ namespace JSAPNEW.Models
         public string? Designation { get; set; }   // optional
         public decimal? Salary { get; set; }
         public DateTime? DateOfJoining { get; set; }
+        public string? Gender { get; set; }
+        public string? Qualification { get; set; }
+        public string? Area { get; set; }
+        public string? SikhNonSikh { get; set; }
         [Required] public int RoleTypeId { get; set; }
         public int? DepartmentId { get; set; }
         public int? SubDepartmentId { get; set; }
+        public int? CurrentDepartmentId { get; set; }
+        public int? CurrentSubDepartmentId { get; set; }
         public int? ReportsToEmpId { get; set; } // optional — exec can report direct to HOD or none
+        public bool IsUnassigned { get; set; }
         public bool MoveTeamWithDepartment { get; set; }
         public bool IsActive { get; set; } = true;
     }
@@ -601,6 +615,12 @@ namespace JSAPNEW.Models
         public int? SubDepartmentId { get; set; }
         public int? CurrentDepartmentId { get; set; }
         public int? CurrentSubDepartmentId { get; set; }
+    }
+
+    public class SyncHodDepartmentsRequest
+    {
+        [Required] public int HodEmployeeId { get; set; }
+        public List<int> DepartmentIds { get; set; } = new();
     }
 
     public class DepartmentChangeImpactDto
@@ -725,12 +745,14 @@ namespace JSAPNEW.Models
     }
 
     /// <summary>
-    /// Password is used once to open a read-only DB connection, then immediately discarded.
-    /// It is NEVER stored in session, DB, or logs.
+    /// Credentials used once to call the Tankha Payee API, then immediately discarded.
+    /// They are NEVER stored in session, DB, or logs.
     /// </summary>
     public class UnlockSalaryRequest
     {
-        public string DbPassword { get; set; } = "";
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string Action   { get; set; } = "";
     }
 
     public class OrphanEmployeeDto
@@ -814,6 +836,17 @@ namespace JSAPNEW.Models
         public int FieldId { get; set; }
         public string FieldName { get; set; }
         public string Value { get; set; }
+    }
+
+    public class EmployeeModalExtrasDto
+    {
+        public int EmployeeId { get; set; }
+        public string EmployeeCode { get; set; }
+        public DateTime? DateOfJoining { get; set; }
+        public string Gender { get; set; }
+        public string Qualification { get; set; }
+        public string Area { get; set; }
+        public string SikhNonSikh { get; set; }
     }
 
     #endregion
