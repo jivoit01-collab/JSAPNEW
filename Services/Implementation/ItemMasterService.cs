@@ -70,37 +70,6 @@ namespace JSAPNEW.Services.Implementation
                 _ => throw new ArgumentException("Invalid company ID (only 1, 2, and 3 are allowed).")
             };
         }
-
-        private static (object Variety, object SubGroup) MapToDb(string? variety, string? subGroup)
-        {
-            return ((object?)subGroup ?? DBNull.Value, (object?)variety ?? DBNull.Value);
-        }
-
-        private static void MapFromDb(ApprovedItemModel item)
-        {
-            (item.variety, item.subGroup) = (item.subGroup, item.variety);
-        }
-
-        private static void MapFromDb(ItemFullDetailModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
-        private static void MapFromDb(PendingItemModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
-        private static void MapFromDb(RejectedItemModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
-        private static void MapFromDb(MergedItemModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
         {
             if (!_hanaSettings.TryGetValue(company, out var settings))
@@ -672,9 +641,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
         public async Task<IEnumerable<ItemFullDetailModel>> GetFullItemDetailsAsync(int itemId)
@@ -690,9 +657,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
 
@@ -709,9 +674,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
 
@@ -728,9 +691,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
 
@@ -774,9 +735,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                var dbVarietySubGroup = MapToDb(request.Variety, request.SubGroup);
-                cmd.Parameters.AddWithValue("@variety", dbVarietySubGroup.Variety);
-                cmd.Parameters.AddWithValue("@subGroup", dbVarietySubGroup.SubGroup);
+                cmd.Parameters.AddWithValue("@variety", (object?)request.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", (object?)request.SubGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -942,9 +902,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                var dbVarietySubGroup = MapToDb(request.Variety, request.SubGroup);
-                cmd.Parameters.AddWithValue("@variety", dbVarietySubGroup.Variety);
-                cmd.Parameters.AddWithValue("@subGroup", dbVarietySubGroup.SubGroup);
+                cmd.Parameters.AddWithValue("@variety", (object?)request.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", (object?)request.SubGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -1084,21 +1043,18 @@ namespace JSAPNEW.Services.Implementation
                 foreach (var Items in pendingItems)
                 {
                     Items.Status = "Pending";
-                    MapFromDb(Items);
                     allItems.Add(Items);
                 }
 
                 foreach (var Items in approvedItems)
                 {
                     Items.Status = "Approved";
-                    MapFromDb(Items);
                     allItems.Add(Items);
                 }
 
                 foreach (var Items in rejectedItems)
                 {
                     Items.Status = "Rejected";
-                    MapFromDb(Items);
                     allItems.Add(Items);
                 }
 
@@ -1218,9 +1174,8 @@ namespace JSAPNEW.Services.Implementation
                         ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@unit", (object?)model.Unit ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@brand", (object?)model.Brand ?? DBNull.Value);
-                    var dbVarietySubGroup = MapToDb(model.Variety, model.SubGroup);
-                    cmd.Parameters.AddWithValue("@variety", dbVarietySubGroup.Variety);
-                    cmd.Parameters.AddWithValue("@subGroup", dbVarietySubGroup.SubGroup);
+                    cmd.Parameters.AddWithValue("@variety", (object?)model.Variety ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@subGroup", (object?)model.SubGroup ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@sku", (object?)model.Sku ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@isLitre", (object?)model.IsLitre ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Litre", (object?)model.Litre ?? DBNull.Value);
