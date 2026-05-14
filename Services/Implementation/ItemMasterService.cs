@@ -1473,6 +1473,19 @@ namespace JSAPNEW.Services.Implementation
                     continue;
                 }
 
+                if (previousTag == "P")
+                {
+                    Console.WriteLine($"[INFO] Item {first.InitId} is already being created in SAP (tag=P). Skipping duplicate API call.");
+                    results.Add(new SapItemSyncResult
+                    {
+                        ItemId = first.InitId,
+                        IsSuccess = false,
+                        Message = "Item SAP creation is already processing. Please retry shortly.",
+                        MartStatus = "Skipped — SAP creation already in progress"
+                    });
+                    continue;
+                }
+
                 SAPSessionModel session;
 
                 if (company == 1)
