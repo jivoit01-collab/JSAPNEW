@@ -447,12 +447,29 @@ namespace JSAPNEW.Services.Implementation
 
                     if (isFinalApprovalStage && !hasSapPayload)
                     {
+                        var currentStatus = await conn.QueryFirstOrDefaultAsync<string>(
+                            "SELECT status FROM imc.jsFlow WHERE id = @id",
+                            new { id = request.itemId }
+                        );
+
+                        if (currentStatus == "A")
+                        {
+                            return new ItemMasterModel
+                            {
+                                Success = true,
+                                Message = "Item already approved successfully.",
+                                ApprovalStatus = "Done",
+                                SapStatus = "Already Synced",
+                                MartStatus = "Completed"
+                            };
+                        }
+
                         return new ItemMasterModel
                         {
                             Success        = false,
-                            Message        = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}. Please check [imc].[jsGetPendingItemApiInsertions].",
+                            Message        = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}.",
                             ApprovalStatus = "Blocked",
-                            SapStatus      = "Failed: SAP payload not found",
+                            SapStatus      = "Failed",
                             MartStatus     = "Skipped"
                         };
                     }
