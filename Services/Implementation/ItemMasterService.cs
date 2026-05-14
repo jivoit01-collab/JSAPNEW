@@ -1906,6 +1906,8 @@ namespace JSAPNEW.Services.Implementation
 
         private async Task<string?> UpdateItemApiStatusAsync(int itemId, string apiMessage, string tag)
         {
+            apiMessage = TruncateForDb(apiMessage, 90);
+
             using (var connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
@@ -1935,6 +1937,14 @@ namespace JSAPNEW.Services.Implementation
             }
         }
 
+        private static string TruncateForDb(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+        }
+
         public async Task<ItemMasterModel> LogApiErrorAsync(LogApiErrorRequest model)
         {
             var result = new ItemMasterModel { Success = false };
@@ -1952,15 +1962,19 @@ namespace JSAPNEW.Services.Implementation
 
                     // NVARCHAR(100)
                     var pApi = cmd.Parameters.Add("@ApiName", SqlDbType.NVarChar, 100);
-                    pApi.Value = (object?)model.ApiName ?? DBNull.Value;
+                    pApi.Value = string.IsNullOrEmpty(model.ApiName)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ApiName, 100);
 
                     // NVARCHAR(2000) - Required
                     var pMsg = cmd.Parameters.Add("@ErrorMessage", SqlDbType.NVarChar, 2000);
-                    pMsg.Value = model.ErrorMessage;
+                    pMsg.Value = TruncateForDb(model.ErrorMessage, 2000);
 
                     // NVARCHAR(50)
                     var pCode = cmd.Parameters.Add("@ErrorCode", SqlDbType.NVarChar, 50);
-                    pCode.Value = (object?)model.ErrorCode ?? DBNull.Value;
+                    pCode.Value = string.IsNullOrEmpty(model.ErrorCode)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ErrorCode, 50);
 
                     // NVARCHAR(MAX)
                     var pPayload = cmd.Parameters.Add("@Payload", SqlDbType.NVarChar, -1);
