@@ -1711,8 +1711,9 @@ namespace JSAPNEW.Services.Implementation
                     ChapterID = int.TryParse(first.ChapterId, out int chapterId) ? chapterId : 0,
                     U_Unit = first.Unit,
                     U_Brand = first.Brand,
-                    U_Sub_Group = first.SubGroup,
-                    U_Variety = first.Variety,
+                    // SAP expects these two UDF values swapped from the JSAP entry fields.
+                    U_Sub_Group = first.Variety,
+                    U_Variety = first.SubGroup,
                     U_SKU = first.Sku,
                     U_IsLitre = first.IsLitre,
                     U_Gross_Weight = first.GrossWeight,

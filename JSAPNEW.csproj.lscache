@@ -13,16 +13,8 @@ primary
 lastDtbSucceeded
 
 [properties]
-AssemblyName=JSAPNEW
 CommandLineArgsForDesignTimeEvaluation=-langversion:12.0 -define:TRACE
-CompilerGeneratedFilesOutputPath=
 MaxSupportedLangVersion=12.0
-ProjectAssetsFile=<PATH>obj/project.assets.json
-RootNamespace=JSAPNEW
-RunAnalyzers=
-RunAnalyzersDuringLiveAnalysis=
-SolutionPath=<PATH>JSAPNEW.sln
-TargetFrameworkIdentifier=.NETCoreApp
 TargetPath=<PATH>bin/Debug/net8.0/JSAPNEW.dll
 TargetRefPath=<PATH>obj/Debug/net8.0/ref/JSAPNEW.dll
 TemporaryDependencyNodeTargetIdentifier=net8.0
