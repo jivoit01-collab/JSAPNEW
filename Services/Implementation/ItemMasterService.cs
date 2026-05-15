@@ -1496,7 +1496,8 @@ namespace JSAPNEW.Services.Implementation
                 };
 
                 // ── ManageBatchNumbers ──
-                string manageBatch = gc switch
+                string manage
+                        = gc switch
                 {
                     "102" => "tYES",
                     "106" when company == 1 || company == 2 => "tYES",

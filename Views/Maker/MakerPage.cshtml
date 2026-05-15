@@ -1,6 +1,6 @@
-﻿﻿@{
-ViewData["Title"] = "Marker Page";
-Layout = "~/Views/Shared/_Layout.cshtml";
+﻿@{
+    ViewData["Title"] = "Marker Page";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <style>
     #suggestionBox {
@@ -122,210 +122,223 @@ Layout = "~/Views/Shared/_Layout.cshtml";
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 
 <script>
-
-    $(document).ready(function () {
-
-    $("#searchBtn").click(loadData);
-
-    $("#accountName").on("keyup", function () {
-
-    let searchText = $(this).val().trim();
-
-    if (searchText.length < 2) {
-    $("#suggestionBox").empty();
-    return;
-    }
-    $(document).on("mousedown", ".suggest-item", function (e) {
-    e.preventDefault();
-    $("#accountName").val($(this).text().trim());
-    $("#suggestionBox").empty();
-    });
-
-    $.get("/Maker/GetAccountSuggestions",
-    { term: searchText },
-    function (data) {
-
-    let html = "";
-
-    if (!data || data.length === 0) {
-    html = `<div class="suggest-item">No result</div>`;
-    } else {
-    data.forEach(x => {
-    html += `<div class="suggest-item">${x}</div>`;
-    });
-    }
-
-    $("#suggestionBox").html(html);
-    });
-    });
-
-    });
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
 
 
-    // ---------------- LOAD DATA ----------------
-    function loadData() {
+        $(document).ready(function () {
 
-    let fromDate    = $("#fromDate").val();
-    let toDate      = $("#toDate").val();
-    let accountName = $("#accountName").val().trim() || null;
+            // ✅ Set default dates (current month)
+            let today    = new Date();
+            let firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            $("#fromDate").val(firstDay.toISOString().split('T')[0]);
+            $("#toDate").val(today.toISOString().split('T')[0]);
 
-    if (!fromDate || !toDate) {
-    alert("Select both dates");
-    return;
-    }
+            // ✅ Auto-load on page open
+            loadData();
 
-    if (fromDate > toDate) {
-    alert("From Date cannot be greater than To Date");
-    return;
-    }
+            // ✅ Search button
+            $("#searchBtn").click(loadData);
 
-    console.log("Calling API...");
+            // ✅ Suggestion click
+            $(document).on("mousedown", ".suggest-item", function (e) {
+                e.preventDefault();
+                $("#accountName").val($(this).text().trim());
+                $("#suggestionBox").empty();
+            });
 
-    $("#billTable").html(`<tr><td colspan="16">Loading...</td></tr>`);
+            // ✅ Account name autocomplete
+            $("#accountName").on("keyup", function () {
+                let searchText = $(this).val().trim();
+                if (searchText.length < 2) {
+                    $("#suggestionBox").empty();
+                    return;
+                }
+                $.get("/Maker/GetAccountSuggestions", { term: searchText }, function (data) {
+                    let html = "";
+                    if (!data || data.length === 0) {
+                        html = `<div class="suggest-item">No result</div>`;
+                    } else {
+                        data.forEach(x => {
+                            html += `<div class="suggest-item">${x}</div>`;
+                        });
+                    }
+                    $("#suggestionBox").html(html);
+                });
+            });
 
-    $.get("/Maker/GetBillDetails",
-    { fromDate, toDate, accountName },
-    function (data) {
-    console.log("API DATA:", data);
-    renderTable(data || []);
-    }
-    ).fail(function (err) {
-    console.log("ERROR:", err);
-    $("#billTable").html(`<tr><td colspan="16">Error loading data</td></tr>`);
-    });
-    }
+            // ✅ Hide suggestion box on outside click
+            $(document).on("click", function (e) {
+                if (!$(e.target).closest("#accountName, #suggestionBox").length) {
+                    $("#suggestionBox").empty();
+                }
+            });
 
+            // ✅ PDF open - delegated
+            $(document).on("click", ".view-pdf-btn", function (e) {
+                e.preventDefault();
+                let path = $(this).data("path");
+                document.getElementById("pdfFrame").src = path;
+                document.getElementById("pdfContainer").style.display = "block";
+            });
 
-    // ---------------- RENDER TABLE ----------------
-    function renderTable(data) {
+            // ✅ Submit button
+            $(document).on("click", ".submitBtn", function () {
+                let row       = $(this).closest("tr");
+                let vchNumber = $(this).data("vch");
+                let fileInput = row.find(".fileInput")[0];
+                let remark    = row.find(".remarkInput").val();
 
-    if (!data || data.length === 0) {
-    $("#billTable").html(`<tr><td colspan="16">No Data Found</td></tr>`);
-    return;
-    }
+                if (!fileInput || !fileInput.files.length) {
+                    alert("Please select a file");
+                    return;
+                }
 
-    let html = "";
-    let seenVch = new Set();
+                let formData = new FormData();
+                formData.append("vchNumber",   vchNumber);
+                formData.append("file",        fileInput.files[0]);
+                formData.append("makerRemark", remark || "");
 
-    data.forEach(item => {
+                $(this).prop("disabled", true).text("Uploading...");
 
-    if (seenVch.has(item.vchNumber)) return;
-    seenVch.add(item.vchNumber);
+                $.ajax({
+                    url:         "/Maker/SubmitBill",
+                    type:        "POST",
+                    data:        formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (res) {
+                        if (res.success) {
+                            alert("Uploaded Successfully");
+                            loadData();
+                        } else {
+                            alert("Upload failed: " + (res.message || ""));
+                        }
+                    },
+                    error: function () {
+                        alert("Error occurred during upload");
+                    }
+                });
+            });
 
-    // ✅ Rename variable to avoid conflict
-    let checkerStatusValue = item.checkerStatus || "Pending";
-
-    let statusBadge =
-    checkerStatusValue === "Approved" ? `<span class="badge bg-success">Approved</span>` :
-    checkerStatusValue === "Rejected" ? `<span class="badge bg-danger">Rejected</span>`  :
-    `<span class="badge bg-warning text-dark">Pending</span>`;
-
-    html += `
-    <tr>
-    <td>
-    ${item.accountName || ""}
-    </td>
-    <td>${item.vchNumber || ""}</td>
-    <td>${formatDate(item.voucherDate)}</td>
-    <td>${item.billAmount || ""}</td>
-    <td>${item.supplierRef || '-'}</td>
-    <td>${item.supplierRefDate || '-'}</td>
-    <td>${item.dueDate || '-'}</td>
-    <td>
-    ${item.attachmentPath
-    ?  `<a href="#" onclick="openPdf('${item.attachmentPath}')" class="btn btn-sm btn-outline-primary">View</a>`
-    : `<input type="file" class="fileInput form-control form-control-sm">`
-    }
-    </td>
-    <td>
-    ${item.attachmentPath
-    ? (item.makerRemark || "-")
-    : `<input type="text" class="remarkInput form-control form-control-sm" placeholder="Enter remark">`
-    }
-    </td>
-    <td>${statusBadge}</td>
-    <td>
-    ${item.attachmentPath
-    ? `<span class="text-success">Uploaded</span>`
-    : `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`
-    }
-    </td>
-    <td>${item.totalQuantity ?? 0}</td>
-    <td>${item.totalItemValue ?? 0}</td>
-    <td>${item.totalItems ?? 0}</td>
-    <td>
-    ${item.paymentStatus === "Paid"
-    ? `<span class="badge bg-success">Paid</span>`
-    : `<span class="badge bg-danger">UnPaid</span>`
-    }
-    </td>
-    <td>${item.paymentDate ? formatDate(item.paymentDate) : "-"}</td>
-    </tr>`;
-    });
-
-    $("#billTable").html(html);
-    }
+        });
 
 
-    // ---------------- FORMAT DATE ----------------
-    function formatDate(dateString) {
-    if (!dateString) return "";
-    let d = new Date(dateString);
-    return d.toISOString().split('T')[0];
-    }
+        // ---------------- LOAD DATA ----------------
+        function loadData() {
 
-    // open pdf//
-    function openPdf(path) {
-    document.getElementById("pdfFrame").src = path;
-    document.getElementById("pdfContainer").style.display = "block";
-    }
+            let fromDate    = $("#fromDate").val();
+            let toDate      = $("#toDate").val();
+            let accountName = $("#accountName").val().trim() || null;
+            let companyId   = $("#companyDropdown").val()   || 1;
 
-    function closePdf() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("pdfFrame").src = "";
-    }
+            if (!fromDate || !toDate) {
+                alert("Select both dates");
+                return;
+            }
 
-    // ---------------- SUBMIT BUTTON ----------------
-    $(document).on("click", ".submitBtn", function () {
+            if (fromDate > toDate) {
+                alert("From Date cannot be greater than To Date");
+                return;
+            }
 
-    let row       = $(this).closest("tr");
-    let vchNumber = $(this).data("vch");
-    let fileInput = row.find(".fileInput")[0];
-    let remark    = row.find(".remarkInput").val();
+            $("#billTable").html(`<tr><td colspan="16" class="text-center">Loading...</td></tr>`);
 
-    if (!fileInput.files.length) {
-    alert("Please select a file");
-    return;
-    }
+            $.get("/Maker/GetBillDetails",
+                { fromDate, toDate, accountName, companyId },
+                function (data) {
+                    console.log("API DATA:", data);
+                    renderTable(data || []);
+                }
+            ).fail(function (err) {
+                console.error("ERROR:", err);
+                $("#billTable").html(`<tr><td colspan="16" class="text-center text-danger">Error loading data. Please try again.</td></tr>`);
+            });
+        }
 
-    let file     = fileInput.files[0];
-    let formData = new FormData();
 
-    formData.append("vchNumber",   vchNumber);
-    formData.append("file",        file);
-    formData.append("makerRemark", remark);
+        // ---------------- RENDER TABLE ----------------
+        function renderTable(data) {
 
-    $.ajax({
-    url:         "/Maker/SubmitBill",
-    type:        "POST",
-    data:        formData,
-    contentType: false,
-    processData: false,
-    success: function (res) {
-    if (res.success) {
-    alert("✅ Uploaded Successfully");
-    loadData();
-    } else {
-    alert("❌ Upload failed");
-    }
-    },
-    error: function () {
-    alert("❌ Error occurred");
-    }
-    });
-    });
+            if (!data || data.length === 0) {
+                $("#billTable").html(`<tr><td colspan="16" class="text-center">No Data Found</td></tr>`);
+                return;
+            }
 
-</script>
+            let html    = "";
+            let seenVch = new Set();
+
+            data.forEach(item => {
+
+                if (item.vchNumber && seenVch.has(item.vchNumber)) return;
+                if (item.vchNumber) seenVch.add(item.vchNumber);
+
+                // ✅ Bootstrap 4 badges
+                let checkerStatusValue = item.checkerStatus || "Pending";
+                let statusBadge =
+                    checkerStatusValue === "Approved" ? `<span class="badge badge-success">Approved</span>` :
+                    checkerStatusValue === "Rejected"  ? `<span class="badge badge-danger">Rejected</span>`  :
+                                                         `<span class="badge badge-warning">Pending</span>`;
+
+                let paymentBadge = item.paymentStatus === "Paid"
+                    ? `<span class="badge badge-success">Paid</span>`
+                    : `<span class="badge badge-danger">UnPaid</span>`;
+
+                // ✅ data-path avoids backslash/regex crash
+                let attachmentCell = item.attachmentPath
+                    ? `<a href="#" class="view-pdf-btn btn btn-sm btn-outline-primary" data-path="${item.attachmentPath}">View</a>`
+                    : `<input type="file" class="fileInput form-control form-control-sm">`;
+
+                let remarkCell = item.attachmentPath
+                    ? (item.makerRemark || "-")
+                    : `<input type="text" class="remarkInput form-control form-control-sm" placeholder="Enter remark">`;
+
+                let actionCell = item.attachmentPath
+                    ? `<span class="text-success">&#10004; Uploaded</span>`
+                    : `<button class="submitBtn btn btn-success btn-sm" data-vch="${item.vchNumber}">Submit</button>`;
+
+                html += `
+                <tr>
+                    <td>${item.accountName  || ""}</td>
+                    <td>${item.vchNumber    || ""}</td>
+                    <td>${formatDate(item.voucherDate)}</td>
+                    <td>${item.billAmount   || ""}</td>
+                    <td>${item.supplierRef  || "-"}</td>
+                    <td>${formatDate(item.supplierRefDate) || "-"}</td>
+                    <td>${formatDate(item.dueDate)         || "-"}</td>
+                    <td>${attachmentCell}</td>
+                    <td>${remarkCell}</td>
+                    <td>${statusBadge}</td>
+                    <td>${actionCell}</td>
+                    <td>${item.totalQuantity  ?? 0}</td>
+                    <td>${item.totalItemValue ?? 0}</td>
+                    <td>${item.totalItems     ?? 0}</td>
+                    <td>${paymentBadge}</td>
+                    <td>${item.paymentDate ? formatDate(item.paymentDate) : "-"}</td>
+                </tr>`;
+            });
+
+            $("#billTable").html(html);
+        }
+
+
+        // ---------------- FORMAT DATE ----------------
+        function formatDate(dateString) {
+            if (!dateString) return "";
+            let d = new Date(dateString);
+            if (isNaN(d)) return "";
+            return d.toISOString().split('T')[0];
+        }
+
+
+        // ---------------- PDF CLOSE ----------------
+        function closePdf() {
+            document.getElementById("pdfContainer").style.display = "none";
+            document.getElementById("pdfFrame").src = "";
+
+      
+    </script>
+
