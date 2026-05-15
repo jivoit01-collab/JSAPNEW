@@ -70,37 +70,6 @@ namespace JSAPNEW.Services.Implementation
                 _ => throw new ArgumentException("Invalid company ID (only 1, 2, and 3 are allowed).")
             };
         }
-
-        private static (object Variety, object SubGroup) MapToDb(string? variety, string? subGroup)
-        {
-            return ((object?)subGroup ?? DBNull.Value, (object?)variety ?? DBNull.Value);
-        }
-
-        private static void MapFromDb(ApprovedItemModel item)
-        {
-            (item.variety, item.subGroup) = (item.subGroup, item.variety);
-        }
-
-        private static void MapFromDb(ItemFullDetailModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
-        private static void MapFromDb(PendingItemModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
-        private static void MapFromDb(RejectedItemModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
-        private static void MapFromDb(MergedItemModel item)
-        {
-            (item.Variety, item.SubGroup) = (item.SubGroup, item.Variety);
-        }
-
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
         {
             if (!_hanaSettings.TryGetValue(company, out var settings))
@@ -478,12 +447,29 @@ namespace JSAPNEW.Services.Implementation
 
                     if (isFinalApprovalStage && !hasSapPayload)
                     {
+                        var currentStatus = await conn.QueryFirstOrDefaultAsync<string>(
+                            "SELECT status FROM imc.jsFlow WHERE id = @id",
+                            new { id = request.itemId }
+                        );
+
+                        if (currentStatus == "A")
+                        {
+                            return new ItemMasterModel
+                            {
+                                Success = true,
+                                Message = "Item already approved successfully.",
+                                ApprovalStatus = "Done",
+                                SapStatus = "Already Synced",
+                                MartStatus = "Completed"
+                            };
+                        }
+
                         return new ItemMasterModel
                         {
                             Success        = false,
-                            Message        = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}. Please check [imc].[jsGetPendingItemApiInsertions].",
+                            Message        = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}.",
                             ApprovalStatus = "Blocked",
-                            SapStatus      = "Failed: SAP payload not found",
+                            SapStatus      = "Failed",
                             MartStatus     = "Skipped"
                         };
                     }
@@ -672,9 +658,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
         public async Task<IEnumerable<ItemFullDetailModel>> GetFullItemDetailsAsync(int itemId)
@@ -690,9 +674,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
 
@@ -709,9 +691,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
 
@@ -728,9 +708,7 @@ namespace JSAPNEW.Services.Implementation
                    parameters,
                    commandType: CommandType.StoredProcedure
                );
-                var items = result.ToList();
-                items.ForEach(MapFromDb);
-                return items;
+                return result;
             }
         }
 
@@ -774,9 +752,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                var dbVarietySubGroup = MapToDb(request.Variety, request.SubGroup);
-                cmd.Parameters.AddWithValue("@variety", dbVarietySubGroup.Variety);
-                cmd.Parameters.AddWithValue("@subGroup", dbVarietySubGroup.SubGroup);
+                cmd.Parameters.AddWithValue("@variety", (object?)request.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", (object?)request.SubGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -942,9 +919,8 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@chapterName", (object?)request.ChapterName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@unit", (object?)request.Unit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@brand", (object?)request.Brand ?? DBNull.Value);
-                var dbVarietySubGroup = MapToDb(request.Variety, request.SubGroup);
-                cmd.Parameters.AddWithValue("@variety", dbVarietySubGroup.Variety);
-                cmd.Parameters.AddWithValue("@subGroup", dbVarietySubGroup.SubGroup);
+                cmd.Parameters.AddWithValue("@variety", (object?)request.Variety ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@subGroup", (object?)request.SubGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sku", (object?)request.Sku ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isLitre", (object?)request.IsLitre ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@grossWeight", (object?)request.GrossWeight ?? DBNull.Value);
@@ -1084,21 +1060,18 @@ namespace JSAPNEW.Services.Implementation
                 foreach (var Items in pendingItems)
                 {
                     Items.Status = "Pending";
-                    MapFromDb(Items);
                     allItems.Add(Items);
                 }
 
                 foreach (var Items in approvedItems)
                 {
                     Items.Status = "Approved";
-                    MapFromDb(Items);
                     allItems.Add(Items);
                 }
 
                 foreach (var Items in rejectedItems)
                 {
                     Items.Status = "Rejected";
-                    MapFromDb(Items);
                     allItems.Add(Items);
                 }
 
@@ -1218,9 +1191,8 @@ namespace JSAPNEW.Services.Implementation
                         ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@unit", (object?)model.Unit ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@brand", (object?)model.Brand ?? DBNull.Value);
-                    var dbVarietySubGroup = MapToDb(model.Variety, model.SubGroup);
-                    cmd.Parameters.AddWithValue("@variety", dbVarietySubGroup.Variety);
-                    cmd.Parameters.AddWithValue("@subGroup", dbVarietySubGroup.SubGroup);
+                    cmd.Parameters.AddWithValue("@variety", (object?)model.Variety ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@subGroup", (object?)model.SubGroup ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@sku", (object?)model.Sku ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@isLitre", (object?)model.IsLitre ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Litre", (object?)model.Litre ?? DBNull.Value);
@@ -1497,6 +1469,19 @@ namespace JSAPNEW.Services.Implementation
                         IsSuccess = true,
                         Message = "Item already created in SAP (skipped duplicate call)",
                         MartStatus = "Skipped — primary item already exists"
+                    });
+                    continue;
+                }
+
+                if (previousTag == "P")
+                {
+                    Console.WriteLine($"[INFO] Item {first.InitId} is already being created in SAP (tag=P). Skipping duplicate API call.");
+                    results.Add(new SapItemSyncResult
+                    {
+                        ItemId = first.InitId,
+                        IsSuccess = false,
+                        Message = "Item SAP creation is already processing. Please retry shortly.",
+                        MartStatus = "Skipped — SAP creation already in progress"
                     });
                     continue;
                 }
@@ -1921,6 +1906,8 @@ namespace JSAPNEW.Services.Implementation
 
         private async Task<string?> UpdateItemApiStatusAsync(int itemId, string apiMessage, string tag)
         {
+            apiMessage = TruncateForDb(apiMessage, 90);
+
             using (var connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
@@ -1950,6 +1937,14 @@ namespace JSAPNEW.Services.Implementation
             }
         }
 
+        private static string TruncateForDb(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+        }
+
         public async Task<ItemMasterModel> LogApiErrorAsync(LogApiErrorRequest model)
         {
             var result = new ItemMasterModel { Success = false };
@@ -1967,15 +1962,19 @@ namespace JSAPNEW.Services.Implementation
 
                     // NVARCHAR(100)
                     var pApi = cmd.Parameters.Add("@ApiName", SqlDbType.NVarChar, 100);
-                    pApi.Value = (object?)model.ApiName ?? DBNull.Value;
+                    pApi.Value = string.IsNullOrEmpty(model.ApiName)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ApiName, 100);
 
                     // NVARCHAR(2000) - Required
                     var pMsg = cmd.Parameters.Add("@ErrorMessage", SqlDbType.NVarChar, 2000);
-                    pMsg.Value = model.ErrorMessage;
+                    pMsg.Value = TruncateForDb(model.ErrorMessage, 2000);
 
                     // NVARCHAR(50)
                     var pCode = cmd.Parameters.Add("@ErrorCode", SqlDbType.NVarChar, 50);
-                    pCode.Value = (object?)model.ErrorCode ?? DBNull.Value;
+                    pCode.Value = string.IsNullOrEmpty(model.ErrorCode)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ErrorCode, 50);
 
                     // NVARCHAR(MAX)
                     var pPayload = cmd.Parameters.Add("@Payload", SqlDbType.NVarChar, -1);
