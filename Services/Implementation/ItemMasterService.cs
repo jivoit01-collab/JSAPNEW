@@ -1563,9 +1563,48 @@ namespace JSAPNEW.Services.Implementation
                     _ => "tNO"
                 };
 
-                // ── CostAccountingMethod: BEV always FIFO, others SNB if batch else FIFO ──
-                string costMethod = company == 2 ? "bis_FIFO"
-                    : (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
+                string? costMethodFromDb = null;
+                if (company == 3)
+                {
+                    string dbBatchFlag = (first.ManBtchNum ?? "").Trim();
+                    if (dbBatchFlag.Equals("Y", StringComparison.OrdinalIgnoreCase) ||
+                        dbBatchFlag.Equals("tYES", StringComparison.OrdinalIgnoreCase))
+                    {
+                        manageBatch = "tYES";
+                    }
+                    else if (dbBatchFlag.Equals("N", StringComparison.OrdinalIgnoreCase) ||
+                             dbBatchFlag.Equals("tNO", StringComparison.OrdinalIgnoreCase))
+                    {
+                        manageBatch = "tNO";
+                    }
+
+                    string dbIssueMethod = (first.IssueMethod ?? "").Trim().ToUpperInvariant();
+                    if (dbIssueMethod is "M" or "B")
+                        issueMethod = dbIssueMethod;
+
+                    costMethodFromDb = (first.EvalSystem ?? "").Trim().ToUpperInvariant() switch
+                    {
+                        "F" => "bis_FIFO",
+                        "A" => "bis_MovingAverage",
+                        "S" => "bis_Standard",
+                        "B" or "SNB" => "bis_SNB",
+                        _ => null
+                    };
+                }
+
+                if (company == 3 && gc == "105")
+                {
+                    manageBatch = "tYES";
+                    issueMethod = "M";
+                    costMethodFromDb = "bis_SNB";
+                }
+
+                if (manageBatch == "tYES")
+                    issueMethod = "M";
+
+                // ── CostAccountingMethod: company 3 prefers saved SAP data; others use batch rule ──
+                string costMethod = costMethodFromDb
+                    ?? (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
 
                 // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
                 string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
