@@ -942,6 +942,10 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
                     Import Excel
                 </button>
+                <button class="btn btn-excel" onclick="downloadHierarchyMasterExcel()" title="Download current table as Excel">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+                    Download Excel
+                </button>
                 <button class="btn btn-add-employee" onclick="openAdd()" title="Add new employee">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                     Add Employee
@@ -979,9 +983,9 @@
         <div class="stat-pill clickable selected" id="statAll" onclick="showStatusFilter('')"><span class="stat-pill-dot" style="background:#6366f1"></span><b id="sTotal">—</b> Employees</div>
         <div class="stat-pill clickable" id="statActive" onclick="showStatusFilter('active')"><span class="stat-pill-dot" style="background:#22c55e"></span><b id="sActive">—</b> Active</div>
         <div class="stat-pill clickable" id="statInactive" onclick="showStatusFilter('inactive')"><span class="stat-pill-dot" style="background:#f87171"></span><b id="sInactive">—</b> Inactive</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#3b82f6"></span><b id="sHod">—</b> HODs</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#a855f7"></span><b id="sSub">—</b> SubHODs</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#f59e0b"></span><b id="sExec">—</b> Execs</div>
+        <div class="stat-pill clickable" id="statHod" onclick="showRoleFilter('hod')"><span class="stat-pill-dot" style="background:#3b82f6"></span><b id="sHod">—</b> HODs</div>
+        <div class="stat-pill clickable" id="statSub" onclick="showRoleFilter('subhod')"><span class="stat-pill-dot" style="background:#a855f7"></span><b id="sSub">—</b> SubHODs</div>
+        <div class="stat-pill clickable" id="statExec" onclick="showRoleFilter('exec')"><span class="stat-pill-dot" style="background:#f59e0b"></span><b id="sExec">—</b> Execs</div>
     </div>
 </div>
 
@@ -992,6 +996,13 @@
         <div class="upload-title">
             📊 Import from HR Excel
             <span style="font-size:10px;font-weight:400;color:var(--muted)">ORG_Chart format: Dept · HOD · SubDept · SubHOD · Exec with Employee Codes</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button type="button" class="btn btn-excel" onclick="downloadHierarchyMasterExcel()" title="Download current hierarchy in upload-ready format">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+                Download Format
+            </button>
+            <span style="align-self:center;font-size:10px;color:var(--muted)">Download, edit rows, then upload the same file here.</span>
         </div>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('xlFile').click()"
              ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -1054,6 +1065,13 @@
             <button class="ltab" id="ltab2" onclick="setLvl(2)">SubHOD</button>
             <button class="ltab" id="ltab3" onclick="setLvl(3)">Executive</button>
         </div>
+        <div class="fg" style="display:flex;align-items:flex-start;gap:10px;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 10px">
+            <input type="checkbox" id="f_unassigned" onchange="onAddUnassignedChange()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--g2)" />
+            <label for="f_unassigned" style="cursor:pointer;line-height:1.45">
+                <span style="display:block;font-size:12px;font-weight:700;color:var(--g1)">Create as unassigned</span>
+                <span style="display:block;font-size:11px;color:var(--muted)">Use this for a new joiner who does not have department, HOD or Sub-HOD assigned yet.</span>
+            </label>
+        </div>
         <div class="f2">
             <div class="fg"><label class="fl">Employee Code *</label><input class="fi" id="f_code" placeholder="JWPL0001" /></div>
             <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="f_name" /></div>
@@ -1065,6 +1083,29 @@
         <div class="f2">
             <div class="fg"><label class="fl">Designation</label><input class="fi" id="f_desig" /></div>
             <div class="fg"><label class="fl">Date of Joining</label><input type="date" class="fi" id="f_doj" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg">
+                <label class="fl">Gender</label>
+                <select class="fs" id="f_gender">
+                    <option value="">— Select —</option>
+                    <option value="M">Male (M)</option>
+                    <option value="F">Female (F)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="fg"><label class="fl">Qualification</label><input class="fi" id="f_qualification" placeholder="B.Com, MBA, B.Tech…" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Area</label><input class="fi" id="f_area" placeholder="West, Jammu, Ludhiana…" /></div>
+            <div class="fg">
+                <label class="fl">Sikh / Non-Sikh</label>
+                <select class="fs" id="f_sikh">
+                    <option value="">— Select —</option>
+                    <option value="S">Sikh (S)</option>
+                    <option value="N-S">Non-Sikh (N-S)</option>
+                </select>
+            </div>
         </div>
         <div id="s_mgr" style="display:none">
             <div class="fg">
@@ -1171,8 +1212,8 @@
                 <label class="fl">Sikh / Non-Sikh</label>
                 <select class="fs" id="e_sikh">
                     <option value="">— Select —</option>
-                    <option value="Sikh">Sikh</option>
-                    <option value="Non-Sikh">Non-Sikh</option>
+                    <option value="S">Sikh (S)</option>
+                    <option value="N-S">Non-Sikh (N-S)</option>
                 </select>
             </div>
             <div class="fg"></div>
@@ -1486,7 +1527,7 @@
 <script>
     const IS_ADMIN    = @(isAdmin ? "true" : "false");
     const API         = '/api/Hierarchy';
-    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set();
+    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, roleFilter='', editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set();
 
     document.addEventListener('DOMContentLoaded', async()=>{
         // Move all overlays to <body> so layout's overflow-x:hidden doesn't trap fixed positioning
@@ -1559,15 +1600,26 @@
     }
     function showStatusFilter(status){
         unassignedOnly=false;
+        roleFilter='';
         const statusSel=document.getElementById('fStatus');
         if(statusSel) statusSel.value=status||'';
         applyFilters();
     }
+    function showRoleFilter(role){
+        unassignedOnly=false;
+        roleFilter = roleFilter === role ? '' : role;
+        const statusSel=document.getElementById('fStatus');
+        if(statusSel) statusSel.value='';
+        applyFilters();
+    }
     function updateStatusPillHighlight(){
         const status=document.getElementById('fStatus')?.value||'';
-        document.getElementById('statAll')?.classList.toggle('selected', status==='');
-        document.getElementById('statActive')?.classList.toggle('selected', status==='active');
-        document.getElementById('statInactive')?.classList.toggle('selected', status==='inactive');
+        document.getElementById('statAll')?.classList.toggle('selected', status==='' && roleFilter==='');
+        document.getElementById('statActive')?.classList.toggle('selected', status==='active' && roleFilter==='');
+        document.getElementById('statInactive')?.classList.toggle('selected', status==='inactive' && roleFilter==='');
+        document.getElementById('statHod')?.classList.toggle('selected', roleFilter==='hod');
+        document.getElementById('statSub')?.classList.toggle('selected', roleFilter==='subhod');
+        document.getElementById('statExec')?.classList.toggle('selected', roleFilter==='exec');
     }
 
     function renderGrid(rows){
@@ -1691,23 +1743,61 @@
         const q=(document.getElementById('searchBox').value||'').toLowerCase();
         const dept=(document.getElementById('fDept').value||'').trim();
         const st=document.getElementById('fStatus').value||'';
-        const filtered=allRows.filter(r=>{
+        const source=roleFilter?buildRoleFilterRows(roleFilter):allRows;
+        const filtered=source.filter(r=>{
             const rowIsUnassigned=isUnassignedRow(r);
             if(unassignedOnly && !rowIsUnassigned)return false;
             if(!unassignedOnly && rowIsUnassigned)return false;
             if(q){const hay=[r.hodName,r.hodCode,r.subHodName,r.subHodCode,r.execName,r.execCode,r.departmentName,r.subDepartmentName].join(' ').toLowerCase();if(!hay.includes(q))return false;}
-            if(dept && String(r.departmentId||'')!==dept)return false;
-            if(st){const a=r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;if(st==='active'&&!a)return false;if(st==='inactive'&&a)return false;}
+            if(dept && !(r._departmentIds||[r.departmentId]).some(id=>String(id||'')===dept))return false;
+            if(st){const a=getRowDisplayActive(r);if(st==='active'&&!a)return false;if(st==='inactive'&&a)return false;}
             return true;
         });
         renderGrid(filtered);
         updateUnassignedOnlyButton();
         updateStatusPillHighlight();
     }
+    function getRowDisplayActive(r){
+        return r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;
+    }
+    function buildRoleFilterRows(role){
+        const map=new Map();
+        allRows.forEach(r=>{
+            let id=0,key='',base=null;
+            if(role==='hod'){
+                id=Number(r.hodEmployeeId)||0;if(!id)return;key=`hod-${id}`;
+                base=map.get(key)||{...r,subHodEmployeeId:0,subHodName:'',subHodCode:'',subHodDesignation:'',subHodIsActive:false,execEmployeeId:0,execName:'',execCode:'',execDesignation:'',execIsActive:false,_deptNames:new Set(),_departmentIds:new Set()};
+                if(r.departmentName)base._deptNames.add(r.departmentName);
+                if(r.departmentId)base._departmentIds.add(r.departmentId);
+                base.hodIsActive=base.hodIsActive||!!r.hodIsActive;
+            }else if(role==='subhod'){
+                id=Number(r.subHodEmployeeId)||0;if(!id)return;key=`sub-${id}`;
+                base=map.get(key)||{...r,execEmployeeId:0,execName:'',execCode:'',execDesignation:'',execIsActive:false,_deptNames:new Set(),_departmentIds:new Set(),_subDeptNames:new Set()};
+                if(r.departmentName)base._deptNames.add(r.departmentName);
+                if(r.departmentId)base._departmentIds.add(r.departmentId);
+                if(r.subDepartmentName)base._subDeptNames.add(r.subDepartmentName);
+                base.subHodIsActive=base.subHodIsActive||!!r.subHodIsActive;
+            }else if(role==='exec'){
+                id=Number(r.execEmployeeId)||0;if(!id)return;key=`exec-${id}`;
+                base=map.get(key)||{...r,_departmentIds:new Set()};
+                if(r.departmentId)base._departmentIds.add(r.departmentId);
+                base.execIsActive=base.execIsActive||!!r.execIsActive;
+            }
+            if(base)map.set(key,base);
+        });
+        return [...map.values()].map(r=>{
+            if(r._deptNames&&r._deptNames.size)r.departmentName=[...r._deptNames].join(', ');
+            if(r._subDeptNames&&r._subDeptNames.size)r.subDepartmentName=[...r._subDeptNames].join(', ');
+            if(r._departmentIds instanceof Set)r._departmentIds=[...r._departmentIds];
+            delete r._deptNames;delete r._subDeptNames;
+            return r;
+        });
+    }
     function isUnassignedRow(r){
+        const hasUnassignedHod=(r.hodEmployeeId||0)>0 && !(r.departmentId||0) && !(r.subHodEmployeeId||0) && !(r.execEmployeeId||0);
         const hasUnassignedSubHod=(r.subHodEmployeeId||0)>0 && !(r.hodEmployeeId||0) && !(r.departmentId||0);
         const hasUnassignedExec=(r.execEmployeeId||0)>0 && !(r.hodEmployeeId||0) && !(r.departmentId||0);
-        return hasUnassignedSubHod || hasUnassignedExec;
+        return hasUnassignedHod || hasUnassignedSubHod || hasUnassignedExec;
     }
     function toggleUnassignedOnly(){
         unassignedOnly=!unassignedOnly;
@@ -1738,6 +1828,89 @@
         if(current && [...sel.options].some(o=>o.value===current)) sel.value=current;
     }
 
+    function downloadHierarchyMasterExcel(){
+        if(typeof XLSX==='undefined'){toast('Excel library is not loaded','err');return;}
+
+        const rows=getCurrentFilteredRows();
+        if(!rows.length){toast('No rows to download','err');return;}
+
+        const directorName=@Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.OwnerName ?? "Director"));
+        const data=[[
+            'Director',
+            'HOD Name',
+            'HOD Code',
+            'Department',
+            'SubDepartment',
+            'SubHOD Name',
+            'SubHOD Code',
+            'Designation',
+            'Executive Name',
+            'Executive Code',
+            'Designation',
+            'Active'
+        ]];
+
+        rows.forEach(r=>{
+            const hasSubHod=(r.subHodEmployeeId>0)||!!(r.subHodName||r.subHodCode||r.subHodDesignation);
+            const hasExec=(r.execEmployeeId>0)||!!(r.execName||r.execCode||r.execDesignation);
+            const active=hasExec?r.execIsActive:hasSubHod?r.subHodIsActive:r.hodIsActive;
+            data.push([
+                directorName,
+                cleanExportCell(r.hodName),
+                cleanExportCell(r.hodCode),
+                cleanExportCell(r.departmentName),
+                cleanExportCell(r.subDepartmentName),
+                hasSubHod?cleanExportCell(r.subHodName):'',
+                hasSubHod?cleanExportCell(r.subHodCode):'',
+                hasSubHod?cleanExportCell(r.subHodDesignation):'',
+                hasExec?cleanExportCell(r.execName):'',
+                hasExec?cleanExportCell(r.execCode):'',
+                hasExec?cleanExportCell(r.execDesignation):'',
+                active?'Active':'Inactive'
+            ]);
+        });
+
+        const ws=XLSX.utils.aoa_to_sheet(data);
+        ws['!cols']=data[0].map((h,idx)=>{
+            const maxLen=Math.max(String(h).length,...data.slice(1).map(r=>String(r[idx]||'').length));
+            return {wch:Math.min(Math.max(maxLen+2,12),36)};
+        });
+        const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'Hierarchy Master');
+        XLSX.writeFile(wb,`Hierarchy_Master_${new Date().toISOString().slice(0,10)}.xlsx`);
+        toast(`Downloaded ${data.length-1} rows`,'ok');
+    }
+
+    function getCurrentFilteredRows(){
+        const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
+        const dept=(document.getElementById('fDept')?.value||'').trim();
+        const st=document.getElementById('fStatus')?.value||'';
+        return (allRows||[]).filter(r=>{
+            const rowIsUnassigned=isUnassignedRow(r);
+            if(unassignedOnly && !rowIsUnassigned)return false;
+            if(!unassignedOnly && rowIsUnassigned)return false;
+            if(q){
+                const hay=[r.hodName,r.hodCode,r.subHodName,r.subHodCode,r.execName,r.execCode,r.departmentName,r.subDepartmentName].join(' ').toLowerCase();
+                if(!hay.includes(q))return false;
+            }
+            if(dept && String(r.departmentId||'')!==dept)return false;
+            if(st){
+                const a=r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;
+                if(st==='active'&&!a)return false;
+                if(st==='inactive'&&a)return false;
+            }
+            return true;
+        });
+    }
+
+    function cleanExportCell(value){
+        return String(value||'')
+            .replace(/\u00a0/g,' ')
+            .replace(/\s+/g,' ')
+            .replace(/^—$/,'')
+            .trim();
+    }
+
     function toggleUpload(){
         const p=document.getElementById('uploadPanel');
         p.style.display=p.style.display==='none'?'block':'none';
@@ -1759,26 +1932,39 @@
                 const json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
                 pendingXl=[];
                 const headerRow=(json[0]||[]).map(normalizeHeader);
+                const isMasterDownloadFormat=isHierarchyMasterDownloadFormat(headerRow);
+                const fallbackCols=isMasterDownloadFormat
+                    ? {hodName:1,hodCode:2,department:3,subDepartment:4,subHodName:5,subHodCode:6,subHodDesignation:7,execName:8,execCode:9,execDesignation:10}
+                    : {hodName:2,hodCode:13,department:1,subDepartment:3,subHodName:5,subHodCode:12,subHodDesignation:null,execName:7,execCode:11,execDesignation:6};
                 const hodNameIdx=findColumnIndex(headerRow,['hodname','hod']);
-                const hodCodeIdx=findColumnIndex(headerRow,['hodcode','hodemployeecode','hodempcode']);
+                const hodCodeIdx=findColumnIndex(headerRow,['hodcode','hodemployeecode','hodempcode','hodco']);
                 const deptIdx=findColumnIndex(headerRow,['department','dept']);
-                const subDeptIdx=findColumnIndex(headerRow,['subdepartment','subdept']);
+                const subDeptIdx=findColumnIndex(headerRow,['subdepartment','subdept','subdepartmentname']);
                 const subHodNameIdx=findColumnIndex(headerRow,['subhodname','subhod']);
-                const subHodCodeIdx=findColumnIndex(headerRow,['subhodcode','subhodemployeecode','subhodempcode']);
-                const subHodDesignationIdx=findColumnIndex(headerRow,['subhoddesignation','subhoddesig','subdesignation']);
+                const subHodCodeIdx=findColumnIndex(headerRow,['subhodcode','subhodemployeecode','subhodempcode','subhodco']);
+                const subHodDesignationIdx=findColumnIndex(headerRow,['subhoddesignation','subhoddesig','subdesignation','subhoddesigna']);
                 const execNameIdx=findColumnIndex(headerRow,['executivename','execname','executive']);
-                const execCodeIdx=findColumnIndex(headerRow,['executivecode','execcode','executiveemployeecode']);
-                const execDesignationIdx=findColumnIndex(headerRow,['executivedesignation','execdesignation','execdesig']);
+                const execCodeIdx=findColumnIndex(headerRow,['executivecode','execcode','executiveemployeecode','executivec']);
+                const execDesignationIdx=findColumnIndex(headerRow,['executivedesignation','execdesignation','execdesig','execdesigna']);
+                const genericDesignationIndexes=headerRow
+                    .map((h,idx)=>h==='designation'?idx:-1)
+                    .filter(idx=>idx>=0);
+                const subHodDesignationImportIdx=subHodDesignationIdx!==-1
+                    ? subHodDesignationIdx
+                    : findGenericDesignationBetween(genericDesignationIndexes, subHodCodeIdx, execNameIdx);
+                const execDesignationImportIdx=execDesignationIdx!==-1
+                    ? execDesignationIdx
+                    : findGenericDesignationAfter(genericDesignationIndexes, execCodeIdx);
                 for(let i=1;i<json.length;i++){
                     const r=json[i];
-                    const hodName=cl(sheetCellAt(ws, i, hodNameIdx, 2));
-                    const hodCode=cl(sheetCellAt(ws, i, hodCodeIdx, 13));
-                    const department=cl(sheetCellAt(ws, i, deptIdx, 1));
-                    const subDepartment=cl(sheetCellAt(ws, i, subDeptIdx, 3));
-                    const subHodName=cl(sheetCellAt(ws, i, subHodNameIdx, 5));
-                    const subHodCode=cl(sheetCellAt(ws, i, subHodCodeIdx, 12));
-                    const subHodDesignation=cl(sheetCellAt(ws, i, subHodDesignationIdx, null));
-                    const execName=cl(sheetCellAt(ws, i, execNameIdx, 7));
+                    const hodName=cl(sheetCellAt(ws, i, hodNameIdx, fallbackCols.hodName));
+                    const hodCode=cl(sheetCellAt(ws, i, hodCodeIdx, fallbackCols.hodCode));
+                    const department=cl(sheetCellAt(ws, i, deptIdx, fallbackCols.department));
+                    const subDepartment=cl(sheetCellAt(ws, i, subDeptIdx, fallbackCols.subDepartment));
+                    const subHodName=cl(sheetCellAt(ws, i, subHodNameIdx, fallbackCols.subHodName));
+                    const subHodCode=cl(sheetCellAt(ws, i, subHodCodeIdx, fallbackCols.subHodCode));
+                    const subHodDesignation=cl(sheetCellAt(ws, i, subHodDesignationImportIdx, fallbackCols.subHodDesignation));
+                    const execName=cl(sheetCellAt(ws, i, execNameIdx, fallbackCols.execName));
                     if(!hodName&&!subHodName&&!execName)continue;
                     pendingXl.push({
                         rowNumber:i+1,
@@ -1790,8 +1976,8 @@
                         subHodCode:subHodCode,
                         subHodDesignation:subHodDesignation,
                         execName:execName,
-                        execCode:cl(sheetCellAt(ws, i, execCodeIdx, 11)),
-                        execDesignation:cl(sheetCellAt(ws, i, execDesignationIdx, 6))
+                        execCode:cl(sheetCellAt(ws, i, execCodeIdx, fallbackCols.execCode)),
+                        execDesignation:cl(sheetCellAt(ws, i, execDesignationImportIdx, fallbackCols.execDesignation))
                     });
                 }
                 const pv=document.getElementById('importPreview');
@@ -1822,12 +2008,31 @@
         return bestScore>=3 ? bestName : '';
     }
     function normalizeHeader(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+    function isHierarchyMasterDownloadFormat(headers){
+        return headers[0]==='director'
+            && headers[1]==='hodname'
+            && headers[2]==='hodcode'
+            && headers[3]==='department'
+            && headers[4]==='subdepartment'
+            && headers[5]==='subhodname'
+            && headers[6]==='subhodcode'
+            && headers[8]==='executivename'
+            && headers[9]==='executivecode';
+    }
     function findColumnIndex(headers, aliases){
         for(const alias of aliases){
             const idx=headers.indexOf(alias);
             if(idx!==-1)return idx;
         }
         return -1;
+    }
+    function findGenericDesignationBetween(indexes,startIdx,endIdx){
+        if(startIdx<0||endIdx<0)return -1;
+        return indexes.find(idx=>idx>startIdx&&idx<endIdx) ?? -1;
+    }
+    function findGenericDesignationAfter(indexes,startIdx){
+        if(startIdx<0)return -1;
+        return indexes.find(idx=>idx>startIdx) ?? -1;
     }
     function rawSheetCellValue(ws,rowIdx,colIdx){
         if(colIdx===null||colIdx===undefined||colIdx<0)return '';
@@ -1931,9 +2136,10 @@
     }
     function updateAddFormLabels(){
         const role=addLvl;
-        setLabelHtml('f_hod_label', role>=2 ? 'Reports To (HOD) *' : 'Reports To (HOD) <span style="color:var(--muted);font-weight:400">optional</span>');
-        setLabelHtml('f_dept_label', role>=1 ? 'Department *' : 'Department');
-        setLabelHtml('f_sdept_label', role===2 ? 'Sub-Department *' : 'Sub-Department');
+        const unassigned = document.getElementById('f_unassigned')?.checked || false;
+        setLabelHtml('f_hod_label', !unassigned && role>=2 ? 'Reports To (HOD) *' : 'Reports To (HOD) <span style="color:var(--muted);font-weight:400">optional</span>');
+        setLabelHtml('f_dept_label', !unassigned && role>=1 ? 'Department *' : 'Department');
+        setLabelHtml('f_sdept_label', !unassigned && role===2 ? 'Sub-Department *' : 'Sub-Department');
         setLabelHtml('f_sub_label', 'Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span>');
     }
     function updateEditFormLabels(){
@@ -1944,11 +2150,13 @@
         setLabelHtml('e_sub_label', 'Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span>');
     }
     function clearAddForm(clearMessage=true){
-        ['f_code','f_name','f_email','f_phone','f_desig','f_doj'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+        ['f_code','f_name','f_email','f_phone','f_desig','f_doj','f_gender','f_qualification','f_area','f_sikh'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
         ['f_hod','f_sub','f_dept','f_sdept'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+        const unassigned=document.getElementById('f_unassigned');if(unassigned)unassigned.checked=false;
         const s=document.getElementById('f_sal');if(s)s.value='';
         renderDeptOptions('f_dept', deptsMeta);
         document.getElementById('f_sub').innerHTML='<option value="">— Direct to HOD —</option>';
+        onAddUnassignedChange(false);
         updateAddFormLabels();
         if(clearMessage) showAddError('');
     }
@@ -1966,6 +2174,21 @@
         }else if(document.getElementById('f_hod').value){
             onHodChange();
         }
+        onAddUnassignedChange(false);
+    }
+    function onAddUnassignedChange(clearValues = true){
+        const unassigned = document.getElementById('f_unassigned')?.checked || false;
+        ['f_hod','f_dept','f_sdept','f_sub'].forEach(id=>{
+            const el=document.getElementById(id);
+            if(!el)return;
+            el.disabled=unassigned;
+            if(unassigned && clearValues) el.value='';
+        });
+        ['s_mgr','s_dept','s_sub'].forEach(id=>{
+            const el=document.getElementById(id);
+            if(el)el.style.opacity=unassigned?'.55':'1';
+        });
+        updateAddFormLabels();
     }
     function renderDeptOptions(selId, departments){
         const s=document.getElementById(selId);
@@ -1984,6 +2207,14 @@
         if(!exists){
             s.innerHTML += `<option value="${normalized}">${esc(label || normalized)}</option>`;
         }
+    }
+    function normalizeSikhCode(value){
+        if(value===null || value===undefined) return '';
+        const text=String(value).trim();
+        const compact=text.toLowerCase().replace(/[\s/_-]+/g,'');
+        if(compact==='s' || compact==='sikh') return 'S';
+        if(compact==='ns' || compact==='nonsikh' || compact==='notsikh') return 'N-S';
+        return text;
     }
     function getEditHodDepartmentIds(){
         return [...document.querySelectorAll('#e_hod_dept_multi input[type="checkbox"]:checked')]
@@ -2231,6 +2462,7 @@
         items.forEach((name,id)=>{sel.innerHTML+=`<option value="${id}">${esc(name)}</option>`;});
     }
     function validateHierarchySequence(role, prefix){
+        if(prefix==='f' && (document.getElementById('f_unassigned')?.checked || false)) return '';
         const deptId=parseInt(document.getElementById(`${prefix}_dept`)?.value)||0;
         const subDeptId=parseInt(document.getElementById(`${prefix}_sdept`)?.value)||0;
         const hodId=role>=2 ? (parseInt(document.getElementById(`${prefix}_hod`)?.value)||0) : 0;
@@ -2246,6 +2478,7 @@
         const code=document.getElementById('f_code').value.trim(), name=document.getElementById('f_name').value.trim();
         const email = document.getElementById('f_email').value.trim();
         const phone = document.getElementById('f_phone').value.trim();
+        const isUnassigned = document.getElementById('f_unassigned')?.checked || false;
         showAddError('');
         if(!code||!name){showAddError('Code and Name are required');return;}
         const hierarchyError=validateHierarchySequence(addLvl,'f');
@@ -2255,12 +2488,16 @@
         const btn=document.getElementById('addBtn');btn.disabled=true;btn.textContent='Creating…';
         const payload={employeeCode:code,employeeName:name,email:email||null,phone:phone?normalizePhone(phone):null,designation:document.getElementById('f_desig').value.trim()||null,
             dateOfJoining:document.getElementById('f_doj').value||null,
-            roleTypeId:addLvl,primaryDepartmentId:document.getElementById('f_dept')?.value?parseInt(document.getElementById('f_dept').value):null,isActive:true};
+            gender:document.getElementById('f_gender').value||null,
+            qualification:document.getElementById('f_qualification').value.trim()||null,
+            area:document.getElementById('f_area').value.trim()||null,
+            sikhNonSikh:normalizeSikhCode(document.getElementById('f_sikh').value)||null,
+            roleTypeId:addLvl,primaryDepartmentId:(!isUnassigned && document.getElementById('f_dept')?.value)?parseInt(document.getElementById('f_dept').value):null,isActive:true};
         try{
             const r=await api(`${API}/CreateEmployee`,'POST',payload);
             if(!r.success || !r.data?.employeeId){showAddError(r.message||'Employee not created');return;}
             const nId=r.data?.employeeId;
-            if(addLvl>=2&&nId){
+            if(!isUnassigned && addLvl>=2&&nId){
                 const hId=parseInt(document.getElementById('f_hod').value);
                 const sId=document.getElementById('f_sub')?.value;
                 const dId=parseInt(document.getElementById('f_dept').value);
@@ -2423,7 +2660,7 @@
         const detailGender = editModalExtras?.gender ?? editModalExtras?.Gender ?? '';
         const detailQualification = editModalExtras?.qualification ?? editModalExtras?.Qualification ?? editModalExtras?.qulaification ?? editModalExtras?.Qulaification ?? '';
         const detailArea = editModalExtras?.area ?? editModalExtras?.Area ?? '';
-        const detailSikh = editModalExtras?.sikhNonSikh ?? editModalExtras?.SikhNonSikh ?? '';
+        const detailSikh = normalizeSikhCode(editModalExtras?.sikhNonSikh ?? editModalExtras?.SikhNonSikh ?? editModalExtras?.sikh_no_sikh ?? '');
 
         if (roleTypeId === 3) {
             const reportTo = getPrimaryReportTo(employeeDetail);
@@ -2456,7 +2693,6 @@
         document.getElementById('e_gender').value = detailGender || '';
         document.getElementById('e_qualification').value = detailQualification || '';
         document.getElementById('e_area').value = detailArea || '';
-        ensureSelectOption('e_sikh', detailSikh, detailSikh);
         document.getElementById('e_sikh').value = detailSikh || '';
         document.getElementById('e_role').value  = String(roleTypeId);
         document.getElementById('e_active').checked = roleTypeId === 1 ? row.hodIsActive :
@@ -2478,7 +2714,9 @@
             deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
 
         // Set dept
-        const isCurrentlyUnassigned = roleTypeId >= 2 && !reportsToHodId && !reportsToSubId && !row.departmentId && !detailPrimaryDeptId;
+        const isCurrentlyUnassigned = roleTypeId === 1
+            ? !row.departmentId && !detailPrimaryDeptId
+            : !reportsToHodId && !reportsToSubId && !row.departmentId && !detailPrimaryDeptId;
         document.getElementById('e_unassigned').checked = isCurrentlyUnassigned;
 
         const deptId = roleTypeId === 1
@@ -2804,7 +3042,7 @@
                     gender:          document.getElementById('e_gender').value || null,
                     qualification:   document.getElementById('e_qualification').value.trim() || null,
                     area:            document.getElementById('e_area').value.trim() || null,
-                    sikhNonSikh:     document.getElementById('e_sikh').value || null,
+                    sikhNonSikh:     normalizeSikhCode(document.getElementById('e_sikh').value) || null,
                     roleTypeId:      role,
                     departmentId:    deptId,
                     subDepartmentId: subDeptId,

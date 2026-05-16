@@ -7,6 +7,10 @@
 }
 
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+@if (isAdmin)
+{
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+}
 
 <style>
     html, body {
@@ -269,6 +273,119 @@
         .eh-btn-export:hover {
             background: #d1fae5;
         }
+
+    .eh-btn-import {
+        background: #eff6ff;
+        border-color: #3b82f6;
+        color: #1d4ed8;
+    }
+
+        .eh-btn-import:hover {
+            background: #dbeafe;
+        }
+
+    .idx-import-panel {
+        margin: 12px 24px 0;
+        padding: 14px;
+        background: #fff;
+        border: 1.5px solid #dbeafe;
+        border-radius: 10px;
+        box-shadow: 0 8px 22px rgba(37,99,235,.08);
+    }
+
+    .idx-import-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .idx-import-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .idx-import-sub {
+        font-size: 10px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .idx-drop-zone {
+        border: 1.5px dashed #93c5fd;
+        background: #eff6ff;
+        border-radius: 10px;
+        padding: 18px;
+        text-align: center;
+        cursor: pointer;
+        color: #1d4ed8;
+        transition: all .2s;
+    }
+
+        .idx-drop-zone.drag-over {
+            border-color: #2563eb;
+            background: #dbeafe;
+        }
+
+        .idx-drop-zone input {
+            display: none;
+        }
+
+    .idx-preview, .idx-result {
+        display: none;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        font-size: 12px;
+    }
+
+    .idx-preview-sample {
+        margin-top: 6px;
+        padding: 8px;
+        background: #fff;
+        border-radius: 7px;
+        color: #475569;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        line-height: 1.55;
+        max-height: 110px;
+        overflow: auto;
+    }
+
+    .idx-import-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .idx-import-stat {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+        .idx-import-stat span {
+            padding: 5px 9px;
+            border-radius: 20px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+    .idx-import-errors {
+        margin-top: 8px;
+        color: #b91c1c;
+        font-size: 11px;
+        line-height: 1.5;
+        max-height: 120px;
+        overflow: auto;
+    }
 
     .eh-btn-dup {
         background: #fff7ed;
@@ -956,7 +1073,8 @@
         color: #0f172a !important;
         line-height: 1.2 !important;
         margin-bottom: 0 !important;
-        word-break: break-word;
+        word-break: normal;
+        overflow-wrap: anywhere;
         min-width: 0;
         flex: 1 1 auto;
     }
@@ -1012,7 +1130,7 @@
     }
 
     .nc-exec .nc-name {
-        font-size: 12px !important;
+        font-size: 12.5px !important;
         color: #164e63 !important;
     }
 
@@ -3064,6 +3182,8 @@
             var SALES_DESIG_SUMMARY = [];
             var SALES_DUPLICATES = [];
             var SALES_DEPT_NAME = 'Frontend Sales';
+            var IDX_PENDING_IMPORT_ROWS = [];
+            var INACTIVE_PERSON_DATA = [];
             
             var HOD_COLORS = [
                 {bg:'#dbeafe',border:'#2563eb',text:'#1e3a8a',badge:'#1d4ed8',light:'#eff6ff'},
@@ -3192,6 +3312,8 @@
                         BASE_RAW_DATA = normalizeData(r.data);
                         RAW_DATA = BASE_RAW_DATA;
                         updateStatCards();
+                        loadOrphans();
+                        loadInactivePersons();
                         buildChips_V5();
                         $('#ehLoading').fadeOut(200);
                         $('#ehStats,#ehTabs').fadeIn(300);
@@ -3799,15 +3921,73 @@
             var ORPHAN_DATA = [];
 
             function loadOrphans(){
-                ORPHAN_DATA = [];
+                $.get('/api/Hierarchy/GetOrphanEmployees', function(r){
+                    ORPHAN_DATA = (r && r.success && r.data ? r.data : []).map(function(x){
+                        return {
+                            employeeCode: x.employeeCode || x.EmployeeCode || '',
+                            employeeName: x.employeeName || x.EmployeeName || '',
+                            roleName: x.roleName || x.RoleName || 'Employee',
+                            isActive: (x.isActive !== undefined ? x.isActive : x.IsActive) === true
+                        };
+                    });
+                    updateUnassignedCard();
+                }).fail(function(){
+                    ORPHAN_DATA = [];
+                    updateUnassignedCard();
+                });
             }
 
             function renderOrphans(){
-                return;
+                return ORPHAN_DATA.map(function(e){
+                    return [
+                        e.employeeCode || '—',
+                        e.employeeName || '—',
+                        e.isActive ? 'Active' : 'Inactive'
+                    ];
+                });
             }
 
             function toggleOrphanPanel(){
-                return;
+                showStatPopup('unassigned');
+            }
+
+            function updateUnassignedCard(){
+                var el = document.getElementById('escUnassigned');
+                if(el) el.textContent = (ORPHAN_DATA || []).length.toLocaleString('en-IN');
+            }
+
+            function loadInactivePersons(){
+                INACTIVE_PERSON_DATA = [];
+                $.get('/api/Hierarchy/SearchEmployees?isActive=false&pageSize=10000', function(r){
+                    INACTIVE_PERSON_DATA = (r && r.success && r.data ? r.data : []).map(function(x){
+                        return {
+                            employeeCode: x.employeeCode || x.EmployeeCode || '',
+                            employeeName: x.employeeName || x.EmployeeName || '',
+                            roleName: x.roleName || x.RoleName || 'Employee',
+                            isActive: false
+                        };
+                    });
+                    updateInactiveCard();
+                }).fail(function(){
+                    INACTIVE_PERSON_DATA = [];
+                    updateInactiveCard();
+                });
+            }
+
+            function renderInactivePersons(){
+                return INACTIVE_PERSON_DATA.map(function(e){
+                    return [
+                        e.employeeCode || '—',
+                        e.employeeName || '—',
+                        e.roleName || 'Employee',
+                        'Inactive'
+                    ];
+                });
+            }
+
+            function updateInactiveCard(){
+                var el = document.getElementById('escInactivePersons');
+                if(el) el.textContent = (INACTIVE_PERSON_DATA || []).length.toLocaleString('en-IN');
             }
 
             function getPersonKey(role, name, code){
@@ -3862,7 +4042,8 @@
 
             function isSikhHierarchyValue(value){
                 var compact = String(value || '').trim().toLowerCase().replace(/[\s/_-]+/g,'');
-                return compact === 'sikh'
+                return compact === 's'
+                    || compact === 'sikh'
                     || compact === 'yes'
                     || compact === 'true'
                     || compact === '1'
@@ -3968,6 +4149,8 @@
                     });
                 });
                 animCount('escHod',counts.hodCount); animCount('escDept',Object.keys(dSet).length); animCount('escSD',Object.keys(sdSet).length); animCount('escSH',counts.subHodCount); animCount('escEx',counts.execCount); animCount('escTeam',counts.totalEmployees);
+                updateUnassignedCard();
+                updateInactiveCard();
             }
             function animCount(id,target){ var el=document.getElementById(id);if(!el)return;var t0=null;(function step(ts){if(!t0)t0=ts;var p=Math.min((ts-t0)/900,1),e=1-Math.pow(1-p,3);el.textContent=Math.round(e*target).toLocaleString('en-IN');if(p<1)requestAnimationFrame(step);})(performance.now()); }
             /* ══ TAB SWITCHING ══ */
@@ -4058,6 +4241,171 @@
                         setTimeout(function(){ $c.removeClass('hl-found'); }, 3500);
                     }
                 }, 260);
+            }
+
+            /* HO EXCEL IMPORT */
+            function idxToggleImport(){
+                var panel = document.getElementById('idxImportPanel');
+                if(!panel) return;
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+            function idxOnFileDrop(e){
+                e.preventDefault();
+                var dz = document.getElementById('idxDropZone');
+                if(dz) dz.classList.remove('drag-over');
+                var f = e.dataTransfer.files[0];
+                if(f) idxProcessXl(f);
+            }
+            function idxOnFileSelect(e){
+                var f = e.target.files[0];
+                if(f) idxProcessXl(f);
+            }
+            function idxProcessXl(file){
+                if(!file.name.match(/\.xlsx?$/i)){showAlert('warning','Upload .xlsx or .xls file.');return;}
+                if(typeof XLSX === 'undefined'){showAlert('danger','Excel library is not loaded. Please refresh and try again.');return;}
+                var reader = new FileReader();
+                reader.onload = function(e){
+                    try{
+                        var wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                        var pickedSheetName = idxPickHierarchySheetName(wb);
+                        if(!pickedSheetName){showAlert('warning','Could not find a hierarchy data sheet in this workbook.');return;}
+                        var ws = wb.Sheets[pickedSheetName];
+                        var json = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+                        IDX_PENDING_IMPORT_ROWS = [];
+                        var headerRow = (json[0] || []).map(idxNormalizeHeader);
+                        var hodNameIdx = idxFindColumnIndex(headerRow, ['hodname','hod']);
+                        var hodCodeIdx = idxFindColumnIndex(headerRow, ['hodcode','hodemployeecode','hodempcode','echod']);
+                        var deptIdx = idxFindColumnIndex(headerRow, ['department','dept']);
+                        var subDeptIdx = idxFindColumnIndex(headerRow, ['subdepartment','subdept']);
+                        var subHodNameIdx = idxFindColumnIndex(headerRow, ['subhodname','subhod']);
+                        var subHodCodeIdx = idxFindColumnIndex(headerRow, ['subhodcode','subhodemployeecode','subhodempcode','ecsubhod']);
+                        var subHodDesignationIdx = idxFindColumnIndex(headerRow, ['subhoddesignation','subhoddesig','subdesignation']);
+                        var execNameIdx = idxFindColumnIndex(headerRow, ['executivename','execname','executive']);
+                        var execCodeIdx = idxFindColumnIndex(headerRow, ['executivecode','execcode','executiveemployeecode','ecexecutive']);
+                        var execDesignationIdx = idxFindColumnIndex(headerRow, ['executivedesignation','execdesignation','execdesig','designation']);
+                        for(var i = 1; i < json.length; i++){
+                            var hodName = idxCleanCell(idxSheetCellAt(ws, i, hodNameIdx, 2));
+                            var hodCode = idxCleanCell(idxSheetCellAt(ws, i, hodCodeIdx, 13));
+                            var department = idxCleanCell(idxSheetCellAt(ws, i, deptIdx, 1));
+                            var subDepartment = idxCleanCell(idxSheetCellAt(ws, i, subDeptIdx, 3));
+                            var subHodName = idxCleanCell(idxSheetCellAt(ws, i, subHodNameIdx, 5));
+                            var subHodCode = idxCleanCell(idxSheetCellAt(ws, i, subHodCodeIdx, 12));
+                            var subHodDesignation = idxCleanCell(idxSheetCellAt(ws, i, subHodDesignationIdx, null));
+                            var execName = idxCleanCell(idxSheetCellAt(ws, i, execNameIdx, 7));
+                            if(!hodName && !subHodName && !execName) continue;
+                            IDX_PENDING_IMPORT_ROWS.push({
+                                rowNumber: i + 1,
+                                hodName: hodName,
+                                hodCode: hodCode,
+                                department: department,
+                                subDepartment: subDepartment,
+                                subHodName: subHodName,
+                                subHodCode: subHodCode,
+                                subHodDesignation: subHodDesignation,
+                                execName: execName,
+                                execCode: idxCleanCell(idxSheetCellAt(ws, i, execCodeIdx, 11)),
+                                execDesignation: idxCleanCell(idxSheetCellAt(ws, i, execDesignationIdx, 6))
+                            });
+                        }
+                        document.getElementById('idxPreviewInfo').textContent = IDX_PENDING_IMPORT_ROWS.length + ' rows found in "' + file.name + '" (' + pickedSheetName + ')';
+                        document.getElementById('idxPreviewSample').innerHTML = IDX_PENDING_IMPORT_ROWS.slice(0,5).map(function(r){
+                            return 'Row' + r.rowNumber + ': HOD=' + (r.hodCode || '?') + ' ' + r.hodName + ' | ' + r.department + ' | SubHOD=' + (r.subHodCode || '-') + ' | Exec=' + (r.execCode || '-') + ' ' + r.execName;
+                        }).join('<br>');
+                        document.getElementById('idxImportPreview').style.display = 'block';
+                        document.getElementById('idxImportResult').style.display = 'none';
+                    }catch(ex){
+                        showAlert('danger','Excel read error: ' + ex.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            function idxPickHierarchySheetName(wb){
+                var requiredHints = ['department','hod','executivename'];
+                var bestName = '', bestScore = -1;
+                (wb.SheetNames || []).forEach(function(name){
+                    var ws = wb.Sheets[name];
+                    var json = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', range:0});
+                    var headerRow = (json[0] || []).map(idxNormalizeHeader);
+                    var score = requiredHints.reduce(function(acc,h){return acc + (headerRow.some(function(col){return col.indexOf(h) > -1;}) ? 1 : 0);},0)
+                        + (headerRow.some(function(col){return col.indexOf('subhod') > -1;}) ? 1 : 0)
+                        + (headerRow.some(function(col){return col.indexOf('executivecode') > -1 || col.indexOf('execcode') > -1 || col.indexOf('ecexecutive') > -1;}) ? 1 : 0);
+                    if(score > bestScore){bestScore = score; bestName = name;}
+                });
+                return bestScore >= 3 ? bestName : '';
+            }
+            function idxNormalizeHeader(v){return String(v || '').toLowerCase().replace(/[^a-z0-9]/g,'');}
+            function idxFindColumnIndex(headers, aliases){
+                for(var i = 0; i < aliases.length; i++){
+                    var idx = headers.indexOf(aliases[i]);
+                    if(idx !== -1) return idx;
+                }
+                return -1;
+            }
+            function idxRawSheetCellValue(ws,rowIdx,colIdx){
+                if(colIdx === null || colIdx === undefined || colIdx < 0) return '';
+                var direct = ws[XLSX.utils.encode_cell({r:rowIdx,c:colIdx})];
+                if(direct && direct.v !== undefined && direct.v !== null) return direct.v;
+                var merges = ws['!merges'] || [];
+                for(var i = 0; i < merges.length; i++){
+                    var merge = merges[i];
+                    if(rowIdx >= merge.s.r && rowIdx <= merge.e.r && colIdx >= merge.s.c && colIdx <= merge.e.c){
+                        var root = ws[XLSX.utils.encode_cell({r:merge.s.r,c:merge.s.c})];
+                        return (root && root.v !== undefined && root.v !== null) ? root.v : '';
+                    }
+                }
+                return '';
+            }
+            function idxSheetCellAt(ws,rowIdx,idx,fallbackIdx){
+                if(idx !== -1) return idxRawSheetCellValue(ws,rowIdx,idx);
+                if(fallbackIdx === null || fallbackIdx === undefined) return '';
+                return idxRawSheetCellValue(ws,rowIdx,fallbackIdx);
+            }
+            function idxCleanCell(v){
+                if(!v && v !== 0) return '';
+                var s = String(v).trim();
+                if(!s || s === '0' || s.charAt(0) === '=' || s === '#N/A' || s.charAt(0) === '#') return '';
+                return s;
+            }
+            function idxClearImport(){
+                IDX_PENDING_IMPORT_ROWS = [];
+                document.getElementById('idxImportPreview').style.display = 'none';
+                document.getElementById('idxImportResult').style.display = 'none';
+                document.getElementById('idxXlFile').value = '';
+            }
+            async function idxRunImport(){
+                if(!IDX_PENDING_IMPORT_ROWS.length){showAlert('warning','No rows found to import.');return;}
+                var btn = document.getElementById('idxImportBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Importing...';
+                try{
+                    var response = await fetch('/api/Hierarchy/ImportFromExcel', {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify(IDX_PENDING_IMPORT_ROWS)
+                    });
+                    var res = await response.json();
+                    if(!res.success){showAlert('danger',res.message || 'Import failed.');return;}
+                    var d = res.data || res.Data || {};
+                    document.getElementById('idxImportStats').innerHTML =
+                        '<span>' + (d.employeesCreated || d.EmployeesCreated || 0) + ' Created</span>' +
+                        '<span>' + (d.employeesUpdated || d.EmployeesUpdated || 0) + ' Updated</span>' +
+                        '<span>' + (d.relationshipsCreated || d.RelationshipsCreated || 0) + ' Relationships</span>' +
+                        '<span>' + (d.errors || d.Errors || 0) + ' Errors</span>';
+                    var tempCodes = d.tempCodes || d.TempCodes || [];
+                    var errors = d.errorDetails || d.ErrorDetails || [];
+                    var extra = '';
+                    if(tempCodes.length) extra += '<b>TEMP codes generated:</b><br>' + tempCodes.map(esc).join('<br>');
+                    if(errors.length) extra += (extra ? '<br><br>' : '') + errors.map(esc).join('<br>');
+                    document.getElementById('idxImportErrors').innerHTML = extra;
+                    document.getElementById('idxImportResult').style.display = 'block';
+                    showAlert('success','Import complete. Refreshing hierarchy...');
+                    loadData();
+                }catch(ex){
+                    showAlert('danger','Import error: ' + ex.message);
+                }finally{
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check2-circle"></i> Run Import';
+                }
             }
 
             /* ══════════════════════════════════════════════
@@ -4176,11 +4524,11 @@ function getTenureLabel(value){
 }
 function normalizeCustomValues(customValues){var map={};(customValues||[]).forEach(function(cv){var id=cv.fieldId||cv.FieldId||0;if(id)map[id]=cv.value||cv.Value||'';});return map;}
             function normalizeModalLabel(label){return(label||'').toString().trim().toLowerCase().replace(/\s+/g,' ').replace(/qulaification/g,'qualification');}
-            function buildExtrasValueMap(extras){var map={};if(!extras)return map;var gender=extras.gender||extras.Gender||'';var qualification=extras.qualification||extras.Qualification||extras.qulaification||extras.Qulaification||'';var area=extras.area||extras.Area||'';var sikhNonSikh=extras.sikhNonSikh||extras.SikhNonSikh||extras['Sikh / Non-Sikh']||'';if(gender)map['gender']=gender;if(qualification)map['qualification']=qualification;if(area)map['area']=area;if(sikhNonSikh)map['sikh / non-sikh']=sikhNonSikh;return map;}
+            function buildExtrasValueMap(extras){var map={};if(!extras)return map;var gender=extras.gender||extras.Gender||'';var qualification=extras.qualification||extras.Qualification||extras.qulaification||extras.Qulaification||'';var area=extras.area||extras.Area||'';var sikhNonSikh=extras.sikhNonSikh||extras.SikhNonSikh||extras.sikh_no_sikh||extras['Sikh / Non-Sikh']||'';if(gender)map['gender']=gender;if(qualification)map['qualification']=qualification;if(area)map['area']=area;if(sikhNonSikh)map['sikh / non-sikh']=sikhNonSikh;return map;}
             function getModalDateValue(n, customPayload){var extras=(customPayload&&customPayload.extras)||null;return n.dateOfJoining||(extras&&(extras.dateOfJoining||extras.DateOfJoining))||null;}
             function getCachedCustomPayload(employeeId){if(!employeeId)return null;var hasCustom=!!(EMP_CUSTOM_CACHE[employeeId]&&EMP_CUSTOM_FIELDS_CACHE);var hasExtras=typeof EMP_MODAL_EXTRAS_CACHE[employeeId]!=='undefined';if(!hasCustom&&!hasExtras)return null;return{fields:EMP_CUSTOM_FIELDS_CACHE||[],values:EMP_CUSTOM_CACHE[employeeId]||[],extras:EMP_MODAL_EXTRAS_CACHE[employeeId]||null};}
             function loadEmployeeCustomPayload(employeeId, done){var finalize=function(){done({fields:EMP_CUSTOM_FIELDS_CACHE||[],values:EMP_CUSTOM_CACHE[employeeId]||[],extras:EMP_MODAL_EXTRAS_CACHE[employeeId]||null});};var loadExtras=function(){$.get('/api/Hierarchy/GetEmployeeModalExtras',{employeeId:employeeId},function(r){EMP_MODAL_EXTRAS_CACHE[employeeId]=(r&&r.success&&r.data)?r.data:null;finalize();}).fail(function(){EMP_MODAL_EXTRAS_CACHE[employeeId]=null;finalize();});};var loadValues=function(){$.get('/api/Hierarchy/GetEmployeeCustomValues',{employeeId:employeeId},function(r){EMP_CUSTOM_CACHE[employeeId]=(r&&r.success&&r.data)?r.data:[];loadExtras();}).fail(function(){EMP_CUSTOM_CACHE[employeeId]=[];loadExtras();});};if(EMP_CUSTOM_FIELDS_CACHE){loadValues();return;}$.get('/api/Hierarchy/GetCustomFields',function(r){EMP_CUSTOM_FIELDS_CACHE=(r&&r.success&&r.data)?r.data:[];loadValues();}).fail(function(){EMP_CUSTOM_FIELDS_CACHE=[];loadValues();});}
-            function renderInfoModal(n, customPayload, loadingCustom){var icons={owner:'award-fill',hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill'};var hdrCls={owner:'ip-owner-h',hod:'ip-hod',dept:'ip-dept-h',subdept:'ip-sd-h',subhod:'ip-shod-h',exec:'ip-exec-h'};var h='<div class="ip-header '+hdrCls[n.type]+'"><i class="bi bi-'+icons[n.type]+' me-2"></i>'+n.role+'</div><table class="ip-table">';var rows=[['Name','<strong style="font-size:15px">'+esc(n.name)+'</strong>']];if(n.code)rows.push(['Employee Code','<code>'+esc(n.code)+'</code>']);if(n.employeeId)rows.push(['Date of Joining',formatDateOnly(getModalDateValue(n,customPayload))]);if(n.hod)rows.push(['HOD',esc(n.hod)]);if(n.dept)rows.push(['Department',esc(n.dept)]);if(n.subDept)rows.push(['Sub-Department',esc(n.subDept)]);if(n.subHod)rows.push(['Sub-HOD',esc(n.subHod)]);if(n.hodCount!==undefined)rows.push(['HODs','<strong>'+n.hodCount+'</strong>']);if(n.teamCount!==undefined)rows.push([n.type==='owner'?'Total Employees':'Team Size','<strong>'+n.teamCount+'</strong>']);if(n.deptCount!==undefined)rows.push(['Departments','<strong>'+n.deptCount+'</strong>']);if(n.subHodCount!==undefined)rows.push(['Sub-HODs','<strong>'+n.subHodCount+'</strong>']);if(n.subDeptCount!==undefined)rows.push(['Sub-Depts','<strong>'+n.subDeptCount+'</strong>']);if(n.execCount!==undefined)rows.push(['Executives','<strong>'+n.execCount+'</strong>']);if(n.sal&&SHOW_SAL)rows.push(['Salary','<span class="ip-sal">₹'+fmtN(n.sal)+'</span>']);var fields=(customPayload&&customPayload.fields)||[];var valueMap=normalizeCustomValues((customPayload&&customPayload.values)||[]);var extrasValueMap=buildExtrasValueMap((customPayload&&customPayload.extras)||null);var renderedLabels={};fields.forEach(function(f){var id=f.fieldId||f.FieldId||0;var label=f.fieldName||f.FieldName||'';if(!label)return;var normalizedLabel=normalizeModalLabel(label);var resolvedValue=valueMap[id]||extrasValueMap[normalizedLabel]||'-';renderedLabels[normalizedLabel]=1;rows.push([esc(label),esc(resolvedValue)]);});if(!fields.length&&customPayload&&customPayload.values){(customPayload.values||[]).forEach(function(cv){var label=cv.fieldName||cv.FieldName||'';var value=cv.value||cv.Value||'';if(label)rows.push([esc(label),esc(value||'-')]);});}Object.keys(extrasValueMap).forEach(function(key){if(renderedLabels[key])return;var labelMap={'gender':'Gender','qualification':'Qualification','area':'Area','sikh / non-sikh':'Sikh / Non-Sikh'};rows.push([labelMap[key]||key,esc(extrasValueMap[key]||'-')]);});if(loadingCustom)rows.push(['Custom Fields','<span style="color:#64748b">Loading...</span>']);rows.forEach(function(r){h+='<tr><th>'+r[0]+'</th><td>'+r[1]+'</td></tr>';});h+='</table>';document.getElementById('infoModalTitle').innerHTML='<i class="bi bi-'+icons[n.type]+' me-2"></i>'+esc(n.name);document.getElementById('infoModalBody').innerHTML=h;}
+            function renderInfoModal(n, customPayload, loadingCustom){var icons={owner:'award-fill',hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill'};var hdrCls={owner:'ip-owner-h',hod:'ip-hod',dept:'ip-dept-h',subdept:'ip-sd-h',subhod:'ip-shod-h',exec:'ip-exec-h'};var h='<div class="ip-header '+hdrCls[n.type]+'"><i class="bi bi-'+icons[n.type]+' me-2"></i>'+n.role+'</div><table class="ip-table">';var rows=[['Name','<strong style="font-size:15px">'+esc(n.name)+'</strong>']];if(n.code)rows.push(['Employee Code','<code>'+esc(n.code)+'</code>']);if(n.employeeId)rows.push(['Date of Joining',formatDateOnly(getModalDateValue(n,customPayload))]);if(n.hod)rows.push(['HOD',esc(n.hod)]);if(n.dept&&n.type!=='exec')rows.push(['Department',esc(n.dept)]);if(n.subDept)rows.push(['Sub-Department',esc(n.subDept)]);if(n.subHod)rows.push(['Sub-HOD',esc(n.subHod)]);if(n.hodCount!==undefined)rows.push(['HODs','<strong>'+n.hodCount+'</strong>']);if(n.teamCount!==undefined)rows.push([n.type==='owner'?'Total Employees':'Team Size','<strong>'+n.teamCount+'</strong>']);if(n.deptCount!==undefined)rows.push(['Departments','<strong>'+n.deptCount+'</strong>']);if(n.subHodCount!==undefined)rows.push(['Sub-HODs','<strong>'+n.subHodCount+'</strong>']);if(n.subDeptCount!==undefined)rows.push(['Sub-Depts','<strong>'+n.subDeptCount+'</strong>']);if(n.execCount!==undefined)rows.push(['Executives','<strong>'+n.execCount+'</strong>']);if(n.sal&&SHOW_SAL)rows.push(['Salary','<span class="ip-sal">₹'+fmtN(n.sal)+'</span>']);var fields=(customPayload&&customPayload.fields)||[];var valueMap=normalizeCustomValues((customPayload&&customPayload.values)||[]);var extrasValueMap=buildExtrasValueMap((customPayload&&customPayload.extras)||null);var renderedLabels={};fields.forEach(function(f){var id=f.fieldId||f.FieldId||0;var label=f.fieldName||f.FieldName||'';if(!label)return;var normalizedLabel=normalizeModalLabel(label);var resolvedValue=valueMap[id]||extrasValueMap[normalizedLabel]||'-';renderedLabels[normalizedLabel]=1;rows.push([esc(label),esc(resolvedValue)]);});if(!fields.length&&customPayload&&customPayload.values){(customPayload.values||[]).forEach(function(cv){var label=cv.fieldName||cv.FieldName||'';var value=cv.value||cv.Value||'';if(label)rows.push([esc(label),esc(value||'-')]);});}Object.keys(extrasValueMap).forEach(function(key){if(renderedLabels[key])return;var labelMap={'gender':'Gender','qualification':'Qualification','area':'Area','sikh / non-sikh':'Sikh / Non-Sikh'};rows.push([labelMap[key]||key,esc(extrasValueMap[key]||'-')]);});if(loadingCustom)rows.push(['Custom Fields','<span style="color:#64748b">Loading...</span>']);rows.forEach(function(r){h+='<tr><th>'+r[0]+'</th><td>'+r[1]+'</td></tr>';});h+='</table>';document.getElementById('infoModalTitle').innerHTML='<i class="bi bi-'+icons[n.type]+' me-2"></i>'+esc(n.name);document.getElementById('infoModalBody').innerHTML=h;}
             function v1_info(nodeId){var n=getNodeData(nodeId);if(!n)return;var cached=n.employeeId?getCachedCustomPayload(n.employeeId):null;renderInfoModal(n,cached,!!n.employeeId&&!cached);bsInfoModal.show();if(!n.employeeId||cached)return;loadEmployeeCustomPayload(n.employeeId,function(payload){renderInfoModal(n,payload,false);});}
 
             /* ══ V2 — TABLE DRILL-DOWN ══ */
@@ -4352,14 +4700,24 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
             function trExecNode(ex){ return '<div class="tr-node tr-exec"><i class="bi bi-person-fill tr-ico"></i><span class="tr-name">'+esc(ex.name)+'</span>'+(ex.code?'<span class="tr-code">'+esc(ex.code)+'</span>':'')+(SHOW_SAL&&ex.sal?'<span class="tr-sal">₹'+fmtN(ex.sal)+'</span>':'')+'</div>'; }
 
             /* ══ STAT POPUP ══ */
+            function formatSikhShort(value){
+                var text=String(value||'').trim();
+                if(!text)return '—';
+                var compact=text.toLowerCase().replace(/[\s/_-]+/g,'');
+                if(compact==='s'||compact==='sikh')return 'S';
+                if(compact==='ns'||compact==='nonsikh'||compact==='notsikh')return 'N-S';
+                return text;
+            }
             function showStatPopup(type){
-                if(!RAW_DATA.length)return;
+                if(!RAW_DATA.length && type !== 'unassigned' && type !== 'inactive')return;
                 var cfgs={
-                    hod:{title:'All HODs',grad:'#dc2626,#b91c1c',icon:'bi-person-badge-fill',heads:['#','Name','Code','Departments','Sub-HODs','Executives','Team'],rows:RAW_DATA.map(function(h){return[h.name,h.code||'—',h.depts.join(' · ')||'—',h.subhodCount,h.execCount,h.totalTeam];})},
-                    dept:{title:'All Departments',grad:'#2563eb,#1d4ed8',icon:'bi-building-fill',heads:['#','Department','HOD','Sub-Depts'],rows:(function(){var r=[];RAW_DATA.forEach(function(h){h.depts.forEach(function(d){var cnt=h.subs.filter(function(s){return s.dept===d;}).length;r.push([d,h.name,cnt]);});});return r;})()},
+                    hod:{title:'All HODs',grad:'#dc2626,#b91c1c',icon:'bi-person-badge-fill',heads:['#','Name','Code','Sikh/N-S','Departments','Sub-HODs','Executives','Team'],rows:RAW_DATA.map(function(h){return[h.name,h.code||'—',formatSikhShort(h.sikhNonSikh),h.depts.join(' · ')||'—',h.subhodCount,h.execCount,h.totalTeam];})},
+                    dept:{title:'All Departments',grad:'#2563eb,#1d4ed8',icon:'bi-building-fill',heads:['#','Department','HODs','Sub-Depts'],rows:(function(){var map={};RAW_DATA.forEach(function(h){h.depts.forEach(function(d,di){if(isFrontendSalesDept(d))return;if(!map[d])map[d]={name:d,hods:{},subDepts:{}};map[d].hods[h.name]=1;h.subs.filter(function(s){return s.dept===d||(s.dept===''&&di===0);}).forEach(function(s){if(s.sdName&&s.sdName!=='-')map[d].subDepts[s.sdName]=1;});});});return Object.keys(map).sort().map(function(k){var x=map[k];return[x.name,Object.keys(x.hods).sort().join(', ')||'—',Object.keys(x.subDepts).length];});})()},
                     subdept:{title:'All Sub-Departments',grad:'#d97706,#b45309',icon:'bi-buildings-fill',heads:['#','Sub-Dept','Department','HOD','Sub-HODs','Execs'],rows:(function(){var r=[];RAW_DATA.forEach(function(h){h.subs.forEach(function(s){var shNames=(s.subHods||[]).map(function(sh){return sh.name;}).join(', ')||'—';var exCnt=0;(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;r.push([s.sdName,s.dept||h.depts[0]||'—',h.name,shNames,exCnt]);});});return r;})()},
-                    subhod:{title:'All Sub-HODs',grad:'#9333ea,#7c3aed',icon:'bi-people-fill',heads:['#','Name','Code','Sub-Dept','Department','HOD','Execs'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){var k=sh.code||sh.name;if(!seen[k]){seen[k]=1;r.push([sh.name,sh.code||'—',s.sdName,s.dept||h.depts[0]||'—',h.name,(sh.execs||[]).length]);}});});});return r;})()},
-                    exec:{title:'All Executives',grad:'#047857,#065f46',icon:'bi-person-fill',heads:['#','Name','Code','Sub-HOD','Sub-Dept','HOD'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—',sh.name,s.sdName,h.name]);}});});(s.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—','—',s.sdName,h.name]);}});});});return r;})()},
+                    subhod:{title:'All Sub-HODs',grad:'#9333ea,#7c3aed',icon:'bi-people-fill',heads:['#','Name','Code','Sikh/N-S','Sub-Dept','Department','HOD','Execs'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){var k=sh.code||sh.name;if(!seen[k]){seen[k]=1;r.push([sh.name,sh.code||'—',formatSikhShort(sh.sikhNonSikh),s.sdName,s.dept||h.depts[0]||'—',h.name,(sh.execs||[]).length]);}});});});return r;})()},
+                    exec:{title:'All Executives',grad:'#047857,#065f46',icon:'bi-person-fill',heads:['#','Name','Code','Sikh/N-S','Sub-HOD','Sub-Dept','HOD'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—',formatSikhShort(e.sikhNonSikh),sh.name,s.sdName,h.name]);}});});(s.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—',formatSikhShort(e.sikhNonSikh),'—',s.sdName,h.name]);}});});});return r;})()},
+                    unassigned:{title:'Unassigned Persons',grad:'#64748b,#334155',icon:'bi-person-dash-fill',heads:['#','Person Code','Name','Status'],rows:renderOrphans()},
+                    inactive:{title:'Inactive Persons',grad:'#ef4444,#b91c1c',icon:'bi-person-x-fill',heads:['#','Person Code','Name','Role','Status'],rows:renderInactivePersons()},
                     sikh:{title:'All Sikh Employees',grad:'#ea580c,#15803d',icon:'bi-people-fill',heads:['#','Employee Name','Department'],rows:getSikhEmployeeRows()}
                 };
                 var c=cfgs[type];if(!c)return;
@@ -4372,7 +4730,7 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
 
             /* ══ NODE DATA ══ */
             function getNodeData(nodeId){
-                if(nodeId==='owner'){var counts=getOrgEmployeeCounts();return{type:'owner',name:OWNER_NAME,role:'Owner',code:'',hodCount:counts.hodCount,teamCount:counts.totalEmployees};}
+                if(nodeId==='owner'){var counts=getOrgEmployeeCounts();return{type:'owner',name:OWNER_NAME,role:'Director',code:'',hodCount:counts.hodCount,teamCount:counts.totalEmployees};}
                 var p=nodeId.split('-');
                 if(p[0]==='hod'){var h=RAW_DATA[+p[1]];if(!h)return null;return{type:'hod',employeeId:h.employeeId,name:h.name,role:'HOD',code:h.code,sal:h.sal,dateOfJoining:h.dateOfJoining,deptCount:h.depts.length,subHodCount:h.subhodCount,execCount:h.execCount+getSalesEmployeeCount(h.salesTree),teamCount:h.totalTeam+getSalesEmployeeCount(h.salesTree)};}
                 if(p[0]==='dept'){var h=RAW_DATA[+p[1]];if(!h)return null;var dName=h.depts[+p[2]];if(!dName)return null;var salesTree=getSalesTreeForDept(h,dName);if(salesTree)return{type:'dept',name:dName,role:'Department',code:'',hod:h.name,subDeptCount:(salesTree.h2List||[]).length,execCount:getSalesEmployeeCount(salesTree)};var subs=h.subs.filter(function(s){return s.dept===dName||(s.dept===''&&dName===h.depts[0]);});var exCnt=0;subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){exCnt+=sh.execs.length;});exCnt+=s.execs.length;});return{type:'dept',name:dName,role:'Department',code:'',hod:h.name,subDeptCount:subs.length,execCount:exCnt};}
@@ -4390,7 +4748,7 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
             /* ══ EXPORT ══ */
             function ehExport(){
                 if(!RAW_DATA.length){showAlert('warning','Data not loaded yet.');return;}
-                var hdr=['Owner','HOD','HOD Code'];if(SHOW_SAL)hdr.push('HOD Salary');hdr.push('Department','Sub-Dept','Sub-HOD','Sub-HOD Code','Sub-HOD Designation');if(SHOW_SAL)hdr.push('Sub-HOD Salary');hdr.push('Executive','Executive Code','Designation');if(SHOW_SAL)hdr.push('Exec Salary');
+                var hdr=['Director','HOD','HOD Code'];if(SHOW_SAL)hdr.push('HOD Salary');hdr.push('Department','Sub-Dept','Sub-HOD','Sub-HOD Code','Sub-HOD Designation');if(SHOW_SAL)hdr.push('Sub-HOD Salary');hdr.push('Executive','Executive Code','Designation');if(SHOW_SAL)hdr.push('Exec Salary');
                 var rows=[hdr.map(csvE).join(',')];
                 RAW_DATA.forEach(function(h){ h.depts.forEach(function(d){ var subs=h.subs.filter(function(s){return s.dept===d||(s.dept===''&&d===h.depts[0]);});if(!subs.length){var r=[OWNER_NAME,h.name,h.code||''];if(SHOW_SAL)r.push(h.sal||'');r.push(d,'','','','');if(SHOW_SAL)r.push('');r.push('','','');if(SHOW_SAL)r.push('');rows.push(r.map(csvE).join(','));}else{subs.forEach(function(s){var shRows=[];(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(ex){shRows.push({shName:sh.name,shCode:sh.code||'',shDesig:sh.desig||'',shSal:sh.sal,ex:ex});});if(!(sh.execs||[]).length)shRows.push({shName:sh.name,shCode:sh.code||'',shDesig:sh.desig||'',shSal:sh.sal,ex:null});});(s.execs||[]).forEach(function(ex){shRows.push({shName:'',shCode:'',shDesig:'',shSal:null,ex:ex});});if(!shRows.length)shRows.push({shName:'',shCode:'',shDesig:'',shSal:null,ex:null});shRows.forEach(function(sr){var r=[OWNER_NAME,h.name,h.code||''];if(SHOW_SAL)r.push(h.sal||'');r.push(d,s.sdName,sr.shName||'',sr.shCode||'',sr.shDesig||'');if(SHOW_SAL)r.push(sr.shSal||'');r.push(sr.ex?sr.ex.name:'',sr.ex?sr.ex.code||'':'',sr.ex?sr.ex.desig||'':'');if(SHOW_SAL)r.push(sr.ex&&sr.ex.sal?sr.ex.sal:'');rows.push(r.map(csvE).join(','));});});}});});
                 var blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Hierarchy_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
@@ -4468,6 +4826,8 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
         <div class="esc" onclick="showStatPopup('subdept')"><div class="esc-ico" style="background:#fde68a;color:#d97706"><i class="bi bi-buildings-fill"></i></div><div><div class="esc-val" id="escSD">0</div><div class="esc-lbl">Sub-Depts</div></div></div>
         <div class="esc" onclick="showStatPopup('subhod')"><div class="esc-ico" style="background:#ede9fe;color:#9333ea"><i class="bi bi-people-fill"></i></div><div><div class="esc-val" id="escSH">0</div><div class="esc-lbl">Sub-HODs</div></div></div>
         <div class="esc" onclick="showStatPopup('exec')"><div class="esc-ico" style="background:#cffafe;color:#0891b2"><i class="bi bi-person-fill"></i></div><div><div class="esc-val" id="escEx">0</div><div class="esc-lbl">Executives</div></div></div>
+        <div class="esc" onclick="toggleOrphanPanel()"><div class="esc-ico" style="background:#f1f5f9;color:#475569"><i class="bi bi-person-dash-fill"></i></div><div><div class="esc-val" id="escUnassigned">0</div><div class="esc-lbl">Unassigned</div></div></div>
+        <div class="esc" onclick="showStatPopup('inactive')"><div class="esc-ico" style="background:#fee2e2;color:#dc2626"><i class="bi bi-person-x-fill"></i></div><div><div class="esc-val" id="escInactivePersons">0</div><div class="esc-lbl">Inactive</div></div></div>
         <div class="esc"><div class="esc-ico" style="background:#dcfce7;color:#15803d"><i class="bi bi-people-fill"></i></div><div><div class="esc-val" id="escTeam">0</div><div class="esc-lbl">Employees</div></div></div>
     </div>
 

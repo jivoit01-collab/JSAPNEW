@@ -183,6 +183,113 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
         }
+
+        public async Task<ChangePasswordResponse> UpdateOwnAccountAsync(OwnAccountUpdateRequest request)
+        {
+            var newLoginUser = request.NewLoginUser?.Trim();
+            var newPassword = request.NewPassword?.Trim();
+
+            if (request.UserId <= 0)
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "User not authenticated"
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "Current password is required"
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(newLoginUser))
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "Username is required"
+                };
+            }
+
+            if (!await ValidateCurrentPasswordAsync(request.UserId, request.CurrentPassword))
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "Current password is incorrect"
+                };
+            }
+
+            if (!string.IsNullOrWhiteSpace(newPassword) && newPassword != request.ConfirmPassword)
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "New password and confirm password do not match"
+                };
+            }
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                var currentLoginUser = await connection.QueryFirstOrDefaultAsync<string>(
+                    "SELECT LoginUser FROM jsUser WHERE UserId = @UserId",
+                    new { request.UserId }
+                );
+
+                if (string.IsNullOrWhiteSpace(currentLoginUser))
+                {
+                    return new ChangePasswordResponse
+                    {
+                        Success = false,
+                        Message = "User not found"
+                    };
+                }
+
+                if (!currentLoginUser.Equals(newLoginUser, StringComparison.OrdinalIgnoreCase))
+                {
+                    var usernameValidation = await ValidateUsernameAsync(newLoginUser);
+                    if (!usernameValidation.Success)
+                    {
+                        return new ChangePasswordResponse
+                        {
+                            Success = false,
+                            Message = usernameValidation.Message
+                        };
+                    }
+                }
+
+                var encryptedPassword = string.IsNullOrWhiteSpace(newPassword)
+                    ? null
+                    : Encryption.Encrypt(newPassword);
+
+                var rowsAffected = await connection.ExecuteAsync(
+                    @"UPDATE jsUser
+                      SET LoginUser = @LoginUser,
+                          Password = COALESCE(@Password, Password)
+                      WHERE UserId = @UserId",
+                    new
+                    {
+                        UserId = request.UserId,
+                        LoginUser = newLoginUser,
+                        Password = encryptedPassword
+                    }
+                );
+
+                return new ChangePasswordResponse
+                {
+                    Success = rowsAffected > 0,
+                    Message = rowsAffected > 0 ? "Account updated successfully" : "Account update failed"
+                };
+            }
+        }
+
         public async Task<bool> ValidateCurrentPasswordAsync(int userId, string currentPassword)
         {
             // SQL query with proper parameter to avoid SQL injection

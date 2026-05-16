@@ -143,6 +143,10 @@ namespace JSAPNEW.Models
         public int? PrimaryDepartmentId { get; set; }
         public DateTime? DateOfJoining { get; set; }
         public decimal? Salary { get; set; }   // ← NEW
+        public string? Gender { get; set; }
+        public string? Qualification { get; set; }
+        public string? Area { get; set; }
+        public string? SikhNonSikh { get; set; }
         public int? CreatedBy { get; set; }
         public bool IsActive { get; set; } = true;
     }

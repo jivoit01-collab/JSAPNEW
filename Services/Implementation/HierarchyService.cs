@@ -708,7 +708,8 @@ ORDER BY e.EmployeeName";
                 "Sikh / Non-Sikh",
                 "Sikh/Non-Sikh",
                 "SikhNonSikh",
-                "Sikh_Non_Sikh");
+                "Sikh_Non_Sikh",
+                "sikh_no_sikh");
 
             if (!string.IsNullOrWhiteSpace(sikhNonSikhColumn))
             {
@@ -732,7 +733,8 @@ WHERE EmployeeId IN @EmployeeIds";
                 "Sikh / Non-Sikh",
                 "Sikh/Non-Sikh",
                 "SikhNonSikh",
-                "Sikh_Non_Sikh"
+                "Sikh_Non_Sikh",
+                "sikh_no_sikh"
             };
 
             const string customFieldSql = @"
@@ -871,6 +873,9 @@ ORDER BY RowNumber";
         {
             const string sql = "EXEC [Hie].[sp_CreateEmployee] @EmployeeCode, @EmployeeName, @Email, @Phone, @Designation, @RoleTypeId, @PrimaryDepartmentId, @DateOfJoining, @CreatedBy";
 
+            if (!request.PrimaryDepartmentId.HasValue)
+                return await CreateEmployeeWithoutJsUserFallbackAsync(request);
+
             using var connection = new SqlConnection(_connectionString);
             try
             {
@@ -890,6 +895,7 @@ ORDER BY RowNumber";
                 if (IsDynamicSuccess(result))
                 {
                     int newId = (int)result.EmployeeId;
+                    await UpdateEmployeeCreateExtraColumnsAsync(connection, newId, request);
                     var employee = await GetEmployeeByIdAsync(newId, "", true);
                     _ = LogAuditAsync("Create", "Employee", newId, newId, null, ToJson(request), $"Created {request.EmployeeName} ({request.EmployeeCode}) as {(request.RoleTypeId == 1 ? "HOD" : request.RoleTypeId == 2 ? "SubHOD" : "Executive")}", request.CreatedBy);
                     return HierarchyApiResponse<EmployeeDto>.SuccessResponse(employee, result?.Message?.ToString() ?? "Employee created successfully");
@@ -969,6 +975,7 @@ VALUES
                     request.IsActive
                 });
 
+                await UpdateEmployeeCreateExtraColumnsAsync(connection, newId, request);
                 var employee = await GetEmployeeByIdAsync(newId, "", true);
                 _ = LogAuditAsync("Create", "Employee", newId, newId, null, ToJson(request), $"Created {request.EmployeeName} ({request.EmployeeCode}) without jsUser dependency", request.CreatedBy);
 
@@ -978,6 +985,49 @@ VALUES
             {
                 return HierarchyApiResponse<EmployeeDto>.ErrorResponse("Error creating employee: " + ex.Message);
             }
+        }
+
+        private async Task UpdateEmployeeCreateExtraColumnsAsync(SqlConnection connection, int employeeId, EmployeeRequest request)
+        {
+            var employeeColumns = (await connection.QueryAsync<string>(
+                "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')")).ToList();
+
+            string? genderColumn = FindFirstExistingColumn(employeeColumns, "Gender");
+            string? qualificationColumn = FindFirstExistingColumn(employeeColumns, "Qualification", "Qulaification");
+            string? areaColumn = FindFirstExistingColumn(employeeColumns, "Area");
+            string? sikhNonSikhColumn = FindFirstExistingColumn(
+                employeeColumns,
+                "Sikh / Non-Sikh",
+                "Sikh/Non-Sikh",
+                "SikhNonSikh",
+                "Sikh_Non_Sikh",
+                "sikh_no_sikh");
+
+            var setParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(genderColumn))
+                setParts.Add($"[{genderColumn.Replace("]", "]]")}] = @Gender");
+            if (!string.IsNullOrWhiteSpace(qualificationColumn))
+                setParts.Add($"[{qualificationColumn.Replace("]", "]]")}] = @Qualification");
+            if (!string.IsNullOrWhiteSpace(areaColumn))
+                setParts.Add($"[{areaColumn.Replace("]", "]]")}] = @Area");
+            if (!string.IsNullOrWhiteSpace(sikhNonSikhColumn))
+                setParts.Add($"[{sikhNonSikhColumn.Replace("]", "]]")}] = @SikhNonSikh");
+
+            if (!setParts.Any()) return;
+
+            var sql = $@"
+UPDATE [Hie].[Employees]
+SET {string.Join(", ", setParts)}
+WHERE EmployeeId = @EmployeeId";
+
+            await connection.ExecuteAsync(sql, new
+            {
+                EmployeeId = employeeId,
+                Gender = string.IsNullOrWhiteSpace(request.Gender) ? null : request.Gender.Trim(),
+                Qualification = string.IsNullOrWhiteSpace(request.Qualification) ? null : request.Qualification.Trim(),
+                Area = string.IsNullOrWhiteSpace(request.Area) ? null : request.Area.Trim(),
+                SikhNonSikh = NormalizeSikhNonSikhCode(request.SikhNonSikh)
+            });
         }
 
         public async Task<HierarchyApiResponse<EmployeeDto>> UpdateEmployeeAsync(EmployeeRequest request)
@@ -1004,6 +1054,11 @@ VALUES
 
                 if (IsDynamicSuccess(result))
                 {
+                    if (request.EmployeeId.HasValue)
+                    {
+                        await UpdateEmployeeCreateExtraColumnsAsync(connection, request.EmployeeId.Value, request);
+                    }
+
                     var employee = await GetEmployeeByIdAsync(request.EmployeeId.Value, "", true);
                     return HierarchyApiResponse<EmployeeDto>.SuccessResponse(employee, result?.Message?.ToString() ?? "Employee updated successfully");
                 }
@@ -1088,7 +1143,8 @@ VALUES
                     "Sikh / Non-Sikh",
                     "Sikh/Non-Sikh",
                     "SikhNonSikh",
-                    "Sikh_Non_Sikh");
+                    "Sikh_Non_Sikh",
+                    "sikh_no_sikh");
 
                 var updateEmployeeSql = new StringBuilder(@"
 UPDATE [Hie].[Employees]
@@ -1124,7 +1180,7 @@ SET EmployeeName = @EmployeeName,
                     Gender = string.IsNullOrWhiteSpace(req.Gender) ? null : req.Gender.Trim(),
                     Qualification = string.IsNullOrWhiteSpace(req.Qualification) ? null : req.Qualification.Trim(),
                     Area = string.IsNullOrWhiteSpace(req.Area) ? null : req.Area.Trim(),
-                    SikhNonSikh = string.IsNullOrWhiteSpace(req.SikhNonSikh) ? null : req.SikhNonSikh.Trim(),
+                    SikhNonSikh = NormalizeSikhNonSikhCode(req.SikhNonSikh),
                     req.RoleTypeId,
                     req.DepartmentId,
                     req.IsActive
@@ -1147,6 +1203,8 @@ SET EmployeeName = @EmployeeName,
                         new { req.EmployeeId, req.RoleTypeId, req.ReportsToEmpId, req.DepartmentId, req.SubDepartmentId }, tx);
                 }
 
+                string detachInfo = "";
+
                 if (req.IsUnassigned)
                 {
                     await conn.ExecuteAsync(@"
@@ -1156,9 +1214,15 @@ SET IsActive = 0,
 WHERE EmployeeId = @EmployeeId
   AND IsActive = 1",
                         new { req.EmployeeId }, tx);
+
+                    if (originalRoleTypeId == (int)RoleTypeEnum.HOD)
+                    {
+                        var detachedTeamMembers = await UnassignHodTeamAsync(conn, tx, req.EmployeeId, updatedBy);
+                        if (detachedTeamMembers > 0)
+                            detachInfo = $" {detachedTeamMembers} team member(s) moved to unassigned.";
+                    }
                 }
 
-                string detachInfo = "";
                 if (req.IsUnassigned
                     && originalRoleTypeId == (int)RoleTypeEnum.SubHOD
                     && originalHodId.HasValue
@@ -1272,6 +1336,7 @@ WHERE EmployeeId = @EmployeeId
             {
                 using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
+                await EnsureHierarchyDepartmentForeignKeysAsync(conn);
                 using var tx = conn.BeginTransaction();
                 await EnsureHodDepartmentAssignmentsTableAsync(conn, tx);
 
@@ -1417,6 +1482,81 @@ END;";
             await conn.ExecuteAsync(sql, transaction: tx);
         }
 
+        private static async Task EnsureHierarchyDepartmentForeignKeysAsync(SqlConnection conn)
+        {
+            const string sql = @"
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    WHERE fk.name = N'FK_Rel_Dept'
+      AND fk.parent_object_id = OBJECT_ID(N'[Hie].[EmployeeReportingRelationships]')
+      AND fk.referenced_object_id = OBJECT_ID(N'[dbo].[jsDepartment]')
+)
+BEGIN
+    ALTER TABLE [Hie].[EmployeeReportingRelationships] DROP CONSTRAINT [FK_Rel_Dept];
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    WHERE fk.name = N'FK_Rel_Dept'
+      AND fk.parent_object_id = OBJECT_ID(N'[Hie].[EmployeeReportingRelationships]')
+)
+BEGIN
+    ALTER TABLE [Hie].[EmployeeReportingRelationships] WITH CHECK
+    ADD CONSTRAINT [FK_Rel_Dept] FOREIGN KEY ([DepartmentId])
+    REFERENCES [Hie].[Departments] ([DepartmentId]);
+END;
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    WHERE fk.name = N'FK_Emp_Dept'
+      AND fk.parent_object_id = OBJECT_ID(N'[Hie].[Employees]')
+      AND fk.referenced_object_id = OBJECT_ID(N'[dbo].[jsDepartment]')
+)
+BEGIN
+    ALTER TABLE [Hie].[Employees] DROP CONSTRAINT [FK_Emp_Dept];
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    WHERE fk.name = N'FK_Emp_Dept'
+      AND fk.parent_object_id = OBJECT_ID(N'[Hie].[Employees]')
+)
+BEGIN
+    ALTER TABLE [Hie].[Employees] WITH CHECK
+    ADD CONSTRAINT [FK_Emp_Dept] FOREIGN KEY ([PrimaryDepartmentId])
+    REFERENCES [Hie].[Departments] ([DepartmentId]);
+END;
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    WHERE fk.name = N'FK_SubDept_Dept'
+      AND fk.parent_object_id = OBJECT_ID(N'[Hie].[SubDepartments]')
+      AND fk.referenced_object_id = OBJECT_ID(N'[dbo].[jsDepartment]')
+)
+BEGIN
+    ALTER TABLE [Hie].[SubDepartments] DROP CONSTRAINT [FK_SubDept_Dept];
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    WHERE fk.name = N'FK_SubDept_Dept'
+      AND fk.parent_object_id = OBJECT_ID(N'[Hie].[SubDepartments]')
+)
+BEGIN
+    ALTER TABLE [Hie].[SubDepartments] WITH CHECK
+    ADD CONSTRAINT [FK_SubDept_Dept] FOREIGN KEY ([DepartmentId])
+    REFERENCES [Hie].[Departments] ([DepartmentId]);
+END;";
+
+            await conn.ExecuteAsync(sql);
+        }
+
         private async Task<int?> GetActivePrimaryScopeDepartmentIdAsync(SqlConnection conn, SqlTransaction tx, int hodEmployeeId)
         {
             const string sql = @"
@@ -1482,6 +1622,53 @@ SELECT COUNT(*) FROM @Unassigned;";
             {
                 HodEmployeeId = hodEmployeeId,
                 OriginalDepartmentId = originalDepartmentId
+            }, tx);
+        }
+
+        private async Task<int> UnassignHodTeamAsync(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int hodEmployeeId,
+            int updatedBy)
+        {
+            await EnsureHodDepartmentAssignmentsTableAsync(conn, tx);
+
+            const string sql = @"
+DECLARE @Detached TABLE (EmployeeId INT PRIMARY KEY);
+
+INSERT INTO @Detached (EmployeeId)
+SELECT DISTINCT rr.EmployeeId
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1;
+
+UPDATE rr
+SET rr.IsActive = 0,
+    rr.IsPrimary = 0,
+    rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1;
+
+UPDATE e
+SET e.PrimaryDepartmentId = NULL
+FROM [Hie].[Employees] e
+INNER JOIN @Detached d ON d.EmployeeId = e.EmployeeId
+WHERE e.RoleTypeId IN (2, 3);
+
+UPDATE [Hie].[HodDepartmentAssignments]
+SET IsActive = 0,
+    ModifiedOn = GETDATE(),
+    ModifiedBy = @UpdatedBy
+WHERE HodEmployeeId = @HodEmployeeId
+  AND IsActive = 1;
+
+SELECT COUNT(*) FROM @Detached;";
+
+            return await conn.ExecuteScalarAsync<int>(sql, new
+            {
+                HodEmployeeId = hodEmployeeId,
+                UpdatedBy = updatedBy
             }, tx);
         }
 
@@ -1609,6 +1796,7 @@ SELECT COUNT(*) FROM @Moved;";
 
                 using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
+                await EnsureHierarchyDepartmentForeignKeysAsync(conn);
                 using var tx = conn.BeginTransaction();
 
                 // Validate HOD
@@ -2064,11 +2252,11 @@ WHERE hda.HodEmployeeId = @HODId
                     .Where(e => e.EmployeeId > 0 && !existingEmployeeIds.Contains(e.EmployeeId))
                     .Select(e => new MasterFlatAdminRowDto
                     {
-                        HodEmployeeId = 0,
-                        HodCode = "",
-                        HodName = "",
-                        HodDesignation = "",
-                        HodIsActive = false,
+                        HodEmployeeId = e.RoleTypeId == (int)RoleTypeEnum.HOD ? e.EmployeeId : 0,
+                        HodCode = e.RoleTypeId == (int)RoleTypeEnum.HOD ? e.EmployeeCode : "",
+                        HodName = e.RoleTypeId == (int)RoleTypeEnum.HOD ? e.EmployeeName : "",
+                        HodDesignation = e.RoleTypeId == (int)RoleTypeEnum.HOD ? e.Designation : "",
+                        HodIsActive = e.RoleTypeId == (int)RoleTypeEnum.HOD && e.IsActive,
                         DepartmentName = e.DepartmentName,
                         SubDepartmentName = e.SubDepartmentName,
                         SubHodEmployeeId = e.RoleTypeId == (int)RoleTypeEnum.SubHOD ? e.EmployeeId : 0,
@@ -2385,6 +2573,18 @@ SET IsPrimary = 1,
     EffectiveTo = NULL
 WHERE RelationshipId = @RelationshipId";
 
+            const string deactivateDuplicateExactSql = @"
+UPDATE [Hie].[EmployeeReportingRelationships]
+SET IsActive = 0,
+    IsPrimary = 0,
+    EffectiveTo = COALESCE(EffectiveTo, GETDATE())
+WHERE EmployeeId = @EmployeeId
+  AND ReportsToEmployeeId = @ReportsToEmployeeId
+  AND ISNULL(DepartmentId, 0) = ISNULL(@DepartmentId, 0)
+  AND ISNULL(SubDepartmentId, 0) = ISNULL(@SubDepartmentId, 0)
+  AND IsActive = 1
+  AND RelationshipId <> @RelationshipId";
+
             const string deactivateScopeSql = @"
 UPDATE [Hie].[EmployeeReportingRelationships]
 SET IsActive = 0,
@@ -2437,7 +2637,27 @@ VALUES
                     promoteExistingSql,
                     new { RelationshipId = existingId.Value },
                     tx);
-                return;
+                await conn.ExecuteAsync(
+                    deactivateDuplicateExactSql,
+                    new
+                    {
+                        EmployeeId = employeeId,
+                        ReportsToEmployeeId = reportsToEmployeeId,
+                        DepartmentId = departmentId,
+                        SubDepartmentId = subDepartmentId,
+                        RelationshipId = existingId.Value
+                    },
+                    tx);
+            }
+            else
+            {
+                await conn.ExecuteAsync(insertSql, new
+                {
+                    EmployeeId = employeeId,
+                    ReportsToEmployeeId = reportsToEmployeeId,
+                    DepartmentId = departmentId,
+                    SubDepartmentId = subDepartmentId
+                }, tx);
             }
 
             await conn.ExecuteAsync(
@@ -2450,13 +2670,6 @@ VALUES
                     SubDepartmentId = subDepartmentId
                 },
                 tx);
-            await conn.ExecuteAsync(insertSql, new
-            {
-                EmployeeId = employeeId,
-                ReportsToEmployeeId = reportsToEmployeeId,
-                DepartmentId = departmentId,
-                SubDepartmentId = subDepartmentId
-            }, tx);
         }
 
         /// <summary>
@@ -3184,6 +3397,8 @@ ORDER BY e.EmployeeName, e.EmployeeCode";
         public async Task<List<OrphanEmployeeDto>> GetOrphanEmployeesAsync()
         {
             using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureHodDepartmentAssignmentsTableAsync(conn);
             const string sql = @"
 SELECT
     e.EmployeeId,
@@ -3217,10 +3432,30 @@ LEFT JOIN [Hie].[Departments] rd
     ON rd.DepartmentId = activeRel.DepartmentId
 LEFT JOIN [Hie].[SubDepartments] sd
     ON sd.SubDepartmentId = activeRel.SubDepartmentId
-WHERE e.IsActive = 1
-  AND e.RoleTypeId IN (2, 3)
+WHERE e.RoleTypeId IN (1, 2, 3)
   AND (
-      activeRel.ReportsToEmployeeId IS NULL
+      (
+          e.RoleTypeId = 1
+          AND e.PrimaryDepartmentId IS NULL
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM [Hie].[HodDepartmentAssignments] hda
+              WHERE hda.HodEmployeeId = e.EmployeeId
+                AND hda.IsActive = 1
+          )
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM [Hie].[EmployeeReportingRelationships] childRel
+              WHERE childRel.ReportsToEmployeeId = e.EmployeeId
+                AND childRel.IsActive = 1
+          )
+      )
+      OR (
+          e.RoleTypeId IN (2, 3)
+          AND activeRel.ReportsToEmployeeId IS NULL
+      )
       OR (
           e.RoleTypeId = 3
           AND mgr.RoleTypeId = 2
@@ -3361,7 +3596,8 @@ ORDER BY e.EmployeeName";
                 "Sikh / Non-Sikh",
                 "Sikh/Non-Sikh",
                 "SikhNonSikh",
-                "Sikh_Non_Sikh");
+                "Sikh_Non_Sikh",
+                "sikh_no_sikh");
 
             string sql = $@"
 SELECT TOP (1)
@@ -3409,6 +3645,23 @@ WHERE EmployeeId = @EmployeeId";
                 return "CAST(NULL AS NVARCHAR(255))";
 
             return $"CONVERT(NVARCHAR(255), [{columnName.Replace("]", "]]")}])";
+        }
+
+        private static string? NormalizeSikhNonSikhCode(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            var normalized = value.Trim();
+            var compact = normalized.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("/", "").Replace("-", "");
+
+            if (compact == "s" || compact == "sikh")
+                return "S";
+
+            if (compact == "ns" || compact == "nonsikh" || compact == "notsikh")
+                return "N-S";
+
+            return normalized;
         }
 
         private sealed class EmployeeSikhValueRow

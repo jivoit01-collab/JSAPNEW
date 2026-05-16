@@ -652,7 +652,6 @@
 
         <div id="editEmployeeContent">
             <input type="hidden" id="editEmployeeId" />
-            <input type="hidden" id="editDateOfJoining" />
             <input type="hidden" id="editRoleTypeValue" />
             <input type="hidden" id="editCurrentDepartmentId" />
             <input type="hidden" id="editCurrentSubDepartmentId" />
@@ -692,6 +691,45 @@
                     <label class="fl">Sub-Department</label>
                     <input class="fi" id="editSubDepartmentText" readonly />
                 </div>
+            </div>
+
+            <div class="f2">
+                <div class="fg">
+                    <label class="fl">Date of Joining</label>
+                    <input class="fi" id="editDateOfJoining" type="date" />
+                </div>
+                <div class="fg">
+                    <label class="fl">Gender</label>
+                    <select class="fi" id="editGender">
+                        <option value="">-- Select --</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="f2">
+                <div class="fg">
+                    <label class="fl">Qualification</label>
+                    <input class="fi" id="editQualification" placeholder="B.Com, MBA, B.Tech..." />
+                </div>
+                <div class="fg">
+                    <label class="fl">Area</label>
+                    <input class="fi" id="editArea" placeholder="West, Jammu, Ludhiana..." />
+                </div>
+            </div>
+
+            <div class="f2">
+                <div class="fg">
+                    <label class="fl">Sikh / Non-Sikh</label>
+                    <select class="fi" id="editSikh">
+                        <option value="">-- Select --</option>
+                        <option value="S">Sikh (S)</option>
+                        <option value="N-S">Non-Sikh (N-S)</option>
+                    </select>
+                </div>
+                <div class="fg"></div>
             </div>
 
             <div class="fg" style="display:flex;align-items:center;gap:10px;margin-top:4px">
@@ -747,6 +785,10 @@
             'editRoleText',
             'editDepartmentText',
             'editSubDepartmentText',
+            'editGender',
+            'editQualification',
+            'editArea',
+            'editSikh',
             'editIsActive',
             'editActiveLabel',
             'editEmployeeError',
@@ -857,6 +899,7 @@
     }
 
     async function bindEditForm(employee) {
+        const employeeId = getEmployeeId(employee);
         const reportsTo = employee.reportsTo ?? employee.ReportsTo ?? [];
         const firstReport = reportsTo.length ? reportsTo[0] : null;
         const roleTypeId = toInt(pick(employee, ['roleTypeId', 'RoleTypeId'], null)) || 0;
@@ -873,16 +916,21 @@
             || getSubDepartmentNameById(departmentId, subDepartmentId)
             || '';
         const departmentName = roleTypeId === 1
-            ? await getHodDepartmentsText(getEmployeeId(employee), baseDepartmentName)
+            ? await getHodDepartmentsText(employeeId, baseDepartmentName)
             : baseDepartmentName;
+        const extras = await getEmployeeModalExtras(employeeId);
 
-        document.getElementById('editEmployeeId').value = getEmployeeId(employee);
+        document.getElementById('editEmployeeId').value = employeeId;
         document.getElementById('editEmployeeName').value = getEmployeeName(employee);
         document.getElementById('editEmployeeCode').value = getEmployeeCode(employee);
         document.getElementById('editRoleTypeValue').value = String(roleTypeId);
         document.getElementById('editRoleText').value = roleName;
         document.getElementById('editDesignation').value = getDesignation(employee);
-        document.getElementById('editDateOfJoining').value = pick(employee, ['dateOfJoining', 'DateOfJoining'], '');
+        document.getElementById('editDateOfJoining').value = toDateInputValue(pick(extras, ['dateOfJoining', 'DateOfJoining'], pick(employee, ['dateOfJoining', 'DateOfJoining'], '')));
+        setSelectValue('editGender', pick(extras, ['gender', 'Gender'], ''));
+        document.getElementById('editQualification').value = pick(extras, ['qualification', 'Qualification', 'qulaification', 'Qulaification'], '');
+        document.getElementById('editArea').value = pick(extras, ['area', 'Area'], '');
+        setSelectValue('editSikh', normalizeSikhCode(pick(extras, ['sikhNonSikh', 'SikhNonSikh', 'sikh_no_sikh'], getSikhNonSikh(employee))));
         document.getElementById('editIsActive').checked = Boolean(pick(employee, ['isActive', 'IsActive'], true));
         document.getElementById('editCurrentDepartmentId').value = departmentId ?? '';
         document.getElementById('editCurrentSubDepartmentId').value = subDepartmentId ?? '';
@@ -922,6 +970,10 @@
                 employeeCode,
                 designation: document.getElementById('editDesignation').value.trim() || null,
                 dateOfJoining: document.getElementById('editDateOfJoining').value || null,
+                gender: document.getElementById('editGender').value || null,
+                qualification: document.getElementById('editQualification').value.trim() || null,
+                area: document.getElementById('editArea').value.trim() || null,
+                sikhNonSikh: normalizeSikhCode(document.getElementById('editSikh').value) || null,
                 roleTypeId,
                 departmentId,
                 subDepartmentId,
@@ -980,8 +1032,23 @@
         return Number.isNaN(parsed) ? null : parsed;
     }
 
+    function toDateInputValue(value) {
+        if (!value) return '';
+        const text = String(value);
+        return text.length >= 10 ? text.substring(0, 10) : text;
+    }
+
     function normalizeText(value) {
         return String(value || '').trim().toLowerCase();
+    }
+
+    function normalizeSikhCode(value) {
+        if (value === null || value === undefined) return '';
+        const text = String(value).trim();
+        const compact = text.toLowerCase().replace(/[\s/_-]+/g, '');
+        if (compact === 's' || compact === 'sikh') return 'S';
+        if (compact === 'ns' || compact === 'nonsikh' || compact === 'notsikh') return 'N-S';
+        return text;
     }
 
     function formatCurrency(value) {
@@ -1040,7 +1107,8 @@
 
     function isSikhEmployee(employee) {
         const compact = normalizeText(getSikhNonSikh(employee)).replace(/[\s/_-]+/g, '');
-        return compact === 'sikh'
+        return compact === 's'
+            || compact === 'sikh'
             || compact === 'yes'
             || compact === 'true'
             || compact === '1'
@@ -1176,6 +1244,17 @@
         return response.json();
     }
 
+    async function getEmployeeModalExtras(employeeId) {
+        if (!employeeId) return {};
+        try {
+            const result = await apiJson(`${apiBase}/GetEmployeeModalExtras?employeeId=${employeeId}`);
+            const success = result.success ?? result.Success;
+            return success ? (result.data ?? result.Data ?? {}) : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
     function renderRoleOptions() {
         document.getElementById('editRoleType').innerHTML = roleTypes
             .map(role => `<option value="${pick(role, ['roleTypeId', 'RoleTypeId'])}">${escapeHtml(pick(role, ['roleName', 'RoleName']))}</option>`)
@@ -1211,6 +1290,14 @@
         if (!exists) {
             select.innerHTML += `<option value="${normalized}">${escapeHtml(label || normalized)}</option>`;
         }
+    }
+
+    function setSelectValue(selectId, value) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const normalized = value === null || value === undefined ? '' : String(value);
+        ensureSelectOption(selectId, normalized, normalized);
+        select.value = normalized;
     }
 
     function updateEditRoleUI(roleTypeId, departmentName, subDepartmentName) {

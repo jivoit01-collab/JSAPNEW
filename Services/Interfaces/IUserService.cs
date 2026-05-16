@@ -14,6 +14,7 @@ namespace JSAPNEW.Services.Interfaces
         Task<UserDto> GetUserByIdAsync(int userId);
         Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request);
         Task<ChangePasswordResponse> ChangePasswordAsync2(ChangePasswordRequest2 request);
+        Task<ChangePasswordResponse> UpdateOwnAccountAsync(OwnAccountUpdateRequest request);
         Task<bool> ValidateCurrentPasswordAsync(int userId, string currentPassword);
         Task<int> RegisterUserAsync(UserRegistrationDTO request);
         Task<IEnumerable<VarietyModel>> GetVarietyAsync(int company);

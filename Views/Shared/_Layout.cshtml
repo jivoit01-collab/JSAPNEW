@@ -421,6 +421,120 @@
                 font-size: 28px;
             }
 
+        .account-menu {
+            position: relative;
+        }
+
+        .account-menu-btn {
+            border: 2px solid #e2e8f0;
+            background: #fff;
+            color: var(--primary-color);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+        }
+
+            .account-menu-btn:hover {
+                border-color: var(--primary-color);
+                box-shadow: 0 6px 18px rgba(11, 44, 77, 0.12);
+            }
+
+        .account-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 190px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 12px 28px rgba(11, 44, 77, 0.16);
+            padding: 8px;
+            display: none;
+            z-index: 1010;
+        }
+
+            .account-dropdown.open {
+                display: block;
+            }
+
+        .account-dropdown a,
+        .account-dropdown button {
+                width: 100%;
+                border: 0;
+                background: transparent;
+                color: #1f2937;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                text-align: left;
+                text-decoration: none;
+            }
+
+                .account-dropdown a:hover,
+                .account-dropdown button:hover {
+                    background: #f1f5f9;
+                    color: var(--primary-color);
+                    text-decoration: none;
+                }
+
+        .profile-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10020;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+            .profile-modal.open {
+                display: flex;
+            }
+
+        .profile-modal-box {
+            width: min(520px, 100%);
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 18px 44px rgba(11, 44, 77, 0.24);
+            overflow: hidden;
+        }
+
+        .profile-modal-head {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+            .profile-modal-head h5 {
+                margin: 0;
+                font-size: 17px;
+                font-weight: 700;
+            }
+
+        .profile-modal-body {
+            padding: 20px;
+        }
+
+        .profile-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
         /* ============================================
                                                            MAIN CONTENT AREA
                                                            ============================================ */
@@ -945,9 +1059,19 @@
                 <button type="button" class="page-settings-btn" onclick="openGlobalPageSettings()">
                     <i class="fas fa-sliders-h"></i> Page Settings
                 </button>
-                <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
+                <div class="account-menu">
+                    <button type="button" class="account-menu-btn" id="accountMenuBtn">
+                        <i class="fas fa-user-cog"></i> Account <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="account-dropdown" id="accountDropdown">
+                        <a href="#" id="changeProfileBtn">
+                            <i class="fas fa-user-edit"></i> Change Profile
+                        </a>
+                        <button type="button" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1050,6 +1174,43 @@
                 <div class="gs-actions">
                     <button type="button" class="btn btn-outline-secondary" onclick="resetGlobalPageSettings()">Reset Default</button>
                     <button type="button" class="btn btn-primary" onclick="applyGlobalPageSettings()">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-modal" id="profileModal">
+            <div class="profile-modal-box">
+                <div class="profile-modal-head">
+                    <h5><i class="fas fa-user-edit"></i> Change Profile</h5>
+                    <button type="button" class="btn btn-outline-light btn-sm" id="closeProfileModalBtn">Close</button>
+                </div>
+                <div class="profile-modal-body">
+                    <form id="layoutProfileForm">
+                        <div class="form-group">
+                            <label for="layoutProfileUsername">Username</label>
+                            <input type="text" class="form-control" id="layoutProfileUsername" value="@username" autocomplete="off" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="layoutCurrentPassword">Current Password</label>
+                            <input type="password" class="form-control" id="layoutCurrentPassword" autocomplete="current-password" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="layoutNewPassword">New Password</label>
+                            <input type="password" class="form-control" id="layoutNewPassword" autocomplete="new-password" />
+                            <small class="form-text text-muted">Leave blank if you only want to change username.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="layoutConfirmPassword">Confirm New Password</label>
+                            <input type="password" class="form-control" id="layoutConfirmPassword" autocomplete="new-password" />
+                        </div>
+                        <div id="layoutProfileMessage"></div>
+                        <div class="profile-modal-actions">
+                            <button type="button" class="btn btn-outline-secondary" id="cancelProfileModalBtn">Cancel</button>
+                            <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -1709,6 +1870,83 @@
                 $('#sidebar').addClass('collapsed');
                 $('#mainBody').addClass('collapsed');
             }
+
+            $('#accountMenuBtn').on('click', function (e) {
+                e.stopPropagation();
+                $('#accountDropdown').toggleClass('open');
+            });
+
+            $(document).on('click', function () {
+                $('#accountDropdown').removeClass('open');
+            });
+
+            $('#accountDropdown').on('click', function (e) {
+                e.stopPropagation();
+            });
+
+            $('#changeProfileBtn').on('click', function (e) {
+                e.preventDefault();
+                $('#accountDropdown').removeClass('open');
+                $('#layoutProfileMessage').empty();
+                $('#layoutCurrentPassword, #layoutNewPassword, #layoutConfirmPassword').val('');
+                $('#profileModal').addClass('open');
+            });
+
+            $('#closeProfileModalBtn, #cancelProfileModalBtn').on('click', function () {
+                $('#profileModal').removeClass('open');
+            });
+
+            $('#profileModal').on('click', function (e) {
+                if (e.target === this) {
+                    $('#profileModal').removeClass('open');
+                }
+            });
+
+            $('#layoutProfileForm').on('submit', function (e) {
+                e.preventDefault();
+
+                const newPassword = $('#layoutNewPassword').val();
+                const confirmPassword = $('#layoutConfirmPassword').val();
+                const messageBox = $('#layoutProfileMessage');
+
+                messageBox.empty();
+
+                if (newPassword && newPassword !== confirmPassword) {
+                    messageBox.html('<div class="alert alert-danger">New password and confirm password do not match.</div>');
+                    return;
+                }
+
+                const payload = {
+                    userId: @((userId ?? 0)),
+                    currentPassword: $('#layoutCurrentPassword').val(),
+                    newLoginUser: $('#layoutProfileUsername').val().trim(),
+                    newPassword: newPassword || null,
+                    confirmPassword: confirmPassword || null
+                };
+
+                $('#saveProfileBtn').prop('disabled', true).text('Saving...');
+
+                $.ajax({
+                    url: '@Url.Action("UpdateOwnAccount", "Account")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    success: function (response) {
+                        messageBox.html(`<div class="alert alert-success">${response.message}</div>`);
+                        $('#layoutCurrentPassword, #layoutNewPassword, #layoutConfirmPassword').val('');
+                        setTimeout(function () {
+                            location.reload();
+                        }, 800);
+                    },
+                    error: function (xhr) {
+                        const errorMessage = xhr.responseJSON?.message || 'Unable to update profile.';
+                        messageBox.html(`<div class="alert alert-danger">${errorMessage}</div>`);
+                    },
+                    complete: function () {
+                        $('#saveProfileBtn').prop('disabled', false).html('<i class="fas fa-save"></i> Save Changes');
+                    }
+                });
+            });
         });
 
         function loadDynamicMenu(userId, companyId) {
