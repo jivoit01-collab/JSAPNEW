@@ -1433,10 +1433,10 @@ WHERE NOT EXISTS (
                         UpdatedBy = updatedBy
                     }, tx);
 
-                var unassignedDirectExecutives = 0;
+                var detachedHodLinks = 0;
                 foreach (var removedDepartmentId in removedDepartmentIds)
                 {
-                    unassignedDirectExecutives += await UnassignDirectExecutivesForHodDepartmentChangeAsync(
+                    detachedHodLinks += await DetachHodRelationshipsForRemovedDepartmentAsync(
                         conn,
                         tx,
                         request.HodEmployeeId,
@@ -1448,7 +1448,7 @@ WHERE NOT EXISTS (
                 _ = LogAuditAsync("HODDepartmentSync", "Employee", request.HodEmployeeId, request.HodEmployeeId,
                     ToJson(new { DepartmentIds = oldDepartmentIds }),
                     ToJson(new { DepartmentIds = departmentIds }),
-                    $"Updated HOD department selection. {unassignedDirectExecutives} direct executive(s) from removed department(s) moved to unassigned.",
+                    $"Updated HOD department selection. {detachedHodLinks} HOD reporting link(s) removed from deselected department(s); team department assignments were kept.",
                     updatedBy);
 
                 return HierarchyApiResponse<bool>.SuccessResponse(true, "HOD departments updated successfully.");
@@ -1571,36 +1571,20 @@ ORDER BY
             return await conn.QueryFirstOrDefaultAsync<int?>(sql, new { HodEmployeeId = hodEmployeeId }, tx);
         }
 
-        private async Task<int> UnassignDirectExecutivesForHodDepartmentChangeAsync(
+        private async Task<int> DetachHodRelationshipsForRemovedDepartmentAsync(
             SqlConnection conn,
             SqlTransaction tx,
             int hodEmployeeId,
             int? originalDepartmentId)
         {
             const string sql = @"
-IF EXISTS (
-    SELECT 1
-    FROM [Hie].[EmployeeReportingRelationships] rr
-    INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
-    WHERE rr.ReportsToEmployeeId = @HodEmployeeId
-      AND rr.IsActive = 1
-      AND e.RoleTypeId = 2
-      AND ISNULL(rr.DepartmentId, 0) = ISNULL(@OriginalDepartmentId, 0)
-)
-BEGIN
-    SELECT CAST(0 AS INT);
-    RETURN;
-END;
+DECLARE @Detached TABLE (RelationshipId INT PRIMARY KEY);
 
-DECLARE @Unassigned TABLE (EmployeeId INT);
-
-INSERT INTO @Unassigned (EmployeeId)
-SELECT rr.EmployeeId
+INSERT INTO @Detached (RelationshipId)
+SELECT rr.RelationshipId
 FROM [Hie].[EmployeeReportingRelationships] rr
-INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
 WHERE rr.ReportsToEmployeeId = @HodEmployeeId
   AND rr.IsActive = 1
-  AND e.RoleTypeId = 3
   AND ISNULL(rr.DepartmentId, 0) = ISNULL(@OriginalDepartmentId, 0);
 
 UPDATE rr
@@ -1608,15 +1592,9 @@ SET rr.IsActive = 0,
     rr.IsPrimary = 0,
     rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
 FROM [Hie].[EmployeeReportingRelationships] rr
-INNER JOIN @Unassigned u ON u.EmployeeId = rr.EmployeeId
-WHERE rr.IsActive = 1;
+INNER JOIN @Detached d ON d.RelationshipId = rr.RelationshipId;
 
-UPDATE e
-SET e.PrimaryDepartmentId = NULL
-FROM [Hie].[Employees] e
-INNER JOIN @Unassigned u ON u.EmployeeId = e.EmployeeId;
-
-SELECT COUNT(*) FROM @Unassigned;";
+SELECT COUNT(*) FROM @Detached;";
 
             return await conn.ExecuteScalarAsync<int>(sql, new
             {
@@ -2243,6 +2221,7 @@ WHERE hda.HodEmployeeId = @HODId
                 var adminRows = flatRows.Select(r => MapTreeRowToAdminRow(r, employeeMeta)).ToList();
 
                 await AddHodPrimaryDepartmentRowsAsync(adminRows);
+                await AddSubHodTeamRowsWithoutHodAsync(adminRows);
 
                 var existingEmployeeIds = new HashSet<int>(
                     adminRows.SelectMany(r => new[] { r.HodEmployeeId, r.SubHodEmployeeId, r.ExecEmployeeId })
@@ -2440,6 +2419,90 @@ WHERE hda.HodEmployeeId IN @HodIds
                     SubDepartmentName = "",
                     SubHodEmployeeId = 0,
                     ExecEmployeeId = 0
+                });
+            }
+        }
+
+        private async Task AddSubHodTeamRowsWithoutHodAsync(List<MasterFlatAdminRowDto> rows)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            var teamRows = await conn.QueryAsync<dynamic>(@"
+SELECT
+    sub.EmployeeId AS SubHodEmployeeId,
+    sub.EmployeeCode AS SubHodCode,
+    sub.EmployeeName AS SubHodName,
+    sub.Designation AS SubHodDesignation,
+    sub.DateOfJoining AS SubHodDateOfJoining,
+    sub.IsActive AS SubHodIsActive,
+    exe.EmployeeId AS ExecEmployeeId,
+    exe.EmployeeCode AS ExecCode,
+    exe.EmployeeName AS ExecName,
+    exe.Designation AS ExecDesignation,
+    exe.DateOfJoining AS ExecDateOfJoining,
+    exe.IsActive AS ExecIsActive,
+    rr.RelationshipId AS ExecRelationshipId,
+    rr.DepartmentId,
+    d.DepartmentName,
+    rr.SubDepartmentId,
+    sd.SubDepartmentName
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN [Hie].[Employees] sub
+    ON sub.EmployeeId = rr.ReportsToEmployeeId
+   AND sub.RoleTypeId = 2
+INNER JOIN [Hie].[Employees] exe
+    ON exe.EmployeeId = rr.EmployeeId
+   AND exe.RoleTypeId = 3
+LEFT JOIN [Hie].[Departments] d
+    ON d.DepartmentId = rr.DepartmentId
+LEFT JOIN [Hie].[SubDepartments] sd
+    ON sd.SubDepartmentId = rr.SubDepartmentId
+WHERE rr.IsActive = 1
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM [Hie].[EmployeeReportingRelationships] hodRel
+      INNER JOIN [Hie].[Employees] hod
+          ON hod.EmployeeId = hodRel.ReportsToEmployeeId
+         AND hod.RoleTypeId = 1
+      WHERE hodRel.EmployeeId = sub.EmployeeId
+        AND hodRel.IsActive = 1
+        AND ISNULL(hodRel.DepartmentId, 0) = ISNULL(rr.DepartmentId, 0)
+  )");
+
+            foreach (var t in teamRows)
+            {
+                int subHodId = Convert.ToInt32(t.SubHodEmployeeId);
+                int execId = Convert.ToInt32(t.ExecEmployeeId);
+                int? departmentId = t.DepartmentId == null ? null : (int?)Convert.ToInt32(t.DepartmentId);
+                int? subDepartmentId = t.SubDepartmentId == null ? null : (int?)Convert.ToInt32(t.SubDepartmentId);
+
+                bool alreadyVisible = rows.Any(r =>
+                    r.SubHodEmployeeId == subHodId
+                    && r.ExecEmployeeId == execId
+                    && (r.DepartmentId ?? 0) == (departmentId ?? 0)
+                    && (r.SubDepartmentId ?? 0) == (subDepartmentId ?? 0));
+
+                if (alreadyVisible) continue;
+
+                rows.Add(new MasterFlatAdminRowDto
+                {
+                    DepartmentId = departmentId,
+                    DepartmentName = t.DepartmentName ?? "",
+                    SubDepartmentId = subDepartmentId,
+                    SubDepartmentName = t.SubDepartmentName ?? "",
+                    SubHodEmployeeId = subHodId,
+                    SubHodCode = t.SubHodCode ?? "",
+                    SubHodName = t.SubHodName ?? "",
+                    SubHodDesignation = t.SubHodDesignation ?? "",
+                    SubHodDateOfJoining = TryGetDate(t.SubHodDateOfJoining),
+                    SubHodIsActive = TryGetBool(t.SubHodIsActive, true),
+                    ExecEmployeeId = execId,
+                    ExecCode = t.ExecCode ?? "",
+                    ExecName = t.ExecName ?? "",
+                    ExecDesignation = t.ExecDesignation ?? "",
+                    ExecDateOfJoining = TryGetDate(t.ExecDateOfJoining),
+                    ExecIsActive = TryGetBool(t.ExecIsActive, true),
+                    ExecRelationshipId = t.ExecRelationshipId == null ? null : (int?)Convert.ToInt32(t.ExecRelationshipId)
                 });
             }
         }
@@ -3453,19 +3516,22 @@ WHERE e.RoleTypeId IN (1, 2, 3)
           )
       )
       OR (
-          e.RoleTypeId IN (2, 3)
+          e.RoleTypeId = 2
           AND activeRel.ReportsToEmployeeId IS NULL
-      )
-      OR (
-          e.RoleTypeId = 3
-          AND mgr.RoleTypeId = 2
           AND NOT EXISTS
           (
               SELECT 1
-              FROM [Hie].[EmployeeReportingRelationships] mgrRel
-              WHERE mgrRel.EmployeeId = mgr.EmployeeId
-                AND mgrRel.IsActive = 1
+              FROM [Hie].[EmployeeReportingRelationships] childRel
+              INNER JOIN [Hie].[Employees] child
+                  ON child.EmployeeId = childRel.EmployeeId
+                 AND child.RoleTypeId = 3
+              WHERE childRel.ReportsToEmployeeId = e.EmployeeId
+                AND childRel.IsActive = 1
           )
+      )
+      OR (
+          e.RoleTypeId = 3
+          AND activeRel.ReportsToEmployeeId IS NULL
       )
   )
   AND NOT EXISTS
