@@ -140,6 +140,8 @@ namespace JSAPNEW.Models
     {
         public string BankCode { get; set; }
         public string BankName { get; set; }
+        public string SwiftNo { get; set; }
+        public string CountryCode { get; set; }
     }
     public class SLPnameModel
     {
@@ -149,6 +151,8 @@ namespace JSAPNEW.Models
 
     public class ChainModel
     {
+        public string Code { get; set; }
+        public string Name { get; set; }
         public string U_Chain { get; set; }
     }
 
@@ -161,6 +165,8 @@ namespace JSAPNEW.Models
 
     public class GetMainGroup
     {
+        public string Code { get; set; }
+        public string Name { get; set; }
         public string U_Main_Group { get; set; }
     }
 
@@ -175,16 +181,39 @@ namespace JSAPNEW.Models
     }
     public class GroupNameResponse
     {
+        public int? GroupCode { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
         public string GroupName { get; set; }
     }
     public class PaymentGroupModel
     {
+        public int? GroupNum { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
         public string PymntGroup { get; set; }
     }
     public class BPStateModel
     {
         public string Code { get; set; }
         public string Name { get; set; }
+    }
+
+    public class BPOptionsModel
+    {
+        public List<DistinctBankNameModel> Banks { get; set; } = new();
+        public List<SLPnameModel> SalesEmployees { get; set; } = new();
+        public List<ChainModel> Chains { get; set; } = new();
+        public List<GetCountryModel> Countries { get; set; } = new();
+        public List<GetMainGroup> MainGroups { get; set; } = new();
+        public List<GetMSMEType> MsmeBusinessTypes { get; set; } = new();
+        public List<GroupNameResponse> Groups { get; set; } = new();
+        public List<PaymentGroupModel> PaymentTerms { get; set; } = new();
+        public List<BPStateModel> States { get; set; } = new();
+        public List<GetPricelist> PriceLists { get; set; } = new();
+        public List<UniquePANModel> UniquePANs { get; set; } = new();
+        public List<BPGetCard> ExistingCards { get; set; } = new();
+        public Dictionary<string, string> Errors { get; set; } = new();
     }
 
     public class ApprovedBpModel
@@ -425,6 +454,9 @@ namespace JSAPNEW.Models
     }
     public class GetPricelist
     {
+        public int? ListNum { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
         public string ListName { get; set; }
     }
     public class UidResponse

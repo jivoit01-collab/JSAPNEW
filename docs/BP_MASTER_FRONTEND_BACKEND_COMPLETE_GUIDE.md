@@ -525,6 +525,7 @@ The project configures JWT authentication in `Program.cs`. Individual BP endpoin
 | `/UpdateBPMaster` | POST multipart | Update BP data and attachments. | `BP.jsUpdateBPMasterData` |
 | `/UpdateSapData` | POST JSON | Update SAP-specific setup fields. | `BP.jsUpdateSAPData` |
 | `/GetSPAData` | GET | Read SAP-specific setup fields. | `BP.jsGetSPAData` |
+| `/GetOptions` | GET | Consolidated Flutter dropdown/options payload. | `BPmasterService.GetOptionsAsync` |
 | `/GetBPCompleteAuditLog` | Not exposed today | SQL procedure exists, controller route not implemented. | `BP.jsGetBPCompleteAuditLog` |
 
 ### Lookup and Dropdown APIs
@@ -533,24 +534,44 @@ Flutter should use these APIs to populate form dropdowns instead of hardcoding S
 
 | API | Method | Query parameters | Purpose | Source |
 |---|---|---|---|---|
-| `/GetDistinctBankName` | GET | `company` | Bank code/name list. | HANA procedure `BPGETDISTINCTBANKNAME`. |
-| `/GetSLPname` | GET | `company` | Sales employee list. | HANA procedure `BPGETDISTINCTBSNAME`. |
-| `/GetChain` | GET | `company`, `BPType`, `IsStaff` | Chain values by BP type/staff flag. | HANA procedure `BPGETDISTINCTCHAIN`. |
-| `/GetCountry` | GET | `company` | Country list. | HANA procedure `BPGETDISTINCTCOUNTRIES`. |
-| `/GetMaingroup` | GET | `company`, `BPType`, `IsStaff` | Main group values. | HANA procedure `BPGETDISTINCTMAINGROUPS`. |
-| `/GetMSMEtype` | GET | `company` | MSME business type list. | HANA procedure `BPGETDISTINCTMSMEBTYPE`. |
-| `/GetGroupNameByBPType` | GET | `company`, `bpType`, `isStaff` | BP group names for Customer/Vendor. | HANA procedure `BPGETGROUPNAMEBYBPTYPE`. |
-| `/GetDistinctPaymentGroups` | GET | `company` | Payment terms. | HANA procedure `BPGETDISTINCTPYMNTGROUP`. |
-| `/GetDistinctStates` | GET | `company`, `CountryCode` | State list by country. | HANA procedure `BPGETDISTINCTSTATE`. |
-| `/BPGetCardInfo` | GET | `company`, `BPType`, `IsStaff` | Existing SAP BP card lookup. | HANA procedure `BPGETCARDINFO`. |
-| `/GetUniquePANs` | GET | `company` | Existing PAN values for duplicate checks. | HANA procedure `BPGETUNIQUEPANS`. |
-| `/GetGSTMismatchByState` | GET | `company`, `stateCode` | GST/state validation help. | HANA procedure `BPGETGSTMISMATCHBYSTATEV2`. |
-| `/GetPricelist` | GET | `company` | Price list values. | HANA procedure `BpGetPriceList`. |
-| `/GetBpPANByBranch` | GET | `Branch`, `company` | PAN lookup by branch/company. | HANA procedure `BP_GET_PAN_BY_BRANCH_COMPANY`. |
+| `/GetOptions` | GET | `company`, `bpType`, `isStaff`, `countryCode` | Recommended single API for Flutter create/edit screens. Returns banks, groups, payment terms, states, chains, main groups, price lists, PANs, and existing BP cards. | HANA procedures with standard SAP table fallback. |
+| `/GetDistinctBankName` | GET | `company` | Bank code/name list. | HANA procedure `BPGETDISTINCTBANKNAME`; fallback `ODSC`. |
+| `/GetSLPname` | GET | `company` | Sales employee list. | HANA procedure `BPGETDISTINCTBSNAME`; fallback `OSLP`. |
+| `/GetChain` | GET | `company`, `BPType`, `IsStaff` | Chain values by BP type/staff flag. | HANA procedure `BPGETDISTINCTCHAIN`; fallback `@CHAIN`. |
+| `/GetCountry` | GET | `company` | Country list. | HANA procedure `BPGETDISTINCTCOUNTRIES`; fallback `OCRY`. |
+| `/GetMaingroup` | GET | `company`, `BPType`, `IsStaff` | Main group values. | HANA procedure `BPGETDISTINCTMAINGROUPS`; fallback `@MAIN_GROUP`. |
+| `/GetMSMEtype` | GET | `company` | MSME business type list. | HANA procedure `BPGETDISTINCTMSMEBTYPE`; fallback static `Manufacturing`, `Service`, `Trading`, `Others`. |
+| `/GetGroupNameByBPType` | GET | `company`, `bpType`, `isStaff` | BP group codes/names for Customer/Vendor. | HANA procedure `BPGETGROUPNAMEBYBPTYPE`; fallback `OCRG`. |
+| `/GetDistinctPaymentGroups` | GET | `company` | Payment term codes/names. | HANA procedure `BPGETDISTINCTPYMNTGROUP`; fallback `OCTG`. |
+| `/GetDistinctStates` | GET | `company`, `CountryCode` | State list by country. | HANA procedure `BPGETDISTINCTSTATE`; fallback `OCST`. |
+| `/BPGetCardInfo` | GET | `company`, `BPType`, `IsStaff` | Existing SAP BP card lookup. | HANA procedure `BPGETCARDINFO`; fallback `OCRD`/`CRD1`. |
+| `/GetUniquePANs` | GET | `company` | Existing PAN values for duplicate checks. | HANA procedure `BPGETUNIQUEPANS`; fallback `OCRD.LicTradNum`. |
+| `/GetGSTMismatchByState` | GET | `company`, `stateCode` | GST/state validation help. | HANA procedure `BPGETGSTMISMATCHBYSTATEV2`; fallback `OCST`. |
+| `/GetPricelist` | GET | `company` | Price list codes/names. | HANA procedure `BpGetPriceList`; fallback `OPLN`. |
+| `/GetBpPANByBranch` | GET | `Branch`, `company` | PAN lookup by branch/company. | HANA procedure `BP_GET_PAN_BY_BRANCH_COMPANY`; fallback `OCRD`/`CRD1`. |
 | `/CheckAddressUid` | GET | `addressUid` | Validate address UID uniqueness. | `BP.jsGetAddressUid`. |
 | `/CheckContactUid` | GET | `contactUid` | Validate contact UID uniqueness. | `BP.jsGetContactUid`. |
 
-Lookup response shape varies by endpoint because each endpoint maps to a specific model. The frontend should treat these as typed dropdown sources and cache them per company/BP type where appropriate.
+Frontend recommendation: call `/GetOptions` first. Use individual lookup APIs only when refreshing one dropdown after a BP type, staff flag, branch, or country change.
+
+```http
+GET /api/BPmaster/GetOptions?company=1&bpType=C&isStaff=false&countryCode=IN
+```
+
+Important option fields:
+
+| Option bucket | Required value field | Display field |
+|---|---|---|
+| `banks` | `bankCode` | `bankName` |
+| `groups` | `groupCode` or `code` | `groupName` or `name` |
+| `paymentTerms` | `groupNum` or `code` | `pymntGroup` or `name` |
+| `mainGroups` | `code` or `u_Main_Group` | `name` |
+| `chains` | `code` or `u_Chain` | `name` |
+| `states` | `code` | `name` |
+| `countries` | `code` | `name` |
+| `priceLists` | `listNum` or `code` | `listName` or `name` |
+
+Lookup response shape varies by endpoint because older endpoints map to specific models. The frontend should treat these as typed dropdown sources and cache them per company/BP type where appropriate.
 
 Example:
 
@@ -562,8 +583,8 @@ GET /api/BPmaster/GetGroupNameByBPType?company=1&bpType=C&isStaff=false
 {
   "success": true,
   "data": [
-    { "groupName": "Domestic Customers" },
-    { "groupName": "Distributors" }
+    { "groupCode": 100, "code": "100", "groupName": "BRANCH CUSTOMER", "name": "BRANCH CUSTOMER" },
+    { "groupCode": 115, "code": "115", "groupName": "PUNJAB", "name": "PUNJAB" }
   ]
 }
 ```

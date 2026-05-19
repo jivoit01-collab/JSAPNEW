@@ -23,6 +23,7 @@ namespace JSAPNEW.Services.Interfaces
         Task<IEnumerable<GroupNameResponse>> GetGroupNameByBPTypeAsync(int company, string bpType,string isStaff);
         Task<IEnumerable<PaymentGroupModel>> GetDistinctPaymentGroupsAsync(int company);
         Task<IEnumerable<BPStateModel>> GetDistinctStatesAsync(int company, string CountryCode);
+        Task<BPOptionsModel> GetOptionsAsync(int company, string bpType, string isStaff, string countryCode = "IN");
         Task<IEnumerable<BPGetCard>> BPGetCardInfoAsync(int company, string BPType, string IsStaff);
         Task<IEnumerable<UniquePANModel>> GetUniquePANsAsync(int company);
         Task<IEnumerable<GSTMismatchByStateModel>> GetGSTMismatchByStateAsync(int company, string stateCode);

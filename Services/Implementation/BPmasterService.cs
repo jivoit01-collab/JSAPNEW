@@ -31,6 +31,155 @@ namespace JSAPNEW.Services.Implementation
             _hanaSettings = configuration.GetSection($"HanaSettings:{activeEnv}")
                                          .Get<Dictionary<int, HanaCompanySettings>>();
         }
+
+        private HanaCompanySettings GetHanaSettings(int company)
+        {
+            if (_hanaSettings == null || !_hanaSettings.TryGetValue(company, out var settings) || settings == null)
+                throw new ArgumentException($"Invalid company ID: {company}");
+
+            if (string.IsNullOrWhiteSpace(settings.ConnectionString))
+                throw new InvalidOperationException($"HANA connection string is missing for company ID: {company}");
+
+            if (string.IsNullOrWhiteSpace(settings.Schema))
+                throw new InvalidOperationException($"HANA schema is missing for company ID: {company}");
+
+            return settings;
+        }
+
+        private async Task<IEnumerable<T>> QueryHanaWithFallbackAsync<T>(
+            int company,
+            string optionName,
+            string primarySql,
+            object primaryParams = null,
+            string fallbackSql = null,
+            object fallbackParams = null,
+            IEnumerable<T> staticFallback = null)
+        {
+            var settings = GetHanaSettings(company);
+
+            try
+            {
+                using var connection = new HanaConnection(settings.ConnectionString);
+                return await connection.QueryAsync<T>(primarySql, primaryParams);
+            }
+            catch (Exception primaryEx)
+            {
+                if (!string.IsNullOrWhiteSpace(fallbackSql))
+                {
+                    try
+                    {
+                        using var fallbackConnection = new HanaConnection(settings.ConnectionString);
+                        return await fallbackConnection.QueryAsync<T>(fallbackSql, fallbackParams);
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        throw new InvalidOperationException(
+                            $"{optionName} lookup failed. Primary error: {primaryEx.Message}. Fallback error: {fallbackEx.Message}",
+                            fallbackEx);
+                    }
+                }
+
+                if (staticFallback != null)
+                    return staticFallback;
+
+                throw new InvalidOperationException($"{optionName} lookup failed: {primaryEx.Message}", primaryEx);
+            }
+        }
+
+        private static string NormalizeBpType(string bpType)
+        {
+            var value = (bpType ?? string.Empty).Trim().ToUpperInvariant();
+            if (value == "V" || value == "S" || value == "SUPPLIER" || value == "VENDOR")
+                return "V";
+
+            return "C";
+        }
+
+        private static string NormalizeSapGroupType(string bpType)
+        {
+            return NormalizeBpType(bpType) == "V" ? "S" : "C";
+        }
+
+        private static string NormalizeIsStaff(string isStaff)
+        {
+            var value = (isStaff ?? string.Empty).Trim().ToLowerInvariant();
+            return value is "1" or "true" or "yes" or "y" ? "true" : "false";
+        }
+
+        private static string NormalizeCountryCode(string countryCode)
+        {
+            var value = (countryCode ?? string.Empty).Trim().ToUpperInvariant();
+            return string.IsNullOrWhiteSpace(value) ? "IN" : value;
+        }
+
+        private static string FirstText(params string[] values)
+        {
+            return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
+        }
+
+        private static List<ChainModel> NormalizeChains(IEnumerable<ChainModel> rows)
+        {
+            return (rows ?? Enumerable.Empty<ChainModel>())
+                .Select(row =>
+                {
+                    var code = FirstText(row.Code, row.U_Chain, row.Name);
+                    var name = FirstText(row.Name, row.U_Chain, code);
+                    return new ChainModel { Code = code, Name = name, U_Chain = FirstText(row.U_Chain, code) };
+                })
+                .Where(row => !string.IsNullOrWhiteSpace(row.Code) || !string.IsNullOrWhiteSpace(row.Name))
+                .ToList();
+        }
+
+        private static List<GetMainGroup> NormalizeMainGroups(IEnumerable<GetMainGroup> rows)
+        {
+            return (rows ?? Enumerable.Empty<GetMainGroup>())
+                .Select(row =>
+                {
+                    var code = FirstText(row.Code, row.U_Main_Group, row.Name);
+                    var name = FirstText(row.Name, row.U_Main_Group, code);
+                    return new GetMainGroup { Code = code, Name = name, U_Main_Group = FirstText(row.U_Main_Group, code) };
+                })
+                .Where(row => !string.IsNullOrWhiteSpace(row.Code) || !string.IsNullOrWhiteSpace(row.Name))
+                .ToList();
+        }
+
+        private static List<GroupNameResponse> NormalizeGroups(IEnumerable<GroupNameResponse> rows)
+        {
+            return (rows ?? Enumerable.Empty<GroupNameResponse>())
+                .Select(row =>
+                {
+                    var code = FirstText(row.Code, row.GroupCode?.ToString());
+                    var name = FirstText(row.Name, row.GroupName);
+                    return new GroupNameResponse
+                    {
+                        GroupCode = row.GroupCode,
+                        Code = code,
+                        Name = name,
+                        GroupName = FirstText(row.GroupName, name)
+                    };
+                })
+                .Where(row => row.GroupCode.HasValue || !string.IsNullOrWhiteSpace(row.Code) || !string.IsNullOrWhiteSpace(row.GroupName))
+                .ToList();
+        }
+
+        private static List<PaymentGroupModel> NormalizePaymentGroups(IEnumerable<PaymentGroupModel> rows)
+        {
+            return (rows ?? Enumerable.Empty<PaymentGroupModel>())
+                .Select(row =>
+                {
+                    var code = FirstText(row.Code, row.GroupNum?.ToString());
+                    var name = FirstText(row.Name, row.PymntGroup);
+                    return new PaymentGroupModel
+                    {
+                        GroupNum = row.GroupNum,
+                        Code = code,
+                        Name = name,
+                        PymntGroup = FirstText(row.PymntGroup, name)
+                    };
+                })
+                .Where(row => row.GroupNum.HasValue || !string.IsNullOrWhiteSpace(row.Code) || !string.IsNullOrWhiteSpace(row.PymntGroup))
+                .ToList();
+        }
         public async Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model)
         {
             var response = new BPMasterResponse();
@@ -177,147 +326,255 @@ namespace JSAPNEW.Services.Implementation
 
         public async Task<IEnumerable<DistinctBankNameModel>> GetDistinctBankNameAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBANKNAME\"()";
+            var fallbackSql = $@"
+                SELECT
+                    ""BankCode"",
+                    ""BankName""
+                FROM ""{settings.Schema}"".""ODSC""
+                ORDER BY ""BankName""";
 
-                var query = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBANKNAME\"()";
-
-                var result = await connection.QueryAsync<DistinctBankNameModel>(query);
-                return result;
-            }
+            return await QueryHanaWithFallbackAsync<DistinctBankNameModel>(
+                company,
+                "Bank options",
+                primarySql,
+                fallbackSql: fallbackSql);
         }
         public async Task<IEnumerable<SLPnameModel>> GetSLPnameAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var query = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBSNAME\"()";
+            var settings = GetHanaSettings(company);
 
-                var result = await connection.QueryAsync<SLPnameModel>(
-                     query
-                 );
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBSNAME\"()";
+            var fallbackSql = $@"
+                SELECT ""SlpCode"", ""SlpName""
+                FROM ""{settings.Schema}"".""OSLP""
+                WHERE ""SlpCode"" > 0
+                  AND IFNULL(""Locked"", 'N') = 'N'
+                ORDER BY ""SlpName""";
 
-                return result;
-            }
+            return await QueryHanaWithFallbackAsync<SLPnameModel>(
+                company,
+                "Sales employee options",
+                primarySql,
+                fallbackSql: fallbackSql);
         }
         public async Task<IEnumerable<ChainModel>> GetChainAsync(int company, string BPType, string IsStaff)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add("BPType", BPType);
-                parameters.Add("IsStaff", IsStaff);
+            var settings = GetHanaSettings(company);
+            var parameters = new DynamicParameters();
+            parameters.Add("BPType", NormalizeBpType(BPType));
+            parameters.Add("IsStaff", NormalizeIsStaff(IsStaff));
 
-                var sql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTCHAIN\"(?,?)";
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTCHAIN\"(?,?)";
+            var fallbackSql = $@"
+                SELECT
+                    ""Code"",
+                    IFNULL(""Name"", ""Code"") AS ""Name"",
+                    ""Code"" AS ""U_Chain""
+                FROM ""{settings.Schema}"".""@CHAIN""
+                ORDER BY ""Code""";
 
-                var result = await connection.QueryAsync<ChainModel>(
-                     sql, parameters
-                 );
+            var result = await QueryHanaWithFallbackAsync<ChainModel>(
+                company,
+                "Chain options",
+                primarySql,
+                parameters,
+                fallbackSql);
 
-                return result;
-            }
+            return NormalizeChains(result);
         }
         public async Task<IEnumerable<GetCountryModel>> GetCountryAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var sql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTCOUNTRIES\"()";
+            var settings = GetHanaSettings(company);
 
-                var result = await connection.QueryAsync<GetCountryModel>(
-                     sql
-                 );
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTCOUNTRIES\"()";
+            var fallbackSql = $@"
+                SELECT ""Code"", ""Name""
+                FROM ""{settings.Schema}"".""OCRY""
+                ORDER BY ""Name""";
 
-                return result;
-            }
+            return await QueryHanaWithFallbackAsync<GetCountryModel>(
+                company,
+                "Country options",
+                primarySql,
+                fallbackSql: fallbackSql);
         }
         public async Task<IEnumerable<GetMainGroup>> GetMaingroupAsync(int company, string BPType, string IsStaff)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add("BPType", BPType);
-                parameters.Add("IsStaff", IsStaff);
-                var sql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTMAINGROUPS\"(?,?)";
+            var settings = GetHanaSettings(company);
+            var parameters = new DynamicParameters();
+            parameters.Add("BPType", NormalizeBpType(BPType));
+            parameters.Add("IsStaff", NormalizeIsStaff(IsStaff));
 
-                var result = await connection.QueryAsync<GetMainGroup>(
-                     sql, parameters
-                 );
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTMAINGROUPS\"(?,?)";
+            var fallbackSql = $@"
+                SELECT
+                    ""Code"",
+                    IFNULL(""Name"", ""Code"") AS ""Name"",
+                    ""Code"" AS ""U_Main_Group""
+                FROM ""{settings.Schema}"".""@MAIN_GROUP""
+                ORDER BY ""Code""";
 
-                return result;
-            }
+            var result = await QueryHanaWithFallbackAsync<GetMainGroup>(
+                company,
+                "Main group options",
+                primarySql,
+                parameters,
+                fallbackSql);
+
+            return NormalizeMainGroups(result);
         }
         public async Task<IEnumerable<GetMSMEType>> GetMSMEtypeAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
-            using (var connection = new HanaConnection(settings.ConnectionString))
+            var settings = GetHanaSettings(company);
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTMSMEBTYPE\"()";
+            var staticFallback = new[]
             {
-                var sql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTMSMEBTYPE\"()";
+                new GetMSMEType { U_MSME_BType = "Manufacturing" },
+                new GetMSMEType { U_MSME_BType = "Service" },
+                new GetMSMEType { U_MSME_BType = "Trading" },
+                new GetMSMEType { U_MSME_BType = "Others" }
+            };
 
-                var result = await connection.QueryAsync<GetMSMEType>(
-                     sql
-                 );
-
-                return result;
-            }
+            return await QueryHanaWithFallbackAsync<GetMSMEType>(
+                company,
+                "MSME business type options",
+                primarySql,
+                staticFallback: staticFallback);
         }
         public async Task<IEnumerable<GroupNameResponse>> GetGroupNameByBPTypeAsync(int company, string bpType, string isStaff)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
+            var parameters = new DynamicParameters();
+            parameters.Add("bpType", NormalizeBpType(bpType));
+            parameters.Add("isStaff", NormalizeIsStaff(isStaff));
+
+            var fallbackParameters = new DynamicParameters();
+            fallbackParameters.Add("GroupType", NormalizeSapGroupType(bpType));
+
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETGROUPNAMEBYBPTYPE\"(?,?)";
+            var fallbackSql = $@"
+                SELECT
+                    ""GroupCode"",
+                    CAST(""GroupCode"" AS NVARCHAR(20)) AS ""Code"",
+                    ""GroupName"",
+                    ""GroupName"" AS ""Name""
+                FROM ""{settings.Schema}"".""OCRG""
+                WHERE ""GroupType"" = ?
+                ORDER BY ""GroupName""";
+
+            var result = NormalizeGroups(await QueryHanaWithFallbackAsync<GroupNameResponse>(
+                company,
+                "BP group options",
+                primarySql,
+                parameters,
+                fallbackSql,
+                fallbackParameters));
+
+            if (result.Count == 0 || result.All(row => !row.GroupCode.HasValue && string.IsNullOrWhiteSpace(row.Code)))
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("bpType", bpType);
-                parameters.Add("isStaff",isStaff);
-
-                var query = $"CALL \"{settings.Schema}\".\"BPGETGROUPNAMEBYBPTYPE\"(?,?)";
-
-                var result = await connection.QueryAsync<GroupNameResponse>(query, parameters);
-                return result;
-
+                result = NormalizeGroups(await QueryHanaWithFallbackAsync<GroupNameResponse>(
+                    company,
+                    "BP group code options",
+                    fallbackSql,
+                    fallbackParameters));
             }
+
+            return result;
         }
         public async Task<IEnumerable<PaymentGroupModel>> GetDistinctPaymentGroupsAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTPYMNTGROUP\"()";
+            var fallbackSql = $@"
+                SELECT
+                    ""GroupNum"",
+                    CAST(""GroupNum"" AS NVARCHAR(20)) AS ""Code"",
+                    ""PymntGroup"",
+                    ""PymntGroup"" AS ""Name""
+                FROM ""{settings.Schema}"".""OCTG""
+                ORDER BY ""PymntGroup""";
+
+            var result = NormalizePaymentGroups(await QueryHanaWithFallbackAsync<PaymentGroupModel>(
+                company,
+                "Payment term options",
+                primarySql,
+                fallbackSql: fallbackSql));
+
+            if (result.Count == 0 || result.All(row => !row.GroupNum.HasValue && string.IsNullOrWhiteSpace(row.Code)))
             {
-                await connection.OpenAsync();
-                string sql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTPYMNTGROUP\"()";
-
-                var result = await connection.QueryAsync<PaymentGroupModel>(sql);
-                return result;
+                result = NormalizePaymentGroups(await QueryHanaWithFallbackAsync<PaymentGroupModel>(
+                    company,
+                    "Payment term code options",
+                    fallbackSql));
             }
+
+            return result;
         }
         public async Task<IEnumerable<BPStateModel>> GetDistinctStatesAsync(int company, string CountryCode)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
+            var normalizedCountry = NormalizeCountryCode(CountryCode);
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
+            var parameters = new DynamicParameters();
+            parameters.Add("CountryCode", normalizedCountry);
+
+            var fallbackParameters = new DynamicParameters();
+            fallbackParameters.Add("Country", normalizedCountry);
+
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTSTATE\"(?)";
+            var fallbackSql = $@"
+                SELECT ""Code"", ""Name""
+                FROM ""{settings.Schema}"".""OCST""
+                WHERE ""Country"" = ?
+                ORDER BY ""Name""";
+
+            return await QueryHanaWithFallbackAsync<BPStateModel>(
+                company,
+                "State options",
+                primarySql,
+                parameters,
+                fallbackSql,
+                fallbackParameters);
+        }
+        public async Task<BPOptionsModel> GetOptionsAsync(int company, string bpType, string isStaff, string countryCode = "IN")
+        {
+            var options = new BPOptionsModel();
+            var normalizedBpType = NormalizeBpType(bpType);
+            var normalizedIsStaff = NormalizeIsStaff(isStaff);
+            var normalizedCountryCode = NormalizeCountryCode(countryCode);
+
+            async Task LoadAsync<T>(string key, Func<Task<IEnumerable<T>>> loader, Action<List<T>> assign)
             {
-                var parameters = new DynamicParameters();
-                parameters.Add("CountryCode", CountryCode);
-
-                string sql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTSTATE\"(?)";
-
-                var result = await connection.QueryAsync<BPStateModel>(sql, parameters);
-                return result;
+                try
+                {
+                    assign((await loader()).ToList());
+                }
+                catch (Exception ex)
+                {
+                    options.Errors[key] = ex.Message;
+                    assign(new List<T>());
+                }
             }
+
+            await LoadAsync("banks", () => GetDistinctBankNameAsync(company), value => options.Banks = value);
+            await LoadAsync("salesEmployees", () => GetSLPnameAsync(company), value => options.SalesEmployees = value);
+            await LoadAsync("chains", () => GetChainAsync(company, normalizedBpType, normalizedIsStaff), value => options.Chains = value);
+            await LoadAsync("countries", () => GetCountryAsync(company), value => options.Countries = value);
+            await LoadAsync("mainGroups", () => GetMaingroupAsync(company, normalizedBpType, normalizedIsStaff), value => options.MainGroups = value);
+            await LoadAsync("msmeBusinessTypes", () => GetMSMEtypeAsync(company), value => options.MsmeBusinessTypes = value);
+            await LoadAsync("groups", () => GetGroupNameByBPTypeAsync(company, normalizedBpType, normalizedIsStaff), value => options.Groups = value);
+            await LoadAsync("paymentTerms", () => GetDistinctPaymentGroupsAsync(company), value => options.PaymentTerms = value);
+            await LoadAsync("states", () => GetDistinctStatesAsync(company, normalizedCountryCode), value => options.States = value);
+            await LoadAsync("priceLists", () => GetPricelistAsync(company), value => options.PriceLists = value);
+            await LoadAsync("uniquePANs", () => GetUniquePANsAsync(company), value => options.UniquePANs = value);
+            await LoadAsync("existingCards", () => BPGetCardInfoAsync(company, normalizedBpType, normalizedIsStaff), value => options.ExistingCards = value);
+
+            return options;
         }
         public async Task<IEnumerable<ApprovedBpModel>> GetApprovedBPsAsync(int userId, int companyId, string month = null)
         {
@@ -825,49 +1082,87 @@ ORDER BY id DESC;";
         }
         public async Task<IEnumerable<BPGetCard>> BPGetCardInfoAsync(int company, string BPType, string IsStaff)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add("BPType", BPType);
-                parameters.Add("IsStaff", IsStaff);
+            var parameters = new DynamicParameters();
+            parameters.Add("BPType", NormalizeBpType(BPType));
+            parameters.Add("IsStaff", NormalizeIsStaff(IsStaff));
 
-                var query = $"CALL \"{settings.Schema}\".\"BPGETCARDINFO\"(?,?)";
+            var fallbackParameters = new DynamicParameters();
+            fallbackParameters.Add("CardType", NormalizeBpType(BPType) == "V" ? "S" : "C");
 
-                var result = await connection.QueryAsync<BPGetCard>(query, parameters);
-                return result;
-            }
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETCARDINFO\"(?,?)";
+            var fallbackSql = $@"
+                SELECT
+                    c.""CardCode"",
+                    c.""CardName"",
+                    IFNULL(a.""Street"", '') AS ""Address"",
+                    IFNULL(a.""State"", '') AS ""State"",
+                    IFNULL(a.""GSTRegnNo"", '') AS ""GSTRegnNo""
+                FROM ""{settings.Schema}"".""OCRD"" c
+                LEFT JOIN ""{settings.Schema}"".""CRD1"" a
+                    ON a.""CardCode"" = c.""CardCode""
+                   AND a.""AdresType"" = 'B'
+                WHERE c.""CardType"" = ?
+                ORDER BY c.""CardName""";
+
+            return await QueryHanaWithFallbackAsync<BPGetCard>(
+                company,
+                "Existing BP card options",
+                primarySql,
+                parameters,
+                fallbackSql,
+                fallbackParameters);
         }
         public async Task<IEnumerable<UniquePANModel>> GetUniquePANsAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var query = $"CALL \"{settings.Schema}\".\"BPGETUNIQUEPANS\"()";
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETUNIQUEPANS\"()";
+            var fallbackSql = $@"
+                SELECT DISTINCT
+                    ""LicTradNum"" AS ""PAN_Number""
+                FROM ""{settings.Schema}"".""OCRD""
+                WHERE IFNULL(""LicTradNum"", '') <> ''
+                ORDER BY ""LicTradNum""";
 
-                var result = await connection.QueryAsync<UniquePANModel>(query);
-                return result;
-            }
+            return await QueryHanaWithFallbackAsync<UniquePANModel>(
+                company,
+                "PAN options",
+                primarySql,
+                fallbackSql: fallbackSql);
         }
         public async Task<IEnumerable<GSTMismatchByStateModel>> GetGSTMismatchByStateAsync(int company, string stateCode)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
+            var normalizedState = (stateCode ?? string.Empty).Trim().ToUpperInvariant();
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add("stateCode", stateCode);
+            var parameters = new DynamicParameters();
+            parameters.Add("stateCode", normalizedState);
 
-                var query = $"CALL \"{settings.Schema}\".\"BPGETGSTMISMATCHBYSTATEV2\"(?)";
+            var fallbackParameters = new DynamicParameters();
+            fallbackParameters.Add("StateCode1", normalizedState);
+            fallbackParameters.Add("StateCode2", normalizedState);
 
-                var result = await connection.QueryAsync<GSTMismatchByStateModel>(query, parameters);
-                return result;
-            }
+            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETGSTMISMATCHBYSTATEV2\"(?)";
+            var fallbackSql = $@"
+                SELECT
+                    ""Code"",
+                    ""Country"",
+                    ""Name"",
+                    ""Code"" AS ""GSTCode""
+                FROM ""{settings.Schema}"".""OCST""
+                WHERE ""Country"" = 'IN'
+                  AND (UPPER(""Code"") = ? OR UPPER(""Name"") LIKE '%' || ? || '%')
+                ORDER BY ""Name""";
+
+            return await QueryHanaWithFallbackAsync<GSTMismatchByStateModel>(
+                company,
+                "GST state validation options",
+                primarySql,
+                parameters,
+                fallbackSql,
+                fallbackParameters);
         }
         public async Task<BPCountModel> GetBPCountsAsync(string month, int userId)
         {
@@ -888,14 +1183,22 @@ ORDER BY id DESC;";
         }
         public async Task<IEnumerable<GetPricelist>> GetPricelistAsync(int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var query = $"CALL \"{settings.Schema}\".\"BpGetPriceList\"()";
-                var result = await connection.QueryAsync<GetPricelist>(query);
-                return result;
-            }
+            var settings = GetHanaSettings(company);
+            var primarySql = $"CALL \"{settings.Schema}\".\"BpGetPriceList\"()";
+            var fallbackSql = $@"
+                SELECT
+                    ""ListNum"",
+                    CAST(""ListNum"" AS NVARCHAR(20)) AS ""Code"",
+                    ""ListName"",
+                    ""ListName"" AS ""Name""
+                FROM ""{settings.Schema}"".""OPLN""
+                ORDER BY ""ListName""";
+
+            return await QueryHanaWithFallbackAsync<GetPricelist>(
+                company,
+                "Price list options",
+                primarySql,
+                fallbackSql: fallbackSql);
         }
 
         public async Task<UidResponse> CheckAddressUidAsync(string addressUid)
@@ -948,19 +1251,42 @@ ORDER BY id DESC;";
 
         public async Task<IEnumerable<GetPanByBranch>> GetBpPANByBranchAsync(string Branch, int company)
         {
-            if (!_hanaSettings.TryGetValue(company, out var settings))
-                throw new ArgumentException($"Invalid company ID: {company}");
+            var settings = GetHanaSettings(company);
+            var normalizedBranch = (Branch ?? string.Empty).Trim().ToUpperInvariant();
 
-            using (var connection = new HanaConnection(settings.ConnectionString))
-            {
-                var parameters = new DynamicParameters();
-                parameters.Add("Branch", Branch);
-                parameters.Add("company", company);
+            var parameters = new DynamicParameters();
+            parameters.Add("Branch", Branch);
+            parameters.Add("company", company);
 
-                var query = $"CALL \"{settings.Schema}\".\"BP_GET_PAN_BY_BRANCH_COMPANY\"(?,?)";
-                var result = await connection.QueryAsync<GetPanByBranch>(query, parameters);
-                return result;
-            }
+            var fallbackParameters = new DynamicParameters();
+            fallbackParameters.Add("Company", company);
+            fallbackParameters.Add("BranchLabel", normalizedBranch);
+            fallbackParameters.Add("BranchCity", normalizedBranch);
+            fallbackParameters.Add("BranchState", normalizedBranch);
+
+            var primarySql = $"CALL \"{settings.Schema}\".\"BP_GET_PAN_BY_BRANCH_COMPANY\"(?,?)";
+            var fallbackSql = $@"
+                SELECT DISTINCT
+                    ? AS ""company"",
+                    IFNULL(NULLIF(a.""City"", ''), ?) AS ""Branch"",
+                    c.""LicTradNum"" AS ""PAN""
+                FROM ""{settings.Schema}"".""OCRD"" c
+                LEFT JOIN ""{settings.Schema}"".""CRD1"" a
+                    ON a.""CardCode"" = c.""CardCode""
+                WHERE IFNULL(c.""LicTradNum"", '') <> ''
+                  AND (
+                        UPPER(IFNULL(a.""City"", '')) LIKE '%' || ? || '%'
+                     OR UPPER(IFNULL(a.""State"", '')) = ?
+                  )
+                ORDER BY ""PAN""";
+
+            return await QueryHanaWithFallbackAsync<GetPanByBranch>(
+                company,
+                "PAN by branch lookup",
+                primarySql,
+                parameters,
+                fallbackSql,
+                fallbackParameters);
         }
 
         public async Task<SPAData> GetSPADataAsync(int masterId)

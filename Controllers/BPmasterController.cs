@@ -110,6 +110,32 @@ namespace JSAPNEW.Controllers
             }
         }
 
+        [HttpGet("GetOptions")]
+        [HttpGet("Options")]
+        public async Task<IActionResult> GetOptions(int company, string bpType = "C", string isStaff = "false", string countryCode = "IN")
+        {
+            if (company <= 0)
+                return BadRequest(new { Success = false, Message = "Company is required." });
+
+            try
+            {
+                var result = await _BPService.GetOptionsAsync(company, bpType, isStaff, countryCode);
+                return Ok(new
+                {
+                    Success = result.Errors == null || !result.Errors.Any(),
+                    Data = result,
+                    Message = result.Errors != null && result.Errors.Any()
+                        ? "Some BP options could not be loaded. Check Data.Errors for details."
+                        : "BP options loaded successfully."
+                });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching BP options.");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
         [HttpGet("GetDistinctBankName")]
         public async Task<IActionResult> GetDistinctBankName(int company)
         {
