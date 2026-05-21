@@ -337,6 +337,104 @@ namespace JSAPNEW.Models
     }
 
     // ============================================================
+    // Owner Dashboard DTOs
+    // ============================================================
+    public class DeptTaskSummaryDto
+    {
+        public int    DeptId          { get; set; }
+        public string DeptName        { get; set; } = "No Department";
+        public int    TotalTasks      { get; set; }
+        public int    PendingCount    { get; set; }
+        public int    InProgressCount { get; set; }
+        public int    CompletedCount  { get; set; }
+        public int    OverdueCount    { get; set; }
+        public double AvgProgress     { get; set; }
+        public double CompletionRate  => TotalTasks > 0 ? Math.Round((double)CompletedCount / TotalTasks * 100, 1) : 0;
+    }
+
+    public class OwnerDashboardDto
+    {
+        public int    TotalTasks       { get; set; }
+        public int    PendingCount     { get; set; }
+        public int    InProgressCount  { get; set; }
+        public int    CompletedCount   { get; set; }
+        public int    OverdueCount     { get; set; }
+        public int    ActiveDepts      { get; set; }
+        public double AvgProgress      { get; set; }
+        public double CompletionRate   => TotalTasks > 0 ? Math.Round((double)CompletedCount / TotalTasks * 100, 1) : 0;
+        public List<DeptTaskSummaryDto> Departments { get; set; } = new();
+    }
+
+    // ============================================================
+    // Employee Performance DTOs
+    // ============================================================
+    public class EmployeeTaskSummaryDto
+    {
+        public int    EmployeeId      { get; set; }
+        public string EmployeeName    { get; set; } = "";
+        public string Role            { get; set; } = "";
+        public int    DeptId          { get; set; }
+        public string DeptName        { get; set; } = "";
+        public int    TotalTasks      { get; set; }
+        public int    PendingCount    { get; set; }
+        public int    InProgressCount { get; set; }
+        public int    CompletedCount  { get; set; }
+        public int    OverdueCount    { get; set; }
+        public double AvgProgress     { get; set; }
+        public double CompletionRate  => TotalTasks > 0 ? Math.Round((double)CompletedCount / TotalTasks * 100, 1) : 0;
+    }
+
+    public class DeptEmployeeDetailRequestDto
+    {
+        public List<int> DeptIds  { get; set; } = new();
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate   { get; set; }
+    }
+
+    // ============================================================
+    // Dept Hierarchy DTOs (drill-down: HOD → SubHOD → Executive)
+    // ============================================================
+    public class HierarchyEmpNodeDto
+    {
+        public int    EmployeeId       { get; set; }
+        public string EmployeeCode     { get; set; } = "";
+        public string EmployeeName     { get; set; } = "";
+        public int    RoleTypeId       { get; set; }
+        public string RoleName         { get; set; } = "";
+        public int?   SubDepartmentId  { get; set; }
+        public string SubDepartmentName{ get; set; } = "";
+        public int    TotalTasks       { get; set; }
+        public int    PendingCount     { get; set; }
+        public int    InProgressCount  { get; set; }
+        public int    CompletedCount   { get; set; }
+        public int    OverdueCount     { get; set; }
+        public double AvgProgress      { get; set; }
+        public double CompletionRate   => TotalTasks > 0 ? Math.Round((double)CompletedCount / TotalTasks * 100, 1) : 0;
+        public List<HierarchyEmpNodeDto> Children { get; set; } = new();
+    }
+
+    public class DeptHierarchyResponseDto
+    {
+        public int    DeptId        { get; set; }
+        public string DeptName      { get; set; } = "";
+        public int    TotalTasks    { get; set; }
+        public int    PendingCount  { get; set; }
+        public int    InProgressCount { get; set; }
+        public int    CompletedCount  { get; set; }
+        public int    OverdueCount    { get; set; }
+        public double AvgProgress     { get; set; }
+        public double CompletionRate  => TotalTasks > 0 ? Math.Round((double)CompletedCount / TotalTasks * 100, 1) : 0;
+        public List<HierarchyEmpNodeDto> Hods { get; set; } = new();
+    }
+
+    public class DeptHierarchyRequestDto
+    {
+        public int       DeptId   { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate   { get; set; }
+    }
+
+    // ============================================================
     // Reassign Task DTO
     // ============================================================
     public class ReassignTaskRequestDto

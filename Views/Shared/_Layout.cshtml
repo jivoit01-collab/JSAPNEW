@@ -1630,14 +1630,31 @@
                 permissions: {
                     'Admin_task': {
                         displayName: 'Task',
-                        url: '@Url.Action("Dashboard", "TaskWeb")'
+                        url: '@Url.Action("Tasks", "TaskWeb")',
+                        links: [
+                            { displayName: 'Tasks', url: '@Url.Action("Tasks", "TaskWeb")' },
+                            { displayName: 'Task Dashboard', url: '@Url.Action("TaskDashboard", "TaskWeb")' }
+                        ]
                     },
                     'HOD_task': {
                         displayName: 'Task',
-                        url: '@Url.Action("Dashboard", "TaskWeb")'
+                        url: '@Url.Action("Tasks", "TaskWeb")',
+                        links: [
+                            { displayName: 'Tasks', url: '@Url.Action("Tasks", "TaskWeb")' },
+                            { displayName: 'Task Dashboard', url: '@Url.Action("TaskDashboard", "TaskWeb")' }
+                        ]
+                    },
+                    'AllTaskDashboard': {
+                        displayName: 'Owner Dashboard',
+                        url: '@Url.Action("OwnerDashboard", "TaskWeb")',
+                        links: [
+                            { displayName: 'Owner Dashboard', url: '@Url.Action("OwnerDashboard", "TaskWeb")' },
+                            { displayName: '2nd Owner Dashboard', url: '@Url.Action("SecondOwnerDashboard", "TaskWeb")' }
+                        ]
                     }
-                }
+                 }
             },
+            
             'Tickets': {
                 displayName: 'Tickets',
                 icon: 'fas fa-ticket-alt',
@@ -1709,17 +1726,18 @@
                         displayName: 'Invoice Payment',
                         url: '/InvoicePayment/InvoicePaymentPage'
                     },
-        'PaymentChecker': {
-        displayName: 'Payment Checker',
-        url: '/PaymentChecker/PaymentCheckerPage'
-        },
+
+                    'PaymentChecker': {
+                        displayName: 'Payment Checker',
+                        url: '/PaymentChecker/PaymentCheckerPage'
+                    },
                     'Admin': {
                         displayName: 'Admin',
                         url: '/Admin/AdminPage'
-                    }// ✅ FIXED
+                        }// ✅ FIXED
+                    }
                 }
-            }
-        };
+            };
 
 
         // ============================================================

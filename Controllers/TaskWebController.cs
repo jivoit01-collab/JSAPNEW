@@ -164,12 +164,53 @@ namespace JSAPNEW.Controllers
             return false;
         }
 
+        private async Task<bool> HasAllTaskDashboardPermissionAsync(int userId)
+        {
+            try
+            {
+                var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
+                if (!selectedCompanyId.HasValue || selectedCompanyId.Value <= 0)
+                    return false;
+
+                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                await using var connection = new SqlConnection(connectionString);
+                await using var command = new SqlCommand("jsGetUserEffectivePermissions", connection)
+                {
+                    CommandType = System.Data.CommandType.StoredProcedure
+                };
+
+                command.Parameters.AddWithValue("@userId", userId);
+                command.Parameters.AddWithValue("@companyId", selectedCompanyId.Value);
+
+                await connection.OpenAsync();
+                await using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    var moduleName = reader["moduleName"]?.ToString() ?? "";
+                    var permissionType = reader["permissionType"]?.ToString() ?? "";
+
+                    if (moduleName.Equals("Daily Task", StringComparison.OrdinalIgnoreCase)
+                        && permissionType.Equals("AllTaskDashboard", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking AllTaskDashboard permission: {ex.Message}");
+            }
+
+            return false;
+        }
+
         #endregion
 
         #region Views
 
-        /// <summary>Main Task Dashboard - /TaskWeb/Dashboard</summary>
-        public async Task<IActionResult> Dashboard()
+        /// <summary>Main Task Tasks - /TaskWeb/Tasks</summary>
+        public async Task<IActionResult> Tasks()
         {
             if (!IsUserLoggedIn())
                 return RedirectToAction("Index", "Login");
@@ -422,8 +463,95 @@ namespace JSAPNEW.Controllers
             }
         }
 
+        /// <summary>Owner Dashboard - /TaskWeb/OwnerDashboard</summary>
+        public async Task<IActionResult> OwnerDashboard()
+        {
+            if (!IsUserLoggedIn())
+                return RedirectToAction("Index", "Login");
+
+            var userId = GetUserId().Value;
+            var hasOwnerAccess = await HasAllTaskDashboardPermissionAsync(userId);
+            if (!hasOwnerAccess)
+                return RedirectToAction("TaskDashboard");
+
+            var userInfo = await GetUserInfoFromDatabaseAsync(userId);
+            var employeeName = !string.IsNullOrEmpty(userInfo.FirstName)
+                ? $"{userInfo.FirstName} {userInfo.LastName}".Trim()
+                : HttpContext.Session.GetString("username") ?? "User";
+
+            ViewBag.EmployeeName = employeeName;
+            return View();
+        }
+
+        /// <summary>Second Owner Dashboard - /TaskWeb/SecondOwnerDashboard</summary>
+        public async Task<IActionResult> SecondOwnerDashboard()
+        {
+            if (!IsUserLoggedIn())
+                return RedirectToAction("Index", "Login");
+
+            var userId = GetUserId().Value;
+            var hasOwnerAccess = await HasAllTaskDashboardPermissionAsync(userId);
+            if (!hasOwnerAccess)
+                return RedirectToAction("TaskDashboard");
+
+            var userInfo = await GetUserInfoFromDatabaseAsync(userId);
+            var employeeName = !string.IsNullOrEmpty(userInfo.FirstName)
+                ? $"{userInfo.FirstName} {userInfo.LastName}".Trim()
+                : HttpContext.Session.GetString("username") ?? "User";
+
+            ViewBag.EmployeeName = employeeName;
+            return View();
+        }
+
+        /// <summary>Task Dashboard - /TaskWeb/TaskDashboard</summary>
+        public async Task<IActionResult> TaskDashboard()
+        {
+            if (!IsUserLoggedIn())
+                return RedirectToAction("Index", "Login");
+
+            var userId = GetUserId().Value;
+            var userInfo = await GetUserInfoFromDatabaseAsync(userId);
+            var empCode = userInfo.EmpId;
+            var isAdmin = await HasTaskAdminPermissionAsync(userId);
+            var canAssignHod = isAdmin || await HasHodTaskPermissionAsync(userId);
+
+            int employeeId = 0;
+            int roleTypeId = 3;
+            string employeeName = !string.IsNullOrEmpty(userInfo.FirstName)
+                ? $"{userInfo.FirstName} {userInfo.LastName}".Trim()
+                : HttpContext.Session.GetString("username") ?? "User";
+            string employeeCode = empCode;
+
+            if (!string.IsNullOrEmpty(empCode))
+            {
+                try
+                {
+                    var currentEmployee = await _hierarchyService.GetEmployeeByCodeAsync(empCode);
+                    if (currentEmployee != null)
+                    {
+                        employeeId = currentEmployee.EmployeeId;
+                        roleTypeId = currentEmployee.RoleTypeId;
+                        if (!string.IsNullOrEmpty(currentEmployee.EmployeeName))
+                            employeeName = currentEmployee.EmployeeName;
+                        employeeCode = currentEmployee.EmployeeCode ?? empCode;
+                    }
+                }
+                catch { }
+            }
+
+            ViewBag.UserId = userId;
+            ViewBag.EmployeeId = employeeId;
+            ViewBag.RoleTypeId = roleTypeId;
+            ViewBag.EmployeeName = employeeName;
+            ViewBag.EmployeeCode = employeeCode;
+            ViewBag.IsAdmin = isAdmin;
+            ViewBag.CanAssignHod = canAssignHod;
+
+            return View();
+        }
+
         /// <summary>Old Tasks view - kept for backward compat</summary>
-        public IActionResult Tasks()
+       /* public IActionResult Tasks()
         {
             var userId = HttpContext.Session.GetInt32("userId");
             var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
@@ -435,7 +563,7 @@ namespace JSAPNEW.Controllers
             ViewBag.UserId = userId;
 
             return View();
-        }
+        }*/
 
         #endregion
     }
