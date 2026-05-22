@@ -1297,9 +1297,13 @@ WHERE EmployeeCode = @EmployeeCode",
             var userId = GetUserId() ?? 0;
             var currentEmployee = await GetCurrentHierarchyEmployeeAsync();
             var action = request.Action.Trim();
+            var requestedActions = action.Equals("both", StringComparison.OrdinalIgnoreCase)
+                ? new[] { "belowfourtyemployee", "equalandabovefourty" }
+                : new[] { action };
 
-            Dictionary<string, decimal> salaryMap;
+            var salaryMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
             var apiRows = new List<Dictionary<string, object>>();
+            var recordsByAction = new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase);
             int count;
             try
             {
@@ -1312,61 +1316,67 @@ WHERE EmployeeCode = @EmployeeCode",
                 request.Username = null;
                 request.Password = null;
 
-                var body = System.Text.Json.JsonSerializer.Serialize(new { action });
-                var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
-                var response = await client.PostAsync(apiUrl, content);
-
-                if (!response.IsSuccessStatusCode)
-                    return Ok(new { Success = false, Message = $"API returned status {(int)response.StatusCode}." });
-
-                var json = await response.Content.ReadAsStringAsync();
-                var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                using var doc = System.Text.Json.JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                // Response may be a root array or wrapped in commonData/data/Data.
-                System.Text.Json.JsonElement arr = default;
-                if (root.ValueKind == System.Text.Json.JsonValueKind.Array)
+                foreach (var apiAction in requestedActions)
                 {
-                    arr = root;
-                }
-                else if (TryGetPropertyIgnoreCase(root, "commonData", out var commonData) && commonData.ValueKind == System.Text.Json.JsonValueKind.Array)
-                {
-                    arr = commonData;
-                }
-                else if (TryGetPropertyIgnoreCase(root, "data", out var data) && data.ValueKind == System.Text.Json.JsonValueKind.Array)
-                {
-                    arr = data;
-                }
-                else
-                {
-                    return Ok(new { Success = false, Message = "Unexpected response format from Tankha Payee API." });
-                }
+                    var body = System.Text.Json.JsonSerializer.Serialize(new { action = apiAction });
+                    var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync(apiUrl, content);
 
-                salaryMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-                foreach (var item in arr.EnumerateArray())
-                {
-                    string empCode = null;
-                    decimal ctcAmount = 0;
-                    var row = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                    if (!response.IsSuccessStatusCode)
+                        return Ok(new { Success = false, Message = $"API returned status {(int)response.StatusCode} for {SalaryActionText(apiAction)}." });
 
-                    if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    // Response may be a root array or wrapped in commonData/data/Data.
+                    System.Text.Json.JsonElement arr = default;
+                    if (root.ValueKind == System.Text.Json.JsonValueKind.Array)
                     {
-                        foreach (var property in item.EnumerateObject())
-                            row[property.Name] = ReadJsonValue(property.Value);
+                        arr = root;
+                    }
+                    else if (TryGetPropertyIgnoreCase(root, "commonData", out var commonData) && commonData.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        arr = commonData;
+                    }
+                    else if (TryGetPropertyIgnoreCase(root, "data", out var data) && data.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        arr = data;
+                    }
+                    else
+                    {
+                        return Ok(new { Success = false, Message = $"Unexpected response format from Tankha Payee API for {SalaryActionText(apiAction)}." });
                     }
 
-                    if (TryGetPropertyIgnoreCase(item, "empcode", out var ec))
-                        empCode = ec.ValueKind == System.Text.Json.JsonValueKind.String ? ec.GetString() : ec.ToString();
+                    var actionRows = new List<Dictionary<string, object>>();
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        string empCode = null;
+                        decimal ctcAmount = 0;
+                        var row = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-                    if (TryGetPropertyIgnoreCase(item, "ctc_amount", out var ctc))
-                        ctcAmount = ReadDecimal(ctc);
+                        if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            foreach (var property in item.EnumerateObject())
+                                row[property.Name] = ReadJsonValue(property.Value);
+                        }
 
-                    if (!string.IsNullOrWhiteSpace(empCode))
-                        salaryMap[empCode.Trim()] = ctcAmount;
+                        if (TryGetPropertyIgnoreCase(item, "empcode", out var ec))
+                            empCode = ec.ValueKind == System.Text.Json.JsonValueKind.String ? ec.GetString() : ec.ToString();
 
-                    if (row.Count > 0)
-                        apiRows.Add(row);
+                        if (TryGetPropertyIgnoreCase(item, "ctc_amount", out var ctc))
+                            ctcAmount = ReadDecimal(ctc);
+
+                        if (!string.IsNullOrWhiteSpace(empCode))
+                            salaryMap[empCode.Trim()] = ctcAmount;
+
+                        if (row.Count > 0)
+                        {
+                            actionRows.Add(row);
+                            apiRows.Add(row);
+                        }
+                    }
+                    recordsByAction[apiAction] = actionRows;
                 }
                 count = salaryMap.Count;
             }
@@ -1387,6 +1397,7 @@ WHERE EmployeeCode = @EmployeeCode",
             {
                 Salaries = salaryMap,
                 Records = apiRows,
+                RecordsByAction = recordsByAction,
                 ExpiresAt = expiresAt,
                 Action = action,
                 Count = count
@@ -1398,6 +1409,7 @@ WHERE EmployeeCode = @EmployeeCode",
                 Success = true,
                 Salaries = salaryMap,
                 Records = apiRows,
+                RecordsByAction = recordsByAction,
                 Count = count,
                 ExpiresAt = expiresAt,
                 Action = action,
@@ -1420,6 +1432,13 @@ WHERE EmployeeCode = @EmployeeCode",
                 }
 
                 return false;
+            }
+
+            static string SalaryActionText(string value)
+            {
+                return string.Equals(value, "equalandabovefourty", StringComparison.OrdinalIgnoreCase)
+                    ? "Equal and Above 40 Employees"
+                    : "Below 40 Employees";
             }
 
             static decimal ReadDecimal(System.Text.Json.JsonElement element)
@@ -1499,6 +1518,37 @@ WHERE EmployeeCode = @EmployeeCode",
                     }
                 }
 
+                var recordsByAction = new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase);
+                if (root.TryGetProperty("RecordsByAction", out var recordsByActionEl) && recordsByActionEl.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    foreach (var actionProp in recordsByActionEl.EnumerateObject())
+                    {
+                        var actionRows = new List<Dictionary<string, object>>();
+                        if (actionProp.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var item in actionProp.Value.EnumerateArray())
+                            {
+                                var row = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                                if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                {
+                                    foreach (var property in item.EnumerateObject())
+                                        row[property.Name] = property.Value.ValueKind switch
+                                        {
+                                            System.Text.Json.JsonValueKind.String => property.Value.GetString(),
+                                            System.Text.Json.JsonValueKind.Number when property.Value.TryGetDecimal(out var number) => number,
+                                            System.Text.Json.JsonValueKind.True => true,
+                                            System.Text.Json.JsonValueKind.False => false,
+                                            System.Text.Json.JsonValueKind.Null => null,
+                                            _ => property.Value.ToString()
+                                        };
+                                }
+                                if (row.Count > 0) actionRows.Add(row);
+                            }
+                        }
+                        recordsByAction[actionProp.Name] = actionRows;
+                    }
+                }
+
                 var userId = GetUserId() ?? 0;
                 var currentEmployee = await GetCurrentHierarchyEmployeeAsync();
                 _ = LogSalaryEventAsync(userId, currentEmployee?.EmployeeId, "SalaryView",
@@ -1509,7 +1559,7 @@ WHERE EmployeeCode = @EmployeeCode",
                     ? storedCount
                     : salaryDict.Count;
 
-                return Ok(new { Success = true, Salaries = salaryDict, Records = records, ExpiresAt = expiresAt, Action = action, Count = count });
+                return Ok(new { Success = true, Salaries = salaryDict, Records = records, RecordsByAction = recordsByAction, ExpiresAt = expiresAt, Action = action, Count = count });
             }
             catch
             {
