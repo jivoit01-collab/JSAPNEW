@@ -1,6 +1,7 @@
 ﻿@{
     ViewData["Title"] = "Hierarchy Master";
     bool isAdmin = ViewBag.IsAdmin is bool ia && ia;
+    bool canViewSalary = ViewBag.ViewSalary is bool vs && vs;
     string empCode = ViewBag.EmpCode?.ToString() ?? "";
 }
 
@@ -212,6 +213,23 @@
 
         .btn-excel:hover {
             background: rgba(21,128,61,.35);
+        }
+
+    .btn-salary {
+        background: rgba(217,119,6,.14);
+        color: #b45309;
+        border: 1px solid rgba(217,119,6,.28)
+    }
+
+        .btn-salary:hover {
+            background: rgba(217,119,6,.22);
+            color: #92400e
+        }
+
+        .btn-salary.active {
+            background: #15803d;
+            color: #fff;
+            border-color: #15803d
         }
 
     /* ── Topbar-only overrides (light background) ── */
@@ -731,6 +749,69 @@
         margin-bottom: 12px
     }
 
+    .salary-action-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 8px 0 10px
+    }
+
+    .salary-action-card {
+        text-align: left;
+        border: 1px solid var(--border);
+        background: var(--bg2);
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: var(--text);
+        cursor: pointer;
+        font-family: 'Sora',sans-serif;
+        transition: all .15s
+    }
+
+        .salary-action-card strong {
+            display: block;
+            font-size: 12px;
+            color: var(--g1)
+        }
+
+        .salary-action-card span {
+            display: block;
+            margin-top: 3px;
+            font-size: 10px;
+            color: var(--muted)
+        }
+
+        .salary-action-card.active {
+            border-color: #16a34a;
+            background: #f0fdf4;
+            box-shadow: 0 0 0 2px rgba(22,163,74,.16)
+        }
+
+    .salary-info-box {
+        display: none;
+        margin-top: 10px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 10px 12px
+    }
+
+        .salary-info-box .salary-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #166534;
+            text-transform: uppercase;
+            letter-spacing: .3px
+        }
+
+        .salary-info-box .salary-value {
+            margin-top: 3px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #14532d;
+            font-family: 'JetBrains Mono',monospace
+        }
+
     .fl {
         font-size: 10px;
         font-weight: 700;
@@ -973,6 +1054,12 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                 View
             </button>
+            @if (canViewSalary)
+            {
+                <button class="btn btn-salary" onclick="openSalaryApiModal()" id="salaryBtn" title="Load salary for 30 minutes">
+                    ₹ Salary
+                </button>
+            }
             <button class="btn btn-ghost" onclick="loadGrid()" title="Reload data">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 100-.49" /></svg>
                 Refresh
@@ -1054,6 +1141,42 @@
 
 <!-- TOAST -->
 <div class="toast-wrap" id="toastWrap"></div>
+
+<!-- SALARY MODAL -->
+<div class="hm-modal-overlay" id="salaryApiModal">
+    <div class="hm-modal-box" style="width:500px">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Load Salary</span>
+            <button class="btn btn-ghost" onclick="closeSalaryApiModal()" style="padding:4px 10px;font-size:11px">Close</button>
+        </div>
+        <div class="fg">
+            <label class="fl">Password *</label>
+            <input type="password" class="fi" id="salaryApiPassword" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSalaryApiFetch()" />
+        </div>
+        <div class="fg">
+            <label class="fl">Salary Tab *</label>
+            <div class="salary-action-grid" id="salaryActionCards">
+                <button type="button" class="salary-action-card active" data-action="belowfourtyemployee" onclick="selectSalaryAction('belowfourtyemployee')">
+                    <strong>Below 40 Employees</strong>
+                    <span>Load below 40 salary data</span>
+                </button>
+                <button type="button" class="salary-action-card" data-action="equalandabovefourty" onclick="selectSalaryAction('equalandabovefourty')">
+                    <strong>Equal and Above 40</strong>
+                    <span>Load upper 40 salary data</span>
+                </button>
+            </div>
+            <select class="fs" id="salaryApiAction" onchange="selectSalaryAction(this.value)">
+                <option value="belowfourtyemployee">Below 40 Employees</option>
+                <option value="equalandabovefourty">Equal and Above 40 Employees</option>
+            </select>
+        </div>
+        <div id="salaryApiError" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></div>
+        <div class="hm-modal-foot">
+            <button class="btn btn-ghost" onclick="closeSalaryApiModal()">Cancel</button>
+            <button class="btn btn-primary" id="salaryApiSubmitBtn" onclick="submitSalaryApiFetch()">Load Salaries</button>
+        </div>
+    </div>
+</div>
 
 
 <!-- ADD MODAL -->
@@ -1145,6 +1268,10 @@
         <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
             <span>✎ Edit Employee</span>
             <span id="editEmpBadge" style="font-size:10px;font-weight:600;background:rgba(13,148,136,.15);color:var(--g2);padding:3px 10px;border-radius:20px;border:1px solid rgba(13,148,136,.3)"></span>
+        </div>
+        <div class="salary-info-box" id="editSalaryBox">
+            <div class="salary-label">Salary</div>
+            <div class="salary-value" id="editSalaryValue">—</div>
         </div>
         <div class="f2">
             <div class="fg"><label class="fl">Employee Code *</label><input class="fi" id="e_code" placeholder="JWPL0001" /></div>
@@ -1526,13 +1653,15 @@
 
 <script>
     const IS_ADMIN    = @(isAdmin ? "true" : "false");
+    const CAN_VIEW_SALARY = @(canViewSalary ? "true" : "false");
     const API         = '/api/Hierarchy';
-    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, roleFilter='', editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set();
+    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, roleFilter='', editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set(), salaryLookup={}, salarySessionActive=false, salarySessionTimer=null, salaryApiAction='belowfourtyemployee';
 
     document.addEventListener('DOMContentLoaded', async()=>{
         // Move all overlays to <body> so layout's overflow-x:hidden doesn't trap fixed positioning
         document.querySelectorAll('.hm-modal-overlay').forEach(el => document.body.appendChild(el));
         await Promise.all([loadGrid(), loadDeptsMeta(), loadHodsMeta()]);
+        restoreSalarySession();
     });
 
     async function loadGrid(){
@@ -1655,16 +1784,16 @@
             const hasS=(row.subHodEmployeeId>0)||!!(row.subHodName||row.subHodCode||row.subHodDesignation);
             const hasE=(row.execEmployeeId>0)||!!(row.execName||row.execCode||row.execDesignation);
             const leafOk=hasE?row.execIsActive:hasS?row.subHodIsActive:row.hodIsActive;
-            const hodEditBtn  = adm&&row.hodEmployeeId>0?`<button class="btn-icon btn-edit-hod"  onclick="openEdit(${row.hodEmployeeId})"    title="Edit HOD">H</button>` :'';
-            const subEditBtn  = adm&&hasS&&row.subHodEmployeeId>0?`<button class="btn-icon btn-edit-sub"  onclick="openEdit(${row.subHodEmployeeId})" title="Edit SubHOD">S</button>`:'';
-            const execEditBtn = adm&&hasE&&row.execEmployeeId>0?`<button class="btn-icon btn-edit-exec" onclick="openEdit(${row.execEmployeeId})"   title="Edit Exec">E</button>`:'';
+            const hodEditBtn  = adm&&row.hodEmployeeId>0?`<button class="btn-icon btn-edit-hod"  onclick="${openEditCall(row.hodEmployeeId, 1, row)}"    title="Edit HOD">H</button>` :'';
+            const subEditBtn  = adm&&hasS&&row.subHodEmployeeId>0?`<button class="btn-icon btn-edit-sub"  onclick="${openEditCall(row.subHodEmployeeId, 2, row)}" title="Edit SubHOD">S</button>`:'';
+            const execEditBtn = adm&&hasE&&row.execEmployeeId>0?`<button class="btn-icon btn-edit-exec" onclick="${openEditCall(row.execEmployeeId, 3, row)}"   title="Edit Exec">E</button>`:'';
             const cellMap={
-                hod:`<td class="sk1">${eCell(row.hodName,row.hodCode,row.hodEmployeeId,'HOD')}</td>`,
+                hod:`<td class="sk1">${eCell(row.hodName,row.hodCode,row.hodEmployeeId,'HOD',1,row)}</td>`,
                 dept:`<td class="td-wrap">${row.departmentName?`<span class="dept-badge">${esc(row.departmentName)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
                 subDept:`<td class="td-wrap">${row.subDepartmentName?`<span class="subdept-text">${esc(row.subDepartmentName)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
-                subHod:`<td>${hasS?eCell(row.subHodName,row.subHodCode,row.subHodEmployeeId,'SubHOD'):'<span class="cell-empty">—</span>'}</td>`,
+                subHod:`<td>${hasS?eCell(row.subHodName,row.subHodCode,row.subHodEmployeeId,'SubHOD',2,row):'<span class="cell-empty">—</span>'}</td>`,
                 subHodDesig:`<td>${row.subHodDesignation&&hasS?`<span class="desig-text">${esc(row.subHodDesignation)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
-                exec:`<td>${hasE?eCell(row.execName,row.execCode,row.execEmployeeId,'Executive'):'<span class="cell-empty">—</span>'}</td>`,
+                exec:`<td>${hasE?eCell(row.execName,row.execCode,row.execEmployeeId,'Executive',3,row):'<span class="cell-empty">—</span>'}</td>`,
                 execDesig:`<td>${row.execDesignation&&hasE?`<span class="desig-text">${esc(row.execDesignation)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
                 status:`<td>${leafOk?'<span class="status-dot active">Active</span>':'<span class="status-dot inactive">Inactive</span>'}</td>`,
                 actions:adm?`<td><div class="act-cell">${hodEditBtn}${subEditBtn}${execEditBtn}</div></td>`:'',
@@ -1676,7 +1805,20 @@
         document.getElementById('rowCount').textContent=`${rows.length} rows`;
     }
 
-    function eCell(n,c,employeeId=null,roleLabel='Employee'){
+    function openEditCall(employeeId, roleTypeId, row){
+        const vals = [
+            Number(employeeId) || 0,
+            Number(roleTypeId) || 0,
+            Number(row?.hodEmployeeId) || 0,
+            Number(row?.subHodEmployeeId) || 0,
+            Number(row?.execEmployeeId) || 0,
+            Number(row?.departmentId) || 0,
+            Number(row?.subDepartmentId) || 0
+        ];
+        return `openEdit(${vals.join(',')})`;
+    }
+
+    function eCell(n,c,employeeId=null,roleLabel='Employee',roleTypeId=null,row=null){
         const hasName=!!(n&&String(n).trim());
         const hasCode=!!(c&&String(c).trim());
         if(!hasName && !hasCode)return`<span class="cell-empty">—</span>`;
@@ -1687,12 +1829,18 @@
             : `<span class="emp-name">${esc(n)}</span>${hasCode?`<span class="${codeClass}">${esc(c)}</span>`:''}`;
         const id = Number(employeeId) || 0;
         if(id > 0){
-            return `<button type="button" class="emp-cell emp-cell-btn" onclick="openEdit(${id})" title="Edit ${escAttr(roleLabel)}">${content}</button>`;
+            const editCall = row ? openEditCall(id, roleTypeId, row) : `openEdit(${id})`;
+            return `<button type="button" class="emp-cell emp-cell-btn" onclick="${editCall}" title="Edit ${escAttr(roleLabel)}">${content}</button>`;
         }
         if(!hasName && hasCode){
             return`<div class="emp-cell">${content}</div>`;
         }
         return`<div class="emp-cell">${content}</div>`;
+    }
+    function formatMoney(value){
+        const n = Number(value);
+        if(isNaN(n)) return esc(value);
+        return n.toLocaleString('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 });
     }
     function startEdit(td){
         if(td.classList.contains('editing'))return;
@@ -2520,6 +2668,106 @@
         if(body)o.body=JSON.stringify(body);
         return (await fetch(url,o)).json();
     }
+    function openSalaryApiModal(){
+        if(!CAN_VIEW_SALARY){toast('Salary permission is not enabled for your user.','err');return;}
+        const pwd=document.getElementById('salaryApiPassword');
+        const err=document.getElementById('salaryApiError');
+        if(pwd)pwd.value='';
+        if(err){err.textContent='';err.style.display='none';}
+        selectSalaryAction(salaryApiAction || 'belowfourtyemployee');
+        document.getElementById('salaryApiModal').classList.add('open');
+        setTimeout(()=>pwd?.focus(),120);
+    }
+    function closeSalaryApiModal(){
+        document.getElementById('salaryApiModal').classList.remove('open');
+    }
+    function selectSalaryAction(action){
+        salaryApiAction=action||'belowfourtyemployee';
+        const sel=document.getElementById('salaryApiAction');
+        if(sel)sel.value=salaryApiAction;
+        document.querySelectorAll('#salaryActionCards .salary-action-card').forEach(card=>{
+            card.classList.toggle('active', card.getAttribute('data-action')===salaryApiAction);
+        });
+    }
+    async function submitSalaryApiFetch(){
+        const pwdEl=document.getElementById('salaryApiPassword');
+        const err=document.getElementById('salaryApiError');
+        const btn=document.getElementById('salaryApiSubmitBtn');
+        const password=pwdEl?.value||'';
+        if(err){err.textContent='';err.style.display='none';}
+        if(!password){
+            if(err){err.textContent='Password is required.';err.style.display='';}
+            return;
+        }
+        if(btn){btn.disabled=true;btn.textContent='Loading...';}
+        try{
+            const r=await api(`${API}/UnlockSalarySession`,'POST',{password,action:salaryApiAction});
+            if(pwdEl)pwdEl.value='';
+            if(!r.success){
+                if(err){err.textContent=r.message||'Unable to load salary.';err.style.display='';}
+                return;
+            }
+            applySalaryMap(r.salaries||{},r.expiresAt);
+            closeSalaryApiModal();
+            toast(r.message||'Salary loaded successfully.','ok');
+        }catch(e){
+            if(pwdEl)pwdEl.value='';
+            if(err){err.textContent='Network error while loading salary.';err.style.display='';}
+        }finally{
+            if(btn){btn.disabled=false;btn.textContent='Load Salaries';}
+        }
+    }
+    async function restoreSalarySession(){
+        if(!CAN_VIEW_SALARY)return;
+        try{
+            const r=await api(`${API}/GetSalarySessionData`);
+            if(!r.success)return;
+            salaryApiAction=r.action||salaryApiAction;
+            applySalaryMap(r.salaries||{},r.expiresAt);
+        }catch(e){}
+    }
+    function applySalaryMap(map,expiresAt){
+        salaryLookup={};
+        Object.keys(map||{}).forEach(k=>{
+            if(!k)return;
+            const n=Number(map[k]);
+            if(!isNaN(n))salaryLookup[String(k).trim().toUpperCase()]=n;
+        });
+        salarySessionActive=Object.keys(salaryLookup).length>0;
+        updateSalaryButton(expiresAt);
+        applyFilters();
+        if(editEmpId) updateEditSalaryBox();
+    }
+    function updateSalaryButton(expiresAt){
+        const btn=document.getElementById('salaryBtn');
+        if(!btn)return;
+        if(salarySessionTimer)clearInterval(salarySessionTimer);
+        if(!salarySessionActive){
+            btn.className='btn btn-salary';
+            btn.textContent='₹ Salary';
+            return;
+        }
+        btn.className='btn btn-salary active';
+        const expiry=expiresAt?new Date(expiresAt):new Date(Date.now()+30*60000);
+        const tick=()=>{
+            const remaining=Math.max(0,expiry.getTime()-Date.now());
+            if(remaining<=0){
+                salarySessionActive=false;
+                salaryLookup={};
+                btn.className='btn btn-salary';
+                btn.textContent='₹ Salary';
+                applyFilters();
+                if(editEmpId)updateEditSalaryBox();
+                clearInterval(salarySessionTimer);
+                return;
+            }
+            const m=Math.floor(remaining/60000);
+            const s=Math.floor((remaining%60000)/1000);
+            btn.textContent=`₹ Salary ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        };
+        tick();
+        salarySessionTimer=setInterval(tick,1000);
+    }
     function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
     function escAttr(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
     function routeModalMessage(msg, type='err'){
@@ -2541,6 +2789,17 @@
         if(addModal?.classList.contains('open')){
             showAddError(text, type);
             return true;
+        }
+
+        const salaryModal = document.getElementById('salaryApiModal');
+        if(salaryModal?.classList.contains('open')){
+            const errEl = document.getElementById('salaryApiError');
+            if(errEl){
+                errEl.textContent = text;
+                errEl.style.display = '';
+                errEl.style.color = type==='ok' ? 'var(--g2)' : type==='info' ? 'var(--info)' : 'var(--danger)';
+                return true;
+            }
         }
 
         const deptModal = document.getElementById('deptModal');
@@ -2586,7 +2845,17 @@
     let editContextRow = null;
     let editCurrentSubHodOption = null;
 
-    async function openEdit(empId) {
+    function updateEditSalaryBox(){
+        const box=document.getElementById('editSalaryBox');
+        const val=document.getElementById('editSalaryValue');
+        if(!box||!val)return;
+        const code=String(document.getElementById('e_code')?.value||'').trim().toUpperCase();
+        const hasSalary=CAN_VIEW_SALARY && salarySessionActive && code && Object.prototype.hasOwnProperty.call(salaryLookup,code);
+        box.style.display=hasSalary?'block':'none';
+        val.textContent=hasSalary?formatMoney(salaryLookup[code]):'—';
+    }
+
+    async function openEdit(empId, contextRoleTypeId = 0, contextHodId = 0, contextSubHodId = 0, contextExecId = 0, contextDeptId = 0, contextSubDeptId = 0) {
         editEmpId = empId;
         editContextRow = null;
         editCurrentSubHodOption = null;
@@ -2602,11 +2871,34 @@
         document.getElementById('e_teamMoveMsg').textContent = '';
         document.getElementById('e_teamMoveChoice').value = '';
         document.getElementById('e_unassigned').checked = false;
+        document.getElementById('editSalaryBox').style.display = 'none';
 
-        // Find the row where this empId appears — check all 3 positions
-        const hodRow  = allRows.find(r => r.hodEmployeeId    === empId);
-        const subRow  = allRows.find(r => r.subHodEmployeeId === empId);
-        const execRows = allRows.filter(r => r.execEmployeeId === empId);
+        const ctxRole = Number(contextRoleTypeId) || 0;
+        const ctxHod = Number(contextHodId) || 0;
+        const ctxSub = Number(contextSubHodId) || 0;
+        const ctxExec = Number(contextExecId) || 0;
+        const ctxDept = Number(contextDeptId) || 0;
+        const ctxSubDept = Number(contextSubDeptId) || 0;
+
+        function rowMatchesEditContext(r) {
+            if (!ctxRole) return false;
+            if (ctxHod && Number(r.hodEmployeeId) !== ctxHod) return false;
+            if (ctxSub && Number(r.subHodEmployeeId) !== ctxSub) return false;
+            if (ctxExec && Number(r.execEmployeeId) !== ctxExec) return false;
+            if (ctxDept && Number(r.departmentId) !== ctxDept) return false;
+            if (ctxSubDept && Number(r.subDepartmentId) !== ctxSubDept) return false;
+            if (ctxRole === 1) return Number(r.hodEmployeeId) === Number(empId);
+            if (ctxRole === 2) return Number(r.subHodEmployeeId) === Number(empId);
+            if (ctxRole === 3) return Number(r.execEmployeeId) === Number(empId);
+            return false;
+        }
+
+        const contextRow = allRows.find(rowMatchesEditContext) || null;
+
+        // Find the row where this empId appears — prefer the clicked hierarchy row
+        const hodRow  = (ctxRole === 1 && contextRow) ? contextRow : allRows.find(r => r.hodEmployeeId    === empId);
+        const subRow  = (ctxRole === 2 && contextRow) ? contextRow : allRows.find(r => r.subHodEmployeeId === empId);
+        const execRows = (ctxRole === 3 && contextRow) ? [contextRow] : allRows.filter(r => r.execEmployeeId === empId);
         const execRow = execRows.find(r => (Number(r.subHodEmployeeId) || 0) > 0)
             || execRows.find(r => r.subHodName || r.subHodCode)
             || execRows[0];
@@ -2686,6 +2978,7 @@
         document.getElementById('e_code').value  = empCode  || '';
         document.getElementById('e_name').value  = empName  || '';
         document.getElementById('e_desig').value = empDesig || '';
+        updateEditSalaryBox();
         editCurrentDateOfJoining = detailDoj || editCurrentDateOfJoining;
         document.getElementById('e_doj').value = formatDateForInput(editCurrentDateOfJoining);
         document.getElementById('e_gender').value = '';
@@ -4619,7 +4912,7 @@ function mixColor(primary, secondary, ratio) {
     function closeVisModal() { document.getElementById('visModal').classList.remove('open'); }
 
     function renderVisModalList() {
-        const salCols = false;
+        const salCols = CAN_VIEW_SALARY && salarySessionActive;
         const adm = IS_ADMIN;
         const cols = getEffectiveCols(salCols, adm);
         document.getElementById('visColList').innerHTML = cols.map((c,i)=>`
@@ -4645,7 +4938,7 @@ function mixColor(primary, secondary, ratio) {
 
     function moveCol(key, dir) {
         if (!colVisState) initColVis();
-        const cols = getEffectiveCols(false, IS_ADMIN);
+        const cols = getEffectiveCols(CAN_VIEW_SALARY && salarySessionActive, IS_ADMIN);
         const keys = cols.map(c=>c.key);
         const idx = keys.indexOf(key);
         if (idx < 0) return;

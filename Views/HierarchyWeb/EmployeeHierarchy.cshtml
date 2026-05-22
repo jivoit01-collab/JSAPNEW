@@ -513,17 +513,14 @@
 
         <div id="salaryTimerBadge" style="display:none;margin-top:12px;padding:8px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;font-size:13px;font-weight:700;color:#166534;display:none;align-items:center;gap:10px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Salary Unlocked — <span id="salaryTimerText">30:00</span> remaining
+            <span id="salaryTimerText">Salary loaded from API</span>
+            <button type="button" id="salaryRowsEhBtn" onclick="openSalaryRowsModal()" style="display:none;margin-left:8px;background:#ecfdf5;border:1px solid #10b981;color:#047857;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer">API Data</button>
             <button type="button" onclick="manualLockSalary()" style="margin-left:8px;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer">Lock Now</button>
         </div>
 
         <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
             @if (canManageAdminKey)
             {
-                <button type="button" class="eh-btn" id="adminKeyEhBtn" onclick="openEhAdminKeyModal()" style="background:#123f6d;font-size:13px">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-                    Admin Key
-                </button>
                 <button type="button" class="eh-btn" id="salaryPermEhBtn" onclick="openSalaryPermModal()" style="background:#0f766e;font-size:13px">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Salary Permission
@@ -767,6 +764,9 @@
     let filteredEmployees = [];
     let employeeCurrentPage = @pageNumber;
     let currentSalaryMap = {};
+    let currentSalaryRows = [];
+    let currentSalaryAction = '';
+    let salarySessionTimer = null;
     let showSikhOnly = false;
 
     function ensureSingleEditModalInstance() {
@@ -1201,7 +1201,7 @@
             const employeeCode = getEmployeeCode(employee);
             const editMeta = getEditButtonMeta(employee);
             const salaryValue = currentSalaryMap[employeeCode] ?? currentSalaryMap[employeeCode.toUpperCase()];
-            const salaryText = salaryValue !== undefined && salaryValue !== null ? formatCurrency(salaryValue) : 'Rs. 0.00';
+            const salaryText = salaryValue !== undefined && salaryValue !== null ? formatCurrency(salaryValue) : '';
             const salaryColor = salaryValue !== undefined && salaryValue !== null ? '#166534' : '#94a3b8';
             return `<tr data-empcode="${escapeHtml(employeeCode)}">
                 <td>${escapeHtml(getEmployeeName(employee))}</td>
@@ -1367,100 +1367,7 @@
     });
 
     // ══════════════════════════════════════════════════════
-    // ADMIN KEY MODAL
     // ══════════════════════════════════════════════════════
-    let _ehAkKeyExists = false;
-
-    function validateAdminKeyFormat(value) {
-        return value
-            && value.length >= 6
-            && /[A-Z]/.test(value)
-            && /[^A-Za-z0-9]/.test(value);
-    }
-
-    async function openEhAdminKeyModal() {
-        ['ehAk_old','ehAk_new','ehAk_confirm'].forEach(id => {
-            const el = document.getElementById(id); if (el) el.value = '';
-        });
-        const errEl = document.getElementById('ehAdminKeyErr');
-        if (errEl) errEl.style.display = 'none';
-
-        try {
-            const res = await fetch(`${apiBase}/GetAdminKeyStatus`);
-            const status = await res.json();
-            if (!status.hasPermission) {
-                alert('You do not have permission to manage the admin salary key.');
-                return;
-            }
-            _ehAkKeyExists = !!status.keyExists;
-        } catch(e) {
-            alert('Could not load key status.');
-            return;
-        }
-
-        const oldWrap = document.getElementById('ehAk_old_wrap');
-        const title   = document.getElementById('ehAdminKeyTitle');
-        const newLbl  = document.getElementById('ehAk_new_label');
-        if (_ehAkKeyExists) {
-            oldWrap.style.display = '';
-            title.textContent  = 'Change Admin Key';
-            newLbl.textContent = 'New Admin Key *';
-        } else {
-            oldWrap.style.display = 'none';
-            title.textContent  = 'Create Admin Key';
-            newLbl.textContent = 'Admin Key *';
-        }
-
-        document.getElementById('ehAdminKeyModal').classList.add('open');
-        setTimeout(() => document.getElementById(_ehAkKeyExists ? 'ehAk_old' : 'ehAk_new').focus(), 100);
-    }
-
-    function closeEhAdminKeyModal() {
-        document.getElementById('ehAdminKeyModal').classList.remove('open');
-    }
-
-    async function submitEhAdminKey() {
-        const oldKey     = document.getElementById('ehAk_old').value;
-        const newKey     = document.getElementById('ehAk_new').value;
-        const confirmKey = document.getElementById('ehAk_confirm').value;
-        const errEl      = document.getElementById('ehAdminKeyErr');
-        errEl.style.display = 'none';
-
-        if (_ehAkKeyExists && !oldKey) {
-            errEl.textContent = 'Enter the current key'; errEl.style.display = 'block'; return;
-        }
-        if (!validateAdminKeyFormat(newKey)) {
-            errEl.textContent = 'New key must be at least 6 characters and include one uppercase letter and one special character'; errEl.style.display = 'block'; return;
-        }
-        if (newKey !== confirmKey) {
-            errEl.textContent = 'Keys do not match'; errEl.style.display = 'block'; return;
-        }
-
-        const btn = document.getElementById('ehAdminKeySubmitBtn');
-        btn.disabled = true; btn.textContent = 'Saving…';
-
-        try {
-            const res = await fetch(`${apiBase}/SetAdminSalaryKey`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ oldKey: _ehAkKeyExists ? oldKey : null, adminKey: newKey })
-            });
-            const data = await res.json();
-            if (data.success) {
-                closeEhAdminKeyModal();
-                alert(data.message || 'Admin key saved successfully.');
-            } else {
-                errEl.textContent = data.message || 'Failed to save key';
-                errEl.style.display = 'block';
-            }
-        } catch(e) {
-            errEl.textContent = 'Network error';
-            errEl.style.display = 'block';
-        } finally {
-            btn.disabled = false; btn.textContent = 'Save Key';
-        }
-    }
-
     // ══════════════════════════════════════════════════════
     // SALARY PERMISSION MODAL
     // ══════════════════════════════════════════════════════
@@ -1572,12 +1479,12 @@
     // UNLOCK SALARY — Tankha Payee API
     // ══════════════════════════════════════════════════════
     function openUnlockSalaryModal() {
-        document.getElementById('ehTankhaUsername').value = '';
         document.getElementById('ehTankhaPassword').value = '';
         document.getElementById('ehTankhaAction').value = 'belowfourtyemployee';
+        selectTankhaAction('belowfourtyemployee');
         document.getElementById('ehTankhaErr').style.display = 'none';
         document.getElementById('ehTankhaModal').classList.add('open');
-        setTimeout(() => document.getElementById('ehTankhaUsername').focus(), 100);
+        setTimeout(() => document.getElementById('ehTankhaPassword').focus(), 100);
     }
 
     function closeUnlockSalaryModal() {
@@ -1585,32 +1492,41 @@
         document.getElementById('ehTankhaModal').classList.remove('open');
     }
 
+    function selectTankhaAction(action) {
+        const actionSelect = document.getElementById('ehTankhaAction');
+        if (actionSelect) actionSelect.value = action;
+        document.querySelectorAll('#ehTankhaActionCards .eh-salary-action-card').forEach(card => {
+            const active = card.dataset.action === action;
+            card.classList.toggle('active', active);
+            card.style.boxShadow = active ? '0 0 0 2px rgba(22,163,74,.25)' : 'none';
+            card.style.borderWidth = active ? '2px' : '1px';
+        });
+    }
+
     async function submitTankhaFetch() {
-        const username = document.getElementById('ehTankhaUsername').value.trim();
         const pwdField = document.getElementById('ehTankhaPassword');
         const pwd      = pwdField.value;
         const action   = document.getElementById('ehTankhaAction').value;
         const errEl    = document.getElementById('ehTankhaErr');
         errEl.style.display = 'none';
 
-        if (!username) { errEl.textContent = 'Username is required'; errEl.style.display = 'block'; return; }
         if (!pwd)      { errEl.textContent = 'Password is required';  errEl.style.display = 'block'; return; }
         if (!action)   { errEl.textContent = 'Action is required';    errEl.style.display = 'block'; return; }
 
         const btn = document.getElementById('ehTankhaSubmitBtn');
-        btn.disabled = true; btn.textContent = 'Loading…';
+        btn.disabled = true; btn.textContent = 'Loading...';
 
         try {
             const res = await fetch(`${apiBase}/UnlockSalarySession`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password: pwd, action })
+                body: JSON.stringify({ password: pwd, action })
             });
             pwdField.value = '';
 
             const data = await res.json();
             if (data.success) {
                 closeUnlockSalaryModal();
-                await loadAndShowSalary(data.expiresAt ?? data.ExpiresAt);
+                injectSalaryColumn(data.salaries ?? data.Salaries ?? {}, data.expiresAt ?? data.ExpiresAt, data.records ?? data.Records ?? [], data.action ?? data.Action ?? action);
             } else {
                 errEl.textContent = data.message || 'Failed. Check your credentials and try again.';
                 errEl.style.display = 'block';
@@ -1626,105 +1542,127 @@
     // ══════════════════════════════════════════════════════
     // SALARY COLUMN — inject / remove
     // ══════════════════════════════════════════════════════
-    let _salaryTimerInterval = null;
-
-    async function loadAndShowSalary(expiresAt) {
-        try {
-            const res  = await fetch(`${apiBase}/GetSalarySessionData`);
-            const data = await res.json();
-            if (!data.success) { alert(data.message || 'Could not load salary data.'); return; }
-            const salaries = data.salaries ?? data.Salaries ?? {};
-            injectSalaryColumn(salaries);
-            startSalaryTimer(new Date(data.expiresAt ?? data.ExpiresAt ?? expiresAt));
-        } catch(e) { alert('Could not load salary data.'); }
+    function normalizeSalaryMap(salaryMap) {
+        const normalized = {};
+        Object.keys(salaryMap || {}).forEach(key => {
+            if (!key) return;
+            const numeric = Number(salaryMap[key]);
+            if (!Number.isNaN(numeric)) normalized[String(key).trim().toUpperCase()] = numeric;
+        });
+        return normalized;
     }
 
-    function injectSalaryColumn(salaryMap) {
-        currentSalaryMap = salaryMap || {};
+    function updateSalaryTimerBadge(expiresAt) {
+        const badge = document.getElementById('salaryTimerBadge');
+        if (!badge) return;
+        const label = document.getElementById('salaryTimerText');
+        function tick() {
+            const expiry = expiresAt ? new Date(expiresAt) : null;
+            const remaining = expiry ? Math.max(0, expiry.getTime() - Date.now()) : 0;
+            if (expiry && remaining <= 0) {
+                removeSalaryColumn(false);
+                return;
+            }
+            const minutes = expiry ? Math.floor(remaining / 60000) : 30;
+            const seconds = expiry ? Math.floor((remaining % 60000) / 1000) : 0;
+            if (label) label.textContent = `Salary loaded from API - ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} remaining`;
+        }
+        if (salarySessionTimer) clearInterval(salarySessionTimer);
+        badge.style.display = 'flex';
+        tick();
+        salarySessionTimer = setInterval(tick, 1000);
+    }
+
+    function salaryActionText(action) {
+        return action === 'equalandabovefourty' ? 'Equal and Above 40 Employees' : 'Below 40 Employees';
+    }
+
+    function injectSalaryColumn(salaryMap, expiresAt, records = [], action = '') {
+        currentSalaryMap = normalizeSalaryMap(salaryMap);
+        currentSalaryRows = records || [];
+        currentSalaryAction = action || currentSalaryAction || '';
         renderEmployeeTable();
         document.querySelectorAll('.sal-col').forEach(el => el.style.display = '');
-        document.getElementById('salaryTimerBadge').style.display = 'flex';
+        updateSalaryTimerBadge(expiresAt);
+        updateSalaryRowsButton();
     }
 
-    function removeSalaryColumn() {
+    function removeSalaryColumn(clearServer = true) {
         currentSalaryMap = {};
+        currentSalaryRows = [];
+        currentSalaryAction = '';
         renderEmployeeTable();
         document.querySelectorAll('.sal-col').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.sal-val').forEach(el => el.textContent = '—');
+        document.querySelectorAll('.sal-val').forEach(el => el.textContent = '-');
         document.getElementById('salaryTimerBadge').style.display = 'none';
-        if (_salaryTimerInterval) { clearInterval(_salaryTimerInterval); _salaryTimerInterval = null; }
-    }
-
-    function startSalaryTimer(expiresAt) {
-        if (_salaryTimerInterval) clearInterval(_salaryTimerInterval);
-        const el = document.getElementById('salaryTimerText');
-
-        function tick() {
-            const remaining = Math.max(0, expiresAt - Date.now());
-            const mins = String(Math.floor(remaining / 60000)).padStart(2, '0');
-            const secs = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
-            if (el) el.textContent = `${mins}:${secs}`;
-            if (remaining <= 0) {
-                clearInterval(_salaryTimerInterval);
-                _salaryTimerInterval = null;
-                removeSalaryColumn();
-                fetch(`${apiBase}/ClearSalarySession`, { method: 'POST' });
-                alert('Salary session has expired. All salary data has been cleared.');
-            }
-        }
-
-        tick();
-        _salaryTimerInterval = setInterval(tick, 1000);
+        if (salarySessionTimer) clearInterval(salarySessionTimer);
+        updateSalaryRowsButton();
+        if (clearServer) fetch(`${apiBase}/ClearSalarySession`, { method: 'POST' }).catch(() => {});
     }
 
     async function manualLockSalary() {
         removeSalaryColumn();
-        try { await fetch(`${apiBase}/ClearSalarySession`, { method: 'POST' }); } catch(e) {}
     }
 
-    // ── On page load: restore active salary session if still valid ──
-    document.addEventListener('DOMContentLoaded', async () => {
+    async function restoreSalarySession() {
+        if (!canViewSalary) return;
         try {
-            const res  = await fetch(`${apiBase}/GetSalarySessionData`);
-            const data = await res.json();
-            if (data.success) {
-                const salaries = data.salaries ?? data.Salaries ?? {};
-                injectSalaryColumn(salaries);
-                startSalaryTimer(new Date(data.expiresAt ?? data.ExpiresAt));
+            const data = await apiJson(`${apiBase}/GetSalarySessionData`);
+            if (data.success || data.Success) {
+                injectSalaryColumn(data.salaries ?? data.Salaries ?? {}, data.expiresAt ?? data.ExpiresAt, data.records ?? data.Records ?? [], data.action ?? data.Action ?? '');
             }
         } catch(e) {}
+    }
+
+    function updateSalaryRowsButton() {
+        const btn = document.getElementById('salaryRowsEhBtn');
+        if (!btn) return;
+        if (currentSalaryRows.length) {
+            btn.style.display = '';
+            btn.textContent = `${salaryActionText(currentSalaryAction)} (${currentSalaryRows.length})`;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+
+    function openSalaryRowsModal() {
+        const title = document.getElementById('salaryRowsTitle');
+        const body = document.getElementById('salaryRowsBody');
+        if (!body) return;
+        if (title) title.textContent = `${salaryActionText(currentSalaryAction)} - API Data`;
+        if (!currentSalaryRows.length) {
+            body.innerHTML = '<div style="padding:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">No API data available in salary session.</div>';
+        } else {
+            const columns = [];
+            currentSalaryRows.forEach(row => Object.keys(row || {}).forEach(key => { if (!columns.includes(key)) columns.push(key); }));
+            let html = `<div style="font-size:12px;color:#64748b;margin-bottom:8px">Showing all ${currentSalaryRows.length} rows returned by API.</div>`;
+            html += '<div style="max-height:520px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>';
+            columns.forEach(col => html += `<th style="position:sticky;top:0;background:#f8fafc;border:1px solid #e2e8f0;padding:7px;text-align:left">${escapeHtml(col)}</th>`);
+            html += '</tr></thead><tbody>';
+            currentSalaryRows.forEach(row => {
+                html += '<tr>';
+                columns.forEach(col => html += `<td style="border:1px solid #e2e8f0;padding:7px">${escapeHtml(row[col] ?? '')}</td>`);
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            body.innerHTML = html;
+        }
+        document.getElementById('salaryRowsModal').classList.add('open');
+    }
+
+    function closeSalaryRowsModal() {
+        document.getElementById('salaryRowsModal').classList.remove('open');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const actionSelect = document.getElementById('ehTankhaAction');
+        if (actionSelect && !actionSelect.value) {
+            actionSelect.value = 'belowfourtyemployee';
+        }
+        selectTankhaAction('belowfourtyemployee');
+        restoreSalarySession();
     });
 </script>
-
-<!-- ══ ADMIN KEY MODAL ══ -->
-<div class="eh-modal" id="ehAdminKeyModal">
-    <div class="eh-modal-box" style="max-width:440px">
-        <div class="eh-modal-title">
-            <span id="ehAdminKeyTitle">Admin Key</span>
-            <button type="button" class="eh-btn danger small" onclick="closeEhAdminKeyModal()">Close</button>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:16px">
-            Minimum 6 characters with at least one uppercase letter and one special character. If a key already exists, enter the current key first.
-        </p>
-        <div id="ehAk_old_wrap" style="display:none;margin-bottom:12px">
-            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Current Key *</label>
-            <input type="password" class="eh-input" id="ehAk_old" placeholder="Enter current admin key" />
-        </div>
-        <div style="margin-bottom:12px">
-            <label id="ehAk_new_label" style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Admin Key *</label>
-            <input type="password" class="eh-input" id="ehAk_new" placeholder="Example: Admin@1" />
-        </div>
-        <div style="margin-bottom:12px">
-            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Confirm Admin Key *</label>
-            <input type="password" class="eh-input" id="ehAk_confirm" placeholder="Re-enter admin key" onkeydown="if(event.key==='Enter')submitEhAdminKey()" />
-        </div>
-        <div id="ehAdminKeyErr" style="display:none;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:10px"></div>
-        <div class="eh-modal-actions">
-            <button type="button" class="eh-btn secondary" onclick="closeEhAdminKeyModal()">Cancel</button>
-            <button type="button" class="eh-btn" id="ehAdminKeySubmitBtn" onclick="submitEhAdminKey()">Save Key</button>
-        </div>
-    </div>
-</div>
 
 <!-- ══ SALARY PERMISSION MODAL ══ -->
 <div class="eh-modal" id="salPermModal">
@@ -1748,6 +1686,17 @@
     </div>
 </div>
 
+<!-- SALARY API ROWS MODAL -->
+<div class="eh-modal" id="salaryRowsModal">
+    <div class="eh-modal-box" style="max-width:980px">
+        <div class="eh-modal-title">
+            <span id="salaryRowsTitle">Salary API Data</span>
+            <button type="button" class="eh-btn danger small" onclick="closeSalaryRowsModal()">Close</button>
+        </div>
+        <div id="salaryRowsBody"></div>
+    </div>
+</div>
+
 <!-- ══ UNLOCK SALARY MODAL ══ -->
 <div class="eh-modal" id="ehTankhaModal">
     <div class="eh-modal-box" style="max-width:420px">
@@ -1756,19 +1705,25 @@
             <button type="button" class="eh-btn danger small" onclick="closeUnlockSalaryModal()">Close</button>
         </div>
         <p style="font-size:12px;color:#64748b;margin-bottom:16px">
-            Enter your Tankha Payee portal credentials and select the employee category to load salary data.
+            Enter the Tankha Payee API password and select the employee category to load salary data.
         </p>
-        <div style="margin-bottom:12px">
-            <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Username *</label>
-            <input type="text" class="eh-input" id="ehTankhaUsername" placeholder="Enter username" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('ehTankhaPassword').focus()" />
-        </div>
         <div style="margin-bottom:12px">
             <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Password *</label>
             <input type="password" class="eh-input" id="ehTankhaPassword" placeholder="Enter password" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('ehTankhaAction').focus()" />
         </div>
         <div style="margin-bottom:12px">
             <label style="display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;color:#475569;margin-bottom:6px">Action *</label>
-            <select class="eh-input" id="ehTankhaAction" onkeydown="if(event.key==='Enter')submitTankhaFetch()">
+            <div id="ehTankhaActionCards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <button type="button" class="eh-salary-action-card active" data-action="belowfourtyemployee" onclick="selectTankhaAction('belowfourtyemployee')" style="text-align:left;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;padding:10px 12px;color:#14532d">
+                    <strong style="display:block;font-size:13px">Below 40 Employees</strong>
+                    <span style="font-size:11px;color:#166534">Get all employees from API</span>
+                </button>
+                <button type="button" class="eh-salary-action-card" data-action="equalandabovefourty" onclick="selectTankhaAction('equalandabovefourty')" style="text-align:left;border:1px solid #bae6fd;background:#f0f9ff;border-radius:8px;padding:10px 12px;color:#0c4a6e">
+                    <strong style="display:block;font-size:13px">Equal and Above 40</strong>
+                    <span style="font-size:11px;color:#0369a1">Get all employees from API</span>
+                </button>
+            </div>
+            <select class="eh-input" id="ehTankhaAction" onchange="selectTankhaAction(this.value)" onkeydown="if(event.key==='Enter')submitTankhaFetch()">
                 <option value="belowfourtyemployee">Below 40 Employees</option>
                 <option value="equalandabovefourty">Equal and Above 40 Employees</option>
             </select>
