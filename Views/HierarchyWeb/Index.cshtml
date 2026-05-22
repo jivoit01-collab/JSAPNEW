@@ -258,6 +258,16 @@
             background: #ffedd5;
         }
 
+    .eh-btn-nonsikh {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1d4ed8;
+    }
+
+        .eh-btn-nonsikh:hover {
+            background: #dbeafe;
+        }
+
     .eh-btn-sal-on {
         background: #ecfdf5;
         border-color: #10b981;
@@ -578,6 +588,7 @@
         gap: 8px;
         padding: 16px 24px 0;
         flex-wrap: wrap;
+        align-items: center;
     }
 
     .eh-tab {
@@ -608,6 +619,36 @@
             background: #eff6ff;
             color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+        }
+
+    .salary-api-row-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .salary-api-row-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 14px;
+        border-radius: 10px;
+        border: 1.5px solid #10b981;
+        background: #ecfdf5;
+        color: #059669;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        font-family: 'Sora', sans-serif;
+        transition: all .2s;
+    }
+
+        .salary-api-row-btn:hover {
+            background: #d1fae5;
+            transform: translateY(-1px);
         }
 
     /* -- LOADING -- */
@@ -3176,6 +3217,7 @@
             var SHOW_SAL      = false;
             var SALARY_SESSION_TIMER = null;
             var SALARY_API_ROWS = [];
+            var SALARY_API_ROWS_BY_ACTION = {};
             var SALARY_API_ACTION = '';
             var ACTIVE_TAB    = 'v1';
             var BASE_RAW_DATA = [];   // original hierarchy (no sales)
@@ -3341,8 +3383,8 @@
                 var action = document.getElementById('salaryApiAction');
                 if(pwd) pwd.value = '';
                 if(err){ err.textContent = ''; err.style.display = 'none'; }
-                if(action) action.value = 'belowfourtyemployee';
-                selectSalaryAction('belowfourtyemployee');
+                if(action) action.value = 'both';
+                selectSalaryAction('both');
                 if(bsSalaryApiModal) bsSalaryApiModal.show();
                 setTimeout(function(){ if(pwd) pwd.focus(); }, 150);
             }
@@ -3370,6 +3412,7 @@
                         btn.className = 'eh-btn eh-btn-sal';
                         btn.innerHTML = '<i class="bi bi-currency-rupee"></i> Salary';
                         SALARY_API_ROWS = [];
+                        SALARY_API_ROWS_BY_ACTION = {};
                         SALARY_API_ACTION = '';
                         updateSalaryRowsButton();
                         rerender();
@@ -3416,7 +3459,11 @@
                         if(err){ err.textContent = data.message || data.Message || 'Unable to load salary.'; err.style.display = ''; }
                         return;
                     }
-                    applySalaryMap(data.salaries || data.Salaries || {}, data.expiresAt || data.ExpiresAt, { records: data.records || data.Records || [], action: data.action || data.Action || action });
+                    applySalaryMap(data.salaries || data.Salaries || {}, data.expiresAt || data.ExpiresAt, {
+                        records: data.records || data.Records || [],
+                        recordsByAction: data.recordsByAction || data.RecordsByAction || {},
+                        action: data.action || data.Action || action
+                    });
                     if(bsSalaryApiModal) bsSalaryApiModal.hide();
                     showAlert('success', data.message || data.Message || 'Salary loaded successfully.');
                 })
@@ -3435,7 +3482,12 @@
                     .then(function(res){ return res.json(); })
                     .then(function(data){
                         if(!(data.success || data.Success)) return;
-                        applySalaryMap(data.salaries || data.Salaries || {}, data.expiresAt || data.ExpiresAt, { silent: true, records: data.records || data.Records || [], action: data.action || data.Action || '' });
+                        applySalaryMap(data.salaries || data.Salaries || {}, data.expiresAt || data.ExpiresAt, {
+                            silent: true,
+                            records: data.records || data.Records || [],
+                            recordsByAction: data.recordsByAction || data.RecordsByAction || {},
+                            action: data.action || data.Action || ''
+                        });
                     })
                     .catch(function(){});
             }
@@ -3443,6 +3495,7 @@
             function applySalaryMap(salaryMap, expiresAt, options){
                 options = options || {};
                 SALARY_API_ROWS = options.records || [];
+                SALARY_API_ROWS_BY_ACTION = normalizeSalaryRowsByAction(options.recordsByAction || {}, options.action, SALARY_API_ROWS);
                 SALARY_API_ACTION = options.action || SALARY_API_ACTION || '';
                 salaryMap = salaryMap || {};
                 var lookup = {};
@@ -3510,38 +3563,65 @@
             }
 
             function salaryActionText(action){
-                return action === 'equalandabovefourty' ? 'Equal and Above 40 Employees' : 'Below 40 Employees';
+                if(action === 'equalandabovefourty') return 'Equal and Above 40 Employees';
+                if(action === 'both') return 'Both Salary Groups';
+                return 'Below 40 Employees';
+            }
+
+            function getSalaryActionKeys(action){
+                if(action === 'both') return ['belowfourtyemployee','equalandabovefourty'];
+                return action ? [action] : [];
+            }
+
+            function normalizeSalaryRowsByAction(rowsByAction, action, rows){
+                var result = {};
+                Object.keys(rowsByAction || {}).forEach(function(key){
+                    result[key] = rowsByAction[key] || [];
+                });
+                if(!Object.keys(result).length && action && action !== 'both' && rows && rows.length){
+                    result[action] = rows;
+                }
+                return result;
             }
 
             function updateSalaryRowsButton(){
-                var btn = document.getElementById('btnSalaryApiRows');
-                if(!btn) return;
-                if(SHOW_SAL && SALARY_API_ROWS.length){
-                    btn.style.display = '';
-                    btn.innerHTML = '<i class="bi bi-table"></i> ' + salaryActionText(SALARY_API_ACTION) + ' (' + SALARY_API_ROWS.length + ')';
-                } else {
-                    btn.style.display = 'none';
+                var wrap = document.getElementById('salaryApiRowsButtons');
+                if(!wrap) return;
+                if(!SHOW_SAL){
+                    wrap.innerHTML = '';
+                    return;
                 }
+                var html = '';
+                getSalaryActionKeys(SALARY_API_ACTION).forEach(function(action){
+                    var rows = SALARY_API_ROWS_BY_ACTION[action] || [];
+                    if(!rows.length) return;
+                    html += '<button type="button" class="salary-api-row-btn" onclick="openSalaryApiRowsModal(\'' + action + '\')"><i class="bi bi-table"></i> ' + salaryActionText(action) + ' (' + rows.length + ')</button>';
+                });
+                if(!html && SALARY_API_ROWS.length){
+                    html = '<button type="button" class="salary-api-row-btn" onclick="openSalaryApiRowsModal(\'' + (SALARY_API_ACTION || '') + '\')"><i class="bi bi-table"></i> ' + salaryActionText(SALARY_API_ACTION) + ' (' + SALARY_API_ROWS.length + ')</button>';
+                }
+                wrap.innerHTML = html;
             }
 
-            function openSalaryApiRowsModal(){
+            function openSalaryApiRowsModal(action){
                 var modalEl = document.getElementById('salaryApiRowsModal');
                 var titleEl = document.getElementById('salaryApiRowsTitle');
                 var bodyEl = document.getElementById('salaryApiRowsBody');
                 if(!modalEl || !bodyEl) return;
-                if(titleEl) titleEl.textContent = salaryActionText(SALARY_API_ACTION) + ' - API Data';
-                if(!SALARY_API_ROWS.length){
+                var rows = (action && SALARY_API_ROWS_BY_ACTION[action]) ? SALARY_API_ROWS_BY_ACTION[action] : SALARY_API_ROWS;
+                if(titleEl) titleEl.textContent = salaryActionText(action || SALARY_API_ACTION) + ' - API Data';
+                if(!rows.length){
                     bodyEl.innerHTML = '<div class="alert alert-warning mb-0">No API data available in salary session.</div>';
                 } else {
                     var columns = [];
-                    SALARY_API_ROWS.forEach(function(row){
+                    rows.forEach(function(row){
                         Object.keys(row || {}).forEach(function(key){ if(columns.indexOf(key) === -1) columns.push(key); });
                     });
-                    var html = '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Showing all ' + SALARY_API_ROWS.length + ' rows returned by API.</div>';
+                    var html = '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Showing all ' + rows.length + ' rows returned by API.</div>';
                     html += '<div class="table-responsive" style="max-height:520px"><table class="table table-sm table-bordered align-middle"><thead><tr>';
                     columns.forEach(function(col){ html += '<th>' + esc(col) + '</th>'; });
                     html += '</tr></thead><tbody>';
-                    SALARY_API_ROWS.forEach(function(row){
+                    rows.forEach(function(row){
                         html += '<tr>';
                         columns.forEach(function(col){ html += '<td>' + esc(row[col] == null ? '' : row[col]) + '</td>'; });
                         html += '</tr>';
@@ -4276,13 +4356,24 @@
                     || (compact.indexOf('sikh') === 0 && compact.indexOf('nonsikh') !== 0);
             }
 
-            function getSikhEmployeeRows(){
+            function isNonSikhHierarchyValue(value){
+                var compact = String(value || '').trim().toLowerCase().replace(/[\s/_-]+/g,'');
+                return compact === 'ns'
+                    || compact === 'nonsikh'
+                    || compact === 'notsikh'
+                    || compact === 'no'
+                    || compact === 'false'
+                    || compact === '0'
+                    || compact.indexOf('nonsikh') === 0;
+            }
+
+            function getEmployeeRowsBySikhMatcher(matcher){
                 var rows = [], seen = {};
                 var source = (BASE_RAW_DATA && BASE_RAW_DATA.length) ? BASE_RAW_DATA : RAW_DATA;
                 source.forEach(function(h){
                     var hodDept = h.depts.join(' · ') || '—';
                     var hodKey = getPersonKey('hod', h.name, h.code);
-                    if(isSikhHierarchyValue(h.sikhNonSikh) && hodKey && !seen[hodKey]){
+                    if(matcher(h.sikhNonSikh) && hodKey && !seen[hodKey]){
                         seen[hodKey] = 1;
                         rows.push([h.name, hodDept]);
                     }
@@ -4292,14 +4383,14 @@
 
                         (s.subHods || []).forEach(function(sh){
                             var shKey = getPersonKey('subhod', sh.name, sh.code);
-                            if(isSikhHierarchyValue(sh.sikhNonSikh) && shKey && !seen[shKey]){
+                            if(matcher(sh.sikhNonSikh) && shKey && !seen[shKey]){
                                 seen[shKey] = 1;
                                 rows.push([sh.name, deptName]);
                             }
 
                             (sh.execs || []).forEach(function(ex){
                                 var exKey = getPersonKey('exec', ex.name, ex.code);
-                                if(isSikhHierarchyValue(ex.sikhNonSikh) && exKey && !seen[exKey]){
+                                if(matcher(ex.sikhNonSikh) && exKey && !seen[exKey]){
                                     seen[exKey] = 1;
                                     rows.push([ex.name, deptName]);
                                 }
@@ -4308,7 +4399,7 @@
 
                         (s.execs || []).forEach(function(ex){
                             var exKey = getPersonKey('exec', ex.name, ex.code);
-                            if(isSikhHierarchyValue(ex.sikhNonSikh) && exKey && !seen[exKey]){
+                            if(matcher(ex.sikhNonSikh) && exKey && !seen[exKey]){
                                 seen[exKey] = 1;
                                 rows.push([ex.name, deptName]);
                             }
@@ -4317,6 +4408,14 @@
                 });
                 rows.sort(function(a,b){ return String(a[0] || '').localeCompare(String(b[0] || '')); });
                 return rows;
+            }
+
+            function getSikhEmployeeRows(){
+                return getEmployeeRowsBySikhMatcher(isSikhHierarchyValue);
+            }
+
+            function getNonSikhEmployeeRows(){
+                return getEmployeeRowsBySikhMatcher(isNonSikhHierarchyValue);
             }
 
             function normalizeData(raw){
@@ -4944,7 +5043,8 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
                     exec:{title:'All Executives',grad:'#047857,#065f46',icon:'bi-person-fill',heads:['#','Name','Code','Sikh/N-S','Sub-HOD','Sub-Dept','HOD'],rows:(function(){var r=[],seen={};RAW_DATA.forEach(function(h){h.subs.forEach(function(s){(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—',formatSikhShort(e.sikhNonSikh),sh.name,s.sdName,h.name]);}});});(s.execs||[]).forEach(function(e){var k=e.code||e.name;if(!seen[k]){seen[k]=1;r.push([e.name,e.code||'—',formatSikhShort(e.sikhNonSikh),'—',s.sdName,h.name]);}});});});return r;})()},
                     unassigned:{title:'Unassigned Persons',grad:'#64748b,#334155',icon:'bi-person-dash-fill',heads:['#','Person Code','Name','Status'],rows:renderOrphans()},
                     inactive:{title:'Inactive Persons',grad:'#ef4444,#b91c1c',icon:'bi-person-x-fill',heads:['#','Person Code','Name','Role','Status'],rows:renderInactivePersons()},
-                    sikh:{title:'All Sikh Employees',grad:'#ea580c,#15803d',icon:'bi-people-fill',heads:['#','Employee Name','Department'],rows:getSikhEmployeeRows()}
+                    sikh:{title:'All Sikh Employees',grad:'#ea580c,#15803d',icon:'bi-people-fill',heads:['#','Employee Name','Department'],rows:getSikhEmployeeRows()},
+                    nonsikh:{title:'All Non-Sikh Employees',grad:'#2563eb,#1d4ed8',icon:'bi-people-fill',heads:['#','Employee Name','Department'],rows:getNonSikhEmployeeRows()}
                 };
                 var c=cfgs[type];if(!c)return;
                 document.getElementById('statModalHdr').style.background='linear-gradient(135deg,'+c.grad+')';
@@ -4974,10 +5074,31 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
             /* -- EXPORT -- */
             function ehExport(){
                 if(!RAW_DATA.length){showAlert('warning','Data not loaded yet.');return;}
-                var hdr=['Director','HOD','HOD Code'];if(SHOW_SAL)hdr.push('HOD Salary');hdr.push('Department','Sub-Dept','Sub-HOD','Sub-HOD Code','Sub-HOD Designation');if(SHOW_SAL)hdr.push('Sub-HOD Salary');hdr.push('Executive','Executive Code','Designation');if(SHOW_SAL)hdr.push('Exec Salary');
-                var rows=[hdr.map(csvE).join(',')];
-                RAW_DATA.forEach(function(h){ h.depts.forEach(function(d){ var subs=h.subs.filter(function(s){return s.dept===d||(s.dept===''&&d===h.depts[0]);});if(!subs.length){var r=[OWNER_NAME,h.name,h.code||''];if(SHOW_SAL)r.push(h.sal||'');r.push(d,'','','','');if(SHOW_SAL)r.push('');r.push('','','');if(SHOW_SAL)r.push('');rows.push(r.map(csvE).join(','));}else{subs.forEach(function(s){var shRows=[];(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(ex){shRows.push({shName:sh.name,shCode:sh.code||'',shDesig:sh.desig||'',shSal:sh.sal,ex:ex});});if(!(sh.execs||[]).length)shRows.push({shName:sh.name,shCode:sh.code||'',shDesig:sh.desig||'',shSal:sh.sal,ex:null});});(s.execs||[]).forEach(function(ex){shRows.push({shName:'',shCode:'',shDesig:'',shSal:null,ex:ex});});if(!shRows.length)shRows.push({shName:'',shCode:'',shDesig:'',shSal:null,ex:null});shRows.forEach(function(sr){var r=[OWNER_NAME,h.name,h.code||''];if(SHOW_SAL)r.push(h.sal||'');r.push(d,s.sdName,sr.shName||'',sr.shCode||'',sr.shDesig||'');if(SHOW_SAL)r.push(sr.shSal||'');r.push(sr.ex?sr.ex.name:'',sr.ex?sr.ex.code||'':'',sr.ex?sr.ex.desig||'':'');if(SHOW_SAL)r.push(sr.ex&&sr.ex.sal?sr.ex.sal:'');rows.push(r.map(csvE).join(','));});});}});});
-                var blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Hierarchy_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+                if(typeof XLSX==='undefined'){showAlert('danger','Excel library is not loaded. Please refresh and try again.');return;}
+                var hdr=['Director','HOD','HOD Code'];if(SHOW_SAL)hdr.push('HOD Salary');hdr.push('Department','Sub-Dept','Sub-HOD','Sub-HOD Code','Sub-HOD Designation');if(SHOW_SAL)hdr.push('Sub-HOD Salary');hdr.push('Executive','Executive Code','Designation');if(SHOW_SAL)hdr.push('Exec Salary');hdr.push('Count HOD','DepCount','SDCount','Count Sub HOD','Count Executive');
+                var rows=[hdr];
+                var exportSeen={hod:{},dept:{},sd:{},subhod:{},exec:{}};
+                function firstCount(type,key){
+                    key=String(key||'').trim();
+                    if(!key||key==='-')return '';
+                    if(exportSeen[type][key])return '';
+                    exportSeen[type][key]=1;
+                    return 1;
+                }
+                function pushExportRow(base,keys){
+                    base.push(firstCount('hod',keys.hod));
+                    base.push(firstCount('dept',keys.dept));
+                    base.push(firstCount('sd',keys.sd));
+                    base.push(firstCount('subhod',keys.subhod));
+                    base.push(firstCount('exec',keys.exec));
+                    rows.push(base);
+                }
+                RAW_DATA.forEach(function(h){ h.depts.forEach(function(d){ var subs=h.subs.filter(function(s){return s.dept===d||(s.dept===''&&d===h.depts[0]);});if(!subs.length){var r=[OWNER_NAME,h.name,h.code||''];if(SHOW_SAL)r.push(h.sal||'');r.push(d,'','','','');if(SHOW_SAL)r.push('');r.push('','','');if(SHOW_SAL)r.push('');pushExportRow(r,{hod:h.code||h.name,dept:isFrontendSalesDept(d)?'':d,sd:'',subhod:'',exec:''});}else{subs.forEach(function(s){var shRows=[];(s.subHods||[]).forEach(function(sh){(sh.execs||[]).forEach(function(ex){shRows.push({shName:sh.name,shCode:sh.code||'',shDesig:sh.desig||'',shSal:sh.sal,ex:ex});});if(!(sh.execs||[]).length)shRows.push({shName:sh.name,shCode:sh.code||'',shDesig:sh.desig||'',shSal:sh.sal,ex:null});});(s.execs||[]).forEach(function(ex){shRows.push({shName:'',shCode:'',shDesig:'',shSal:null,ex:ex});});if(!shRows.length)shRows.push({shName:'',shCode:'',shDesig:'',shSal:null,ex:null});shRows.forEach(function(sr){var r=[OWNER_NAME,h.name,h.code||''];if(SHOW_SAL)r.push(h.sal||'');r.push(d,s.sdName,sr.shName||'',sr.shCode||'',sr.shDesig||'');if(SHOW_SAL)r.push(sr.shSal||'');r.push(sr.ex?sr.ex.name:'',sr.ex?sr.ex.code||'':'',sr.ex?sr.ex.desig||'':'');if(SHOW_SAL)r.push(sr.ex&&sr.ex.sal?sr.ex.sal:'');pushExportRow(r,{hod:h.code||h.name,dept:isFrontendSalesDept(d)?'':d,sd:(s.dept||d||'')+'||'+(s.sdName||''),subhod:sr.shCode||sr.shName,exec:sr.ex?(sr.ex.code||sr.ex.name):''});});});}});});
+                var ws=XLSX.utils.aoa_to_sheet(rows);
+                ws['!cols']=hdr.map(function(h,idx){var maxLen=Math.max(String(h).length,...rows.slice(1).map(function(r){return String(r[idx]||'').length;}));return{wch:Math.min(Math.max(maxLen+2,10),36)};});
+                var wb=XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb,ws,'Hierarchy');
+                XLSX.writeFile(wb,'Hierarchy_'+new Date().toISOString().slice(0,10)+'.xlsx');
             }
 
             /* -- UTILS -- */
@@ -5035,7 +5156,8 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
                     <span class="rc-sep"></span><span class="rc-name">@empName</span>
                 </div>
             }
-            <button class="eh-btn eh-btn-sikh" onclick="showStatPopup('sikh')"><i class="bi bi-people-fill"></i> Sikh Employees</button>
+            <button class="eh-btn eh-btn-sikh" onclick="showStatPopup('sikh')"><i class="bi bi-people-fill"></i> S</button>
+            <button class="eh-btn eh-btn-nonsikh" onclick="showStatPopup('nonsikh')"><i class="bi bi-people-fill"></i> NS</button>
             @if ((bool)(ViewBag.CanViewSales ?? false))
             {
                 <button class="eh-btn eh-btn-sal" id="btnSalesToggle" onclick="toggleSalesHierarchy()"><i class="bi bi-diagram-3"></i> Show Sales Team</button>
@@ -5044,7 +5166,6 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
             @if (canViewSalary)
             {
                 <button class="eh-btn eh-btn-sal" id="btnSalaryApi" onclick="openSalaryApiModal()"><i class="bi bi-currency-rupee"></i> Salary</button>
-                <button class="eh-btn eh-btn-sal-on" id="btnSalaryApiRows" onclick="openSalaryApiRowsModal()" style="display:none"><i class="bi bi-table"></i> API Data</button>
             }
             <button class="eh-btn eh-btn-export" onclick="ehExport()"><i class="bi bi-file-earmark-excel"></i> Export</button>
         </div>
@@ -5088,6 +5209,7 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
         <button class="eh-tab" data-tab="v3" onclick="switchTab('v3')"><i class="bi bi-layers-fill"></i> Stacked HODs</button>
         <button class="eh-tab" data-tab="v4" onclick="switchTab('v4')"><i class="bi bi-grid-3x2-gap-fill"></i> HOD Cards</button>
         <button class="eh-tab" data-tab="v5" onclick="switchTab('v5')"><i class="bi bi-layout-three-columns"></i> Grid View</button>
+        <div class="salary-api-row-actions" id="salaryApiRowsButtons"></div>
     </div>
 
     <div id="ehLoading" class="eh-loading">
@@ -5213,8 +5335,8 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">Action *</label>
-                    <div id="salaryActionCards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-                        <button type="button" class="salary-action-card active" data-action="belowfourtyemployee" onclick="selectSalaryAction('belowfourtyemployee')" style="text-align:left;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;padding:10px 12px;color:#14532d">
+                    <div id="salaryActionCards" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+                        <button type="button" class="salary-action-card" data-action="belowfourtyemployee" onclick="selectSalaryAction('belowfourtyemployee')" style="text-align:left;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;padding:10px 12px;color:#14532d">
                             <strong style="display:block;font-size:13px">Below 40 Employees</strong>
                             <span style="font-size:11px;color:#166534">Get all employees from API</span>
                         </button>
@@ -5222,10 +5344,15 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
                             <strong style="display:block;font-size:13px">Equal and Above 40</strong>
                             <span style="font-size:11px;color:#0369a1">Get all employees from API</span>
                         </button>
+                        <button type="button" class="salary-action-card active" data-action="both" onclick="selectSalaryAction('both')" style="text-align:left;border:1px solid #ddd6fe;background:#faf5ff;border-radius:8px;padding:10px 12px;color:#581c87">
+                            <strong style="display:block;font-size:13px">Both</strong>
+                            <span style="font-size:11px;color:#6d28d9">Load both salary groups</span>
+                        </button>
                     </div>
                     <select class="form-control" id="salaryApiAction" onchange="selectSalaryAction(this.value)" onkeydown="if(event.key==='Enter')submitSalaryApiFetch()">
                         <option value="belowfourtyemployee">Below 40 Employees</option>
                         <option value="equalandabovefourty">Equal and Above 40 Employees</option>
+                        <option value="both">Both</option>
                     </select>
                 </div>
                 <div id="salaryApiError" class="alert alert-danger py-2" style="display:none"></div>

@@ -131,6 +131,51 @@
     .td-tab-panel { display: none; }
     .td-tab-panel.active { display: block; }
 
+    .td-filter-strip {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin: -8px 0 22px;
+        padding: 14px 16px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+
+    .td-filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 180px;
+    }
+
+    .td-filter-field label {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+    .td-filter-field select {
+        height: 38px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 0 12px;
+        outline: none;
+    }
+
+    .td-filter-field select:focus {
+        border-color: #123f6d;
+        box-shadow: 0 0 0 3px rgba(18, 63, 109, .1);
+    }
+
     .td-section-title {
         font-size: 13px;
         font-weight: 800;
@@ -469,6 +514,25 @@
             }
         </div>
 
+        <div class="td-filter-strip">
+            <div class="td-filter-field">
+                <label for="dashboardEmployeeFilter">Employee</label>
+                <select id="dashboardEmployeeFilter" onchange="applyDashboardFilters()">
+                    <option value="">All Employees</option>
+                    <option value="@employeeId">Me - @employeeName</option>
+                </select>
+            </div>
+            <div class="td-filter-field">
+                <label for="dashboardPeriodFilter">Date Filter</label>
+                <select id="dashboardPeriodFilter" onchange="applyDashboardFilters()">
+                    <option value="">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="week">Weekly</option>
+                    <option value="month">Monthly</option>
+                </select>
+            </div>
+        </div>
+
         <!-- ── MY TASKS ── -->
         <section class="td-tab-panel active" id="panel-my" role="tabpanel" aria-labelledby="tab-my">
         <div class="td-section-title">My Tasks</div>
@@ -630,9 +694,13 @@
     const _roleType  = @roleTypeId;
     const _hasTeam   = @hasTeam.ToString().ToLowerInvariant();
     const _apiTask   = '/api/task';
+    const _empName   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(employeeName));
 
     let _donutChart = null;
     let _teamDonutChart = null;
+    let _allMyTasks = [];
+    let _allTeamTasks = [];
+    let _teamMembers = [];
 
     document.addEventListener('DOMContentLoaded', loadDashboard);
 
@@ -648,23 +716,159 @@
 
     async function loadDashboard() {
         try {
-            const res  = await fetch(`${_apiTask}/GetDashboard`, {
+            const res = await fetch(`${_apiTask}/GetDashboard`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ employeeId: _empId, roleTypeId: _roleType })
             });
             const json = await res.json();
             const data = json.data ?? json.Data ?? json;
+            _teamMembers = data.teamMemberBreakdown ?? data.TeamMemberBreakdown ?? [];
+            populateDashboardEmployeeFilter(_teamMembers);
 
-            renderMySection(data.myTasks ?? data.MyTasks ?? {});
-            loadMyTaskDetails();
+            _allMyTasks = await fetchDashboardTasks({
+                viewMode: 'ALL',
+                assignedToEmployeeId: _empId,
+                sortBy: 'expected_end_date',
+                sortOrder: 'ASC'
+            });
             if (_hasTeam) {
-                renderTeamSection(data.teamTasks ?? data.TeamTasks ?? {});
-                renderTeamTable(data.teamMemberBreakdown ?? data.TeamMemberBreakdown ?? []);
+                const teamIds = new Set((_teamMembers || []).map(m => String(m.employeeId ?? m.EmployeeId ?? '')).filter(Boolean));
+                const allScoped = await fetchDashboardTasks({
+                    viewMode: 'ALL',
+                    sortBy: 'expected_end_date',
+                    sortOrder: 'ASC'
+                });
+                _allTeamTasks = allScoped.filter(t => teamIds.has(String(t.assignedToEmployeeId ?? t.AssignedToEmployeeId ?? '')));
             }
+            applyDashboardFilters();
         } catch (e) {
             console.error('Dashboard load failed:', e);
         }
+    }
+
+    async function fetchDashboardTasks(filter) {
+        const res = await fetch(`${_apiTask}/GetAllTasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.assign({
+                page: 1,
+                limit: 99999,
+                employeeId: _empId,
+                roleTypeId: _roleType,
+                viewMode: 'OWN',
+                sortBy: 'expected_end_date',
+                sortOrder: 'ASC'
+            }, filter || {}))
+        });
+        const json = await res.json();
+        const rows = json.data ?? json.Data ?? [];
+        return Array.isArray(rows) ? rows.filter(t => !isDeletedTask(t)) : [];
+    }
+
+    function populateDashboardEmployeeFilter(members) {
+        const sel = document.getElementById('dashboardEmployeeFilter');
+        if (!sel) return;
+        const current = sel.value;
+        const opts = [`<option value="">All Employees</option>`, `<option value="${_empId}">Me - ${escHtml(_empName)}</option>`];
+        (members || []).forEach(m => {
+            const id = m.employeeId ?? m.EmployeeId ?? 0;
+            const name = m.employeeName ?? m.EmployeeName ?? '';
+            if (!id || String(id) === String(_empId)) return;
+            opts.push(`<option value="${id}">${escHtml(name)}</option>`);
+        });
+        sel.innerHTML = opts.join('');
+        if ([...sel.options].some(o => o.value === current)) sel.value = current;
+    }
+
+    function applyDashboardFilters() {
+        const employeeId = document.getElementById('dashboardEmployeeFilter')?.value || '';
+        const mySource = employeeId && String(employeeId) !== String(_empId) ? _allTeamTasks : _allMyTasks;
+        const myTasks = filterDashboardTasks(mySource, employeeId);
+        const teamTasks = filterDashboardTasks(_allTeamTasks, employeeId);
+
+        renderMySection(buildTaskSummary(myTasks));
+        renderMyTaskTable(myTasks);
+        if (_hasTeam) {
+            renderTeamSection(buildTaskSummary(teamTasks));
+            renderTeamTable(buildMemberBreakdown(teamTasks, _teamMembers));
+        }
+    }
+
+    function filterDashboardTasks(tasks, employeeId) {
+        const period = document.getElementById('dashboardPeriodFilter')?.value || '';
+        const today = new Date();
+        return (tasks || []).filter(t => {
+            const ownerId = String(t.assignedToEmployeeId ?? t.AssignedToEmployeeId ?? '');
+            const d = getDashboardTaskDate(t);
+            if (employeeId && ownerId !== String(employeeId)) return false;
+            if (period === 'today' && !isSameDay(d, today)) return false;
+            if (period === 'week' && !isInCurrentWeek(d)) return false;
+            if (period === 'month' && !isInCurrentMonth(d)) return false;
+            return true;
+        });
+    }
+
+    function buildTaskSummary(tasks) {
+        const summary = { totalTasks: 0, pendingCount: 0, inProgressCount: 0, completedCount: 0, overdueCount: 0, selfTaskCount: 0, assignedTaskCount: 0 };
+        (tasks || []).forEach(t => {
+            summary.totalTasks += 1;
+            const taskType = String(t.taskType ?? t.TaskType ?? '').toUpperCase();
+            if (taskType === 'SELF') summary.selfTaskCount += 1;
+            else summary.assignedTaskCount += 1;
+
+            if (!!(t.isCompleted ?? t.IsCompleted)) {
+                summary.completedCount += 1;
+                return;
+            }
+            if (isOverdueTask(t)) {
+                summary.overdueCount += 1;
+                return;
+            }
+            const status = String(t.status ?? t.Status ?? '').toUpperCase();
+            if (status === 'IN_PROGRESS') summary.inProgressCount += 1;
+            else summary.pendingCount += 1;
+        });
+        return summary;
+    }
+
+    function buildMemberBreakdown(tasks, members) {
+        const map = {};
+        (members || []).forEach(m => {
+            const id = m.employeeId ?? m.EmployeeId ?? 0;
+            if (!id) return;
+            map[String(id)] = {
+                employeeId: id,
+                employeeName: m.employeeName ?? m.EmployeeName ?? 'Team Member',
+                totalTasks: 0,
+                pendingCount: 0,
+                inProgressCount: 0,
+                completedCount: 0,
+                overdueCount: 0
+            };
+        });
+        (tasks || []).forEach(t => {
+            const id = t.assignedToEmployeeId ?? t.AssignedToEmployeeId ?? 0;
+            if (!id) return;
+            if (!map[String(id)]) {
+                map[String(id)] = {
+                    employeeId: id,
+                    employeeName: t.assignedTo ?? t.AssignedTo ?? 'Team Member',
+                    totalTasks: 0,
+                    pendingCount: 0,
+                    inProgressCount: 0,
+                    completedCount: 0,
+                    overdueCount: 0
+                };
+            }
+            const row = map[String(id)];
+            row.totalTasks += 1;
+            if (!!(t.isCompleted ?? t.IsCompleted)) row.completedCount += 1;
+            else if (isOverdueTask(t)) row.overdueCount += 1;
+            else if (String(t.status ?? t.Status ?? '').toUpperCase() === 'IN_PROGRESS') row.inProgressCount += 1;
+            else row.pendingCount += 1;
+        });
+        return Object.values(map).sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
     }
 
     function renderMySection(d) {
@@ -971,28 +1175,7 @@
         document.getElementById('memberTaskSub').textContent = 'All assigned tasks with status and date range';
         document.getElementById('memberTaskBody').innerHTML = '<div class="td-spinner-wrap"><div class="td-spinner"></div></div>';
         document.getElementById('memberTaskModal').classList.add('open');
-
-        try {
-            const res = await fetch(`${_apiTask}/GetAllTasks`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    page: 1,
-                    limit: 99999,
-                    employeeId: _empId,
-                    roleTypeId: _roleType,
-                    viewMode: 'TEAM',
-                    assignedToEmployeeId: employeeId,
-                    sortBy: 'expected_end_date',
-                    sortOrder: 'ASC'
-                })
-            });
-            const json = await res.json();
-            const tasks = json.data ?? json.Data ?? [];
-            renderMemberTaskModal(tasks);
-        } catch (e) {
-            document.getElementById('memberTaskBody').innerHTML = '<div class="td-empty">Unable to load tasks</div>';
-        }
+        renderMemberTaskModal(filterDashboardTasks(_allTeamTasks, String(employeeId)));
     }
 
     function renderMemberTaskModal(tasks) {
@@ -1046,6 +1229,47 @@
     function closeMemberTaskModal(event) {
         if (event && event.target !== document.getElementById('memberTaskModal')) return;
         document.getElementById('memberTaskModal').classList.remove('open');
+    }
+
+    function isDeletedTask(t) {
+        const status = String(t.status ?? t.Status ?? '').toUpperCase();
+        const deletedOn = t.deletedOn ?? t.DeletedOn;
+        return !!(t.isDeleted ?? t.IsDeleted) || (!!deletedOn && !String(deletedOn).startsWith('0001')) || status === 'DELETED';
+    }
+
+    function getDashboardTaskDate(t) {
+        const value = t.startDate ?? t.StartDate ?? t.createdOn ?? t.CreatedOn ?? t.expectedEndDate ?? t.ExpectedEndDate;
+        if (!value || String(value).startsWith('0001')) return null;
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    function isSameDay(a, b) {
+        return !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    }
+
+    function isInCurrentWeek(d) {
+        if (!d) return false;
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const day = start.getDay();
+        start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day));
+        const end = new Date(start);
+        end.setDate(start.getDate() + 7);
+        return d >= start && d < end;
+    }
+
+    function isInCurrentMonth(d) {
+        const today = new Date();
+        return !!d && d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+    }
+
+    function isOverdueTask(t) {
+        if (!!(t.isCompleted ?? t.IsCompleted)) return false;
+        const endValue = t.expectedEndDate ?? t.ExpectedEndDate;
+        if (!endValue || String(endValue).startsWith('0001')) return false;
+        const end = new Date(endValue);
+        return !isNaN(end.getTime()) && end < new Date();
     }
 
     function formatDate(value) {

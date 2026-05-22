@@ -21,6 +21,8 @@ let lastOwnTasks = [];
 let taskDetailsLookup = {};
 let allHodMembers = [];
 let allHodTasks = [];
+let hodTableSourceTasks = [];
+let subHodTaskSourceTasks = [];
 let createTaskInFlight = false;
 let progressUpdateInFlight = false;
 let reassignInFlight = false;
@@ -821,13 +823,10 @@ async function loadTasks(extra = {}) {
             priority: document.getElementById('filterPriority').value || null,
             taskType: document.getElementById('filterTaskType').value || null,
             employeeId: EMPLOYEE_ID, roleTypeId: ROLE_TYPE_ID,
-            // Sub-HOD My Overview: use ALL scope so HOD-assigned tasks appear alongside self tasks
-            viewMode: isAllHodView ? 'ALL' : (ROLE_TYPE_ID === 2 && isMyView ? 'ALL' : currentViewMode), sortBy: 'created_on', sortOrder: 'DESC',
+            // Team Overview uses ALL scope, then the browser narrows to this manager's team members.
+            viewMode: (isAllHodView || isTeamView || (ROLE_TYPE_ID === 2 && isMyView)) ? 'ALL' : currentViewMode, sortBy: 'created_on', sortOrder: 'DESC',
             // My Overview: tasks assigned TO me (by anyone including myself)
             ...(isMyView ? { assignedToEmployeeId: EMPLOYEE_ID } : {}),
-            // HOD team view is creator-scoped. Sub-HOD team view is assignee-scoped
-            // so team members still show tasks assigned by the HOD.
-            ...(isTeamView && ROLE_TYPE_ID === 1 ? { createdByEmployeeId: EMPLOYEE_ID } : {}),
             // All HOD Overview: HOD tasks created BY me
             ...(isAllHodView ? { createdByEmployeeId: EMPLOYEE_ID } : {}),
             ...currentTaskFilterOverrides
@@ -1803,6 +1802,7 @@ function renderAdminHodPanel() {
 
 function renderHODTable(tasks) {
     indexTasksForDetails(tasks);
+    hodTableSourceTasks = (Array.isArray(tasks) ? tasks : []).slice();
     const wrap = document.getElementById('hodTableWrap');
     if (!wrap) return;
 
@@ -1810,6 +1810,10 @@ function renderHODTable(tasks) {
         wrap.innerHTML = '<div class="td-empty"><i class="fas fa-inbox"></i><h3>No Tasks Found</h3><p>No team tasks match current filters</p></div>';
         return;
     }
+
+    var personOptions = getHODPersonOptions(tasks).map(function (p) {
+        return '<option value="' + esc(String(p.id)) + '">' + esc(p.name) + '</option>';
+    }).join('');
 
     let rows = tasks.map(function (t, index) {
         const taskId = getTextValue(t, 'taskId', 'TaskId');
@@ -2013,8 +2017,71 @@ function getDepartmentProgress(members, totalTasks, completedTasks) {
     if (memberCount > 0) return Math.round(totalProgress / memberCount);
     return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 }
+function getTaskFilterDate(task) {
+    var value = getTextValue(task, 'startDate', 'StartDate')
+        || getTextValue(task, 'createdOn', 'CreatedOn')
+        || getTextValue(task, 'expectedEndDate', 'ExpectedEndDate');
+    if (!value || value.startsWith('0001')) return null;
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+}
+function isSameDay(a, b) {
+    return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function isInCurrentWeek(d) {
+    if (!d) return false;
+    var today = new Date();
+    var start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    var day = start.getDay();
+    var diff = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + diff);
+    var end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return d >= start && d < end;
+}
+function isInCurrentMonth(d) {
+    var today = new Date();
+    return !!d && d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+}
+function getHODPersonOptions(tasks) {
+    var map = {};
+    (Array.isArray(tasks) ? tasks : []).forEach(function (task) {
+        var id = getValue(task, 'assignedToEmployeeId', 'AssignedToEmployeeId');
+        var name = getTextValue(task, 'assignedTo', 'AssignedTo');
+        if (!id || !name) return;
+        map[String(id)] = name;
+    });
+    return Object.keys(map).sort(function (a, b) { return map[a].localeCompare(map[b]); })
+        .map(function (id) { return { id: id, name: map[id] }; });
+}
+function getFilteredHODTasksFromControls() {
+    var status = (document.getElementById('hodFilterStatus') || {}).value || '';
+    var priority = (document.getElementById('hodFilterPriority') || {}).value || '';
+    var type = (document.getElementById('hodFilterType') || {}).value || '';
+    var personId = (document.getElementById('hodFilterPerson') || {}).value || '';
+    var period = (document.getElementById('hodFilterPeriod') || {}).value || '';
+    var today = new Date();
+
+    return (hodTableSourceTasks || []).filter(function (task) {
+        var rowStatus = getTextValue(task, 'status', 'Status') || '';
+        var rowPriority = getTextValue(task, 'priority', 'Priority') || '';
+        var rowType = getTextValue(task, 'taskType', 'TaskType') || '';
+        var rowPersonId = String(getValue(task, 'assignedToEmployeeId', 'AssignedToEmployeeId') || '');
+        var d = getTaskFilterDate(task);
+
+        if (status && rowStatus !== status) return false;
+        if (priority && rowPriority !== priority) return false;
+        if (type && rowType !== type) return false;
+        if (personId && rowPersonId !== personId) return false;
+        if (period === 'today' && !isSameDay(d, today)) return false;
+        if (period === 'week' && !isInCurrentWeek(d)) return false;
+        if (period === 'month' && !isInCurrentMonth(d)) return false;
+        return true;
+    });
+}
 function renderHODTable(tasks) {
     indexTasksForDetails(tasks);
+    hodTableSourceTasks = (Array.isArray(tasks) ? tasks : []).slice();
     const wrap = document.getElementById('hodTableWrap');
     if (!wrap) return;
 
@@ -2022,6 +2089,10 @@ function renderHODTable(tasks) {
         wrap.innerHTML = '<div class="td-empty"><i class="fas fa-inbox"></i><h3>No Tasks Found</h3><p>No team tasks match current filters</p></div>';
         return;
     }
+
+    var personOptions = getHODPersonOptions(tasks).map(function (p) {
+        return '<option value="' + esc(String(p.id)) + '">' + esc(p.name) + '</option>';
+    }).join('');
 
     let rows = tasks.map(function (t, index) {
         const taskId = getTextValue(t, 'taskId', 'TaskId');
@@ -2038,7 +2109,9 @@ function renderHODTable(tasks) {
         const sColor = statusColors[isCompleted ? 'COMPLETED' : (overdue ? 'overdue' : status)] || '#94a3b8';
         const pct = getValue(t, 'percentComplete', 'PercentComplete');
         const actions = buildTaskActions(taskId, pct, true, isCompleted, canEditTaskProgress(t));
-        return `<tr>
+        const filterDate = getTaskFilterDate(t);
+        const filterDateValue = filterDate ? filterDate.toISOString().slice(0, 10) : '';
+        return `<tr data-task-id="${esc(taskId)}" data-date="${esc(filterDateValue)}">
             <td>${index + 1}</td>
             <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(taskName)}">${esc(taskName)}</td>
             <td>${esc(assignedTo || '-')}</td>
@@ -2052,7 +2125,7 @@ function renderHODTable(tasks) {
                     <span style="font-size:11px;font-weight:700;color:#4f46e5;min-width:32px">${pct}%</span>
                 </div>
             </td>
-            <td data-type="${esc(taskType || '')}" data-person="${esc(assignedTo || '')}"><div style="display:flex;gap:4px;flex-wrap:wrap">${actions}</div></td>
+            <td data-type="${esc(taskType || '')}" data-person-id="${esc(String(getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId') || ''))}"><div style="display:flex;gap:4px;flex-wrap:wrap">${actions}</div></td>
         </tr>`;
     }).join('');
 
@@ -2077,7 +2150,16 @@ function renderHODTable(tasks) {
             <option value="SELF">Self</option>
             <option value="ASSIGNED">Assigned</option>
         </select>
-        <input type="text" id="hodFilterPerson" placeholder="Search by person..." oninput="applyHODFilters()" style="width:180px" />
+        <select id="hodFilterPerson" onchange="applyHODFilters()" style="width:190px">
+            <option value="">All Persons</option>
+            ${personOptions}
+        </select>
+        <select id="hodFilterPeriod" onchange="applyHODFilters()" style="width:140px">
+            <option value="">All Dates</option>
+            <option value="today">Today</option>
+            <option value="week">Weekly</option>
+            <option value="month">Monthly</option>
+        </select>
         <button class="td-btn-new" style="padding:7px 14px;font-size:12px" onclick="openCreateTaskModal()"><i class="fas fa-plus"></i> Assign Task</button>
     </div>
     <div class="hod-table-wrap">
@@ -2092,24 +2174,17 @@ function renderHODTable(tasks) {
     </div>`;
 }
 function applyHODFilters() {
-    var status = (document.getElementById('hodFilterStatus') || {}).value || '';
-    var priority = (document.getElementById('hodFilterPriority') || {}).value || '';
-    var type = (document.getElementById('hodFilterType') || {}).value || '';
-    var person = ((document.getElementById('hodFilterPerson') || {}).value || '').toLowerCase();
+    var filteredTasks = getFilteredHODTasksFromControls();
+    var visibleIds = new Set(filteredTasks.map(function (task) {
+        return getTextValue(task, 'taskId', 'TaskId');
+    }).filter(Boolean));
     var rows = document.querySelectorAll('#hodTableBody tr');
     rows.forEach(function (row) {
-        var rowStatus = ((row.querySelector('[data-status]') || {}).dataset || {}).status || '';
-        var rowPriority = ((row.querySelector('[data-priority]') || {}).dataset || {}).priority || '';
-        var actionsCell = row.querySelector('[data-type]');
-        var rowType = actionsCell ? (actionsCell.dataset.type || '') : '';
-        var rowPerson = actionsCell ? (actionsCell.dataset.person || '').toLowerCase() : '';
-        var show = true;
-        if (status && rowStatus !== status) show = false;
-        if (priority && rowPriority !== priority) show = false;
-        if (type && rowType !== type) show = false;
-        if (person && !rowPerson.includes(person)) show = false;
+        var taskId = row.dataset.taskId || '';
+        var show = !taskId || visibleIds.has(taskId);
         row.style.display = show ? '' : 'none';
     });
+    updateStatGroup('team', summarizeTasks(filteredTasks));
 }
 // ============================================
 // SUB-HOD: TEAM LOADING SKELETON (RIGHT PANEL)
@@ -2241,6 +2316,10 @@ function renderSubHODTaskList(tasks) {
         var assignedId = getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId');
         return String(assignedId) !== String(EMPLOYEE_ID);
     });
+    subHodTaskSourceTasks = tasks.slice();
+    var personOptions = getHODPersonOptions(tasks).map(function (p) {
+        return '<option value="' + esc(String(p.id)) + '">' + esc(p.name) + '</option>';
+    }).join('');
 
     const headerHtml = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;">
@@ -2267,6 +2346,16 @@ function renderSubHODTaskList(tasks) {
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
                 <option value="CRITICAL">Critical</option>
+            </select>
+            <select id="subhodFilterPerson" onchange="applySubHODFilters()" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:500;color:#374151;background:#fff;outline:none;cursor:pointer;min-width:150px;">
+                <option value="">All Persons</option>
+                ${personOptions}
+            </select>
+            <select id="subhodFilterPeriod" onchange="applySubHODFilters()" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:500;color:#374151;background:#fff;outline:none;cursor:pointer;">
+                <option value="">All Dates</option>
+                <option value="today">Today</option>
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
             </select>
         </div>
     </div>`;
@@ -2295,8 +2384,10 @@ function renderSubHODTaskList(tasks) {
         const parsedTaskDetails = parseSlot(description);
         const descText = parsedTaskDetails.descText;
         const displaySlot = slot || parsedTaskDetails.slot;
+        const filterDate = getTaskFilterDate(t);
+        const filterDateValue = filterDate ? filterDate.toISOString().slice(0, 10) : '';
         return `
-        <div class="td-task-card" data-task-id="${taskId}" data-status="${status}" data-priority="${priority}">
+        <div class="td-task-card" data-task-id="${taskId}" data-status="${status}" data-priority="${priority}" data-person-id="${esc(String(getValue(t, 'assignedToEmployeeId', 'AssignedToEmployeeId') || ''))}" data-date="${esc(filterDateValue)}">
             <div class="td-task-top">
                 <div class="td-task-left">
                     <span class="td-priority td-priority-${priority.toLowerCase()}">${priority}</span>
@@ -2327,10 +2418,25 @@ function renderSubHODTaskList(tasks) {
 function applySubHODFilters() {
     const status = (document.getElementById('subhodFilterStatus') || {}).value || '';
     const priority = (document.getElementById('subhodFilterPriority') || {}).value || '';
+    const personId = (document.getElementById('subhodFilterPerson') || {}).value || '';
+    const period = (document.getElementById('subhodFilterPeriod') || {}).value || '';
+    const today = new Date();
+    const filteredTasks = (subHodTaskSourceTasks || []).filter(function (task) {
+        var d = getTaskFilterDate(task);
+        if (status && (getTextValue(task, 'status', 'Status') || '') !== status) return false;
+        if (priority && (getTextValue(task, 'priority', 'Priority') || '') !== priority) return false;
+        if (personId && String(getValue(task, 'assignedToEmployeeId', 'AssignedToEmployeeId') || '') !== personId) return false;
+        if (period === 'today' && !isSameDay(d, today)) return false;
+        if (period === 'week' && !isInCurrentWeek(d)) return false;
+        if (period === 'month' && !isInCurrentMonth(d)) return false;
+        return true;
+    });
+    const visibleIds = new Set(filteredTasks.map(function (task) { return getTextValue(task, 'taskId', 'TaskId'); }).filter(Boolean));
     document.querySelectorAll('#subhodTaskCards .td-task-card').forEach(function (card) {
-        const show = (!status || card.dataset.status === status) && (!priority || card.dataset.priority === priority);
+        const show = visibleIds.has(card.dataset.taskId || '');
         card.style.display = show ? '' : 'none';
     });
+    updateStatGroup('team', summarizeTasks(filteredTasks));
 }
 
 function closeTaskDetailsModal() {

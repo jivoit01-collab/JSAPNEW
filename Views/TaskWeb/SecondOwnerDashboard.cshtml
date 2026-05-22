@@ -160,7 +160,7 @@
 
     .owner2-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(340px, .55fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 18px;
         margin-top: 18px;
     }
@@ -335,8 +335,9 @@
 
     .owner2-command-grid {
         display: grid;
-        grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+        grid-template-columns: minmax(300px, .62fr) minmax(680px, 1.38fr);
         gap: 16px;
+        align-items: start;
     }
 
     .owner2-focus-panel {
@@ -412,12 +413,13 @@
     .owner2-table-wrap {
         border: 1px solid var(--so-line);
         border-radius: 14px;
-        overflow: hidden;
+        overflow-x: auto;
         background: #fff;
     }
 
     .owner2-table {
         width: 100%;
+        min-width: 980px;
         border-collapse: collapse;
         font-size: 12px;
     }
@@ -452,7 +454,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        min-width: 190px;
+        min-width: 360px;
     }
 
     .owner2-avatar {
@@ -470,6 +472,7 @@
     .owner2-person strong {
         display: block;
         font-size: 13px;
+        white-space: normal;
     }
 
     .owner2-person span {
@@ -478,6 +481,19 @@
         color: var(--so-muted);
         font-size: 11px;
         font-weight: 700;
+        white-space: normal;
+        line-height: 1.35;
+    }
+
+    .owner2-inline-workload {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--so-line);
+    }
+
+    .owner2-inline-workload .owner2-section-title {
+        font-size: 14px;
+        margin-bottom: 12px;
     }
 
     .owner2-badge {
@@ -500,6 +516,37 @@
     .owner2-badge.green {
         background: #dbf7ec;
         color: #087b54;
+    }
+
+    .owner2-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--so-line);
+        border-top: 0;
+        border-radius: 0 0 14px 14px;
+        background: #fff;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .owner2-page-btn {
+        border: 1px solid var(--so-line);
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: #f8fbff;
+        color: var(--so-blue);
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-page-btn:disabled {
+        opacity: .45;
+        cursor: not-allowed;
     }
 
     .owner2-side {
@@ -912,9 +959,6 @@
             <button class="owner2-view-btn" data-show-section="hierarchy">HOD / Sub-HOD / Executive</button>
             <button class="owner2-view-btn" data-show-section="departments">Departments</button>
             <button class="owner2-view-btn" data-show-section="fullmap">Full Map</button>
-            <button class="owner2-view-btn" data-show-section="pulse">Pulse</button>
-            <button class="owner2-view-btn" data-show-section="risk">Risk</button>
-            <button class="owner2-view-btn" data-show-section="workload">Workload</button>
             <button class="owner2-view-btn" data-show-section="all">Show All</button>
             <button class="owner2-view-btn" data-show-section="none">Hide All</button>
         </div>
@@ -968,6 +1012,12 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="owner2-inline-workload">
+                                <h3 class="owner2-section-title"><i class="fas fa-ranking-star"></i> Top Workload</h3>
+                                <div class="owner2-risk-list" id="workloadList">
+                                    <div class="owner2-loading">Loading workload...</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="owner2-table-wrap">
@@ -987,6 +1037,7 @@
                                     <tr><td colspan="7" class="owner2-loading">Loading hierarchy...</td></tr>
                                 </tbody>
                             </table>
+                            <div class="owner2-pagination" id="rolePager"></div>
                         </div>
                     </div>
                 </div>
@@ -1017,44 +1068,6 @@
                     </div>
                 </div>
             </main>
-
-            <aside class="owner2-side">
-                <div class="owner2-card owner2-health-card" data-section="pulse">
-                    <div class="owner2-section-head">
-                        <h2 class="owner2-section-title"><i class="fas fa-gauge-high"></i> Owner Pulse</h2>
-                        <button type="button" class="owner2-card-toggle"><i class="fas fa-chevron-up"></i> Collapse</button>
-                    </div>
-                    <div class="owner2-score-row owner2-collapsible" style="grid-template-columns:132px 1fr;">
-                        <div class="owner2-ring" id="ownerRing" style="width:122px;height:122px;--done:0">
-                            <span class="owner2-ring-value" style="font-size:25px;">0%</span>
-                        </div>
-                        <div class="owner2-health-list">
-                            <div class="owner2-insight" id="ownerInsight">Loading owner insight...</div>
-                            <div class="owner2-insight" id="ownerRiskInsight">Checking overdue and open workload...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="owner2-card owner2-health-card" data-section="risk">
-                    <div class="owner2-section-head">
-                        <h2 class="owner2-section-title"><i class="fas fa-triangle-exclamation"></i> Risk Radar</h2>
-                        <button type="button" class="owner2-card-toggle"><i class="fas fa-chevron-up"></i> Collapse</button>
-                    </div>
-                    <div class="owner2-risk-list owner2-collapsible" id="riskList">
-                        <div class="owner2-loading">Scanning risk...</div>
-                    </div>
-                </div>
-
-                <div class="owner2-card owner2-health-card" data-section="workload">
-                    <div class="owner2-section-head">
-                        <h2 class="owner2-section-title"><i class="fas fa-ranking-star"></i> Top Workload</h2>
-                        <button type="button" class="owner2-card-toggle"><i class="fas fa-chevron-up"></i> Collapse</button>
-                    </div>
-                    <div class="owner2-risk-list owner2-collapsible" id="workloadList">
-                        <div class="owner2-loading">Loading workload...</div>
-                    </div>
-                </div>
-            </aside>
         </section>
     </div>
 </div>
@@ -1094,6 +1107,8 @@
             hierarchy: [],
             roles: { hod: [], subhod: [], exec: [] },
             activeRole: 'hod',
+            rolePage: 1,
+            rolePageSize: 10,
             currentTasks: [],
             drawerMode: null,
             hierarchyTree: [],
@@ -1122,6 +1137,7 @@
             $$('#roleTabs .owner2-role-tab').forEach(btn => {
                 btn.addEventListener('click', () => {
                     state.activeRole = btn.dataset.role;
+                    state.rolePage = 1;
                     $$('#roleTabs .owner2-role-tab').forEach(x => x.classList.toggle('active', x === btn));
                     renderRolePanel();
                     renderSideLists();
@@ -1210,7 +1226,6 @@
                 state.roles = flattenHierarchy(state.hierarchy);
 
                 renderKpis();
-                renderOwnerPulse();
                 renderRolePanel();
                 renderDepartments();
                 renderHierarchyTree();
@@ -1226,7 +1241,6 @@
             $('#roleTableBody').innerHTML = '<tr><td colspan="7" class="owner2-loading">Loading hierarchy...</td></tr>';
             $('#departmentGrid').innerHTML = '<div class="owner2-loading">Loading departments...</div>';
             $('#hierarchyTree').innerHTML = '<div class="owner2-loading">Loading complete hierarchy...</div>';
-            $('#riskList').innerHTML = '<div class="owner2-loading">Scanning risk...</div>';
             $('#workloadList').innerHTML = '<div class="owner2-loading">Loading workload...</div>';
         }
 
@@ -1535,26 +1549,6 @@
             `).join('');
         }
 
-        function renderOwnerPulse() {
-            const owner = state.owner || {};
-            const live = summarizeTasks(state.allTasks);
-            const total = live.total || num(owner.TotalTasks ?? owner.totalTasks);
-            const completed = live.total ? live.completed : num(owner.CompletedCount ?? owner.completedCount);
-            const overdue = live.total ? live.overdue : num(owner.OverdueCount ?? owner.overdueCount);
-            const completion = pct(completed, total);
-            const open = live.total
-                ? live.pending + live.progress
-                : num(owner.PendingCount ?? owner.pendingCount) + num(owner.InProgressCount ?? owner.inProgressCount);
-
-            setRing($('#ownerRing'), completion);
-            $('#ownerInsight').textContent = total
-                ? `${completion}% work is completed in the selected period. ${open} tasks are still open across the hierarchy.`
-                : 'No task movement found for the selected period.';
-            $('#ownerRiskInsight').textContent = overdue
-                ? `${overdue} overdue tasks are visible. Start from Risk Radar, then open the responsible person task list.`
-                : 'No overdue tasks in this period. Review workload distribution before assigning new work.';
-        }
-
         function renderRolePanel() {
             const items = state.roles[state.activeRole] || [];
             const totals = items.reduce((acc, item) => {
@@ -1580,11 +1574,18 @@
 
             if (!items.length) {
                 $('#roleTableBody').innerHTML = '<tr><td colspan="7" class="owner2-empty">No people found in this role for the selected period.</td></tr>';
+                $('#rolePager').innerHTML = '';
                 return;
             }
 
-            $('#roleTableBody').innerHTML = items.map((item, index) => `
-                <tr data-role-index="${index}">
+            const totalPages = Math.max(1, Math.ceil(items.length / state.rolePageSize));
+            if (state.rolePage > totalPages) state.rolePage = totalPages;
+            if (state.rolePage < 1) state.rolePage = 1;
+            const start = (state.rolePage - 1) * state.rolePageSize;
+            const pageItems = items.slice(start, start + state.rolePageSize);
+
+            $('#roleTableBody').innerHTML = pageItems.map((item, index) => `
+                <tr data-role-index="${start + index}">
                     <td>
                         <div class="owner2-person">
                             <span class="owner2-avatar">${initials(item.name)}</span>
@@ -1608,6 +1609,25 @@
 
             $$('#roleTableBody tr[data-role-index]').forEach(row => {
                 row.addEventListener('click', () => openPersonDrawer(items[Number(row.dataset.roleIndex)]));
+            });
+
+            $('#rolePager').innerHTML = `
+                <span>Showing ${start + 1}-${Math.min(start + state.rolePageSize, items.length)} of ${items.length}</span>
+                <button type="button" class="owner2-page-btn" id="rolePrevPage" ${state.rolePage <= 1 ? 'disabled' : ''}>Prev</button>
+                <span>Page ${state.rolePage} / ${totalPages}</span>
+                <button type="button" class="owner2-page-btn" id="roleNextPage" ${state.rolePage >= totalPages ? 'disabled' : ''}>Next</button>
+            `;
+            $('#rolePrevPage')?.addEventListener('click', () => {
+                if (state.rolePage > 1) {
+                    state.rolePage -= 1;
+                    renderRolePanel();
+                }
+            });
+            $('#roleNextPage')?.addEventListener('click', () => {
+                if (state.rolePage < totalPages) {
+                    state.rolePage += 1;
+                    renderRolePanel();
+                }
             });
         }
 
@@ -1829,14 +1849,10 @@
         }
 
         function renderSideLists() {
-            const allPeople = [...state.roles.hod, ...state.roles.subhod, ...state.roles.exec];
-            const risk = allPeople.filter(p => p.overdue > 0).sort((a, b) => (b.overdue - a.overdue) || (b.total - a.total)).slice(0, 7);
             const workload = (state.roles[state.activeRole] || []).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 7);
 
-            $('#riskList').innerHTML = risk.length ? risk.map(item => riskItemHtml(item, `${item.overdue} overdue`, 'red')).join('') : '<div class="owner2-empty">No overdue people found.</div>';
             $('#workloadList').innerHTML = workload.length ? workload.map(item => riskItemHtml(item, `${item.total} total tasks`, '')).join('') : '<div class="owner2-empty">No workload in this role.</div>';
 
-            bindRiskList('#riskList', risk);
             bindRiskList('#workloadList', workload);
         }
 
