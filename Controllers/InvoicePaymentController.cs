@@ -40,5 +40,20 @@ namespace JSAPNEW.Controllers
             var data = _service.GetInvoiceItemDetails(vchNumber);
             return Json(data);
         }
+        [HttpPost]
+        public IActionResult MarkAsPaid([FromBody] MarkPaidRequest req)
+        {
+            var result = _service.MarkAsPaid(req.VchNumber);
+
+            if (!result)
+                return NotFound();
+
+            return Ok();
+        }
+
+        public class MarkPaidRequest
+        {
+            public decimal VchNumber { get; set; }
+        }
     }
 }

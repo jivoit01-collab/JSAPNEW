@@ -1,233 +1,428 @@
-﻿@{
+﻿
+@{
     ViewData["Title"] = "Payment Checker";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<style>
-    td, th {
-        text-align: center;
-        vertical-align: middle !important;
-    }
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet" />
 
-    #suggestionBox {
-        position: absolute;
-        top: 70px;
-        width: 100%;
-        background: white;
-        z-index: 1000;
-        max-height: 200px;
-        overflow-y: auto;
-    }
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      rel="stylesheet" />
 
-    .suggest-item {
-        padding: 8px;
-        cursor: pointer;
-    }
+<link rel="stylesheet"
+      href="~/css/bill-verification.css" />
+<link rel="stylesheet" href="~/css/admin-premium.css" />
 
-        .suggest-item:hover {
-            background-color: #f1f1f1;
-        }
+    <!-- =====================================================
+         PREMIUM NAVBAR
+    ====================================================== -->
 
-    /* Soft badges — same as InvoicePaymentPage */
-    .soft-badge {
-        padding: 5px 13px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 500;
-        display: inline-block;
-    }
+    <nav class="premium-nav">
+    <div class="light-wave"></div>
+    <div class="blue-glow"></div>
+        <div class="ary-brand-header">
 
-    .badge-paid {
-        background: rgba(25, 135, 84, 0.1);
-        color: #198754;
-        border: 1px solid rgba(25, 135, 84, 0.25);
-    }
-
-    .badge-approved {
-        background: rgba(13, 110, 253, 0.08);
-        color: #0d6efd;
-        border: 1px solid rgba(13, 110, 253, 0.2);
-    }
-
-    /* Summary cards */
-    .summary-card {
-        border: none;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-
-    .summary-number {
-        font-size: 1.7rem;
-        font-weight: 700;
-        color: #198754;
-        line-height: 1.1;
-    }
-
-    .summary-label {
-        font-size: 12px;
-        color: #6c757d;
-        margin: 0;
-    }
-
-    .details-row td {
-        background-color: #f8f9fa !important;
-        padding: 10px !important;
-    }
-
-    a {
-        cursor: pointer;
-    }
-</style>
-
-<!-- PDF VIEWER -->
-<div id="pdfContainer" style="display:none; background:#fff; padding:10px; border-radius:8px;">
-    <button onclick="closePdf()" class="btn btn-secondary btn-sm mb-2">⬅ Back</button>
-    <iframe id="pdfFrame" style="width:100%; height:80vh; border:none;"></iframe>
-</div>
-
-<div class="bill-ui">
-    <div class="container-fluid mt-4">
-
-        <h3 class="mb-4">Bill Verification - Payment Checker</h3>
-
-        <!-- SUMMARY CARDS -->
-        <div class="row mb-4">
-
-            <div class="col-md-3 mb-2">
-                <div class="card summary-card">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div style="font-size:2rem;">🧾</div>
-                        <div>
-                            <div class="summary-number" id="cardTotalCount">—</div>
-                            <p class="summary-label">Total Paid Invoices</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-2">
-                <div class="card summary-card">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div style="font-size:2rem;">💰</div>
-                        <div>
-                            <div class="summary-number" id="cardTotalAmount">—</div>
-                            <p class="summary-label">Total Paid Amount</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-2">
-                <div class="card summary-card">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div style="font-size:2rem;">📅</div>
-                        <div>
-                            <div class="summary-number" id="cardLatestDate" style="font-size:1rem; padding-top:4px;">—</div>
-                            <p class="summary-label">Latest Payment Date</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-2">
-                <div class="card summary-card">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div style="font-size:2rem;">🏢</div>
-                        <div>
-                            <div class="summary-number" id="cardUniqueAccounts">—</div>
-                            <p class="summary-label">Unique Accounts</p>
-                        </div>
-                    </div>
-                </div>
+            <div class="ary-brand-name">
+                Akal Rozgar Yojana
             </div>
 
         </div>
 
-        <!-- FILTER -->
-        <div class="card p-3 shadow-sm">
-            <div class="row">
+        <!-- LEFT -->
 
-                <div class="col-md-3">
-                    <label>From Date</label>
-                    <input type="date" id="fromDate" class="form-control" />
+        <div class="nav-left-section">
+
+            <div class="brand-logo-wrap">
+
+                <img src="~/images/logo.png"
+                     class="brand-logo" />
+
+            </div>
+
+            <div class="brand-content">
+
+                <div class="brand-title">
+                    JSAP
                 </div>
 
-                <div class="col-md-3">
-                    <label>To Date</label>
-                    <input type="date" id="toDate" class="form-control" />
-                </div>
-
-                <div class="col-md-3 position-relative">
-                    <label>Account Name</label>
-                    <input type="text" id="accountName" class="form-control"
-                           placeholder="Search Account" autocomplete="off" />
-                    <div id="suggestionBox" class="list-group"></div>
-                </div>
-
-                <div class="col-md-2 d-flex align-items-end">
-                    <button id="searchBtn" class="btn btn-primary w-100">Search</button>
+                <div class="brand-subtitle">
+                    Smart Finance • ERP Workflow
                 </div>
 
             </div>
+
         </div>
 
-        <!-- TABLE -->
-        <div class="card mt-4 shadow-sm">
+        <!-- PRODUCT SLIDER -->
 
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <span>Paid Invoices</span>
-                <span id="recordBadge" class="badge bg-white text-success fw-bold"></span>
+        <div class="product-slider">
+
+            <div class="product-track">
+
+                <img src="@Url.Content("~/images/canola.jpg")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/js3.png")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")"
+                     class="product-img" />
+
+                <!-- DUPLICATE -->
+
+                <img src="@Url.Content("~/images/canola.jpg")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/js3.png")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
+                     class="product-img" />
+
+                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")"
+                     class="product-img" />
+
             </div>
 
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
+        </div>
 
-                        <thead class="table-light">
-                            <tr>
-                                <th>Account</th>
-                                <th>Voucher</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Supplier Ref</th>
-                                <th>Ref Date</th>
-                                <th>Due Date</th>
-                                <th>Payment Date</th>
-                                <th>Attachment</th>
-                                <th>Maker Remark</th>
-                                <th>Checker Remark</th>
-                                <th>Checker Status</th>
-                                <th>Payment Status</th>
-                            </tr>
-                        </thead>
+        <!-- MODULE -->
 
-                        <tbody id="paymentCheckerTable">
-                            <tr>
-                                <td colspan="13" class="text-center text-muted">
-                                    Select date range and click Search
-                                </td>
-                            </tr>
-                        </tbody>
+        <div class="module-box payment-checker">
 
-                    </table>
-                </div>
+            <div class="module-dot"></div>
+
+            <i class="fa-solid fa-money-check-dollar"></i>
+
+            <span>
+                Payment Checker
+            </span>
+
+        </div>
+
+    </nav>
+
+
+
+    <!-- =====================================================
+         KPI CARDS
+    ====================================================== -->
+
+    <div class="kpi-grid">
+
+        <!-- TOTAL -->
+
+        <div class="kpi-card k-blue">
+
+            <div class="kpi-icon">
+                <i class="fa-solid fa-file-invoice"></i>
+            </div>
+
+            <div class="kpi-value"
+                 id="cardTotalCount">
+
+                —
+
+            </div>
+
+            <div class="kpi-label">
+                Paid Invoices 
+            </div>
+
+        </div>
+
+
+        <!-- AMOUNT -->
+
+        <div class="kpi-card k-green">
+
+            <div class="kpi-icon">
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+            </div>
+
+            <div class="kpi-value"
+                 id="cardTotalAmount">
+
+                —
+
+            </div>
+
+            <div class="kpi-label">
+                Paid Amount
+            </div>
+
+        </div>
+
+
+        <!-- DATE -->
+
+        <div class="kpi-card k-purple">
+
+            <div class="kpi-icon">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+
+            <div class="kpi-value"
+                 id="cardLatestDate"
+                 style="font-size:18px;padding-top:8px;">
+
+                —
+
+            </div>
+
+            <div class="kpi-label">
+                Latest Payment Date
+            </div>
+
+        </div>
+
+
+        <!-- ACCOUNT -->
+
+        <div class="kpi-card k-orange">
+
+            <div class="kpi-icon">
+                <i class="fa-solid fa-building"></i>
+            </div>
+
+            <div class="kpi-value"
+                 id="cardUniqueAccounts">
+
+                —
+
+            </div>
+
+            <div class="kpi-label">
+                Unique Accounts
             </div>
 
         </div>
 
     </div>
+
+
+
+    <!-- =====================================================
+         FILTER CARD
+    ====================================================== -->
+
+    <div class="filter-card">
+
+        <!-- FROM DATE -->
+
+        <div class="f-group">
+
+            <span class="f-label">
+                From Date
+            </span>
+
+            <input type="date"
+                   id="fromDate"
+                   class="f-input" />
+
+        </div>
+
+
+        <!-- TO DATE -->
+
+        <div class="f-group">
+
+            <span class="f-label">
+                To Date
+            </span>
+
+            <input type="date"
+                   id="toDate"
+                   class="f-input" />
+
+        </div>
+
+
+        <!-- ACCOUNT -->
+
+        <div class="f-group grow position-relative">
+
+            <span class="f-label">
+                Account Name
+            </span>
+
+            <input type="text"
+                   id="accountName"
+                   class="f-input"
+                   placeholder="Search account..."
+                   autocomplete="off" />
+
+            <div id="suggestionBox"></div>
+
+        </div>
+
+
+        <!-- SEARCH -->
+        <button type="button"
+                id="searchBtn"
+                class="btn btn-dark search-payment-btn">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            Search
+
+        </button>
+
+    </div>
+    
+
+
+    <!-- =====================================================
+         TABLE CARD
+    ====================================================== -->
+
+    <div class="t-card checker-table-card">
+
+        <!-- HEADER -->
+
+        <div class="t-header">
+
+            <span class="t-title">
+
+                <i class="fa-solid fa-money-check-dollar"></i>
+
+                Paid Invoices
+
+            </span>
+
+            <span class="t-count"
+                  id="recordBadge">
+
+            </span>
+
+        </div>
+
+
+        <!-- TABLE SLIDE HINT -->
+
+        <div class="table-slide-hint">
+
+            <i class="fa-solid fa-arrows-left-right"></i>
+
+            Slide horizontally to inspect all columns
+
+        </div>
+
+
+        <!-- TOP SCROLL -->
+
+        <div class="top-scroll"
+             id="topScroll">
+
+            <div class="top-scroll-inner"
+                 id="topScrollInner">
+            </div>
+
+        </div>
+
+
+        <!-- TABLE -->
+
+        <div class="t-wrap"
+             id="tableWrap">
+
+            <table class="dt"
+                   id="mainTable">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Account</th>
+                        <th>Voucher</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Supplier Ref</th>
+                        <th>Ref Date</th>
+                        <th>Due Date</th>
+                        <th>Payment Date</th>
+                        <th>Attachment</th>
+                     
+                        <th>Checker Status</th>
+                        <th>Payment Status</th>
+                   
+                       <th>Checker Remark</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="paymentCheckerTable">
+
+                    <tr>
+
+                        <td colspan="12"
+                            class="text-center text-muted">
+
+                            Select date range and click Search
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         PDF VIEWER
+    ====================================================== -->
+
+    <div id="pdfContainer"
+         class="pdf-modal">
+
+        <div class="pdf-box">
+
+            <button onclick="closePdf()"
+                    class="pdf-close">
+
+                ×
+
+            </button>
+
+            <iframe id="pdfFrame"></iframe>
+
+        </div>
+
+    </div>
+
 </div>
 
+
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script>
 
     // -----------------------------------------------
     // LOAD DATA
     // -----------------------------------------------
+
     function loadData() {
 
-    let fromDate    = $("#fromDate").val();
-    let toDate      = $("#toDate").val();
+    let fromDate = $("#fromDate").val();
+    let toDate = $("#toDate").val();
     let accountName = $("#accountName").val().trim() || null;
 
     if (!fromDate || !toDate) {
@@ -240,237 +435,504 @@
     return;
     }
 
-    $("#paymentCheckerTable").html(`<tr><td colspan="13" class="text-center">Loading...</td></tr>`);
+    $("#paymentCheckerTable").html(`
+    <tr>
+    <td colspan="12" class="text-center">
+    Loading...
+    </td>
+    </tr>`);
+
     resetCards();
 
     $.get("/PaymentChecker/GetPaidBillDetails", {
-    fromDate:    fromDate,
-    toDate:      toDate,
+
+    fromDate: fromDate,
+    toDate: toDate,
     accountName: accountName
+
     }, function (data) {
+
     renderTable(data || []);
+
+    setTimeout(syncTopScroll, 300);
+
     }).fail(function () {
-    $("#paymentCheckerTable").html(`<tr><td colspan="13" class="text-center text-danger">Error loading data</td></tr>`);
+
+    $("#paymentCheckerTable").html(`
+    <tr>
+    <td colspan="12"
+    class="text-center text-danger">
+
+    Error loading data
+
+    </td>
+    </tr>`);
+
     });
+
     }
 
 
     // -----------------------------------------------
     // RENDER TABLE
     // -----------------------------------------------
+
     function renderTable(data) {
 
     if (!data || data.length === 0) {
-    $("#paymentCheckerTable").html(`<tr><td colspan="13" class="text-center">No Paid Invoices Found</td></tr>`);
+
+    $("#paymentCheckerTable").html(`
+    <tr>
+    <td colspan="12"
+    class="text-center">
+
+    No Paid Invoices Found
+
+    </td>
+    </tr>`);
+
     updateCards([]);
     $("#recordBadge").text("");
+
     return;
     }
 
     updateCards(data);
+
     $("#recordBadge").text(data.length + " records");
 
-    let html    = "";
+    let html = "";
     let seenVch = new Set();
 
     data.forEach(item => {
 
     if (seenVch.has(item.vchNumber)) return;
+
     seenVch.add(item.vchNumber);
 
     let attachHtml = item.attachmentPath
-    ? `<a href="#" onclick="openPdf('${item.attachmentPath}')" class="btn btn-sm btn-outline-primary">View</a>`
+    ? `<a href="#"
+    onclick="openPdf('${item.attachmentPath}')"
+    class="attach-view">
+
+    View
+
+    </a>`
     : `<span class="text-muted">No File</span>`;
 
     html += `
+
     <tr id="row-${item.vchNumber}">
+
     <td>
-    <a href="javascript:void(0)" onclick="loadDetails(${item.vchNumber})">
+
+    <a href="javascript:void(0)"
+    onclick="loadDetails(${item.vchNumber}, ${item.serialNumber})">
+
     ${item.accountName ?? ""}
+
     </a>
+
     </td>
+
     <td>${item.vchNumber ?? ""}</td>
+
     <td>${formatDate(item.voucherDate)}</td>
+
     <td>${item.billAmount ?? ""}</td>
+
     <td>${item.supplierRef || "-"}</td>
+
     <td>${formatDate(item.supplierRefDate)}</td>
+
     <td>${formatDate(item.dueDate)}</td>
-    <td><strong>${formatDate(item.paymentDate)}</strong></td>
+
+    <td>
+    <strong>
+    ${formatDate(item.paymentDate)}
+    </strong>
+    </td>
+
     <td>${attachHtml}</td>
-    <td>${item.makerRemark  || "-"}</td>
+    <td>
+    <span class="soft-badge badge-approved">
+    Approved
+    </span>
+    </td>
+    <td>
+    <span class="soft-badge badge-paid">
+    Paid ✔
+    </span></td>
+   
     <td>${item.checkerRemark || "-"}</td>
-    <td><span class="soft-badge badge-approved">Approved</span></td>
-    <td><span class="soft-badge badge-paid">Paid ✔</span></td>
+
     </tr>`;
     });
 
     $("#paymentCheckerTable").html(html);
+
     }
 
 
     // -----------------------------------------------
-    // SUMMARY CARDS
+    // KPI
     // -----------------------------------------------
+
     function updateCards(data) {
 
-    let seenVch  = new Set();
-    let total    = 0;
-    let dates    = [];
-    let accounts = new Set();
+    if (!data || data.length === 0) {
 
-    data.forEach(item => {
-    if (seenVch.has(item.vchNumber)) return;
-    seenVch.add(item.vchNumber);
-    total += parseFloat(item.billAmount) || 0;
-    accounts.add(item.accountName);
-    if (item.paymentDate) dates.push(new Date(item.paymentDate));
-    });
+    $("#cardTotalCount").text("0");
+    $("#cardTotalAmount").text("0");
+    $("#cardLatestDate").text("—");
+    $("#cardUniqueAccounts").text("0");
 
-    let latestDate = dates.length
-    ? new Date(Math.max(...dates)).toISOString().split("T")[0]
+    return;
+    }
+
+    let uniqueVouchers = [...new Set(
+    data.map(x => x.vchNumber)
+    )];
+
+    let totalAmount = data.reduce((sum, item) => {
+
+    return sum + (parseFloat(item.billAmount) || 0);
+
+    }, 0);
+
+    let uniqueAccounts = new Set(
+    data.map(x => x.accountName)
+    ).size;
+
+    let paymentDates = data
+    .filter(x => x.paymentDate)
+    .map(x => new Date(x.paymentDate));
+
+    let latestDate = paymentDates.length
+    ? new Date(Math.max(...paymentDates))
+    .toISOString()
+    .split("T")[0]
     : "—";
 
-    $("#cardTotalCount").text(seenVch.size);
-    $("#cardTotalAmount").text(total.toLocaleString("en-IN", { maximumFractionDigits: 2 }));
-    $("#cardLatestDate").text(latestDate);
-    $("#cardUniqueAccounts").text(accounts.size);
-    }
-
-    function resetCards() {
-    $("#cardTotalCount, #cardTotalAmount, #cardLatestDate, #cardUniqueAccounts").text("—");
-    $("#recordBadge").text("");
-    }
-
-
-    // -----------------------------------------------
-    // ROW EXPAND — invoice item details
-    // -----------------------------------------------
-    function loadDetails(vchNumber) {
-    if (!vchNumber) return;
-
-    let existing = document.getElementById("details-" + vchNumber);
-    if (existing) { existing.remove(); return; }
-
-    document.querySelectorAll("[id^='details-']").forEach(el => el.remove());
-
-    let row = document.getElementById("row-" + vchNumber);
-    if (!row) return;
-
-    row.insertAdjacentHTML("afterend",
-    `<tr id="details-${vchNumber}">
-    <td colspan="13" class="text-center text-muted">Loading items...</td>
-    </tr>`
+    $("#cardTotalCount").text(
+    uniqueVouchers.length
     );
 
-    const ctrl    = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 15000);
-
-    fetch("/PaymentChecker/GetInvoiceItems?vchNumber=" + vchNumber, { signal: ctrl.signal })
-    .then(res => {
-    if (!res.ok) throw new Error("Server error " + res.status);
-    return res.json();
+    $("#cardTotalAmount").text(
+    totalAmount.toLocaleString("en-IN", {
+    maximumFractionDigits: 2
     })
-    .then(items => {
-    clearTimeout(timeout);
+    );
 
-    let rows = items.map(i => `
-    <tr>
-    <td>${i.productName   ?? ""}</td>
-    <td>${i.quantity      ?? ""}</td>
-    <td>${i.warehouseName ?? "-"}</td>
-    <td>${i.tax          ?? ""}</td>
-    <td>${i.taxName      ?? "-"}</td>
-    <td>${i.itemValue    ?? ""}</td>
-    </tr>`).join("");
+    $("#cardLatestDate").text(latestDate);
 
-    let html = `
-    <tr id="details-${vchNumber}" class="details-row">
-    <td colspan="13">
-    <table class="table table-bordered table-sm mb-0">
-    <thead class="table-light">
-    <tr>
-    <th>Product</th>
-    <th>Qty</th>
-    <th>Warehouse</th>
-    <th>Tax %</th>
-    <th>Tax Name</th>
-    <th>Item Value</th>
-    </tr>
-    </thead>
-    <tbody>
-    ${rows || "<tr><td colspan='6' class='text-center text-muted'>No items found</td></tr>"}
-    </tbody>
-    </table>
-    </td>
-    </tr>`;
+    $("#cardUniqueAccounts").text(uniqueAccounts);
 
-    let dr = document.getElementById("details-" + vchNumber);
-    if (dr) dr.outerHTML = html;
-    })
-    .catch(err => {
-    clearTimeout(timeout);
-    let msg = err.name === "AbortError" ? "Request timed out ⏱" : "Error loading items ❌";
-    let dr  = document.getElementById("details-" + vchNumber);
-    if (dr) dr.innerHTML = `<td colspan="13" class="text-danger text-center">${msg}</td>`;
-    });
+    }
+
+
+    function resetCards() {
+
+    $("#cardTotalCount").text("—");
+    $("#cardTotalAmount").text("—");
+    $("#cardLatestDate").text("—");
+    $("#cardUniqueAccounts").text("—");
+
+    $("#recordBadge").text("");
+
     }
 
 
     // -----------------------------------------------
-    // PDF VIEWER
+    // LOAD DETAILS
     // -----------------------------------------------
+    function loadDetails(vchNumber, serialNumber) {
+
+    const existing = document.getElementById("details-" + vchNumber);
+
+    if (existing) {
+    existing.remove();
+    return;
+    }
+
+    document.querySelectorAll("[id^='details-']")
+    .forEach(el => el.remove());
+
+    const row = document.getElementById("row-" + vchNumber);
+
+    if (!row) return;
+
+    row.insertAdjacentHTML("afterend", `
+
+    <tr id="details-${vchNumber}" class="detail-row">
+
+    <td colspan="12">
+
+    <div class="detail-inner">
+
+    <i class="fa-solid fa-spinner fa-spin"
+    style="color:#9CA3AF"></i>
+
+    Loading items...
+
+    </div>
+
+    </td>
+
+    </tr>
+
+    `);
+
+    fetch("/PaymentChecker/GetInvoiceItems?vchNumber=" + vchNumber)
+
+    .then(r => {
+
+    if (!r.ok) throw new Error();
+
+    return r.json();
+
+    })
+
+    .then(data => {
+
+    const rows = data.map(item => `
+
+    <div class="detail-card">
+
+    <div class="detail-top">
+
+    <div class="detail-product">
+    ${item.productName ?? "-"}
+    </div>
+
+    <div class="detail-amount">
+    ₹${item.itemValue ?? 0}
+    </div>
+
+    </div>
+
+    <div class="detail-grid">
+
+    <div class="detail-item">
+    <span>Quantity</span>
+    <strong>${item.quantity ?? 0}</strong>
+    </div>
+
+    <div class="detail-item">
+    <span>Warehouse</span>
+    <strong>${item.warehouseName ?? "-"}</strong>
+    </div>
+
+    <div class="detail-item">
+    <span>Tax %</span>
+    <strong>${item.tax ?? 0}</strong>
+    </div>
+
+    <div class="detail-item">
+    <span>Tax Name</span>
+    <strong>${item.taxName ?? "-"}</strong>
+    </div>
+
+ 
+    <div class="detail-item">
+    <span>HSN/SAC</span>
+    <strong>${item.hsnsacid ?? "-"}</strong>
+    </div>
+
+
+
+
+
+    <div class="detail-item">
+    <span>UOM</span>
+    <strong>${item.uom ?? "-"}</strong>
+    </div>
+
+    </div>
+
+    </div>
+
+    `).join("");
+
+    const el = document.getElementById("details-" + vchNumber);
+
+    if (el) {
+
+    el.outerHTML = `
+
+    <tr id="details-${vchNumber}"
+    class="detail-row">
+
+    <td colspan="12">
+
+    <div class="detail-container">
+
+    ${rows}
+
+    </div>
+
+    </td>
+
+    </tr>
+
+    `;
+    }
+
+    })
+
+    .catch(() => {
+
+    const el = document.getElementById("details-" + vchNumber);
+
+    if (el) {
+
+    el.innerHTML = `
+
+    <td colspan="12"
+    class="empty-row"
+    style="color:#EF4444">
+
+    Error loading items ❌
+
+    </td>
+
+    `;
+    }
+
+    });
+
+    }
+
+
+    // -----------------------------------------------
+    // PDF
+    // -----------------------------------------------
+
     function openPdf(path) {
-    document.getElementById("pdfFrame").src = path;
-    document.getElementById("pdfContainer").style.display = "block";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    $("#pdfFrame").attr("src", path);
+
+    $("#pdfContainer").css("display", "flex");
+
     }
 
     function closePdf() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("pdfFrame").src = "";
+
+    $("#pdfContainer").hide();
+
+    $("#pdfFrame").attr("src", "");
+
     }
 
 
     // -----------------------------------------------
     // ACCOUNT AUTOCOMPLETE
     // -----------------------------------------------
+
     $(document).ready(function () {
 
     $("#searchBtn").click(loadData);
 
     $("#accountName").on("keyup", function () {
-    let term = $(this).val().trim();
-    if (term.length < 2) { $("#suggestionBox").empty(); return; }
 
-    
-    $.get("/Maker/GetAccountSuggestions", {
-    term: term
-    }, function (data) {
-    let html = "";
-    if (!data || data.length === 0) {
-    html = `<div class="suggest-item">No result</div>`;
-    } else {
-    data.forEach(x => { html += `<div class="suggest-item">${x}</div>`; });
+    let term = $(this).val().trim();
+
+    if (term.length < 2) {
+
+    $("#suggestionBox").empty();
+
+    return;
     }
-    $("#suggestionBox").html(html);
+
+    $.get("/Maker/GetAccountSuggestions", {
+
+    term: term
+
+    }, function (data) {
+
+    let html = "";
+
+    if (!data || data.length === 0) {
+
+    html = `
+    <div class="suggest-item">
+    No result
+    </div>`;
+
+    } else {
+
+    data.forEach(x => {
+
+    html += `
+    <div class="suggest-item">
+    ${x}
+    </div>`;
     });
+    }
+
+    $("#suggestionBox").html(html);
+
+    });
+
     });
 
     $(document).on("mousedown", ".suggest-item", function (e) {
+
     e.preventDefault();
+
     $("#accountName").val($(this).text().trim());
+
     $("#suggestionBox").empty();
-    });
 
     });
 
+    });
 
-    // ✅ CORRECT
+
+    // -----------------------------------------------
+    // DATE FORMAT
+    // -----------------------------------------------
+
     function formatDate(dateString) {
-    if (!dateString || dateString === "-") return "-";
-    let d = new Date(dateString);
-    if (isNaN(d)) return "-";
-    return d.toISOString().split('T')[0];
-    }
-</script>
 
+    if (!dateString || dateString === "-")
+    return "-";
+
+    let d = new Date(dateString);
+
+    if (isNaN(d))
+    return "-";
+
+    return d.toISOString().split('T')[0];
+
+    }
+
+
+    // -----------------------------------------------
+    // TOP SCROLL SYNC
+    // -----------------------------------------------
+
+    function syncTopScroll() {
+
+    const tableWrap = document.getElementById("tableWrap");
+    const topScroll = document.getElementById("topScroll");
+    const topScrollInner = document.getElementById("topScrollInner");
+    const table = document.getElementById("mainTable");
+
+    if (!tableWrap || !topScroll || !table) return;
+
+    topScrollInner.style.width = table.scrollWidth + "px";
+
+    topScroll.addEventListener("scroll", () => {
+    tableWrap.scrollLeft = topScroll.scrollLeft;
+    });
+
+    tableWrap.addEventListener("scroll", () => {
+    topScroll.scrollLeft = tableWrap.scrollLeft;
+    });
+
+    }
+
+    window.onload = syncTopScroll;
+
+</script>

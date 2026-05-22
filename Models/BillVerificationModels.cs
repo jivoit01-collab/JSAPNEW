@@ -23,15 +23,45 @@
         public object TotalItems { get; set; }
     }
 
+    //public class InvoiceItemDto
+    //{
+    //    public string ProductName { get; set; }
+    //    public object Quantity { get; set; }
+    //    public object Rate { get; set; }
+    //    public object Tax { get; set; }
+    //    public object Amount { get; set; }
+    //    public string WarehouseName { get; set; }
+    //    public string TaxName { get; set; }
+    //    public object ItemValue { get; set; }
+    //}
     public class InvoiceItemDto
     {
+        public string SerialNumber { get; set; }
+
         public string ProductName { get; set; }
+
+        public string HSNSACID { get; set; }
+
         public object Quantity { get; set; }
-        public object Rate { get; set; }
+
+        public object PurchaseRate { get; set; }
+
+        public object DiscountPercent { get; set; }
+
+        public object DiscountAmount { get; set; }
+
+        public object Margin { get; set; }
+
+        public object MRP { get; set; }
+
         public object Tax { get; set; }
+
         public object Amount { get; set; }
+
         public string WarehouseName { get; set; }
+
         public string TaxName { get; set; }
+
         public object ItemValue { get; set; }
     }
 

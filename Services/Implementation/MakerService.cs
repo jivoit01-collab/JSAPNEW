@@ -132,11 +132,33 @@ namespace JSAPNEW.Services.Implementation
                         {
                             items.Add(new InvoiceItemDto
                             {
+                                SerialNumber = reader["SerialNumber"]?.ToString(),
+
                                 ProductName = reader["ProductName"]?.ToString(),
+
+                                HSNSACID = reader["HSNSACID"]?.ToString(),
+
                                 Quantity = reader["Quantity"],
-                                Rate = reader["PurchaseCost"],
+
+                                PurchaseRate = reader["PurchaseCost"],
+
+                                DiscountPercent = reader["DiscountPercent"],
+
+                                DiscountAmount = reader["DiscountAmount"],
+
+                                Margin = reader["Margin"],
+
+                                MRP = reader["SellingRate"],
+
                                 Tax = reader["TaxRate"],
-                                Amount = reader["ItemValue"]
+
+                                Amount = reader["ItemValue"],
+
+                                TaxName = reader["TaxName"] == DBNull.Value ? "-" : reader["TaxName"].ToString(),
+
+                                WarehouseName = reader["WarehouseName"] == DBNull.Value ? "-" : reader["WarehouseName"].ToString(),
+
+                                ItemValue = reader["ItemValue"]
                             });
                         }
                     }
@@ -145,5 +167,6 @@ namespace JSAPNEW.Services.Implementation
 
             return items;
         }
+      
     }
 }

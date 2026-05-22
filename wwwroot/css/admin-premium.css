@@ -1,0 +1,932 @@
+﻿
+
+
+body {
+    background: radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 24%), radial-gradient(circle at bottom right, rgba(16,185,129,.04), transparent 24%), #EEF2F7;
+    font-family: 'Inter',sans-serif;
+}
+/* MAIN CONTENT */
+
+.main-content,
+.content-area {
+    padding: 18px !important;
+}
+
+/* SECTION GAP */
+
+.section-gap {
+    margin-top: 14px !important;
+}
+/* =========================================================
+   OUTER NAVBAR
+========================================================= */
+
+.premium-nav {
+    padding: 10px 16px;
+    border-radius: 0 0 20px 20px;
+    background: linear-gradient( 90deg, #9EDFFF 0%, #D9F5FF 35%, #F4F9E8 68%, #FFD84D 100% );
+    box-shadow: 0 8px 24px rgba(15,23,42,.05);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-sizing: border-box;
+}
+
+.nav-glass {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Keeps Left, Middle, and Right balanced */
+    min-height: 52px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    width: 100%;
+    background: linear-gradient( 180deg, rgba(255,255,255,.45), rgba(255,255,255,.20) );
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,.7);
+    box-sizing: border-box;
+}
+
+/* =========================================================
+   LEFT SECTION (Logo now sits BEFORE text)
+========================================================= */
+.nav-left-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+/* =========================================================
+   MAIN TITLE
+========================================================= */
+
+/* TITLE */
+.ary-brand-header {
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: #1E293B;
+    white-space: nowrap;
+    padding-left: 4px;
+}
+/* =========================================================
+   SUB TITLE
+========================================================= */
+.brand-logo-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.brand-logo {
+    height: 34px;
+    width: 34px;
+    border-radius: 50%;
+    object-fit: contain;
+    background: #ffffff; /* Ensures logo background is clean */
+}
+
+.brand-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #15803D;
+    margin: 0;
+    line-height: 1.1;
+}
+
+.brand-subtitle {
+    font-size: 8px;
+    color: #64748B;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* =========================================================
+   MIDDLE PRODUCT SLIDER (Matches Target Image Block Size)
+========================================================= */
+.product-slider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.85); /* Clean white background box */
+    border: 1px solid rgba(255, 255, 255, 1);
+    padding: 4px 16px;
+    border-radius: 8px;
+    height: 42px;
+    max-width: 450px; /* Prevents the box from stretching too wide */
+    width: 100%;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    box-sizing: border-box;
+}
+
+.product-track {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+}
+
+/* Force visible product scaling */
+.product-img {
+    height: 50px !important; /* Forces uniform height visibility */
+    width: auto !important;
+    max-width: 45px;
+    object-fit: contain !important;
+    flex-shrink: 0; /* Prevents browser from flattening images to 0px width */
+    display: block;
+}
+
+/* =========================================================
+   RIGHT MODULE ACTION BOX
+========================================================= */
+.module-box {
+    padding: 0 12px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #166534;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+    .module-box:hover {
+        background: #FFFFFF;
+        transform: translateY(-1px);
+    }
+        /* =========================================
+   FILTER CARD
+========================================= */
+
+        .filter-card {
+            background: rgba(255,255,255,.92);
+            backdrop-filter: blur(14px);
+            border-radius: 18px;
+            border: 1px solid #EEF2F7;
+            padding: 10px 12px;
+            box-shadow: 0 6px 16px rgba(15,23,42,.03), 0 18px 35px rgba(15,23,42,.04);
+        }
+        /* =========================================
+   INPUT
+========================================= */
+
+        .f-input {
+            height: 36px;
+            border-radius: 12px;
+            border: 1px solid #DCE3EC;
+            background: #FAFBFD;
+            transition: .25s ease;
+        }
+
+            .f-input:focus {
+                border-color: #2563EB;
+                box-shadow: 0 0 0 4px rgba(37,99,235,.10);
+            }
+        /* =========================================================
+   COMPACT PREMIUM KPI
+========================================================= */
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        /* =========================================================
+   KPI CARD
+========================================================= */
+
+        .kpi-card {
+            position: relative;
+            overflow: hidden;
+            min-height: 74px;
+            padding: 12px 14px;
+            border-radius: 22px;
+            background: linear-gradient( 145deg, rgba(255,255,255,.96), rgba(255,255,255,.82) );
+            border: 1px solid rgba(255,255,255,.88);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 8px 22px rgba(15,23,42,.05);
+            transition: transform .28s ease, box-shadow .28s ease;
+            animation: floatCard 5s ease-in-out infinite;
+        }
+            /* =========================================================
+   TOP LINE
+========================================================= */
+
+            .kpi-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+            }
+            /* =========================================================
+   LIGHT GLOW
+========================================================= */
+
+            .kpi-card::after {
+                content: '';
+                position: absolute;
+                width: 180px;
+                height: 180px;
+                top: -100px;
+                right: -90px;
+                border-radius: 50%;
+                background: radial-gradient( circle, rgba(255,255,255,.26), transparent 70% );
+                pointer-events: none;
+            }
+            /* =========================================================
+   HOVER
+========================================================= */
+
+            .kpi-card:hover {
+                transform: translateY(-5px) scale(1.02);
+                box-shadow: 0 18px 40px rgba(59,130,246,.12);
+            }
+        /* =========================================================
+   HEADER
+========================================================= */
+
+        .kpi-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        /* =========================================================
+   VALUE
+========================================================= */
+
+        .kpi-val {
+            font-size: 18px;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 4px;
+            letter-spacing: -.5px;
+            animation: pulseText 3s ease infinite;
+        }
+        /* =========================================================
+   LABEL
+========================================================= */
+
+        .kpi-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .2px;
+        }
+        /* =========================================================
+   ICON
+========================================================= */
+
+        .kpi-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 6px 14px rgba(15,23,42,.05);
+            animation: iconFloat 4s ease-in-out infinite;
+        }
+        /* =========================================================
+   BOTTOM
+========================================================= */
+
+        .kpi-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 4px;
+        }
+        /* =========================================================
+   GRAPH
+========================================================= */
+
+        .kpi-wave {
+            width: 88px;
+            height: 20px;
+        }
+        /* =========================================================
+   TREND
+========================================================= */
+
+        .kpi-trend {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.65);
+            backdrop-filter: blur(10px);
+        }
+        /* =========================================================
+   BLUE
+========================================================= */
+
+        .k-blue::before {
+            background: linear-gradient(90deg,#2563EB,#60A5FA);
+        }
+
+        .k-blue .kpi-val,
+        .k-blue .kpi-label,
+        .k-blue .kpi-trend {
+            color: #2563EB;
+        }
+
+        .k-blue .kpi-icon {
+            background: linear-gradient( 135deg, rgba(37,99,235,.14), rgba(96,165,250,.22) );
+            color: #2563EB;
+        }
+        /* =========================================================
+   AMBER
+========================================================= */
+
+        .k-amber::before {
+            background: linear-gradient(90deg,#F59E0B,#FCD34D);
+        }
+
+        .k-amber .kpi-val,
+        .k-amber .kpi-label,
+        .k-amber .kpi-trend {
+            color: #D97706;
+        }
+
+        .k-amber .kpi-icon {
+            background: linear-gradient( 135deg, rgba(245,158,11,.14), rgba(252,211,77,.22) );
+            color: #D97706;
+        }
+        /* =========================================================
+   GREEN
+========================================================= */
+
+        .k-green::before {
+            background: linear-gradient(90deg,#10B981,#34D399);
+        }
+
+        .k-green .kpi-val,
+        .k-green .kpi-label,
+        .k-green .kpi-trend {
+            color: #059669;
+        }
+
+        .k-green .kpi-icon {
+            background: linear-gradient( 135deg, rgba(16,185,129,.14), rgba(52,211,153,.22) );
+            color: #059669;
+        }
+        /* =========================================================
+   PURPLE
+========================================================= */
+
+        .k-purple::before {
+            background: linear-gradient(90deg,#8B5CF6,#A78BFA);
+        }
+
+        .k-purple .kpi-val,
+        .k-purple .kpi-label,
+        .k-purple .kpi-trend {
+            color: #7C3AED;
+        }
+
+        .k-purple .kpi-icon {
+            background: linear-gradient( 135deg, rgba(139,92,246,.14), rgba(167,139,250,.22) );
+            color: #7C3AED;
+        }
+        /* =========================================================
+   ANIMATIONS
+========================================================= */
+
+        @keyframes floatCard {
+
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-3px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        @keyframes pulseText {
+
+            0% {
+                opacity: .9;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: .9;
+            }
+        }
+
+        @keyframes iconFloat {
+
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-2px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+        /* =========================================================
+   FLOAT ANIMATION
+========================================================= */
+
+        @keyframes floatingCard {
+
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .kpi-card {
+            animation: floatingCard 5s ease-in-out infinite;
+        }
+
+            .kpi-card:nth-child(2) {
+                animation-delay: .7s;
+            }
+
+            .kpi-card:nth-child(3) {
+                animation-delay: 1.4s;
+            }
+
+            .kpi-card:nth-child(4) {
+                animation-delay: 2.1s;
+            }
+        /* =========================================
+   TABS
+========================================= */
+
+        .tab-bar {
+            gap: 10px;
+            border-bottom: none;
+        }
+
+        .tab-btn {
+            padding: 11px 18px;
+            border: none;
+            border-radius: 14px;
+            background: #F8FAFC;
+            color: #64748B;
+            font-size: 12px;
+            font-weight: 700;
+            transition: .25s ease;
+            cursor: pointer;
+        }
+
+            .tab-btn:hover {
+                background: #EEF2FF;
+                color: #2563EB;
+            }
+
+            .tab-btn.on {
+                background: linear-gradient( 135deg, #111827, #1E293B );
+                color: #fff;
+                box-shadow: 0 8px 18px rgba(15,23,42,.16);
+            }
+        /* =========================================================
+   CLEAN PREMIUM TABLE
+========================================================= */
+
+        .t-card {
+            background: rgba(255,255,255,.74);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,.7);
+            box-shadow: 0 8px 20px rgba(15,23,42,.04);
+            padding: 8px 10px;
+            overflow: hidden;
+        }
+        /* TABLE */
+
+        table.dt {
+            width: 100%;
+            border-collapse: collapse;
+        }
+            /* HEADER */
+
+            table.dt thead th {
+                background: transparent;
+                color: #64748B;
+                font-size: 11px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: .5px;
+                padding: 14px 16px;
+                border-bottom: 1px solid #E8EEF5;
+                white-space: nowrap;
+            }
+            /* ROW */
+
+            table.dt tbody tr {
+                transition: background .22s ease;
+            }
+                /* ROW HOVER */
+
+                table.dt tbody tr:hover {
+                    background: rgba(239,246,255,.75);
+                }
+            /* CELLS */
+
+            table.dt tbody td {
+                padding: 14px 16px;
+                font-size: 13px;
+                font-weight: 500;
+                color: #334155;
+                border-bottom: 1px solid #F1F5F9;
+                vertical-align: middle;
+            }
+                /* FIRST COLUMN */
+
+                table.dt tbody td:first-child {
+                    font-weight: 700;
+                    color: #0F172A;
+                }
+        /* STATUS */
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        /* BUTTON */
+
+        .table-action {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 10px;
+            background: #fff;
+            transition: .22s ease;
+            box-shadow: 0 4px 10px rgba(15,23,42,.05);
+        }
+
+            .table-action:hover {
+                transform: translateY(-1px);
+                background: #2563EB;
+                color: #fff;
+            }
+        /* =========================================
+   TABLE CARD
+========================================= */
+        /*.t-card {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid #EEF2F7;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(15,23,42,.04), 0 20px 40px rgba(15,23,42,.05);
+}*/
+        /* =========================================
+   TABLE
+========================================= */
+        /*table.dt thead th {
+    background: #F8FAFC;
+    color: #64748B;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 12px;
+    border-bottom: 1px solid #EEF2F7;
+}
+
+table.dt tbody tr {
+    transition: background .2s ease;
+}
+
+    table.dt tbody tr:hover {
+        background: #F8FBFF;
+    }
+
+table.dt {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+    table.dt tbody td {
+        padding: 14px 12px;
+    }*/
+        /* =========================================================
+   PREMIUM TABLE CARD
+========================================================= */
+        .t-card {
+            background: rgba(255,255,255,.72);
+            backdrop-filter: blur(14px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,.6);
+            box-shadow: 0 8px 18px rgba(15,23,42,.04);
+            padding: 10px 12px;
+        }
+        /* =========================================================
+   TABLE WRAPPER
+========================================================= */
+
+        .t-wrap {
+            overflow-x: auto;
+            border-radius: 26px;
+        }
+            /* =========================================================
+   PREMIUM SCROLLBAR
+========================================================= */
+
+            .t-wrap::-webkit-scrollbar {
+                height: 10px;
+            }
+
+            .t-wrap::-webkit-scrollbar-track {
+                background: #EEF2F7;
+                border-radius: 30px;
+            }
+
+            .t-wrap::-webkit-scrollbar-thumb {
+                border-radius: 30px;
+                background: linear-gradient( 180deg, #93C5FD, #A78BFA );
+            }
+        /* =========================================================
+   TABLE CELLS
+========================================================= */
+
+        table.dt tbody td {
+            padding: 22px 20px;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+            vertical-align: middle;
+            transition: .28s ease;
+        }
+            /* FIRST COLUMN */
+
+            table.dt tbody td:first-child {
+                border-radius: 24px 0 0 24px;
+                font-weight: 700;
+                color: #0F172A;
+            }
+            /* LAST COLUMN */
+
+            table.dt tbody td:last-child {
+                border-radius: 0 24px 24px 0;
+            }
+        /* =========================================================
+   TABLE HOVER TEXT
+========================================================= */
+
+        table.dt tbody tr:hover td {
+            color: #0F172A;
+        }
+        /* =========================================================
+   STATUS BADGES
+========================================================= */
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .3px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(15,23,42,.05);
+        }
+
+            .status-badge::before {
+                content: '';
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+            }
+        /* PENDING */
+
+        .sb-pending {
+            background: linear-gradient( 135deg, rgba(254,243,199,.95), rgba(253,230,138,.88) );
+            color: #92400E;
+        }
+
+            .sb-pending::before {
+                background: #F59E0B;
+            }
+        /* APPROVED */
+
+        .sb-approved {
+            background: linear-gradient( 135deg, rgba(209,250,229,.95), rgba(110,231,183,.88) );
+            color: #065F46;
+        }
+
+            .sb-approved::before {
+                background: #10B981;
+            }
+        /* REJECTED */
+
+        .sb-rejected {
+            background: linear-gradient( 135deg, rgba(254,226,226,.95), rgba(252,165,165,.88) );
+            color: #991B1B;
+        }
+
+            .sb-rejected::before {
+                background: #EF4444;
+            }
+        /* =========================================================
+   ACTION BUTTONS
+========================================================= */
+
+        .table-action {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 14px;
+            background: rgba(255,255,255,.85);
+            color: #64748B;
+            transition: .3s ease;
+            box-shadow: 0 6px 14px rgba(15,23,42,.05);
+        }
+
+            .table-action:hover {
+                transform: translateY(-3px) scale(1.06);
+                background: linear-gradient( 135deg, #2563EB, #7C3AED );
+                color: #fff;
+                box-shadow: 0 14px 24px rgba(59,130,246,.22);
+            }
+        /* =========================================
+   BUTTON
+========================================= */
+
+        .btn-dark {
+            border-radius: 12px;
+            background: linear-gradient( 135deg, #111827, #1E293B );
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(15,23,42,.15);
+        }
+        /* =========================================
+   ANIMATIONS
+========================================= */
+
+        @keyframes floatGreen {
+
+            0% {
+                transform: translateY(0px) scale(1);
+            }
+
+            50% {
+                transform: translateY(10px) scale(1.08);
+            }
+
+            100% {
+                transform: translateY(0px) scale(1);
+            }
+        }
+
+        @keyframes floatOrange {
+
+            0% {
+                transform: translateY(0px) scale(1);
+            }
+
+            50% {
+                transform: translateY(-12px) scale(1.06);
+            }
+
+            100% {
+                transform: translateY(0px) scale(1);
+            }
+        }
+
+        @keyframes waveMove {
+
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        @keyframes navFade {
+
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        @keyframes titleFade {
+
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+        /* =========================================================
+   FIX PAGINATION
+========================================================= */
+
+        .dt-pagination {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 18px !important;
+            background: #fff !important;
+            border-top: 1px solid #E5E7EB;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .dt-pagination-left {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748B;
+        }
+
+        .dt-pagination-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dt-pg-btns {
+            display: flex !important;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dt-pg-btn {
+            min-width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 10px;
+            background: #F1F5F9;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .25s ease;
+        }
+
+            .dt-pg-btn:hover {
+                background: #2563EB;
+                color: white;
+                transform: translateY(-2px);
+            }
+
+            .dt-pg-btn.active {
+                background: linear-gradient( 135deg, #2563EB, #1D4ED8 );
+                color: white;
+                box-shadow: 0 8px 18px rgba(37,99,235,.25);
+            }
+
+        .pg-select {
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid #CBD5E1;
+            padding: 0 10px;
+            background: white;
+            font-weight: 600;
+        }

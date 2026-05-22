@@ -17,7 +17,7 @@ namespace JSAPNEW.Services.Implementation
         // ============================
         // GET BILL DETAILS
         // ============================
-        public List<BillDetailDto> GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName)
+        public List<BillDetailDto> GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName,string status)
         {
             var data = new List<BillDetailDto>();
             string connStr = _config.GetConnectionString("FHConnection");
@@ -31,6 +31,7 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@ToDate", (object)toDate ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@AccountName", string.IsNullOrWhiteSpace(accountName) ? DBNull.Value : accountName);
                 cmd.Parameters.AddWithValue("@SerialNumber", DBNull.Value);
+                cmd.Parameters.AddWithValue("@Status", string.IsNullOrWhiteSpace(status)? DBNull.Value: status);
 
                 conn.Open();
                 SqlDataReader reader = cmd.ExecuteReader();
@@ -40,6 +41,7 @@ namespace JSAPNEW.Services.Implementation
                     data.Add(new BillDetailDto
                     {
                         SerialNumber = reader["SerialNumber"]?.ToString(),
+
                         AccountName = reader["AccountName"]?.ToString(),
                         VchNumber = reader["VchNumber"],
                         VoucherDate = reader["VoucherDate"]?.ToString(),
@@ -74,6 +76,7 @@ namespace JSAPNEW.Services.Implementation
                         CheckerStatus = @Status,
                         CheckerRemark = @Remark,
                         CheckerDate   = GETDATE()
+
                     WHERE VchNumber = @VchNumber";
 
                 SqlCommand cmd = new SqlCommand(query, conn);
@@ -102,6 +105,8 @@ namespace JSAPNEW.Services.Implementation
                     cmd.CommandTimeout = 120;
 
                     cmd.Parameters.Add("@SerialNumber", SqlDbType.Decimal).Value = serialNumber;
+          
+   
                     cmd.Parameters.Add("@VchNumber", SqlDbType.Decimal).Value = DBNull.Value;
                     cmd.Parameters.Add("@AccountName", SqlDbType.NVarChar).Value = DBNull.Value;
                     cmd.Parameters.Add("@FromDate", SqlDbType.Date).Value = DBNull.Value;
@@ -117,13 +122,32 @@ namespace JSAPNEW.Services.Implementation
                         {
                             items.Add(new InvoiceItemDto
                             {
+                                SerialNumber = reader["SerialNumber"]?.ToString(),
+
                                 ProductName = reader["ProductName"]?.ToString(),
+
+                                HSNSACID = reader["HSNSACID"]?.ToString(),
+
                                 Quantity = reader["Quantity"],
-                                Rate = reader["PurchaseCost"],
+
+                                PurchaseRate = reader["PurchaseCost"],
+
+                                DiscountPercent = reader["DiscountPercent"],
+
+                                DiscountAmount = reader["DiscountAmount"],
+
+                                Margin = reader["Margin"],
+
+                                MRP = reader["SellingRate"],
+
                                 Tax = reader["TaxRate"],
+
                                 Amount = reader["ItemValue"],
+
                                 TaxName = reader["TaxName"] == DBNull.Value ? "-" : reader["TaxName"].ToString(),
+
                                 WarehouseName = reader["WarehouseName"] == DBNull.Value ? "-" : reader["WarehouseName"].ToString(),
+
                                 ItemValue = reader["ItemValue"]
                             });
                         }

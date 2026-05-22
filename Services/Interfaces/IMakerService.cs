@@ -7,5 +7,6 @@ namespace JSAPNEW.Services.Interfaces
         List<BillDetailDto> GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName, decimal? serialNumber);
         List<string> GetAccountSuggestions(string term, DateTime? fromDate, DateTime? toDate);
         List<InvoiceItemDto> GetInvoiceItemDetails(int vchNumber);
+      
     }
 }

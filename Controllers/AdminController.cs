@@ -158,7 +158,7 @@ namespace JSAPNEW.Controllers
 
         // ✅ Invoice Payment Tab
         [HttpGet]
-        public IActionResult GetInvoiceActivity(string accountName, string fromDate, string toDate)
+        public IActionResult GetInvoicePaymentActivity(string accountName, string fromDate, string toDate)
         {
             var data = FetchBillDetails(accountName, fromDate, toDate);
             return Json(data);
