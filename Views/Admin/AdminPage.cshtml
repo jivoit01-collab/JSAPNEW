@@ -77,38 +77,38 @@
     </div>
 
 </nav> *@
+<div class="admin-dashboard-shell">
 <nav class="premium-nav">
-    <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
-
     <div class="nav-glass">
-        
         <div class="nav-left-section">
             <div class="brand-logo-wrap">
-                <img src="~/images/logo.png" class="brand-logo" />
+                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
             </div>
             <div class="brand-content">
-                <div class="brand-title">Wellness</div>
+                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                <div class="brand-title">Wellness Finance Operations</div>
                 <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
             </div>
         </div>
 
-        <div class="product-slider">
+        <div class="product-slider" aria-label="Product showcase">
             <div class="product-track">
-                <img src="@Url.Content("~/images/canola.jpg")" class="product-img" />
-                <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img" />
-                <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img" />
-                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" />
+                <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img clickable-product" alt="Pomace oil" />
+                <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img clickable-product" alt="Groundnut oil" />
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                <img src="@Url.Content("~/images/download.jpg")" class="product-img clickable-product" alt="Wellness product" />
             </div>
         </div>
 
         <div class="module-box">
+            <span class="module-dot"></span>
             <i class="fa-solid fa-shield-halved"></i>
             <span>Admin Dashboard</span>
         </div>
-        
     </div>
 </nav>
-<div class="body">
+<div class="body admin-dashboard-body">
 
     <!-- PRODUCT MODAL -->
     <div class="product-modal" id="productModal">
@@ -117,7 +117,7 @@
     </div>
 
     <!-- FILTER -->
-    <div class="filter-card">
+    <div class="filter-card dashboard-filter-card">
         <div class="f-group">
             <span class="f-label">From Date</span>
             <input type="date" class="f-input" id="fromDate" />
@@ -130,7 +130,7 @@
             <span class="f-label">Account Name</span>
             <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
         </div>
-        <button class="btn btn-dark" onclick="loadAllData()">
+        <button class="btn btn-dark admin-search-btn" onclick="loadAllData()">
             <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
     </div>
@@ -220,20 +220,28 @@
 
     <!-- TABS -->
     <div class="tab-bar">
-        <button class="tab-btn on" onclick="switchTab('maker',this)" type="button">Maker Activity</button>
-        <button class="tab-btn" onclick="switchTab('checker',this)" type="button">Checker Activity</button>
-        <button class="tab-btn" onclick="switchTab('invoice',this)" type="button">Invoice Payment</button>
-        <button class="tab-btn" onclick="switchTab('paymentchecker',this)" type="button">Payment Checker</button>
+        <button class="tab-btn on" onclick="switchTab('maker',this)" type="button">
+            <i class="fa-solid fa-pen-to-square"></i> Maker Activity
+        </button>
+        <button class="tab-btn" onclick="switchTab('checker',this)" type="button">
+            <i class="fa-solid fa-clipboard-check"></i> Checker Activity
+        </button>
+        <button class="tab-btn" onclick="switchTab('invoice',this)" type="button">
+            <i class="fa-solid fa-money-check-dollar"></i> Invoice Payment
+        </button>
+        <button class="tab-btn" onclick="switchTab('paymentchecker',this)" type="button">
+            <i class="fa-solid fa-circle-check"></i> Payment Checker
+        </button>
     </div>
 
     <!-- ══════════════════════════════════════════
          TAB: MAKER
     ══════════════════════════════════════════ -->
     <div class="tp on" id="tp-maker">
-        <div class="filter-card" style="margin-bottom:12px; padding:10px 16px;">
+        <div class="filter-card table-filter-card">
             <div class="f-group">
                 <span class="f-label">Status</span>
-                <select class="f-input" id="dd-status-maker" onchange="filterMakerTable()" style="cursor:pointer">
+                <select class="f-input" id="dd-status-maker" onchange="filterMakerTable()">
                     <option value="">All Status</option>
                     <option value="Pending">Pending</option>
                     <option value="Approved">Approved</option>
@@ -242,7 +250,7 @@
             </div>
             <div class="f-group">
                 <span class="f-label">Attachment</span>
-                <select class="f-input" id="dd-attach-maker" onchange="filterMakerTable()" style="cursor:pointer">
+                <select class="f-input" id="dd-attach-maker" onchange="filterMakerTable()">
                     <option value="">All</option>
                     <option value="yes">Uploaded</option>
                     <option value="no">No File</option>
@@ -250,17 +258,35 @@
             </div>
             <div class="f-group grow">
                 <span class="f-label">Account Name</span>
-                <select class="f-input" id="dd-account-maker" onchange="filterMakerTable()" style="cursor:pointer">
+                <select class="f-input" id="dd-account-maker" onchange="filterMakerTable()">
                     <option value="">All Accounts</option>
                 </select>
             </div>
-            <button class="btn btn-dark" onclick="resetMakerFilters()" style="background:#6B7280">&#x21BA; Reset</button>
+            <button class="btn btn-soft reset-filter" onclick="resetMakerFilters()">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
         </div>
 
         <div class="t-card">
+            <div class="t-header">
+                <div>
+                    <div class="t-title"><i class="fa-solid fa-layer-group"></i> Maker Entries</div>
+                    <div class="t-subtitle">Attachment and maker approval overview</div>
+                </div>
+            </div>
             <div class="top-scroll"><div class="top-scroll-inner"></div></div>
             <div class="t-wrap">
-                <table class="dt">
+                <table class="dt dt-maker">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-remark" />
+                        <col class="col-status" />
+                        <col class="col-attachment" />
+                        <col class="col-delete" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Account Name</th>
@@ -297,10 +323,10 @@
          TAB: CHECKER
     ══════════════════════════════════════════ -->
     <div class="tp" id="tp-checker">
-        <div class="filter-card" style="margin-bottom:12px; padding:10px 16px;">
+        <div class="filter-card table-filter-card">
             <div class="f-group">
                 <span class="f-label">Status</span>
-                <select class="f-input" id="dd-status-checker" onchange="filterCheckerTable()" style="cursor:pointer">
+                <select class="f-input" id="dd-status-checker" onchange="filterCheckerTable()">
                     <option value="">All Status</option>
                     <option value="Approved">Approved</option>
                     <option value="Rejected">Rejected</option>
@@ -309,7 +335,7 @@
             </div>
             <div class="f-group">
                 <span class="f-label">Attachment</span>
-                <select class="f-input" id="dd-attach-checker" onchange="filterCheckerTable()" style="cursor:pointer">
+                <select class="f-input" id="dd-attach-checker" onchange="filterCheckerTable()">
                     <option value="">All</option>
                     <option value="yes">Uploaded</option>
                     <option value="no">No File</option>
@@ -317,17 +343,34 @@
             </div>
             <div class="f-group grow">
                 <span class="f-label">Account Name</span>
-                <select class="f-input" id="dd-account-checker" onchange="filterCheckerTable()" style="cursor:pointer">
+                <select class="f-input" id="dd-account-checker" onchange="filterCheckerTable()">
                     <option value="">All Accounts</option>
                 </select>
             </div>
-            <button class="btn btn-dark" onclick="resetCheckerFilters()" style="background:#6B7280">&#x21BA; Reset</button>
+            <button class="btn btn-soft reset-filter" onclick="resetCheckerFilters()">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
         </div>
 
         <div class="t-card">
+            <div class="t-header">
+                <div>
+                    <div class="t-title"><i class="fa-solid fa-user-check"></i> Checker Entries</div>
+                    <div class="t-subtitle">Verification status and attachment visibility</div>
+                </div>
+            </div>
             <div class="top-scroll"><div class="top-scroll-inner"></div></div>
             <div class="t-wrap">
-                <table class="dt">
+                <table class="dt dt-checker">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-remark" />
+                        <col class="col-status" />
+                        <col class="col-attachment" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Account Name</th>
@@ -381,9 +424,23 @@
     ══════════════════════════════════════════ -->
     <div class="tp" id="tp-invoice">
         <div class="t-card">
+            <div class="t-header">
+                <div>
+                    <div class="t-title"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Payment</div>
+                    <div class="t-subtitle">Checker approval mapped with payment state</div>
+                </div>
+            </div>
             <div class="top-scroll"><div class="top-scroll-inner"></div></div>
             <div class="t-wrap">
-                <table class="dt">
+                <table class="dt dt-invoice">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-status" />
+                        <col class="col-status" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Account Name</th>
@@ -439,9 +496,23 @@
     ══════════════════════════════════════════ -->
     <div class="tp" id="tp-paymentchecker">
         <div class="t-card">
+            <div class="t-header">
+                <div>
+                    <div class="t-title"><i class="fa-solid fa-circle-check"></i> Payment Checker</div>
+                    <div class="t-subtitle">Paid invoices ready for payment validation</div>
+                </div>
+            </div>
             <div class="top-scroll"><div class="top-scroll-inner"></div></div>
             <div class="t-wrap">
-                <table class="dt">
+                <table class="dt dt-paymentchecker">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-date" />
+                        <col class="col-status" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Account Name</th>
@@ -492,25 +563,11 @@
 </div>
       <!-- /tp-paymentchecker -->
     <!-- SCROLL BUTTONS -->
-    <div id="scroll-btns" style="
-        position:fixed; bottom:28px; right:24px;
-        display:flex; flex-direction:column; gap:8px; z-index:999;">
-        <button onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Scroll to Top" style="
-            width:40px;height:40px;border-radius:50%;border:1px solid #E5E7EB;
-            background:#111827;color:#fff;font-size:16px;cursor:pointer;
-            display:flex;align-items:center;justify-content:center;
-            box-shadow:0 4px 12px rgba(0,0,0,.15);transition:all .2s;"
-                onmouseover="this.style.background='#374151'"
-                onmouseout="this.style.background='#111827'">
+    <div id="scroll-btns">
+        <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Scroll to Top" type="button">
             <i class="fa-solid fa-chevron-up"></i>
         </button>
-        <button onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Scroll to Bottom" style="
-            width:40px;height:40px;border-radius:50%;border:1px solid #E5E7EB;
-            background:#111827;color:#fff;font-size:16px;cursor:pointer;
-            display:flex;align-items:center;justify-content:center;
-            box-shadow:0 4px 12px rgba(0,0,0,.15);transition:all .2s;"
-                onmouseover="this.style.background='#374151'"
-                onmouseout="this.style.background='#111827'">
+        <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Scroll to Bottom" type="button">
             <i class="fa-solid fa-chevron-down"></i>
         </button>
     </div>
@@ -568,6 +625,7 @@
     </div>
 
 </div><!-- /body -->
+</div><!-- /admin-dashboard-shell -->
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
@@ -771,52 +829,165 @@
     rows += `
     <tr>
 
-    <td>${x.accountName}</td>
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
 
-    <td>${x.vchNumber}</td>
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
 
-    <td>${x.voucherDate}</td>
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
 
-    <td>₹${x.billAmount}</td>
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
 
-    <td>${x.makerRemark ?? '-'}</td>
+    <td class="td-remark" title="${safeAttr(x.makerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.makerRemark ?? '-')}</span></td>
 
-    <td>${x.makerStatus ?? '-'}</td>
+    <td class="td-status">${statusBadge(x.makerStatus ?? '-')}</td>
 
-    <td>
-    ${
-    x.attachmentPath
-    ?
-    `<a class="attach-view"
-    target="_blank"
-    href="${x.attachmentPath}">
-    View
-    </a>`
-    :
-    'No File'
-    }
-    </td>
+    <td class="td-attachment">${attachmentLink(x.attachmentPath)}</td>
 
-    <td>
-    ${
-    x.attachmentPath
-    ?
-    `<button class="attach-del"
-    onclick="deleteAttachment('${x.vchNumber}')">
-    Delete
-    </button>`
-    :
-    ''
-    }
-    </td>
+    <td class="td-action-cell">${deleteAttachmentButton(x)}</td>
 
     </tr>
     `;
     });
 
-    $('#makerBody').html(rows ||
-    '<tr><td colspan="8" style="text-align:center;padding:30px;color:#9CA3AF">No records found.</td></tr>');
+    $('#makerBody').html(rows || emptyRow(8));
     }
+
+    if(tab === 'checker')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    <td class="td-remark" title="${safeAttr(x.checkerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.checkerRemark ?? '-')}</span></td>
+
+    <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+
+    <td class="td-attachment">${attachmentLink(x.attachmentPath)}</td>
+
+    </tr>
+    `;
+    });
+
+    $('#checkerBody').html(rows || emptyRow(7));
+    }
+
+    if(tab === 'invoice')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+
+    <td class="td-status">${statusBadge(x.paymentStatus ?? '-')}</td>
+
+    </tr>
+    `;
+    });
+
+    $('#invoiceBody').html(rows || emptyRow(6));
+    }
+
+    if(tab === 'paymentchecker')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.paymentDate ?? '-')}</span></td>
+
+    <td class="td-status">${statusBadge(x.paymentStatus ?? '-')}</td>
+
+    </tr>
+    `;
+    });
+
+    $('#paymentCheckerBody').html(rows || emptyRow(6));
+    }
+    }
+
+    function safeText(value) {
+    if (value === null || value === undefined || value === '') return '-';
+
+    return $('<div>').text(value).html();
+    }
+
+    function safeAttr(value) {
+    return safeText(value).replace(/"/g, '&quot;');
+    }
+
+    function statusBadge(status) {
+    const value = safeText(status);
+    const normalized = String(status || '').toLowerCase();
+    let cls = 'sb-neutral';
+    let icon = 'fa-minus';
+
+    if (normalized.includes('approved') || normalized === 'paid') {
+    cls = 'sb-approved';
+    icon = 'fa-check';
+    } else if (normalized.includes('pending') || normalized.includes('unpaid')) {
+    cls = 'sb-pending';
+    icon = 'fa-clock';
+    } else if (normalized.includes('reject')) {
+    cls = 'sb-rejected';
+    icon = 'fa-xmark';
+    }
+
+    return `<span class="status-badge ${cls}"><i class="fa-solid ${icon}"></i>${value}</span>`;
+    }
+
+    function attachmentLink(path) {
+    if (!path) return '<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>';
+
+    return `
+    <a class="attach-view" target="_blank" href="${path}">
+    <i class="fa-solid fa-eye"></i>
+    View
+    </a>`;
+    }
+
+    function deleteAttachmentButton(x) {
+    if (!x.attachmentPath) return '<span class="action-placeholder">-</span>';
+
+    return `
+    <button class="table-action attach-del"
+    onclick="deleteAttachment('${x.vchNumber}')"
+    title="Delete attachment"
+    aria-label="Delete attachment"
+    type="button">
+    <i class="fa-solid fa-trash-can"></i>
+    </button>`;
+    }
+
+    function emptyRow(colspan) {
+    return `<tr><td colspan="${colspan}" class="empty-row">No records found.</td></tr>`;
     }
 
     /* ══════════════════════════════════════════

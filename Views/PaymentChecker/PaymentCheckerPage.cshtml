@@ -14,103 +14,40 @@
       href="~/css/bill-verification.css" />
 <link rel="stylesheet" href="~/css/admin-premium.css" />
 
-    <!-- =====================================================
-         PREMIUM NAVBAR
-    ====================================================== -->
-
-    <nav class="premium-nav">
-    <div class="light-wave"></div>
-    <div class="blue-glow"></div>
-        <div class="ary-brand-header">
-
-            <div class="ary-brand-name">
-                Akal Rozgar Yojana
-            </div>
-
-        </div>
-
-        <!-- LEFT -->
-
+<!-- PREMIUM CONTENT -->
+<div class="admin-dashboard-shell payment-checker-shell">
+<nav class="premium-nav">
+    <div class="nav-glass">
         <div class="nav-left-section">
-
             <div class="brand-logo-wrap">
-
-                <img src="~/images/logo.png"
-                     class="brand-logo" />
-
+                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
             </div>
-
             <div class="brand-content">
-
-                <div class="brand-title">
-                    JSAP
-                </div>
-
-                <div class="brand-subtitle">
-                    Smart Finance • ERP Workflow
-                </div>
-
+                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                <div class="brand-title">Payment Checker Desk</div>
+                <div class="brand-subtitle">Paid invoices • Payment visibility • Voucher drilldown</div>
             </div>
-
         </div>
 
-        <!-- PRODUCT SLIDER -->
-
-        <div class="product-slider">
-
+        <div class="product-slider" aria-label="Product showcase">
             <div class="product-track">
-
-                <img src="@Url.Content("~/images/canola.jpg")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/js3.png")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")"
-                     class="product-img" />
-
-                <!-- DUPLICATE -->
-
-                <img src="@Url.Content("~/images/canola.jpg")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/js3.png")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
-                     class="product-img" />
-
-                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")"
-                     class="product-img" />
-
+                <img src="@Url.Content("~/images/canola.jpg")" class="product-img" alt="Canola oil" />
+                <img src="@Url.Content("~/images/js3.png")" class="product-img" alt="Juice product" />
+                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img" alt="Pomace oil" />
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" alt="Desi ghee" />
+                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")" class="product-img" alt="Wellness product" />
             </div>
-
         </div>
-
-        <!-- MODULE -->
 
         <div class="module-box payment-checker">
-
-            <div class="module-dot"></div>
-
+            <span class="module-dot"></span>
             <i class="fa-solid fa-money-check-dollar"></i>
-
-            <span>
-                Payment Checker
-            </span>
-
+            <span>Payment Checker</span>
         </div>
+    </div>
+</nav>
 
-    </nav>
+<div class="body admin-dashboard-body">
 
 
 
@@ -124,19 +61,26 @@
 
         <div class="kpi-card k-blue">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-file-invoice"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardTotalCount">
+                        —
+                    </div>
+                    <div class="kpi-label">
+                        Paid Invoices
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardTotalCount">
-
-                —
-
-            </div>
-
-            <div class="kpi-label">
-                Paid Invoices 
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-receipt fa-xs"></i> Cleared</div>
             </div>
 
         </div>
@@ -146,19 +90,26 @@
 
         <div class="kpi-card k-green">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-indian-rupee-sign"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardTotalAmount">
+                        —
+                    </div>
+                    <div class="kpi-label">
+                        Paid Amount
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardTotalAmount">
-
-                —
-
-            </div>
-
-            <div class="kpi-label">
-                Paid Amount
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-circle-check fa-xs"></i> Settled</div>
             </div>
 
         </div>
@@ -168,20 +119,26 @@
 
         <div class="kpi-card k-purple">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-calendar-days"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardLatestDate">
+                        —
+                    </div>
+                    <div class="kpi-label">
+                        Latest Payment Date
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-calendar-days"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardLatestDate"
-                 style="font-size:18px;padding-top:8px;">
-
-                —
-
-            </div>
-
-            <div class="kpi-label">
-                Latest Payment Date
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-clock-rotate-left fa-xs"></i> Recent</div>
             </div>
 
         </div>
@@ -189,21 +146,28 @@
 
         <!-- ACCOUNT -->
 
-        <div class="kpi-card k-orange">
+        <div class="kpi-card k-amber">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-building"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardUniqueAccounts">
+                        —
+                    </div>
+                    <div class="kpi-label">
+                        Unique Accounts
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-building"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardUniqueAccounts">
-
-                —
-
-            </div>
-
-            <div class="kpi-label">
-                Unique Accounts
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-users fa-xs"></i> Vendors</div>
             </div>
 
         </div>
@@ -216,7 +180,7 @@
          FILTER CARD
     ====================================================== -->
 
-    <div class="filter-card">
+    <div class="filter-card payment-checker-filter-card">
 
         <!-- FROM DATE -->
 
@@ -250,7 +214,7 @@
 
         <!-- ACCOUNT -->
 
-        <div class="f-group grow position-relative">
+        <div class="f-group grow autocomplete-group">
 
             <span class="f-label">
                 Account Name
@@ -262,7 +226,7 @@
                    placeholder="Search account..."
                    autocomplete="off" />
 
-            <div id="suggestionBox"></div>
+            <div id="suggestionBox" class="suggestion-box"></div>
 
         </div>
 
@@ -270,7 +234,7 @@
         <!-- SEARCH -->
         <button type="button"
                 id="searchBtn"
-                class="btn btn-dark search-payment-btn">
+                class="btn btn-dark admin-search-btn search-payment-btn">
 
             <i class="fa-solid fa-magnifying-glass"></i>
 
@@ -286,7 +250,7 @@
          TABLE CARD
     ====================================================== -->
 
-    <div class="t-card checker-table-card">
+    <div class="t-card payment-checker-table-card">
 
         <!-- HEADER -->
 
@@ -336,8 +300,23 @@
         <div class="t-wrap"
              id="tableWrap">
 
-            <table class="dt"
+            <table class="dt payment-checker-table"
                    id="mainTable">
+
+                <colgroup>
+                    <col class="col-account" />
+                    <col class="col-voucher" />
+                    <col class="col-date" />
+                    <col class="col-amount" />
+                    <col class="col-supplier" />
+                    <col class="col-date" />
+                    <col class="col-date" />
+                    <col class="col-date" />
+                    <col class="col-attachment" />
+                    <col class="col-checker-status" />
+                    <col class="col-payment-status" />
+                    <col class="col-checker-remark" />
+                </colgroup>
 
                 <thead>
 
@@ -367,7 +346,7 @@
                     <tr>
 
                         <td colspan="12"
-                            class="text-center text-muted">
+                            class="empty-row">
 
                             Select date range and click Search
 
@@ -408,6 +387,7 @@
     </div>
 
 </div>
+</div><!-- /.payment-checker-shell -->
 
 
 
@@ -437,8 +417,8 @@
 
     $("#paymentCheckerTable").html(`
     <tr>
-    <td colspan="12" class="text-center">
-    Loading...
+    <td colspan="12" class="empty-row">
+    <i class="fa-solid fa-spinner fa-spin"></i> Loading...
     </td>
     </tr>`);
 
@@ -461,7 +441,8 @@
     $("#paymentCheckerTable").html(`
     <tr>
     <td colspan="12"
-    class="text-center text-danger">
+    class="empty-row"
+    style="color:#EF4444">
 
     Error loading data
 
@@ -470,6 +451,19 @@
 
     });
 
+    }
+
+    function safeText(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    return $("<div>").text(value).html();
+    }
+
+    function safeAttr(value) {
+    return safeText(value).replace(/"/g, "&quot;");
+    }
+
+    function safeJsString(value) {
+    return JSON.stringify(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     }
 
 
@@ -484,8 +478,9 @@
     $("#paymentCheckerTable").html(`
     <tr>
     <td colspan="12"
-    class="text-center">
+    class="empty-row">
 
+    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
     No Paid Invoices Found
 
     </td>
@@ -512,59 +507,54 @@
 
     let attachHtml = item.attachmentPath
     ? `<a href="#"
-    onclick="openPdf('${item.attachmentPath}')"
+    onclick="openPdf(${safeJsString(item.attachmentPath)});return false;"
     class="attach-view">
 
-    View
+    <i class="fa-solid fa-eye"></i> View
 
     </a>`
-    : `<span class="text-muted">No File</span>`;
+    : `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
 
     html += `
 
-    <tr id="row-${item.vchNumber}">
+    <tr id="row-${safeAttr(item.vchNumber)}">
 
-    <td>
+    <td class="td-account" title="${safeAttr(item.accountName ?? '')}">
 
     <a href="javascript:void(0)"
+    class="account-drill-link"
     onclick="loadDetails(${item.vchNumber}, ${item.serialNumber})">
 
-    ${item.accountName ?? ""}
+    <span class="cell-text">${safeText(item.accountName ?? "")}</span>
+    <i class="fa-solid fa-chevron-down"></i>
 
     </a>
 
     </td>
 
-    <td>${item.vchNumber ?? ""}</td>
+    <td class="td-voucher"><span class="cell-text">${safeText(item.vchNumber ?? "")}</span></td>
 
-    <td>${formatDate(item.voucherDate)}</td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.voucherDate))}</span></td>
 
-    <td>${item.billAmount ?? ""}</td>
+    <td class="td-amount"><span class="cell-text">&#8377;${safeText(item.billAmount ?? "")}</span></td>
 
-    <td>${item.supplierRef || "-"}</td>
+    <td class="td-supplier" title="${safeAttr(item.supplierRef || "-")}"><span class="cell-text">${safeText(item.supplierRef || "-")}</span></td>
 
-    <td>${formatDate(item.supplierRefDate)}</td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.supplierRefDate))}</span></td>
 
-    <td>${formatDate(item.dueDate)}</td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.dueDate))}</span></td>
 
-    <td>
-    <strong>
-    ${formatDate(item.paymentDate)}
-    </strong>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.paymentDate))}</span></td>
+
+    <td class="td-attachment">${attachHtml}</td>
+    <td class="td-status">
+    <span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>
     </td>
-
-    <td>${attachHtml}</td>
-    <td>
-    <span class="soft-badge badge-approved">
-    Approved
-    </span>
+    <td class="td-status">
+    <span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>
     </td>
-    <td>
-    <span class="soft-badge badge-paid">
-    Paid ✔
-    </span></td>
    
-    <td>${item.checkerRemark || "-"}</td>
+    <td class="td-remark" title="${safeAttr(item.checkerRemark || "-")}"><span class="cell-text clamp-text">${safeText(item.checkerRemark || "-")}</span></td>
 
     </tr>`;
     });

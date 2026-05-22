@@ -9,58 +9,41 @@
 <link rel="stylesheet" href="~/css/bill-verification.css" />
 <link rel="stylesheet" href="~/css/admin-premium.css" />
 
-
-
-<!-- NAVBAR -->
+<!-- PREMIUM CONTENT -->
+<div class="admin-dashboard-shell maker-dashboard-shell">
 <nav class="premium-nav">
-    <div class="light-wave"></div>
-    <div class="blue-glow"></div>
-    <!-- ARY TITLE -->
-    <div class="ary-brand-header">
-        <div class="ary-brand-name">
-            Akal Rozgar Yojana
+    <div class="nav-glass">
+        <div class="nav-left-section">
+            <div class="brand-logo-wrap">
+                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+            </div>
+            <div class="brand-content">
+                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                <div class="brand-title">Maker Upload Desk</div>
+                <div class="brand-subtitle">Bill attachments • Remarks • Resubmission workflow</div>
+            </div>
+        </div>
+
+        <div class="product-slider" aria-label="Product showcase">
+            <div class="product-track">
+                <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" alt="Juice product" />
+                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" alt="Pomace oil" />
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")" class="product-img clickable-product" alt="Wellness product" />
+            </div>
+        </div>
+
+        <div class="module-box maker">
+            <span class="module-dot"></span>
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Maker Dashboard</span>
         </div>
     </div>
-
-    <!-- LEFT -->
-    <div class="nav-left-section">
-        <div class="brand-logo-wrap">
-            <img src="~/images/logo.png" class="brand-logo" />
-        </div>
-        <div class="brand-content">
-            <div class="brand-title">Wellness</div>
-            <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
-        </div>
-    </div>
-
-    <!-- CENTER PRODUCT SLIDER -->
-    <div class="product-slider">
-        <div class="product-track">
-            <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")" class="product-img clickable-product" />
-            <!-- duplicate for seamless loop -->
-            <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" />
-            <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")" class="product-img clickable-product" />
-        </div>
-    </div>
-
-    <!-- RIGHT -->
-    <div class="module-box maker" >
-        <div class="module-dot"></div>
-        <i class="fa-solid fa-pen-to-square"></i>
-        <span>Maker Dashboard</span>
-    </div>
-
 </nav>
 
 <!-- BODY -->
-<div class="body">
+<div class="body admin-dashboard-body">
 
     <!-- PRODUCT MODAL -->
     <div class="product-modal" id="productModal">
@@ -77,43 +60,55 @@
 
         <div class="kpi-card k-blue">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-paperclip"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardTotalAttachments">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Total Attachments
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-paperclip"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardTotalAttachments">
-
-                0
-
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-folder-open fa-xs"></i> Total</div>
             </div>
-
-            <div class="kpi-label">
-                Total Attachments 
-            </div>
-
         </div>
 
 
         <!-- PENDING -->
 
-        <div class="kpi-card k-orange">
+        <div class="kpi-card k-amber">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-clock"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardPending">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Pending Entries
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardPending">
-
-                0
-
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
             </div>
-
-            <div class="kpi-label">
-                Pending Entries
-            </div>
-
         </div>
 
 
@@ -121,21 +116,27 @@
 
         <div class="kpi-card k-green">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-circle-check"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardSubmitted">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Submitted Entries
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardSubmitted">
-
-                0
-
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Uploaded</div>
             </div>
-
-            <div class="kpi-label">
-                Submitted Entries
-            </div>
-
         </div>
 
 
@@ -143,27 +144,33 @@
 
         <div class="kpi-card k-purple">
 
-            <div class="kpi-icon">
-                <i class="fa-solid fa-circle-xmark"></i>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardRejected">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Rejected Entries
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
             </div>
-
-            <div class="kpi-value"
-                 id="cardRejected">
-
-                0
-
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-rotate-right fa-xs"></i> Needs Action</div>
             </div>
-
-            <div class="kpi-label">
-                Rejected Entries
-            </div>
-
         </div>
 
     </div>
 
     <!-- GLOBAL FILTER -->
-    <div class="filter-card">
+    <div class="filter-card maker-filter-card">
         <div class="f-group">
             <span class="f-label">From Date</span>
             <input type="date" class="f-input" id="fromDate" />
@@ -172,7 +179,7 @@
             <span class="f-label">To Date</span>
             <input type="date" class="f-input" id="toDate" />
         </div>
-        <div class="f-group grow">
+        <div class="f-group grow autocomplete-group">
             <span class="f-label">Account Name</span>
             <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
             <div id="suggestionBox" class="suggestion-box"></div>
@@ -197,7 +204,7 @@
             </select>
         </div>
 
-        <button class="btn btn-dark" onclick="loadData()">
+        <button class="btn btn-dark admin-search-btn" onclick="loadData()">
             <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
 
@@ -228,7 +235,25 @@
         </div>
 
         <div class="t-wrap">
-            <table class="dt">
+            <table class="dt maker-workflow-table">
+                <colgroup>
+                    <col class="col-account" />
+                    <col class="col-voucher" />
+                    <col class="col-date" />
+                    <col class="col-amount" />
+                    <col class="col-supplier" />
+                    <col class="col-date" />
+                    <col class="col-date" />
+                    <col class="col-attachment" />
+                    <col class="col-maker-remark" />
+                    <col class="col-status" />
+                    <col class="col-action" />
+                    <col class="col-qty" />
+                    <col class="col-value" />
+                    <col class="col-items" />
+                    <col class="col-payment-status" />
+                    <col class="col-date" />
+                </colgroup>
                 <thead>
                     <tr>
 
@@ -287,6 +312,7 @@
     </div>
 
 </div><!-- /.body -->
+</div><!-- /.maker-dashboard-shell -->
 
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -375,6 +401,24 @@
     ).fail(function () {
     $("#makerBody").html(`<tr><td colspan="16" style="text-align:center;padding:30px;color:#EF4444">Error loading data. Please try again.</td></tr>`);
     });
+    }
+
+    function safeText(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    return $("<div>").text(value).html();
+    }
+
+    function safeAttr(value) {
+    return safeText(value).replace(/"/g, "&quot;");
+    }
+
+    function safeValueAttr(value) {
+    if (value === null || value === undefined) return "";
+    return $("<div>").text(value).html().replace(/"/g, "&quot;");
+    }
+
+    function safeJsString(value) {
+    return JSON.stringify(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     }
 
     /* ═══════════════════════════════════
@@ -480,23 +524,21 @@
     /* status badge */
     let checkerStatusValue = item.checkerStatus || "Pending";
     let statusBadge =
-    checkerStatusValue === "Approved" ? `<span class="status-badge sb-approved">Approved</span>` :
-    checkerStatusValue === "Rejected" ? `<span class="status-badge sb-rejected">Rejected</span>` :
-    `<span class="status-badge sb-pending">Pending</span>`;
+    checkerStatusValue === "Approved" ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>` :
+    checkerStatusValue === "Rejected" ? `<span class="status-badge sb-rejected"><i class="fa-solid fa-xmark"></i> Rejected</span>` :
+    `<span class="status-badge sb-pending"><i class="fa-solid fa-clock"></i> Pending</span>`;
 
     /* payment badge */
     let payBadge = item.paymentStatus === "Paid"
-    ? `<span class="status-badge sb-approved">Paid</span>`
-    : `<span class="status-badge sb-rejected">Unpaid</span>`;
+    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
+    : `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> Unpaid</span>`;
 
     /* attachment cell */
     let attachCell =
 
     item.checkerStatus === "Approved"
 
-    ? `<span class="status-badge sb-approved">
-    Approved
-    </span>`
+    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>`
 
     : item.attachmentPath
 
@@ -504,7 +546,7 @@
 
     <a class="attach-view"
     href="#"
-    onclick="openPdf('${item.attachmentPath}'); return false;">
+    onclick="openPdf(${safeJsString(item.attachmentPath)}); return false;">
 
     <i class="fa-solid fa-eye"></i> View
 
@@ -548,8 +590,8 @@
 
     /* remark cell */
     let remarkCell = item.attachmentPath
-    ? (item.makerRemark || "-")
-    : `<input type="text" class="remarkInput f-input" placeholder="Enter remark" style="min-width:120px">`;
+    ? `<span class="cell-text clamp-text">${safeText(item.makerRemark || "-")}</span>`
+    : `<input type="text" class="remarkInput f-input maker-remark-input" placeholder="Enter remark">`;
 
     
     /* action cell */
@@ -558,28 +600,16 @@
 
     item.checkerStatus === "Approved"
 
-    ? `<span class="status-badge sb-approved">
-
-    <i class="fa-solid fa-lock"></i>
-
-    Locked
-
-    </span>`
+    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-lock"></i> Locked</span>`
 
     : item.attachmentPath
     &&
     item.checkerStatus !== "Rejected"
 
-    ? `<span class="status-badge sb-approved">
-
-    <i class="fa-solid fa-circle-check"></i>
-
-    Submitted
-
-    </span>`
+    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Submitted</span>`
 
     : `<button class="submitBtn btn btn-dark btn-sm"
-    data-vch="${item.vchNumber}">
+    data-vch="${safeValueAttr(item.vchNumber)}">
 
     <i class="fa-solid fa-paper-plane"></i>
 
@@ -589,22 +619,22 @@
 
     html += `
     <tr>
-    <td class="td-account">${item.accountName || ""}</td>
-    <td class="td-voucher">${item.vchNumber || ""}</td>
-    <td class="td-date">${formatDate(item.voucherDate)}</td>
-    <td class="td-amount">&#8377;${item.billAmount || ""}</td>
-    <td>${item.supplierRef || "-"}</td>
-    <td class="td-date">${item.supplierRefDate ? formatDate(item.supplierRefDate) : "-"}</td>
-    <td class="td-date">${item.dueDate ? formatDate(item.dueDate) : "-"}</td>
-    <td class="td-attach">${attachCell}</td>
-    <td>${remarkCell}</td>
-    <td>${statusBadge}</td>
-    <td>${actionCell}</td>
-    <td>${item.totalQuantity ?? 0}</td>
-    <td>${item.totalItemValue ?? 0}</td>
-    <td>${item.totalItems ?? 0}</td>
-    <td>${payBadge}</td>
-    <td class="td-date">${item.paymentDate ? formatDate(item.paymentDate) : "-"}</td>
+    <td class="td-account" title="${safeAttr(item.accountName || '')}"><span class="cell-text">${safeText(item.accountName || "")}</span></td>
+    <td class="td-voucher"><span class="cell-text">${safeText(item.vchNumber || "")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.voucherDate))}</span></td>
+    <td class="td-amount"><span class="cell-text">&#8377;${safeText(item.billAmount || "")}</span></td>
+    <td class="td-supplier" title="${safeAttr(item.supplierRef || '-')}"><span class="cell-text">${safeText(item.supplierRef || "-")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(item.supplierRefDate ? formatDate(item.supplierRefDate) : "-")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(item.dueDate ? formatDate(item.dueDate) : "-")}</span></td>
+    <td class="td-attachment">${attachCell}</td>
+    <td class="td-remark" title="${safeAttr(item.makerRemark || '-')}">${remarkCell}</td>
+    <td class="td-status">${statusBadge}</td>
+    <td class="td-action-cell">${actionCell}</td>
+    <td class="td-number"><span class="cell-text">${safeText(item.totalQuantity ?? 0)}</span></td>
+    <td class="td-number"><span class="cell-text">${safeText(item.totalItemValue ?? 0)}</span></td>
+    <td class="td-number"><span class="cell-text">${safeText(item.totalItems ?? 0)}</span></td>
+    <td class="td-status">${payBadge}</td>
+    <td class="td-date"><span class="cell-text">${safeText(item.paymentDate ? formatDate(item.paymentDate) : "-")}</span></td>
     </tr>`;
     });
 

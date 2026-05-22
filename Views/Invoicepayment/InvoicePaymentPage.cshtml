@@ -10,93 +10,38 @@
 <link rel="stylesheet" href="~/css/admin-premium.css" />
 
 <!-- ═══════════════════════════════════
-     PREMIUM NAVBAR
+     PREMIUM CONTENT
 ═══════════════════════════════════ -->
-
+<div class="admin-dashboard-shell invoice-payment-shell">
 <nav class="premium-nav">
-    <div class="light-wave"></div>
-    <div class="blue-glow"></div>
-    <div class="ary-brand-header">
-
-    <div class="ary-brand-name">
-        Akal Rozgar Yojana
-    </div>
-
-</div>
-
-    <!-- LEFT -->
-    <div class="nav-left-section">
-
-        <div class="brand-logo-wrap">
-            <img src="~/images/logo.png"
-                 class="brand-logo" />
-        </div>
-
-        <div class="brand-content">
-
-            <div class="brand-title">
-                Wellness
+    <div class="nav-glass">
+        <div class="nav-left-section">
+            <div class="brand-logo-wrap">
+                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
             </div>
-
-            <div class="brand-subtitle">
-                Healthy Oils • Super Juices • Smart Living
+            <div class="brand-content">
+                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                <div class="brand-title">Invoice Payment Desk</div>
+                <div class="brand-subtitle">Approved bills • Vendor payments • Due tracking</div>
             </div>
-
         </div>
 
-    </div>
-
-    <!-- PRODUCT SLIDER -->
-    <div class="product-slider">
-
-        <div class="product-track">
-
-            <img src="@Url.Content("~/images/canola.jpg")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/js3.png")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")"
-                 class="product-img clickable-product" />
-
-            <!-- DUPLICATE -->
-            <img src="@Url.Content("~/images/canola.jpg")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/js3.png")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
-                 class="product-img clickable-product" />
-
-            <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")"
-                 class="product-img clickable-product" />
-
+        <div class="product-slider" aria-label="Product showcase">
+            <div class="product-track">
+                <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" alt="Juice product" />
+                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" alt="Pomace oil" />
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")" class="product-img clickable-product" alt="Wellness product" />
+            </div>
         </div>
 
+        <div class="module-box invoice">
+            <span class="module-dot"></span>
+            <i class="fa-solid fa-money-check-dollar"></i>
+            <span>Invoice Payment</span>
+        </div>
     </div>
-
-    <!-- MODULE -->
-    <div class="module-box maker">
-
-        <div class="module-dot"></div>
-
-        <i class="fa-solid fa-money-check-dollar"></i>
-
-        <span>Invoice Payment</span>
-
-    </div>
-
 </nav>
 
 <!-- PRODUCT MODAL -->
@@ -109,31 +54,87 @@
 
 </div>
 
-<div class="body">
+<div class="body admin-dashboard-body">
 
     <!-- KPI -->
     <div class="kpi-grid">
 
         <div class="kpi-card k-blue">
-            <div class="kpi-val" id="kpi-total">0</div>
-            <div class="kpi-label">Total Unpaid Bills</div>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-total">0</div>
+                    <div class="kpi-label">Total Unpaid Bills</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-list-check fa-xs"></i> Ready</div>
+            </div>
         </div>
 
         <div class="kpi-card k-amber">
-            <div class="kpi-val" id="kpi-unpaid">0</div>
-            <div class="kpi-label">
-                Pending Amount
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-unpaid">0</div>
+                    <div class="kpi-label">
+                        Pending Amount
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-clock fa-xs"></i> Pending</div>
             </div>
         </div>
 
         <div class="kpi-card k-green">
-            <div class="kpi-val" id="kpi-paid">0</div>
-            <div class="kpi-label"> Vendors Pending </div>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-paid">0</div>
+                    <div class="kpi-label"> Vendors Pending </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-building"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-users fa-xs"></i> Vendors</div>
+            </div>
         </div>
 
         <div class="kpi-card k-purple">
-            <div class="kpi-val" id="kpi-amount">0</div>
-            <div class="kpi-label"> Overdue Bills </div>
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-amount">0</div>
+                    <div class="kpi-label"> Overdue Bills </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-triangle-exclamation fa-xs"></i> Overdue</div>
+            </div>
         </div>
 
     </div>
@@ -157,7 +158,7 @@
     </div>
 
     <!-- FILTER -->
-    <div class="filter-card">
+    <div class="filter-card invoice-filter-card">
 
         <div class="f-group">
 
@@ -196,7 +197,7 @@
 
         </div>
 
-        <button class="btn btn-dark"
+        <button class="btn btn-dark admin-search-btn"
                 id="searchBtn">
 
             <i class="fa-solid fa-magnifying-glass"></i>
@@ -208,7 +209,7 @@
     </div>
 
     <!-- TABLE -->
-    <div class="t-card checker-table-card">
+    <div class="t-card invoice-table-card">
 
         <div class="t-header">
 
@@ -252,8 +253,23 @@
         <div class="t-wrap"
              id="tableWrap">
 
-            <table class="dt"
+            <table class="dt invoice-payment-table"
                    id="mainTable">
+
+                <colgroup>
+                    <col class="col-account" />
+                    <col class="col-voucher" />
+                    <col class="col-date" />
+                    <col class="col-amount" />
+                    <col class="col-supplier" />
+                    <col class="col-date" />
+                    <col class="col-date" />
+                    <col class="col-attachment" />
+                    <col class="col-checker-status" />
+                    <col class="col-payment-status" />
+                    <col class="col-maker-remark" />
+                    <col class="col-checker-remark" />
+                </colgroup>
 
                 <thead>
 
@@ -299,6 +315,7 @@
     </div>
 
 </div>
+</div><!-- /.invoice-payment-shell -->
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
@@ -487,6 +504,34 @@
 
     }
 
+    function safeText(value) {
+
+    if (value === null || value === undefined || value === "") return "-";
+
+    return $("<div>").text(value).html();
+
+    }
+
+    function safeAttr(value) {
+
+    return safeText(value).replace(/"/g, "&quot;");
+
+    }
+
+    function safeValueAttr(value) {
+
+    if (value === null || value === undefined) return "";
+
+    return $("<div>").text(value).html().replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+    }
+
+    function safeJsString(value) {
+
+    return JSON.stringify(value || "").replace(/"/g, "&quot;");
+
+    }
+
     /* ═══════════════════════════════════════
     TABLE
     ═══════════════════════════════════════ */
@@ -494,6 +539,8 @@
     function renderTable(data) {
 
     if (!data || data.length === 0) {
+
+    $("#rowCount").text("0 records");
 
     $("#PaymentTable").html(`
     <tr>
@@ -505,6 +552,8 @@
     </td>
     </tr>
     `);
+
+    syncTopScroll();
 
     return;
     }
@@ -519,6 +568,8 @@
 
     if (approvedData.length === 0) {
 
+    $("#rowCount").text("0 records");
+
     $("#PaymentTable").html(`
     <tr>
     <td colspan="12"
@@ -529,6 +580,8 @@
     </td>
     </tr>
     `);
+
+    syncTopScroll();
 
     return;
     }
@@ -542,29 +595,20 @@
     approvedData.forEach(item => {
 
     let checkerBadge =
-    `<span class="status-badge sb-approved">
-    <i class="fa-solid fa-circle-check"></i>
-    Approved
-    </span>`;
+    `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Approved</span>`;
 
     let paymentBadge =
     item.paymentStatus === "Paid"
     ?
-    `<span class="status-badge sb-approved">
-    <i class="fa-solid fa-circle-check"></i>
-    Paid
-    </span>`
+    `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
     :
-    `<span class="status-badge sb-pending">
-    <i class="fa-regular fa-clock"></i>
-    UnPaid
-    </span>`;
+    `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> UnPaid</span>`;
 
     let attachHtml =
     item.attachmentPath
     ?
     `<a href="#"
-    onclick="openPdf('${item.attachmentPath}')"
+    onclick="openPdf(${safeJsString(item.attachmentPath)});return false;"
     class="attach-view">
 
     <i class="fa-solid fa-eye"></i>
@@ -573,59 +617,57 @@
 
     </a>`
     :
-    `<span style="color:#9CA3AF">
-    No File
-    </span>`;
+    `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
 
     html += `
 
     <tr>
 
-    <td class="td-account">
-    ${item.accountName ?? ""}
+    <td class="td-account" title="${safeAttr(item.accountName ?? '')}">
+    <span class="cell-text">${safeText(item.accountName ?? "")}</span>
     </td>
 
     <td class="td-voucher">
-    ${item.vchNumber ?? ""}
+    <span class="cell-text">${safeText(item.vchNumber ?? "")}</span>
     </td>
 
     <td class="td-date">
-    ${formatDate(item.voucherDate)}
+    <span class="cell-text">${safeText(formatDate(item.voucherDate))}</span>
     </td>
 
     <td class="td-amount">
-    ₹${item.billAmount ?? ""}
+    <span class="cell-text">&#8377;${safeText(item.billAmount ?? "")}</span>
     </td>
 
-    <td>
-    ${item.supplierRef || "-"}
-    </td>
-
-    <td class="td-date">
-    ${formatDate(item.supplierRefDate)}
+    <td class="td-supplier" title="${safeAttr(item.supplierRef || '-')}">
+    <span class="cell-text">${safeText(item.supplierRef || "-")}</span>
     </td>
 
     <td class="td-date">
-    ${formatDate(item.dueDate)}
+    <span class="cell-text">${safeText(formatDate(item.supplierRefDate))}</span>
     </td>
 
-    <td class="td-attach">
+    <td class="td-date">
+    <span class="cell-text">${safeText(formatDate(item.dueDate))}</span>
+    </td>
+
+    <td class="td-attachment">
     ${attachHtml}
     </td>
 
-    <td>
+    <td class="td-status">
     ${checkerBadge}
     </td>
 
-    <td>
+    <td class="td-status">
     ${paymentBadge}
     </td>
-    <td class="td-remark">
-    ${item.makerRemark ?? "-"}
+    <td class="td-remark" title="${safeAttr(item.makerRemark ?? '-')}">
+    <span class="cell-text clamp-text">${safeText(item.makerRemark ?? "-")}</span>
     </td>
 
-    <td class="td-remark">
-    ${item.checkerRemark ?? "-"}
+    <td class="td-remark" title="${safeAttr(item.checkerRemark ?? '-')}">
+    <span class="cell-text clamp-text">${safeText(item.checkerRemark ?? "-")}</span>
     </td>
   
     </tr>
