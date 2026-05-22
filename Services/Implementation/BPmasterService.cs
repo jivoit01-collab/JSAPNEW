@@ -180,6 +180,107 @@ namespace JSAPNEW.Services.Implementation
                 .Where(row => row.GroupNum.HasValue || !string.IsNullOrWhiteSpace(row.Code) || !string.IsNullOrWhiteSpace(row.PymntGroup))
                 .ToList();
         }
+
+        private static string ResolveBpType(InsertBPMasterDataModel model)
+        {
+            if (!string.IsNullOrWhiteSpace(model.VendorType))
+                return "V";
+
+            return NormalizeBpType(FirstText(model.CustomerType, model.VendorType, "C"));
+        }
+
+        private static string ResolveForeignName(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.ForeignName, model.ForeignTradeName);
+        }
+
+        private static string ResolveIndustry(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.Industry, model.IndustrySector);
+        }
+
+        private static string ResolveDesignation(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.Designation, model.Title);
+        }
+
+        private static string ResolveMobile(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.MobileNumber, model.Mobile);
+        }
+
+        private static string ResolvePan(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.PanNumber, model.Pan);
+        }
+
+        private static List<BPMasterAddress> BuildAddressRows(InsertBPMasterDataModel model)
+        {
+            var rows = new List<BPMasterAddress>();
+
+            void AddRows(IEnumerable<BPMasterAddress>? source, string addressType)
+            {
+                foreach (var address in source ?? Enumerable.Empty<BPMasterAddress>())
+                {
+                    rows.Add(new BPMasterAddress
+                    {
+                        AddressType = FirstText(address.AddressType, addressType),
+                        Street = address.Street,
+                        BlockArea = address.BlockArea,
+                        State = address.State,
+                        City = address.City,
+                        PinCode = address.PinCode,
+                        Country = address.Country,
+                        Gstin = FirstText(address.Gstin, model.Gstin),
+                        AddressName = address.AddressName
+                    });
+                }
+            }
+
+            AddRows(model.BillingAddresses, "B");
+            AddRows(model.ShippingAddresses, "S");
+            return rows;
+        }
+
+        private static List<BPContactPerson> BuildContactRows(InsertBPMasterDataModel model)
+        {
+            if (string.IsNullOrWhiteSpace(model.FirstName)
+                && string.IsNullOrWhiteSpace(model.LastName)
+                && string.IsNullOrWhiteSpace(ResolveMobile(model))
+                && string.IsNullOrWhiteSpace(model.EmailAddress))
+            {
+                return new List<BPContactPerson>();
+            }
+
+            return new List<BPContactPerson>
+            {
+                new()
+                {
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    Designation = ResolveDesignation(model),
+                    MobileNumber = ResolveMobile(model),
+                    AlternateContact = model.AlternateContact,
+                    EmailAddress = model.EmailAddress,
+                    AlternateEmail = model.AlternateEmail
+                }
+            };
+        }
+
+        private static bool IsBillTo(BP_Address address)
+        {
+            var type = address.AddressType ?? string.Empty;
+            return type.StartsWith("B", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Bill", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsShipTo(BP_Address address)
+        {
+            var type = address.AddressType ?? string.Empty;
+            return type.StartsWith("S", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Ship", StringComparison.OrdinalIgnoreCase);
+        }
+
         public async Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model)
         {
             var response = new BPMasterResponse();
@@ -191,43 +292,39 @@ namespace JSAPNEW.Services.Implementation
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    // Simple master parameters
-                    cmd.Parameters.AddWithValue("@type", model.Type);
+                    cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
-                    cmd.Parameters.AddWithValue("@staffCode", (object?)model.StaffCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@name", model.Name);
-                    cmd.Parameters.AddWithValue("@company", model.Company);
-                    cmd.Parameters.AddWithValue("@groupID", model.GroupID);
-                    cmd.Parameters.AddWithValue("@mainGroupID", model.MainGroupID);
-                    cmd.Parameters.AddWithValue("@chain", (object?)model.Chain ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@contactPerson", (object?)model.ContactPerson ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@mobileNo", (object?)model.MobileNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@paymentTermID", (object?)model.PaymentTermID ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@creditLimit", (object?)model.CreditLimit ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@priceList", (object?)model.PriceList ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@name", model.CompanyName);
+                    cmd.Parameters.AddWithValue("@company", model.CompanyId);
+                    cmd.Parameters.AddWithValue("@foreignName", (object?)ResolveForeignName(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@typeOfBusiness", (object?)model.TypeOfBusiness ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@industry", (object?)ResolveIndustry(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@firstName", (object?)model.FirstName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@lastName", (object?)model.LastName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@designation", (object?)ResolveDesignation(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@mobileNo", (object?)ResolveMobile(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@emailAddress", (object?)model.EmailAddress ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@alternateEmail", (object?)model.AlternateEmail ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@currency", (object?)FirstText(model.Currency, "INR") ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@remarks", (object?)model.Remarks ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
                     cmd.Parameters.AddWithValue("@companyByUser", model.CompanyByUser ?? "");
 
-                    // Tax details
-                    cmd.Parameters.AddWithValue("@buyerTANNo", (object?)model.BuyerTANNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@panNo", model.PanNo);
-                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)model.FssaiNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeNo", (object?)model.MsmeNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeType", (object?)model.MsmeType ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeBusinessType", (object?)model.MsmeBusinessType ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@tan", (object?)model.Tan ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@panNo", ResolvePan(model));
+                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)model.FssaiLicense ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeNo", (object?)model.Msme ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@gstin", (object?)model.Gstin ?? DBNull.Value);
 
-                    // Bank details
                     cmd.Parameters.AddWithValue("@bankName", (object?)model.BankName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accountNo", (object?)model.AccountNo ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@branchName", (object?)model.BranchName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountNo", (object?)model.AccountNumber ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ifscCode", (object?)model.IfscCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@bankCountryID", (object?)model.BankCountryID ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@acctName", (object?)model.AcctName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@branch", (object?)model.Branch ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@swiftCode", (object?)model.SwiftCode ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountType", (object?)model.AccountType ?? DBNull.Value);
 
-                    // Table-valued parameters
-                    var addressTable = model.Addresses?.Count > 0 ? ToAddressDataTable(model.Addresses) : ToAddressDataTable(new List<BPMasterAddress>());
-                    var contactTable = model.Contacts?.Count > 0 ? ToContactDataTable(model.Contacts) : ToContactDataTable(new List<BPContactPerson>());
+                    var addressTable = ToAddressDataTable(BuildAddressRows(model));
+                    var contactTable = ToContactDataTable(BuildContactRows(model));
                     var attachmentTable = model.Attachments?.Count > 0 ? ToAttachmentDataTable(model.Attachments) : ToAttachmentDataTable(new List<BPAttachment>());
 
                     var addrParam = cmd.Parameters.AddWithValue("@addresses", addressTable);
@@ -266,23 +363,21 @@ namespace JSAPNEW.Services.Implementation
         private DataTable ToAddressDataTable(List<BPMasterAddress> list)
         {
             var table = new DataTable();
-            table.Columns.Add("email", typeof(string));
             table.Columns.Add("addressType", typeof(string));
-            table.Columns.Add("addressLine1", typeof(string));
-            table.Columns.Add("addressLine2", typeof(string));
-            table.Columns.Add("stateID", typeof(string));
-            table.Columns.Add("cityID", typeof(string));
-            table.Columns.Add("pincode", typeof(string));
-            table.Columns.Add("countryID", typeof(string));
-            table.Columns.Add("gstNo", typeof(string));
-            table.Columns.Add("isDefault", typeof(bool));
-            table.Columns.Add("addressUid", typeof(string));
+            table.Columns.Add("street", typeof(string));
+            table.Columns.Add("blockArea", typeof(string));
+            table.Columns.Add("state", typeof(string));
+            table.Columns.Add("city", typeof(string));
+            table.Columns.Add("pinCode", typeof(string));
+            table.Columns.Add("country", typeof(string));
+            table.Columns.Add("gstin", typeof(string));
+            table.Columns.Add("addressName", typeof(string));
 
             foreach (var item in list)
             {
-                table.Rows.Add(item.Email, item.AddressType, item.AddressLine1, item.AddressLine2,
-                               item.StateID, item.CityID, item.Pincode, item.CountryID,
-                               item.GstNo, item.IsDefault, item.AddressUid);
+                table.Rows.Add(item.AddressType, item.Street, item.BlockArea, item.State,
+                               item.City, item.PinCode, item.Country, item.Gstin,
+                               item.AddressName);
             }
 
             return table;
@@ -293,16 +388,15 @@ namespace JSAPNEW.Services.Implementation
             table.Columns.Add("firstName", typeof(string));
             table.Columns.Add("lastName", typeof(string));
             table.Columns.Add("designation", typeof(string));
-            table.Columns.Add("email", typeof(string));
-            table.Columns.Add("phone", typeof(string));
-            table.Columns.Add("telephone", typeof(string));
-            table.Columns.Add("isPrimary", typeof(bool));
-            table.Columns.Add("contactUid", typeof(string));
+            table.Columns.Add("emailAddress", typeof(string));
+            table.Columns.Add("alternateEmail", typeof(string));
+            table.Columns.Add("mobileNumber", typeof(string));
+            table.Columns.Add("alternateContact", typeof(string));
 
             foreach (var item in list)
             {
-                table.Rows.Add(item.FirstName, item.LastName, item.Designation, item.Email,
-                               item.Phone, item.Telephone, item.IsPrimary, item.ContactUid);
+                table.Rows.Add(item.FirstName, item.LastName, item.Designation, item.EmailAddress,
+                               item.AlternateEmail, item.MobileNumber, item.AlternateContact);
             }
 
             return table;
@@ -544,8 +638,6 @@ namespace JSAPNEW.Services.Implementation
         public async Task<BPOptionsModel> GetOptionsAsync(int company, string bpType, string isStaff, string countryCode = "IN")
         {
             var options = new BPOptionsModel();
-            var normalizedBpType = NormalizeBpType(bpType);
-            var normalizedIsStaff = NormalizeIsStaff(isStaff);
             var normalizedCountryCode = NormalizeCountryCode(countryCode);
 
             async Task LoadAsync<T>(string key, Func<Task<IEnumerable<T>>> loader, Action<List<T>> assign)
@@ -562,17 +654,9 @@ namespace JSAPNEW.Services.Implementation
             }
 
             await LoadAsync("banks", () => GetDistinctBankNameAsync(company), value => options.Banks = value);
-            await LoadAsync("salesEmployees", () => GetSLPnameAsync(company), value => options.SalesEmployees = value);
-            await LoadAsync("chains", () => GetChainAsync(company, normalizedBpType, normalizedIsStaff), value => options.Chains = value);
             await LoadAsync("countries", () => GetCountryAsync(company), value => options.Countries = value);
-            await LoadAsync("mainGroups", () => GetMaingroupAsync(company, normalizedBpType, normalizedIsStaff), value => options.MainGroups = value);
-            await LoadAsync("msmeBusinessTypes", () => GetMSMEtypeAsync(company), value => options.MsmeBusinessTypes = value);
-            await LoadAsync("groups", () => GetGroupNameByBPTypeAsync(company, normalizedBpType, normalizedIsStaff), value => options.Groups = value);
-            await LoadAsync("paymentTerms", () => GetDistinctPaymentGroupsAsync(company), value => options.PaymentTerms = value);
             await LoadAsync("states", () => GetDistinctStatesAsync(company, normalizedCountryCode), value => options.States = value);
-            await LoadAsync("priceLists", () => GetPricelistAsync(company), value => options.PriceLists = value);
             await LoadAsync("uniquePANs", () => GetUniquePANsAsync(company), value => options.UniquePANs = value);
-            await LoadAsync("existingCards", () => BPGetCardInfoAsync(company, normalizedBpType, normalizedIsStaff), value => options.ExistingCards = value);
 
             return options;
         }
@@ -643,7 +727,9 @@ namespace JSAPNEW.Services.Implementation
                 {
                     result.Master = await multi.ReadFirstOrDefaultAsync<BP_Master>();
                     result.TaxDetails = await multi.ReadFirstOrDefaultAsync<BP_Tax>();
-                    result.Addresses = (await multi.ReadAsync<BP_Address>()).ToList();
+                    var addresses = (await multi.ReadAsync<BP_Address>()).ToList();
+                    result.BillingAddresses = addresses.Where(IsBillTo).ToList();
+                    result.ShippingAddresses = addresses.Where(IsShipTo).ToList();
                     result.BankDetails = (await multi.ReadAsync<BP_Bank>()).ToList();
                     result.ContactPersons = (await multi.ReadAsync<BP_Contact>()).ToList();
                     result.Attachments = (await multi.ReadAsync<BP_Attachment>()).ToList();
@@ -986,11 +1072,16 @@ WHERE f.id = @flowId;";
                 new { bpCode },
                 commandType: CommandType.StoredProcedure);
 
+            var master = await multi.ReadFirstOrDefaultAsync<BP_Master>();
+            var taxDetails = await multi.ReadFirstOrDefaultAsync<BP_Tax>();
+            var addresses = (await multi.ReadAsync<BP_Address>()).ToList();
+
             return new SingleBPDataModel
             {
-                Master = await multi.ReadFirstOrDefaultAsync<BP_Master>(),
-                TaxDetails = await multi.ReadFirstOrDefaultAsync<BP_Tax>(),
-                Addresses = (await multi.ReadAsync<BP_Address>()).ToList(),
+                Master = master ?? new BP_Master(),
+                TaxDetails = taxDetails ?? new BP_Tax(),
+                BillingAddresses = addresses.Where(IsBillTo).ToList(),
+                ShippingAddresses = addresses.Where(IsShipTo).ToList(),
                 BankDetails = (await multi.ReadAsync<BP_Bank>()).ToList(),
                 ContactPersons = (await multi.ReadAsync<BP_Contact>()).ToList(),
                 Attachments = (await multi.ReadAsync<BP_Attachment>()).ToList()
@@ -1201,54 +1292,6 @@ ORDER BY id DESC;";
                 fallbackSql: fallbackSql);
         }
 
-        public async Task<UidResponse> CheckAddressUidAsync(string addressUid)
-        {
-            using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-
-            var parameters = new DynamicParameters();
-            parameters.Add("@addressUid", addressUid);
-
-            try
-            {
-                var result = await connection.QueryFirstOrDefaultAsync<UidResponse>(
-                    "[BP].[jsGetAddressUid]",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
-
-                return result ?? new UidResponse { Message = "Unknown response" };
-            }
-            catch (SqlException ex) when (ex.Number == 50002)
-            {
-                // Custom exception from THROW in SQL
-                return new UidResponse { Message = ex.Message };
-            }
-        }
-        public async Task<UidResponse> CheckContactUidAsync(string contactUid)
-        {
-            using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-
-            var parameters = new DynamicParameters();
-            parameters.Add("@contactUid", contactUid);
-
-            try
-            {
-                var result = await connection.QueryFirstOrDefaultAsync<UidResponse>(
-                    "[BP].[jsGetContactUid]",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
-
-                return result ?? new UidResponse { Message = "Unknown response" };
-            }
-            catch (SqlException ex) when (ex.Number == 50001)
-            {
-                return new UidResponse { Message = ex.Message };
-            }
-        }
-
         public async Task<IEnumerable<GetPanByBranch>> GetBpPANByBranchAsync(string Branch, int company)
         {
             var settings = GetHanaSettings(company);
@@ -1355,39 +1398,37 @@ ORDER BY id DESC;";
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    // Simple master parameters
                     cmd.Parameters.AddWithValue("@Code", model.Code);
-                    cmd.Parameters.AddWithValue("@type", model.Type);
+                    cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
-                    cmd.Parameters.AddWithValue("@staffCode", (object?)model.StaffCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@name", model.Name);
-                    cmd.Parameters.AddWithValue("@company", model.Company);
-                    cmd.Parameters.AddWithValue("@groupID", model.GroupID);
-                    cmd.Parameters.AddWithValue("@mainGroupID", model.MainGroupID);
-                    cmd.Parameters.AddWithValue("@chain", (object?)model.Chain ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@contactPerson", (object?)model.ContactPerson ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@mobileNo", (object?)model.MobileNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@paymentTermID", (object?)model.PaymentTermID ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@creditLimit", (object?)model.CreditLimit ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@priceList", (object?)model.PriceList ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@name", model.CompanyName);
+                    cmd.Parameters.AddWithValue("@company", model.CompanyId);
+                    cmd.Parameters.AddWithValue("@foreignName", (object?)ResolveForeignName(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@typeOfBusiness", (object?)model.TypeOfBusiness ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@industry", (object?)ResolveIndustry(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@firstName", (object?)model.FirstName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@lastName", (object?)model.LastName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@designation", (object?)ResolveDesignation(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@mobileNo", (object?)ResolveMobile(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@emailAddress", (object?)model.EmailAddress ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@alternateEmail", (object?)model.AlternateEmail ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@currency", (object?)FirstText(model.Currency, "INR") ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@remarks", (object?)model.Remarks ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
                     cmd.Parameters.AddWithValue("@companyByUser", model.CompanyByUser ?? "");
 
-                    // Tax details
-                    cmd.Parameters.AddWithValue("@buyerTANNo", (object?)model.BuyerTANNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@panNo", model.PanNo);
-                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)model.FssaiNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeNo", (object?)model.MsmeNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeType", (object?)model.MsmeType ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeBusinessType", (object?)model.MsmeBusinessType ?? DBNull.Value);
-                    // Bank details
+                    cmd.Parameters.AddWithValue("@tan", (object?)model.Tan ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@panNo", ResolvePan(model));
+                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)model.FssaiLicense ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeNo", (object?)model.Msme ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@gstin", (object?)model.Gstin ?? DBNull.Value);
+
                     cmd.Parameters.AddWithValue("@bankName", (object?)model.BankName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accountNo", (object?)model.AccountNo ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@branchName", (object?)model.BranchName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountNo", (object?)model.AccountNumber ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ifscCode", (object?)model.IfscCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@bankCountryID", (object?)model.BankCountryID ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@acctName", (object?)model.AcctName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@branch", (object?)model.Branch ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@swiftCode", (object?)model.SwiftCode ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountType", (object?)model.AccountType ?? DBNull.Value);
 
                     // Control flags
                     cmd.Parameters.Add(new SqlParameter("@updateAddresses", SqlDbType.Bit) { Value = model.UpdateAddresses });
@@ -1395,9 +1436,8 @@ ORDER BY id DESC;";
                     cmd.Parameters.Add(new SqlParameter("@updateContacts", SqlDbType.Bit) { Value = model.UpdateContacts });
                     cmd.Parameters.Add(new SqlParameter("@updateAttachments", SqlDbType.Bit) { Value = model.UpdateAttachments });
 
-                    // Table-valued parameters
-                    var addressTable = model.Addresses?.Count > 0 ? ToAddressDataTable(model.Addresses) : ToAddressDataTable(new List<BPMasterAddress>());
-                    var contactTable = model.Contacts?.Count > 0 ? ToContactDataTable(model.Contacts) : ToContactDataTable(new List<BPContactPerson>());
+                    var addressTable = ToAddressDataTable(BuildAddressRows(model));
+                    var contactTable = ToContactDataTable(BuildContactRows(model));
                     var attachmentTable = model.Attachments?.Count > 0 ? ToAttachmentDataTable(model.Attachments) : ToAttachmentDataTable(new List<BPAttachment>());
 
                     var addrParam = cmd.Parameters.AddWithValue("@addresses", addressTable);

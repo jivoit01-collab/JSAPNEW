@@ -123,7 +123,6 @@ namespace JSAPNEW.Services.Implementation
             var bp = request.BpData;
             var master = bp.Master;
             var tax = bp.TaxDetails;
-            var sapData = request.SapData;
             var isVendor = cardType == "cSupplier";
 
             var payload = new JObject
@@ -131,35 +130,29 @@ namespace JSAPNEW.Services.Implementation
                 ["CardCode"] = cardCode,
                 ["CardName"] = master.Name,
                 ["CardType"] = cardType,
-                ["Currency"] = "INR"
+                ["Currency"] = string.IsNullOrWhiteSpace(master.Currency) ? "INR" : master.Currency.Trim().ToUpperInvariant()
             };
 
-            if (!string.IsNullOrWhiteSpace(master.MobileNo))
-                payload["Phone1"] = SanitizeMobile(master.MobileNo);
-            if (master.CreditLimit.HasValue && master.CreditLimit.Value > 0)
-                payload["CreditLimit"] = master.CreditLimit.Value;
-            if (!string.IsNullOrWhiteSpace(master.GroupID) && int.TryParse(master.GroupID, out var groupCode))
-                payload["GroupCode"] = groupCode;
-            else if (sapData?.grpCode > 0)
-                payload["GroupCode"] = sapData.grpCode;
-            if (!string.IsNullOrWhiteSpace(master.PaymentTermID) && int.TryParse(master.PaymentTermID, out var payTerms))
-                payload["PayTermsGrpCode"] = payTerms;
+            if (!string.IsNullOrWhiteSpace(master.ForeignName))
+                payload["CardForeignName"] = master.ForeignName.Trim();
+            if (!string.IsNullOrWhiteSpace(master.MobileNumber))
+                payload["Phone1"] = SanitizeMobile(master.MobileNumber);
+            if (!string.IsNullOrWhiteSpace(master.EmailAddress))
+                payload["EmailAddress"] = master.EmailAddress.Trim();
+            if (!string.IsNullOrWhiteSpace(master.Remarks))
+                payload["Notes"] = master.Remarks.Trim();
+            if (!string.IsNullOrWhiteSpace(master.TypeOfBusiness))
+                payload["U_TypeOfBusiness"] = master.TypeOfBusiness.Trim();
+            if (!string.IsNullOrWhiteSpace(master.Industry))
+                payload["U_Industry"] = master.Industry.Trim();
             if (attachmentEntry.HasValue)
                 payload["AttachmentEntry"] = attachmentEntry.Value;
-            if (!string.IsNullOrWhiteSpace(master.MainGroupID))
-                payload["U_Main_Group"] = master.MainGroupID;
-            if (!string.IsNullOrWhiteSpace(master.Chain))
-                payload["U_Chain"] = master.Chain;
-            if (!string.IsNullOrWhiteSpace(tax?.FssaiNo))
-                payload["U_Fssai"] = tax.FssaiNo.Trim().ToUpperInvariant();
-            if (!string.IsNullOrWhiteSpace(tax?.MsmeNo))
-            {
-                payload["U_MSME"] = tax.MsmeNo.Trim().ToUpperInvariant();
-                payload["U_MSME_Type"] = NormalizeMsmeType(tax.msmeType);
-                payload["U_MSME_BType"] = NormalizeMsmeBusinessType(tax.msmeBusinessType);
-            }
-            if (!string.IsNullOrWhiteSpace(sapData?.debPayAcct))
-                payload["DebitorAccount"] = sapData.debPayAcct.Trim();
+            if (!string.IsNullOrWhiteSpace(tax?.FssaiLicense))
+                payload["U_Fssai"] = tax.FssaiLicense.Trim().ToUpperInvariant();
+            if (!string.IsNullOrWhiteSpace(tax?.Msme))
+                payload["U_MSME"] = tax.Msme.Trim().ToUpperInvariant();
+            if (!string.IsNullOrWhiteSpace(tax?.Tan))
+                payload["U_TAN"] = tax.Tan.Trim().ToUpperInvariant();
 
             var contacts = BuildContacts(bp);
             if (contacts.Count > 0)
@@ -197,8 +190,10 @@ namespace JSAPNEW.Services.Implementation
                     ["Name"] = Truncate(name, 50),
                     ["FirstName"] = contact.FirstName ?? string.Empty,
                     ["LastName"] = contact.LastName ?? string.Empty,
-                    ["MobilePhone"] = SanitizeMobile(contact.Phone),
-                    ["E_Mail"] = contact.Email ?? string.Empty,
+                    ["Position"] = contact.Designation ?? string.Empty,
+                    ["MobilePhone"] = SanitizeMobile(contact.MobileNumber),
+                    ["Phone1"] = SanitizeMobile(contact.AlternateContact),
+                    ["E_Mail"] = contact.EmailAddress ?? string.Empty,
                     ["Active"] = "tYES"
                 });
             }
@@ -209,9 +204,8 @@ namespace JSAPNEW.Services.Implementation
         private JArray BuildAddresses(SingleBPDataModel bp, List<string> warnings)
         {
             var result = new JArray();
-            var addresses = bp.Addresses ?? new List<BP_Address>();
-            var billTo = addresses.Where(IsBillTo).ToList();
-            var shipTo = addresses.Where(IsShipTo).ToList();
+            var billTo = bp.BillingAddresses ?? new List<BP_Address>();
+            var shipTo = bp.ShippingAddresses ?? new List<BP_Address>();
 
             foreach (var address in billTo)
                 result.Add(BuildAddress(address, "bo_BillTo", bp.Master.Name));
@@ -230,23 +224,23 @@ namespace JSAPNEW.Services.Implementation
 
         private JObject BuildAddress(BP_Address address, string addressType, string cardName)
         {
-            var addressName = !string.IsNullOrWhiteSpace(address.AddressUid)
-                ? address.AddressUid
-                : $"{Truncate(cardName, 25)}-{MapStateCode(address.StateID)}";
+            var addressName = !string.IsNullOrWhiteSpace(address.AddressName)
+                ? address.AddressName
+                : $"{Truncate(cardName, 25)}-{MapStateCode(address.State)}";
 
             var obj = new JObject
             {
                 ["AddressName"] = Truncate(addressName, 50),
                 ["AddressType"] = addressType,
-                ["Street"] = Truncate(address.AddressLine1, 100),
-                ["Block"] = Truncate(address.AddressLine2, 100),
-                ["City"] = Truncate(address.CityID, 100),
-                ["ZipCode"] = Truncate(address.Pincode, 20),
-                ["State"] = MapStateCode(address.StateID),
-                ["Country"] = MapCountry(address.CountryID)
+                ["Street"] = Truncate(address.Street, 100),
+                ["Block"] = Truncate(address.BlockArea, 100),
+                ["City"] = Truncate(address.City, 100),
+                ["ZipCode"] = Truncate(address.PinCode, 20),
+                ["State"] = MapStateCode(address.State),
+                ["Country"] = MapCountry(address.Country)
             };
 
-            var gstin = (address.GstNo ?? string.Empty).Trim().ToUpperInvariant();
+            var gstin = (address.Gstin ?? string.Empty).Trim().ToUpperInvariant();
             if (Regex.IsMatch(gstin, "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"))
             {
                 obj["GSTIN"] = gstin;
@@ -259,7 +253,7 @@ namespace JSAPNEW.Services.Implementation
         private JArray BuildFiscalTax(SingleBPDataModel bp, JArray addresses)
         {
             var result = new JArray();
-            var pan = (bp.TaxDetails?.PanNo ?? string.Empty).Trim().ToUpperInvariant();
+            var pan = (bp.TaxDetails?.PanNumber ?? string.Empty).Trim().ToUpperInvariant();
             if (!Regex.IsMatch(pan, "^[A-Z]{5}[0-9]{4}[A-Z]$"))
                 return result;
 
@@ -285,13 +279,13 @@ namespace JSAPNEW.Services.Implementation
             var result = new JArray();
             foreach (var bank in bp.BankDetails ?? new List<BP_Bank>())
             {
-                if (string.IsNullOrWhiteSpace(bank.AccountNo))
+                if (string.IsNullOrWhiteSpace(bank.AccountNumber))
                     continue;
 
-                var bankCode = bank.BankCode;
+                var bankCode = bank.BankName;
                 if (string.IsNullOrWhiteSpace(bankCode))
                 {
-                    warnings.Add($"Bank account {bank.AccountNo} was skipped because SAP BankCode is missing.");
+                    warnings.Add($"Bank account {bank.AccountNumber} was skipped because bank name/code is missing.");
                     continue;
                 }
 
@@ -299,9 +293,9 @@ namespace JSAPNEW.Services.Implementation
                 result.Add(new JObject
                 {
                     ["BankCode"] = bankCode.Trim(),
-                    ["AccountNo"] = bank.AccountNo.Trim(),
-                    ["Branch"] = Truncate(bank.Branch, 50),
-                    ["AccountName"] = Truncate(!string.IsNullOrWhiteSpace(bank.AcctName) ? bank.AcctName : bank.BankName, 100),
+                    ["AccountNo"] = bank.AccountNumber.Trim(),
+                    ["Branch"] = Truncate(bank.BranchName, 50),
+                    ["AccountName"] = Truncate(bp.Master.Name, 100),
                     ["BICSwiftCode"] = Truncate(ifsc, 50),
                     ["UserNo1"] = Truncate(ifsc, 50),
                     ["IBAN"] = Truncate(bank.SwiftCode, 34)
@@ -510,31 +504,6 @@ namespace JSAPNEW.Services.Implementation
             };
 
             return map.TryGetValue(state.Trim(), out var code) ? code : string.Empty;
-        }
-
-        private static string NormalizeMsmeType(string? value)
-        {
-            return (value ?? string.Empty).Trim().ToUpperInvariant() switch
-            {
-                "MICRO" => "Micro",
-                "SMALL" => "Small",
-                "MEDIUM" => "Medium",
-                "LARGE" => "Large",
-                _ => value ?? string.Empty
-            };
-        }
-
-        private static string NormalizeMsmeBusinessType(string? value)
-        {
-            return (value ?? string.Empty).Trim().ToUpperInvariant() switch
-            {
-                "MANUFACTURING" => "Manufacturing",
-                "SERVICES" => "Service",
-                "SERVICE" => "Service",
-                "TRADING" => "Trading",
-                "OTHERS" => "Others",
-                _ => value ?? string.Empty
-            };
         }
 
         private static string SanitizeMobile(string? raw)

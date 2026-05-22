@@ -506,49 +506,6 @@ namespace JSAPNEW.Controllers
             }
         }
 
-        [HttpGet("CheckAddressUid")]
-        public async Task<IActionResult> CheckAddressUid(string addressUid)
-        {
-            if (string.IsNullOrWhiteSpace(addressUid))
-                return BadRequest(new { Success = false, Message = "AddressUid is required" });
-
-            try
-            {
-                var result = await _BPService.CheckAddressUidAsync(addressUid);
-                return Ok(new { Success = true, Data = result });
-            }
-            catch (SqlException ex)
-            {
-                return BadRequest(new { Success = false, Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _BPlogger.LogError(ex, "Error checking address UID.");
-                return StatusCode(500, new { Success = false, Message = "Internal server error" });
-            }
-        }
-        [HttpGet("CheckContactUid")]
-        public async Task<IActionResult> CheckContactUid(string contactUid)
-        {
-            if (string.IsNullOrWhiteSpace(contactUid))
-                return BadRequest(new { Success = false, Message = "ContactUid is required" });
-
-            try
-            {
-                var result = await _BPService.CheckContactUidAsync(contactUid);
-                return Ok(new { Success = true, Data = result });
-            }
-            catch (SqlException ex)
-            {
-                return BadRequest(new { Success = false, Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _BPlogger.LogError(ex, "Error checking contact UID.");
-                return StatusCode(500, new { Success = false, Message = "Internal server error" });
-            }
-        }
-
         [HttpGet("GetBpPANByBranch")]
         public async Task<IActionResult> GetBpPANByBranch(string Branch, int company)
         {

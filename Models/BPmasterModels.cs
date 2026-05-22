@@ -1,409 +1,315 @@
-﻿using System.Net.Mail;
-using System.Security.Cryptography.X509Certificates;
-
 namespace JSAPNEW.Models
 {
     public class BPmasterModels
     {
         public bool Success { get; set; }
-        public string Message { get; set; }
-    }
-    // Models/BPMasterModels.cs
-    public class BPMasterFormData
-    {
-        public string JsonData { get; set; } // metadata as JSON string
-        public List<IFormFile> Files { get; set; } // uploaded files
+        public string Message { get; set; } = string.Empty;
     }
 
-    public class MergeBpModel
+    public class BPMasterFormData
+    {
+        public string JsonData { get; set; } = string.Empty;
+        public List<IFormFile> Files { get; set; } = new();
+    }
+
+    public class BpListModel
     {
         public int flowId { get; set; }
         public int Id { get; set; }
+        public int Code { get; set; }
         public int CompanyId { get; set; }
-        public string Type { get; set; }
-        public string PartyName { get; set; }
-        public string IsStaff { get; set; }
-        public string StaffCode { get; set; }
-        public string GroupID { get; set; }
-        public string MainGroupID { get; set; }
-        public string Chain { get; set; }
-        public string ContactPerson { get; set; }
-        public string MobileNo { get; set; }
-        public string PaymentTermID { get; set; }
-        public string CreditLimit { get; set; }
-        public string PriceList { get; set; }
-        public DateTime CreatedOn { get; set; }
-        public string status { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public string CompanyName { get; set; } = string.Empty;
+        public string PartyName { get; set; } = string.Empty;
+        public string ForeignName { get; set; } = string.Empty;
+        public string TypeOfBusiness { get; set; } = string.Empty;
+        public string Industry { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public string MobileNumber { get; set; } = string.Empty;
+        public string EmailAddress { get; set; } = string.Empty;
+        public string AlternateEmail { get; set; } = string.Empty;
+        public string Currency { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
+        public bool IsStaff { get; set; }
+        public DateTime? CreatedOn { get; set; }
+        public string status { get; set; } = string.Empty;
         public int CurrentStage { get; set; }
         public int TotalStage { get; set; }
         public int CurrentStageId { get; set; }
-        public string CurrentStageName { get; set; }
+        public string CurrentStageName { get; set; } = string.Empty;
         public bool IsFinalStage { get; set; }
-        public string ApiStatusTag { get; set; }
-        public string SapStatus { get; set; }
-        public string ApiMessage { get; set; }
-        public string SapCardCode { get; set; }
+        public string ApiStatusTag { get; set; } = string.Empty;
+        public string SapStatus { get; set; } = string.Empty;
+        public string ApiMessage { get; set; } = string.Empty;
+        public string SapCardCode { get; set; } = string.Empty;
         public int? SapAttachmentEntry { get; set; }
-        public string PayloadHash { get; set; }
+        public string PayloadHash { get; set; } = string.Empty;
         public DateTime? LastAttemptOn { get; set; }
         public int? LastAttemptBy { get; set; }
         public int RetryCount { get; set; }
         public bool CanRetrySap { get; set; }
     }
 
+    public class MergeBpModel : BpListModel
+    {
+    }
+
+    public class ApprovedBpModel : BpListModel
+    {
+    }
+
+    public class PendingBpModel : BpListModel
+    {
+    }
+
+    public class RejectedBPModel : BpListModel
+    {
+        public string Remark { get; set; } = string.Empty;
+    }
 
     public class InsertBPMasterDataModel
     {
-        // jsMaster
-        public string Type { get; set; }
+        public int CompanyId { get; set; }
+        public string CustomerType { get; set; } = string.Empty;
+        public string VendorType { get; set; } = string.Empty;
+        public string CompanyName { get; set; } = string.Empty;
+        public string ForeignName { get; set; } = string.Empty;
+        public string ForeignTradeName { get; set; } = string.Empty;
+        public string TypeOfBusiness { get; set; } = string.Empty;
+        public string Industry { get; set; } = string.Empty;
+        public string IndustrySector { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string MobileNumber { get; set; } = string.Empty;
+        public string Mobile { get; set; } = string.Empty;
+        public string AlternateContact { get; set; } = string.Empty;
+        public string EmailAddress { get; set; } = string.Empty;
+        public string AlternateEmail { get; set; } = string.Empty;
+        public string Gstin { get; set; } = string.Empty;
+        public string PanNumber { get; set; } = string.Empty;
+        public string Pan { get; set; } = string.Empty;
+        public string Tan { get; set; } = string.Empty;
+        public string Currency { get; set; } = "INR";
+        public string Msme { get; set; } = string.Empty;
+        public string FssaiLicense { get; set; } = string.Empty;
+        public string BankName { get; set; } = string.Empty;
+        public string BranchName { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
+        public string IfscCode { get; set; } = string.Empty;
+        public string SwiftCode { get; set; } = string.Empty;
+        public string AccountType { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
         public bool IsStaff { get; set; }
-        public string StaffCode { get; set; }
-        public string Name { get; set; }
-        public int Company { get; set; }
-        public string GroupID { get; set; }
-        public string MainGroupID { get; set; }
-        public string? Chain { get; set; }
-        public string ContactPerson { get; set; }
-        public string MobileNo { get; set; }
-        public string? PaymentTermID { get; set; }
-        public decimal? CreditLimit { get; set; }
-        public string PriceList { get; set; }
         public int UserId { get; set; }
-        public string CompanyByUser { get; set; }
-
-        // jsTaxDetails
-        public string BuyerTANNo { get; set; }
-        public string PanNo { get; set; }
-        public string FssaiNo { get; set; }
-        public string MsmeNo { get; set; }
-        public string MsmeType { get; set; }
-        public string MsmeBusinessType { get; set; }
-
-        // Bank
-        public string BankName { get; set; }
-        public string AccountNo { get; set; }
-        public string IfscCode { get; set; }
-        public int? BankCountryID { get; set; }
-        public string AcctName { get; set; }
-        public string Branch { get; set; }
-        public string SwiftCode { get; set; }
-
-        public List<BPMasterAddress> Addresses { get; set; }
-        public List<BPContactPerson> Contacts { get; set; }
-        public List<BPAttachment> Attachments { get; set; }
+        public string CompanyByUser { get; set; } = string.Empty;
+        public List<BPMasterAddress> BillingAddresses { get; set; } = new();
+        public List<BPMasterAddress> ShippingAddresses { get; set; } = new();
+        public List<BPAttachment> Attachments { get; set; } = new();
     }
 
     public class BPMasterAddress
     {
-        public string Email { get; set; }
-        public string AddressType { get; set; }
-        public string AddressLine1 { get; set; }
-        public string AddressLine2 { get; set; }
-        public string StateID { get; set; }
-        public string CityID { get; set; }
-        public string Pincode { get; set; }
-        public string CountryID { get; set; }
-        public string GstNo { get; set; }
-        public bool IsDefault { get; set; }
-        public string AddressUid { get; set; }
+        public string AddressType { get; set; } = string.Empty;
+        public string Street { get; set; } = string.Empty;
+        public string BlockArea { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string PinCode { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Gstin { get; set; } = string.Empty;
+        public string AddressName { get; set; } = string.Empty;
     }
 
     public class BPContactPerson
     {
-        public string Designation { get; set; }
-        public string Email { get; set; }
-        public string Phone { get; set; }
-        public bool IsPrimary { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Telephone { get; set; }
-        public string ContactUid { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public string MobileNumber { get; set; } = string.Empty;
+        public string AlternateContact { get; set; } = string.Empty;
+        public string EmailAddress { get; set; } = string.Empty;
+        public string AlternateEmail { get; set; } = string.Empty;
     }
 
     public class BPAttachment
     {
-        public string FileName { get; set; }
-        public string FilePath { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
         public long FileSize { get; set; }
-        public string ContentType { get; set; }
-        public string fileType { get; set; }
+        public string ContentType { get; set; } = string.Empty;
+        public string fileType { get; set; } = string.Empty;
     }
 
     public class BPMasterResponse
     {
         public bool Success { get; set; }
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
         public int GeneratedCode { get; set; }
     }
 
     public class DistinctBankNameModel
     {
-        public string BankCode { get; set; }
-        public string BankName { get; set; }
-        public string SwiftNo { get; set; }
-        public string CountryCode { get; set; }
+        public string BankCode { get; set; } = string.Empty;
+        public string BankName { get; set; } = string.Empty;
+        public string SwiftNo { get; set; } = string.Empty;
+        public string CountryCode { get; set; } = string.Empty;
     }
+
     public class SLPnameModel
     {
         public int SlpCode { get; set; }
-        public string SlpName { get; set; }
+        public string SlpName { get; set; } = string.Empty;
     }
 
     public class ChainModel
     {
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string U_Chain { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string U_Chain { get; set; } = string.Empty;
     }
-
 
     public class GetCountryModel
     {
-        public string Code { get; set; }
-        public string Name { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
     }
 
     public class GetMainGroup
     {
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string U_Main_Group { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string U_Main_Group { get; set; } = string.Empty;
     }
 
     public class GetMSMEType
     {
-        public string U_MSME_BType { get; set; }
+        public string U_MSME_BType { get; set; } = string.Empty;
     }
 
     public class GetPaymentModel
     {
-        public string PymntGroup { get; set; }
+        public string PymntGroup { get; set; } = string.Empty;
     }
+
     public class GroupNameResponse
     {
         public int? GroupCode { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string GroupName { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string GroupName { get; set; } = string.Empty;
     }
+
     public class PaymentGroupModel
     {
         public int? GroupNum { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string PymntGroup { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string PymntGroup { get; set; } = string.Empty;
     }
+
     public class BPStateModel
     {
-        public string Code { get; set; }
-        public string Name { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
     }
 
     public class BPOptionsModel
     {
         public List<DistinctBankNameModel> Banks { get; set; } = new();
-        public List<SLPnameModel> SalesEmployees { get; set; } = new();
-        public List<ChainModel> Chains { get; set; } = new();
         public List<GetCountryModel> Countries { get; set; } = new();
-        public List<GetMainGroup> MainGroups { get; set; } = new();
-        public List<GetMSMEType> MsmeBusinessTypes { get; set; } = new();
-        public List<GroupNameResponse> Groups { get; set; } = new();
-        public List<PaymentGroupModel> PaymentTerms { get; set; } = new();
         public List<BPStateModel> States { get; set; } = new();
-        public List<GetPricelist> PriceLists { get; set; } = new();
         public List<UniquePANModel> UniquePANs { get; set; } = new();
-        public List<BPGetCard> ExistingCards { get; set; } = new();
         public Dictionary<string, string> Errors { get; set; } = new();
-    }
-
-    public class ApprovedBpModel
-    {
-        public int flowId { get; set; }
-        public int Id { get; set; }
-        public int CompanyId { get; set; }
-        public string Type { get; set; }
-        public string PartyName { get; set; }
-        public string IsStaff { get; set; }
-        public string StaffCode { get; set; }
-        public string GroupID { get; set; }
-        public string MainGroupID { get; set; }
-        public string Chain { get; set; }
-        public string ContactPerson { get; set; }
-        public string MobileNo { get; set; }
-        public string PaymentTermID { get; set; }
-        public string CreditLimit { get; set; }
-        public string PriceList { get; set; }
-        public DateTime CreatedOn { get; set; }
-    }
-
-    public class BpOverallStatusModelBPStatusCounts
-    {
-        public string ReportType { get; set; }
-        public int TotalBPs { get; set; }
-
-        public int PendingCount { get; set; }
-        public int ApprovedCount { get; set; }
-        public int RejectedCount { get; set; }
-        public int CompletedCount { get; set; }
-        public int OnHoldCount { get; set; }
-        public int OtherStatusCount { get; set; }
-
-        public int CustomerCount { get; set; }
-        public int VendorCount { get; set; }
-        public int StaffCount { get; set; }
-
-        public decimal PendingPercentage { get; set; }
-        public decimal ApprovedPercentage { get; set; }
-        public decimal RejectedPercentage { get; set; }
-
-        public int Last7DaysCount { get; set; }
-        public int LastMonthCount { get; set; }
-
-        public int? AvgProcessingDays { get; set; }
-    }
-
-    public class PendingBpModel
-    {
-        public int flowId { get; set; }
-        public int Code { get; set; }
-        public int CompanyId { get; set; }
-        public string Type { get; set; }
-        public string Name { get; set; }
-        public bool IsStaff { get; set; }
-        public string StaffCode { get; set; }
-        public string? GroupID { get; set; }
-        public string? MainGroupID { get; set; }
-        public string Chain { get; set; }
-        public string ContactPerson { get; set; }
-        public string MobileNo { get; set; }
-        public string? PaymentTermID { get; set; }
-        public decimal? CreditLimit { get; set; }
-        public string? PriceList { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public int CurrentStage { get; set; }
-        public int TotalStage { get; set; }
-        public int CurrentStageId { get; set; }
-        public string CurrentStageName { get; set; }
-        public bool IsFinalStage { get; set; }
-        public string ApiStatusTag { get; set; }
-        public string SapStatus { get; set; }
-        public string ApiMessage { get; set; }
-        public string SapCardCode { get; set; }
-        public int? SapAttachmentEntry { get; set; }
-        public string PayloadHash { get; set; }
-        public DateTime? LastAttemptOn { get; set; }
-        public int? LastAttemptBy { get; set; }
-        public int RetryCount { get; set; }
-        public bool CanRetrySap { get; set; }
-    }
-
-    public class RejectedBPModel
-    {
-        public int flowId { get; set; }
-        public int Id { get; set; }
-        public int CompanyId { get; set; }
-        public string Type { get; set; }
-        public string PartyName { get; set; }
-        public int? Department { get; set; }
-        public decimal? Amount { get; set; }
-        public string ContactPerson { get; set; }
-        public string Remark { get; set; }
-        public string StaffCode { get; set; }
-        public bool IsStaff { get; set; }
-        public string? GroupID { get; set; }
-        public string MobileNo { get; set; }
-        public string? PaymentTermID { get; set; }
-        public string? PriceList { get; set; }
     }
 
     public class BP_Master
     {
         public int Code { get; set; }
-        public string Type { get; set; }
+        public string Type { get; set; } = string.Empty;
         public bool IsStaff { get; set; }
-        public string StaffCode { get; set; }
-        public string Name { get; set; }
-        public string? GroupID { get; set; }
-        public string? MainGroupID { get; set; }
-        public string Chain { get; set; }
-        public string ContactPerson { get; set; }
-        public string MobileNo { get; set; }
-        public string? PaymentTermID { get; set; }
-        public decimal? CreditLimit { get; set; }
-        public string? PriceList { get; set; }
-        public string CompanyByUser { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ForeignName { get; set; } = string.Empty;
+        public string TypeOfBusiness { get; set; } = string.Empty;
+        public string Industry { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public string MobileNumber { get; set; } = string.Empty;
+        public string EmailAddress { get; set; } = string.Empty;
+        public string AlternateEmail { get; set; } = string.Empty;
+        public string Currency { get; set; } = "INR";
+        public string Remarks { get; set; } = string.Empty;
+        public string CompanyByUser { get; set; } = string.Empty;
         public int company { get; set; }
         public int flowId { get; set; }
     }
 
     public class BP_Tax
     {
-        public string BuyerTANNo { get; set; }
-        public string PanNo { get; set; }
-        public string FssaiNo { get; set; }
-        public string MsmeNo { get; set; }
-        public string msmeType { get; set; }
-        public string msmeBusinessType { get; set; }
+        public string Tan { get; set; } = string.Empty;
+        public string PanNumber { get; set; } = string.Empty;
+        public string FssaiLicense { get; set; } = string.Empty;
+        public string Msme { get; set; } = string.Empty;
+        public string Gstin { get; set; } = string.Empty;
     }
 
     public class BP_Address
     {
-        public string Email { get; set; }
-        public string AddressType { get; set; }
-        public string AddressLine1 { get; set; }
-        public string AddressLine2 { get; set; }
-        public string? StateID { get; set; }
-        public string? CityID { get; set; }
-        public string Pincode { get; set; }
-        public string? CountryID { get; set; }
-        public string GstNo { get; set; }
-        public string GstType { get; set; }
-        public bool IsDefault { get; set; }
-        public string AddressUid { get; set; }
+        public string AddressType { get; set; } = string.Empty;
+        public string Street { get; set; } = string.Empty;
+        public string BlockArea { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string PinCode { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Gstin { get; set; } = string.Empty;
+        public string AddressName { get; set; } = string.Empty;
     }
 
     public class BP_Bank
     {
-        public string BankCode { get; set; }
-        public string BankName { get; set; }
-        public string AccountNo { get; set; }
-        public string IfscCode { get; set; }
-        public string AcctName { get; set; }
-        public string Branch { get; set; }
-        public string SwiftCode { get; set; }
-        public int? CountryID { get; set; }
+        public string BankName { get; set; } = string.Empty;
+        public string BranchName { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
+        public string IfscCode { get; set; } = string.Empty;
+        public string SwiftCode { get; set; } = string.Empty;
+        public string AccountType { get; set; } = string.Empty;
     }
 
     public class BP_Contact
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Designation { get; set; }
-        public string Email { get; set; }
-        public string Phone { get; set; }
-        public string Telephone { get; set; }
-        public bool IsPrimary { get; set; }
-        public string ContactUid { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public string EmailAddress { get; set; } = string.Empty;
+        public string AlternateEmail { get; set; } = string.Empty;
+        public string MobileNumber { get; set; } = string.Empty;
+        public string AlternateContact { get; set; } = string.Empty;
     }
 
     public class BP_Attachment
     {
-        public string FileName { get; set; }
-        public string FilePath { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
         public long FileSize { get; set; }
-        public string ContentType { get; set; }
-        public string fileType { get; set; }
-        public string FileUrl { get; set; }
+        public string ContentType { get; set; } = string.Empty;
+        public string fileType { get; set; } = string.Empty;
+        public string FileUrl { get; set; } = string.Empty;
     }
 
     public class SingleBPDataModel
     {
-        public BP_Master Master { get; set; }
-        public BP_Tax TaxDetails { get; set; }
-        public List<BP_Address> Addresses { get; set; }
-        public List<BP_Bank> BankDetails { get; set; }
-        public List<BP_Contact> ContactPersons { get; set; }
-        public List<BP_Attachment> Attachments { get; set; }
+        public BP_Master Master { get; set; } = new();
+        public BP_Tax TaxDetails { get; set; } = new();
+        public List<BP_Address> BillingAddresses { get; set; } = new();
+        public List<BP_Address> ShippingAddresses { get; set; } = new();
+        public List<BP_Bank> BankDetails { get; set; } = new();
+        public List<BP_Contact> ContactPersons { get; set; } = new();
+        public List<BP_Attachment> Attachments { get; set; } = new();
     }
 
     public class ApproveOrRejectBpRequest
@@ -411,40 +317,45 @@ namespace JSAPNEW.Models
         public int FlowId { get; set; }
         public int Company { get; set; }
         public int UserId { get; set; }
-        public string Remarks { get; set; } = "";
+        public string Remarks { get; set; } = string.Empty;
         public string Action { get; set; } = "Approve";
     }
+
     public class ApproveOrRejectBpResponse
     {
         public bool Success { get; set; } = true;
-        public string ResultMessage { get; set; }
+        public string ResultMessage { get; set; } = string.Empty;
         public int BPCode { get; set; }
         public int BPCompany { get; set; }
-        public string ApprovalStatus { get; set; }
-        public string SapStatus { get; set; }
-        public string SapCardCode { get; set; }
+        public string ApprovalStatus { get; set; } = string.Empty;
+        public string SapStatus { get; set; } = string.Empty;
+        public string SapCardCode { get; set; } = string.Empty;
         public int? AttachmentEntry { get; set; }
-        public string PayloadHash { get; set; }
+        public string PayloadHash { get; set; } = string.Empty;
     }
+
     public class BPGetCard
     {
-        public string CardCode { get; set; }
-        public string CardName { get; set; }
-        public string Address { get; set; }
-        public string State { get; set; }
-        public string GSTRegnNo { get; set; }
+        public string CardCode { get; set; } = string.Empty;
+        public string CardName { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string GSTRegnNo { get; set; } = string.Empty;
     }
+
     public class UniquePANModel
     {
-        public string PAN_Number { get; set; }
+        public string PAN_Number { get; set; } = string.Empty;
     }
+
     public class GSTMismatchByStateModel
     {
-        public string Code { get; set; }
-        public string Country { get; set; }
-        public string Name { get; set; }
-        public string GSTCode { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string GSTCode { get; set; } = string.Empty;
     }
+
     public class BPCountModel
     {
         public int PendingCount { get; set; }
@@ -452,93 +363,55 @@ namespace JSAPNEW.Models
         public int ApprovedCount { get; set; }
         public int TotalCount => PendingCount + RejectedCount + ApprovedCount;
     }
+
     public class GetPricelist
     {
         public int? ListNum { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string ListName { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string ListName { get; set; } = string.Empty;
     }
+
     public class UidResponse
     {
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
+
     public class GetPanByBranch
     {
-        public string Branch { get; set; }
+        public string Branch { get; set; } = string.Empty;
         public int company { get; set; }
-        public string PAN { get; set; }
+        public string PAN { get; set; } = string.Empty;
     }
+
     public class SPAData
     {
         public int id { get; set; }
-        public string debPayAcct { get; set; }
-        public string wtLabel { get; set; }
-        public string series { get; set; }
+        public string debPayAcct { get; set; } = string.Empty;
+        public string wtLabel { get; set; } = string.Empty;
+        public string series { get; set; } = string.Empty;
         public int grpCode { get; set; }
     }
 
-    public class BPMasterUpdateRequest
+    public class BPMasterUpdateRequest : InsertBPMasterDataModel
     {
-        // Required
         public int Code { get; set; }
-
-        // jsMaster fields
-        public string Type { get; set; }              // 'V' or 'C'
-        public bool? IsStaff { get; set; }
-        public string StaffCode { get; set; }
-        public string Name { get; set; }
-        public int Company { get; set; }
-        public string GroupID { get; set; }
-        public string MainGroupID { get; set; }
-        public string Chain { get; set; }
-        public string ContactPerson { get; set; }
-        public string MobileNo { get; set; }
-        public string PaymentTermID { get; set; }
-        public decimal? CreditLimit { get; set; }
-        public string PriceList { get; set; }
-
-        // Control params (mandatory in SP)
-        public int UserId { get; set; }
-        public string CompanyByUser { get; set; }
-
-        // Tax details
-        public string BuyerTANNo { get; set; }
-        public string PanNo { get; set; }
-        public string FssaiNo { get; set; }
-        public string MsmeNo { get; set; }
-        public string MsmeType { get; set; }
-        public string MsmeBusinessType { get; set; }
-
-        // Bank details (single)
-        public string BankName { get; set; }
-        public string AccountNo { get; set; }
-        public string IfscCode { get; set; }
-        public int? BankCountryID { get; set; }
-        public string AcctName { get; set; }
-        public string Branch { get; set; }
-        public string SwiftCode { get; set; }
-
-        // Child collections
-        public List<BPMasterAddress> Addresses { get; set; }
-        public List<BPContactPerson> Contacts { get; set; }
-        public List<BPAttachment> Attachments { get; set; }
-
-        // Flags
-        public bool UpdateAddresses { get; set; } = false;
-        public bool UpdateBankDetails { get; set; } = false;
-        public bool UpdateContacts { get; set; } = false;
-        public bool UpdateAttachments { get; set; } = false;
+        public bool UpdateAddresses { get; set; }
+        public bool UpdateBankDetails { get; set; }
+        public bool UpdateContacts { get; set; }
+        public bool UpdateAttachments { get; set; }
     }
+
     public class BpSapDataUpdateRequest
     {
         public int Id { get; set; }
         public int MasterId { get; set; }
-        public string DebPayAcct { get; set; }
-        public string WtLabel { get; set; }
-        public string Series { get; set; }
-        public string GrpCode { get; set; }
+        public string DebPayAcct { get; set; } = string.Empty;
+        public string WtLabel { get; set; } = string.Empty;
+        public string Series { get; set; } = string.Empty;
+        public string GrpCode { get; set; } = string.Empty;
     }
+
     public class BPinsightsModel
     {
         public int TotalPending { get; set; }
@@ -546,18 +419,17 @@ namespace JSAPNEW.Models
         public int TotalRejected { get; set; }
         public int TotalBP => TotalPending + TotalApproved + TotalRejected;
     }
+
     public class BPApprovalFlowModel
     {
         public int stageId { get; set; }
-        public string stageName { get; set; }
+        public string stageName { get; set; } = string.Empty;
         public int priority { get; set; }
-        public string assignedTo { get; set; }
-        public string actionStatus { get; set; }
-        public string actionDate { get; set; }
-        public string description { get; set; }
+        public string assignedTo { get; set; } = string.Empty;
+        public string actionStatus { get; set; } = string.Empty;
+        public string actionDate { get; set; } = string.Empty;
+        public string description { get; set; } = string.Empty;
         public int approvalRequired { get; set; }
         public int rejectRequired { get; set; }
     }
 }
-
-

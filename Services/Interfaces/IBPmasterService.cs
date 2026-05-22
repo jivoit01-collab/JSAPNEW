@@ -28,8 +28,6 @@ namespace JSAPNEW.Services.Interfaces
         Task<IEnumerable<UniquePANModel>> GetUniquePANsAsync(int company);
         Task<IEnumerable<GSTMismatchByStateModel>> GetGSTMismatchByStateAsync(int company, string stateCode);
         Task<IEnumerable<GetPricelist>> GetPricelistAsync(int company);
-        Task<UidResponse> CheckAddressUidAsync(string addressUid);
-        Task<UidResponse> CheckContactUidAsync(string contactUid);
         Task<IEnumerable<GetPanByBranch>> GetBpPANByBranchAsync(string Branch, int company);
         Task<SPAData> GetSPADataAsync(int masterId);
         Task<IEnumerable<MergeBpModel>> GetMergeBpModelAsync(int userId, int companyId, string month = null);
