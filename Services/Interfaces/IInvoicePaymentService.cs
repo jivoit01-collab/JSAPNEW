@@ -6,5 +6,6 @@ namespace JSAPNEW.Services.Interfaces
     {
         List<BillDetailDto> GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName, decimal? serialNumber);
         List<InvoiceItemDto> GetInvoiceItemDetails(int vchNumber);
+        bool MarkAsPaid(decimal vchNumber);
     }
 }
