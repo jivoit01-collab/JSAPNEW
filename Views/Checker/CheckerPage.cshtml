@@ -489,11 +489,14 @@
     rows.forEach(item => {
 
     /* hide entries without attachment */
-
     if (!item.attachmentPath) {
     return;
     }
 
+    /* hide already approved entries */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
+    return;
+    }
     
 
     const cs = item.checkerStatus || "Pending";
@@ -921,7 +924,7 @@
     EXPORT TO EXCEL
     ═══════════════════════════════════ */
     function exportToExcel() {
-    const rows = document.querySelectorAll("#makerBody tr");
+    const rows = document.querySelectorAll("#checkerTable tr");
     if (!rows.length) { showToast("No data to export", "error"); return; }
 
     const headers = [

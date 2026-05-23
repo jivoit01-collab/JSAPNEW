@@ -205,7 +205,14 @@
             Search
 
         </button>
+            <button class="btn btn-export"
+                    onclick="exportToExcel()">
 
+                <i class="fa-solid fa-file-excel"></i>
+
+                Export
+
+            </button>
     </div>
 
     <!-- TABLE -->
@@ -810,5 +817,61 @@
     loadData();
 
     });
+    function exportToExcel()
+    {
+    const rows = document.querySelectorAll("#PaymentTable tr");
+
+    if (!rows.length)
+    {
+    alert("No data to export");
+    return;
+    }
+
+    let csv = "";
+
+    rows.forEach(row =>
+    {
+    const cols = row.querySelectorAll("td");
+
+    let rowData = [];
+
+    cols.forEach((col, i) =>
+    {
+    if(i === 7) return;
+
+    let text = col.innerText
+    .replace(/\n/g, " ")
+    .trim();
+
+    text = '"' + text.replace(/"/g, '""') + '"';
+
+    rowData.push(text);
+    });
+
+    csv += rowData.join(",") + "\n";
+    });
+
+    const blob = new Blob(
+    [csv],
+    {
+    type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download = "invoice_payment_export.csv";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+    }
 
 </script>

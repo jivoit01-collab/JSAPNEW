@@ -460,15 +460,7 @@
     return;
     }
 
-    /* hide submitted pending entries */
-
-    if (
-    item.attachmentPath
-    &&
-    item.checkerStatus !== "Rejected"
-    ) {
-    return;
-    }
+   
 
     if (seenVch.has(item.vchNumber)) return;
     seenVch.add(item.vchNumber);
@@ -533,60 +525,44 @@
     ? `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
     : `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> Unpaid</span>`;
 
+  
     /* attachment cell */
+
     let attachCell =
 
     item.checkerStatus === "Approved"
 
-    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>`
+    ? `<span class="status-badge sb-approved">
+    <i class="fa-solid fa-check"></i> Approved
+    </span>`
 
-    : item.attachmentPath
+    : `<div class="attach-group">
 
-    ? `<div class="attach-group">
+    ${item.attachmentPath ?
 
-    <a class="attach-view"
+    `<a class="attach-view"
     href="#"
     onclick="openPdf(${safeJsString(item.attachmentPath)}); return false;">
 
     <i class="fa-solid fa-eye"></i> View
 
-    </a>
+    </a>`
 
-    ${
-    item.checkerStatus === "Rejected"
+    : ''}
 
-    ?
-
-    `<label class="upload-zone reupload-zone">
+    <label class="upload-zone ${item.attachmentPath ? 'reupload-zone' : ''}">
 
     <i class="fa-solid fa-rotate-right"></i>
 
-    Re-Upload
+    ${item.attachmentPath ? 'Re-Upload' : 'Upload'}
 
     <input type="file"
     class="fileInput"
     accept=".pdf,.jpg,.jpeg,.png">
 
-    </label>`
+    </label>
 
-    :
-
-    ''
-    }
-
-    </div>`
-
-    : `<label class="upload-zone">
-
-    <i class="fa-solid fa-arrow-up-from-bracket"></i>
-
-    Upload
-
-    <input type="file"
-    class="fileInput"
-    accept=".pdf,.jpg,.jpeg,.png">
-
-    </label>`;
+    </div>`;
 
     /* remark cell */
     let remarkCell = item.attachmentPath
@@ -596,24 +572,22 @@
     
     /* action cell */
 
+    /* action cell */
+
     let actionCell =
 
     item.checkerStatus === "Approved"
 
-    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-lock"></i> Locked</span>`
-
-    : item.attachmentPath
-    &&
-    item.checkerStatus !== "Rejected"
-
-    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Submitted</span>`
+    ? `<span class="status-badge sb-approved">
+    <i class="fa-solid fa-lock"></i> Locked
+    </span>`
 
     : `<button class="submitBtn btn btn-dark btn-sm"
     data-vch="${safeValueAttr(item.vchNumber)}">
 
     <i class="fa-solid fa-paper-plane"></i>
 
-    Submit
+    ${item.attachmentPath ? 'Update' : 'Submit'}
 
     </button>`;
 

@@ -130,9 +130,27 @@
             <span class="f-label">Account Name</span>
             <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
         </div>
-        <button class="btn btn-dark admin-search-btn" onclick="loadAllData()">
-            <i class="fa-solid fa-magnifying-glass"></i> Search
-        </button>
+            <div class="admin-filter-actions">
+
+                <button class="btn btn-dark admin-search-btn"
+                        onclick="loadAllData()">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    Search
+
+                </button>
+
+                <button class="btn btn-export"
+                        onclick="exportCurrentTab()">
+
+                    <i class="fa-solid fa-file-excel"></i>
+
+                    Export
+
+                </button>
+
+            </div>
     </div>
 
     <!-- =========================================================
@@ -284,6 +302,10 @@
                         <col class="col-amount" />
                         <col class="col-remark" />
                         <col class="col-status" />
+
+
+
+
                         <col class="col-attachment" />
                         <col class="col-delete" />
                     </colgroup>
@@ -417,7 +439,7 @@
             </div>
     </div>
 </div>
-       
+   @*     
    <!-- /tp-checker -->
     <!-- ══════════════════════════════════════════
          TAB: INVOICE PAYMENT
@@ -453,8 +475,68 @@
                     </thead>
                     <tbody id="invoiceBody"></tbody>
                 </table>
-            </div>
-        <!-- PAGINATION -->
+            </div> *@
+
+
+        <!-- ══════════════════════════════════════════
+     TAB: INVOICE PAYMENT
+══════════════════════════════════════════ -->
+        <div class="tp" id="tp-invoice">
+            <div class="t-card">
+
+                <div class="t-header">
+                    <div>
+                        <div class="t-title">
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                            Invoice Payment
+                        </div>
+
+                        <div class="t-subtitle">
+                            Checker approval mapped with payment state
+                        </div>
+                    </div>
+                </div>
+
+                <div class="top-scroll">
+                    <div class="top-scroll-inner"></div>
+                </div>
+
+                <div class="t-wrap">
+
+                    <table class="dt dt-invoice">
+
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-status" />
+                            <col class="col-status" />
+
+                            <!-- NEW -->
+                            <col class="col-action" />
+                        </colgroup>
+
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Checker Status</th>
+                                <th>Payment Status</th>
+
+                                <!-- NEW -->
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="invoiceBody"></tbody>
+
+                    </table>
+                </div>
+            
+     
             <!-- PAGINATION -->
             <div class="dt-pagination" id="pg-invoice">
 
@@ -489,6 +571,7 @@
             </div>
     </div>
 </div>
+     
         
 <!-- /tp-invoice -->
     <!-- ══════════════════════════════════════════
@@ -526,8 +609,7 @@
                     <tbody id="paymentCheckerBody"></tbody>
                 </table>
             </div>
-        <!-- PAGINATION -->
-            <!-- PAGINATION -->
+      
             <div class="dt-pagination" id="pg-paymentchecker">
 
                 <div class="dt-pg-info">
@@ -880,6 +962,31 @@
     $('#checkerBody').html(rows || emptyRow(7));
     }
 
+    // if(tab === 'invoice')
+    // {
+    // rowsData.forEach(x => {
+
+    // rows += `
+    // <tr>
+
+    // <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    // <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    // <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    // <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    // <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+
+    // <td class="td-status">${statusBadge(x.paymentStatus ?? '-')}</td>
+
+    // </tr>
+    // `;
+    // });
+
+    // $('#invoiceBody').html(rows || emptyRow(7));
+    // }
     if(tab === 'invoice')
     {
     rowsData.forEach(x => {
@@ -887,23 +994,80 @@
     rows += `
     <tr>
 
-    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+    <td class="td-account"
+    title="${safeAttr(x.accountName)}">
 
-    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+    <span class="cell-text">
+    ${safeText(x.accountName)}
+    </span>
 
-    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+    </td>
 
-    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+    <td class="td-voucher">
 
-    <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+    <span class="cell-text">
+    ${safeText(x.vchNumber)}
+    </span>
 
-    <td class="td-status">${statusBadge(x.paymentStatus ?? '-')}</td>
+    </td>
+
+    <td class="td-date">
+
+    <span class="cell-text">
+    ${safeText(x.voucherDate)}
+    </span>
+
+    </td>
+
+    <td class="td-amount">
+
+    <span class="cell-text">
+    ₹${safeText(x.billAmount)}
+    </span>
+
+    </td>
+
+    <td class="td-status">
+    ${statusBadge(x.checkerStatus ?? '-')}
+    </td>
+
+    <td class="td-status">
+    ${statusBadge(x.paymentStatus ?? '-')}
+    </td>
+
+    <td style="text-align:center;">
+
+    ${x.paymentStatus === 'Paid'
+    ? `
+    <span class="status-badge sb-approved">
+    <i class="fa-solid fa-check"></i>
+    Paid
+    </span>
+    `
+    : `
+    <button class="btn-mark-paid"
+    type="button"
+
+    onclick="openMarkPaidModal(
+    '${x.vchNumber}',
+    '${x.accountName}',
+    '${x.billAmount}'
+    )">
+
+    <i class="fa-solid fa-circle-dollar-to-slot"></i>
+
+    Mark Paid
+
+    </button>
+    `}
+
+    </td>
 
     </tr>
     `;
     });
 
-    $('#invoiceBody').html(rows || emptyRow(6));
+    $('#invoiceBody').html(rows || emptyRow(7));
     }
 
     if(tab === 'paymentchecker')
@@ -1117,22 +1281,85 @@
     /* ══════════════════════════════════════════
     DELETE ATTACHMENT
     ══════════════════════════════════════════ */
-    function deleteAttachment(vchNumber) {
-    if (confirm("Delete attachment?")) {
+
+    let deleteVoucher = null;
+
+    function deleteAttachment(vchNumber)
+    {
+    deleteVoucher = vchNumber;
+
+    $("#confirmTitle").text("Delete Attachment");
+
+    $("#confirmSubtitle").text(
+    "Permanent attachment removal"
+    );
+
+    $("#confirmWarningText").html(
+    "Are you sure you want to <strong>delete this attachment</strong>? This action cannot be undone."
+    );
+
+    $("#meta-vch").text(vchNumber);
+
+    $("#meta-account").text("Attachment Record");
+
+    $("#meta-amount").text("—");
+
+    $("#meta-remark").text(
+    "File will be permanently removed from system"
+    );
+
+    $("#confirmProceed")
+    .html('<i class="fa-solid fa-trash"></i> Delete');
+
+    $("#confirmProceed")
+    .css({
+    "background":
+    "linear-gradient(135deg,#dc2626,#ef4444)"
+    });
+
+    $("#confirmOverlay")
+    .addClass("show");
+
+    $("#confirmProceed")
+    .off("click")
+    .on("click", function () {
+
+    confirmDeleteAttachment();
+
+    });
+    }
+
+    function confirmDeleteAttachment()
+    {
     $.ajax({
+
     url: '/Admin/DeleteAttachment',
+
     type: 'POST',
+
     contentType: 'application/json',
-    data: JSON.stringify({ vchNumber: vchNumber }),
-    success: function () {
+
+    data: JSON.stringify({
+    vchNumber: deleteVoucher
+    }),
+
+    success: function ()
+    {
+    closeConfirm();
+
     loadMaker();
+
     loadChecker();
+
     loadInvoicePayment();
+
     loadPaymentChecker();
+
+    loadSummary();
     }
     });
     }
-    }
+
     function openMarkPaidModal(vch, account, amount)
     {
     $("#confirmTitle").text("Mark Invoice as Paid");
@@ -1283,6 +1510,85 @@
     new MutationObserver(syncWidth).observe(wrap, { childList: true, subtree: true });
     });
     })();
+
+    function exportCurrentTab()
+    {
+    const activeTab = $(".tp.on").attr("id");
+
+    let tableId = "";
+
+    if(activeTab === "tp-maker")
+    {
+    tableId = "#makerBody";
+    }
+
+    else if(activeTab === "tp-checker")
+    {
+    tableId = "#checkerBody";
+    }
+
+    else if(activeTab === "tp-invoice")
+    {
+    tableId = "#invoiceBody";
+    }
+
+    else if(activeTab === "tp-paymentchecker")
+    {
+    tableId = "#paymentCheckerBody";
+    }
+
+    const rows = document.querySelectorAll(tableId + " tr");
+
+    if (!rows.length)
+    {
+    alert("No data to export");
+    return;
+    }
+
+    let csv = "";
+
+    rows.forEach(row =>
+    {
+    const cols = row.querySelectorAll("td");
+
+    let rowData = [];
+
+    cols.forEach(col =>
+    {
+    let text = col.innerText
+    .replace(/\n/g, " ")
+    .trim();
+
+    text = '"' + text.replace(/"/g, '""') + '"';
+
+    rowData.push(text);
+    });
+
+    csv += rowData.join(",") + "\n";
+    });
+
+    const blob = new Blob(
+    [csv],
+    {
+    type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download = activeTab.replace("tp-","") + "_export.csv";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+    }
 
 </script>
 

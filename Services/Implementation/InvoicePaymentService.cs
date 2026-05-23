@@ -132,7 +132,27 @@ namespace JSAPNEW.Services.Implementation
         }
         public bool MarkAsPaid(decimal vchNumber)
         {
-            return true;
+            string connStr = _config.GetConnectionString("FHConnection");
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                conn.Open();
+
+                using (SqlCommand cmd = new SqlCommand(@"
+            UPDATE AttachmentUpload
+            SET
+                PaymentStatus = 'Paid',
+                PaymentDate = GETDATE()
+            WHERE VchNumber = @VchNumber
+        ", conn))
+                {
+                    cmd.Parameters.AddWithValue("@VchNumber", vchNumber);
+
+                    int rows = cmd.ExecuteNonQuery();
+
+                    return rows > 0;
+                }
+            }
         }
     }
 }
