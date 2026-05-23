@@ -1,286 +1,618 @@
 # BP Master Frontend and Backend Complete Guide
 
-## Audience
+This is the single source of truth for the BP Master module in `JSAPNEW`.
 
-This guide is written for Flutter frontend developers, .NET backend developers, QA testers, SAP support users, future maintainers, interns, and AI-assisted development agents working on the BP Master module in `JSAPNEW`.
+Audience:
 
-The goal is simple: a developer should be able to understand, build, test, debug, and maintain the BP Master workflow by reading this document.
+- Flutter frontend developers
+- .NET backend developers
+- SAP support engineers
+- QA testers
+- Future maintainers
+- AI coding assistants
+
+The BP module has been refactored to match the current SAP Portal Customer Registration and Vendor Registration forms. Only fields visible in the current portal forms should be used by the frontend and backend. The old legacy business fields were removed from active DTOs, stored procedure contracts, SAP payload mapping, and planned database cleanup scripts. The only preserved old field is `isStaff`.
+
+---
 
 ## 1. Module Overview
 
-### What Is BP Master?
+### What BP Master Is
 
-BP Master means Business Partner Master. In SAP Business One, a Business Partner is a person or organization that the company does business with.
+BP Master means Business Partner Master. In SAP Business One, a Business Partner is a party that the company buys from or sells to. This portal module lets users request a new customer or vendor BP, route the request through approval stages, and post the final approved record to SAP Service Layer.
 
-In this project, BP Master supports:
-
-| BP Type | Meaning | SAP `CardType` | Example |
+| BP Type | Portal form | SAP `CardType` | Meaning |
 |---|---|---|---|
-| Customer BP | Party that buys from the company | `cCustomer` | Canola oil distributor, regional dealer, retail chain |
-| Vendor BP | Party that supplies to the company | `cSupplier` | Bottle supplier, packaging vendor, transport vendor |
+| Customer | Customer Registration | `cCustomer` | Party that buys from the company |
+| Vendor | Vendor Registration | `cSupplier` | Party that supplies goods or services |
 
 ### Why This Module Exists
 
-Directly creating BP records in SAP can cause master-data quality problems. A wrong GST number, PAN, bank account, group code, or payment term can affect invoices, payments, tax reporting, and audit.
+Creating SAP BPs directly can introduce tax, bank, duplicate, or approval issues. This module adds:
 
-This portal module solves these problems:
+- controlled data entry through SAP Portal forms
+- structured approval workflow
+- SAP-first final approval
+- attachment/document capture
+- SAP retry handling
+- audit and snapshot history
 
-| Problem | How BP Master solves it |
+### Main Components
+
+| Component | Responsibility |
 |---|---|
-| Uncontrolled SAP master creation | Users submit requests into workflow instead of directly creating SAP BPs. |
-| Missing business review | Manager approval verifies business need and party information. |
-| Wrong tax or bank data | Accounts approval verifies PAN, GST, MSME, FSSAI, bank, and payment terms. |
-| Wrong SAP setup | SAP Team verifies final SAP fields and posts to Service Layer. |
-| Duplicate or partial posting | SAP-first final approval and API status tags keep workflow consistent. |
-| No audit trail | `BP.jsFlowStatus`, snapshot tables, and audit procedures retain history. |
+| Flutter portal | Collects customer/vendor data, attachments, and approval actions |
+| `BPmasterController` | Exposes BP REST APIs |
+| `BPmasterService` | Calls SQL procedures and orchestrates workflow/SAP retry logic |
+| `BPMasterSapService` | Builds SAP payloads and calls SAP Service Layer |
+| SQL BP tables | Store BP master, child data, workflow, SAP status, attachments, audit |
+| SAP Service Layer | Creates `OCRD`, `CRD1`, `OCPR`, `OCRB`, and `Attachments2` records |
 
-### Why Approval Is Needed
+### End-to-End Flow
 
-BP creation affects finance, taxation, sales, purchasing, credit control, and SAP reporting. This is why the module uses a 3-stage workflow:
+1. User creates a Customer or Vendor BP in the Flutter portal.
+2. Frontend submits multipart form data to `POST /api/BPmaster/InsertBPmasterData`.
+3. Backend saves uploaded files under `wwwroot/Uploads/BPmaster`.
+4. Backend calls `BP.jsInsertBPMasterData`.
+5. SQL inserts rows into `BP.jsMaster`, `BP.jsTaxDetails`, `BP.jsMasterAddress`, `BP.jsContactPersons`, `BP.jsBankDetails`, and `BP.jsAttachments`.
+6. BP workflow is created in `BP.jsFlow`.
+7. Stage 1 approver sees the request in `GetPendingBP`.
+8. Stage 1 approval moves the flow to stage 2.
+9. Stage 2 approval moves the flow to stage 3.
+10. Stage 3 final approver clicks approve.
+11. Backend sets SAP API status to `P` for processing.
+12. Backend uploads attachments to SAP `Attachments2`.
+13. Backend posts the BP to SAP `BusinessPartners`.
+14. SAP response is stored in `BP.jsSAPData`.
+15. If SAP succeeds, SQL marks final workflow status approved.
+16. If SAP fails, workflow remains pending at stage 3 and retry is allowed.
 
-| Stage | Approver | Role | Responsibility |
+### Workflow Summary
+
+| Stage | Approver userId | Role | Result |
 |---:|---:|---|---|
-| 1 | `userId = 70` | Manager Approval | Verify business need and basic BP information. |
-| 2 | `userId = 69` | Accounts Approval | Verify tax, bank, payment, credit, and compliance data. |
-| 3 | `userId = 108` | SAP Team Final Approval | Verify SAP readiness and trigger SAP Business Partner creation. |
+| 1 | `70` | Manager Approval | Verifies business need and basic data |
+| 2 | `69` | Accounts Approval | Verifies tax, address, bank, and documents |
+| 3 | `108` | SAP Team Final Approval | Posts to SAP, then completes final approval |
 
-### Why SAP-First Final Approval Is Used
+### SAP-First Final Approval
 
-The workflow must never show a BP as approved if SAP did not create the Business Partner.
-
-Correct final-stage rule:
+Final approval must not show success unless SAP has created the BP.
 
 ```text
-Final approver clicks approve
--> .NET sets apiStatusTag = P
--> .NET calls SAP Service Layer
+Final approver approves
+-> BPmasterService sets apiStatusTag = P
+-> BPMasterSapService posts attachments and BusinessPartners payload
 -> if SAP success:
       apiStatusTag = Y
+      sapCardCode and payloadHash saved
       BP.jsApproveBP marks workflow approved
-   if SAP fail:
+   if SAP failure:
       apiStatusTag = N
-      workflow remains pending at stage 3
-      retry allowed
+      apiMessage saved
+      workflow stays pending at stage 3
+      RetrySapPost is enabled
 ```
 
-This protects business users from seeing false approvals.
+### Snapshot and Audit System
 
-## 2. Complete Workflow Explanation
+Updates create snapshots before data changes. Audit rows capture field-level changes where relevant.
 
-### High-Level Flow
+| Table | Purpose |
+|---|---|
+| `BP.jsAuditLog` | Field and table operation audit |
+| `BP.jsMasterSnapshot` | Header snapshot |
+| `BP.jsMasterAddressSnapshot` | Address snapshot |
+| `BP.jsContactPersonsSnapshot` | Contact snapshot |
+| `BP.jsBankDetailsSnapshot` | Bank snapshot |
+| `BP.jsTaxDetailsSnapshot` | Tax snapshot |
 
-```mermaid
-flowchart TD
-    A[Creator submits Customer or Vendor BP] --> B[BP.jsInsertBPMasterData]
-    B --> C[BP.jsMaster insert]
-    C --> D[BP.trg_AutoCreateBPWorkflow]
-    D --> E[BP.jsFlow created: status P, currentStage 1, totalStage 3]
-    E --> F[Stage 1 Manager queue: userId 70]
-    F --> G[Manager approves]
-    G --> H[Stage 2 Accounts queue: userId 69]
-    H --> I[Accounts approves]
-    I --> J[Stage 3 SAP Team queue: userId 108]
-    J --> K[Final approval]
-    K --> L[.NET posts to SAP first]
-    L -->|SAP success| M[apiStatusTag Y]
-    M --> N[SQL marks workflow Approved]
-    L -->|SAP failure| O[apiStatusTag N]
-    O --> P[Workflow remains pending at stage 3]
-    P --> Q[RetrySapPost]
-```
+### Attachment System
 
-### Submission Flow
+Attachments are preserved as multipart uploads.
 
-1. Flutter submits multipart form data to `POST /api/BPmaster/InsertBPmasterData`.
-2. The request contains a JSON field named `requests`.
-3. Files are uploaded as multipart files.
-4. File type labels are passed in a comma-separated form field named `fileTypes`.
-5. Backend saves files under `wwwroot/Uploads/BPmaster`.
-6. Backend calls `[BP].[jsInsertBPMasterData]`.
-7. SQL inserts master, tax, addresses, bank details, contacts, and attachments.
-8. Insert into `BP.jsMaster` fires `[BP].[trg_AutoCreateBPWorkflow]`.
-9. Trigger creates `BP.jsFlow` with the configured approval template.
+1. Frontend sends files plus `fileTypes`.
+2. Backend stores files in `wwwroot/Uploads/BPmaster`.
+3. Metadata is stored in `BP.jsAttachments`.
+4. On final SAP approval, attachments are posted to SAP `Attachments2`.
+5. SAP returns `AbsoluteEntry`.
+6. Backend sends that value as `OCRD.AttachmentEntry`.
 
-### Approval Flow
+---
 
-| Step | Current stage | User who sees pending | API | SQL result |
-|---:|---:|---:|---|---|
-| 1 | 1 | `70` | `ApproveBP` | `BP.jsFlow.currentStage` moves to `2`. |
-| 2 | 2 | `69` | `ApproveBP` | `BP.jsFlow.currentStage` moves to `3`. |
-| 3 | 3 | `108` | `ApproveBP` | .NET posts SAP first, then SQL approves only if SAP succeeded. |
+## 2. Current Active Frontend Fields
 
-### SAP Posting Flow
+Only these fields are active for BP Master. The frontend must not send retired legacy fields. The only preserved legacy field is `isStaff`.
 
-```mermaid
-sequenceDiagram
-    participant UI as Flutter UI
-    participant API as BPmasterController
-    participant SVC as BPmasterService
-    participant SQL as SQL Server
-    participant SAPSVC as BPMasterSapService
-    participant SAP as SAP Service Layer
+### Common Fields
 
-    UI->>API: POST /api/BPmaster/ApproveBP
-    API->>SVC: ApproveBPAsync
-    SVC->>SQL: Read BP.jsFlow runtime
-    alt Not final stage
-        SVC->>SQL: EXEC BP.jsApproveBP
-        SQL-->>SVC: Moved to next stage
-        SVC-->>API: Advanced
-    else Final stage
-        SVC->>SQL: EXEC BP.jsUpdateBpApiStatus tag P
-        SVC->>SQL: EXEC BP.jsGetSingleBPData
-        SVC->>SQL: EXEC BP.jsGetSPAData
-        SVC->>SAPSVC: PostBusinessPartnerAsync
-        SAPSVC->>SAP: POST Attachments2
-        SAPSVC->>SAP: POST BusinessPartners
-        alt SAP success
-            SVC->>SQL: EXEC BP.jsUpdateBpApiStatus tag Y
-            SVC->>SQL: EXEC BP.jsApproveBP
-            SQL-->>SVC: Workflow status A
-        else SAP failed
-            SVC->>SQL: EXEC BP.jsUpdateBpApiStatus tag N
-            SVC-->>API: Blocked, workflow still pending
-        end
-    end
-```
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| Company Id | Yes | `BP.jsMaster` | `company` | `companyId` | SQL, SAP session, queues | Portal company/database identifier |
+| BP Type | Yes | `BP.jsMaster` | `type` | `customerType` or `vendorType` | Workflow, SAP | `C` for customer, `V` for vendor |
+| Company Name | Yes | `BP.jsMaster` | `name` | `companyName` | Lists, details, SAP | Legal/display BP name |
+| Foreign Name | No | `BP.jsMaster` | `foreignName` | `foreignName`, `foreignTradeName` | Details, SAP | Alternate/foreign/trade name |
+| Industry | No | `BP.jsMaster` | `industry` | `industry`, `industrySector` | Details, SAP UDF | Industry or sector |
+| Currency | Yes | `BP.jsMaster` | `currency` | `currency` | SAP | BP currency, normally `INR` |
+| Remarks | No | `BP.jsMaster` | `remarks` | `remarks` | Details, SAP notes | User-entered comments |
+| Is Staff | Yes | `BP.jsMaster` | `isStaff` | `isStaff` | Portal/workflow | Preserved old flag |
+| Created By | Yes | `BP.jsMaster` | `userId` | `userId` | Audit, ownership | Creator user id |
+| Company By User | Yes | `BP.jsMaster` | `companyByUser` | `companyByUser` | Audit | User company label |
 
-### Rejection Flow
+### Customer-Only Fields
 
-Any active approver assigned to the current stage can reject.
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| Customer Type | Yes | `BP.jsMaster` | `type` | `customerType` | SQL, SAP | Customer marker, normalized to `C` |
+| Type Of Business | No | `BP.jsMaster` | `typeOfBusiness` | `typeOfBusiness` | Details, SAP UDF | Distributor, dealer, retailer, etc. |
+| PAN Number | Yes | `BP.jsTaxDetails` | `panNo` | `panNumber` | Tax, SAP fiscal tax | Customer PAN |
+| MSME | No | `BP.jsTaxDetails` | `msmeNo` | `msme` | Tax, SAP UDF | MSME/Udyam number if available |
 
-```text
-Approver clicks reject
--> POST /api/BPmaster/RejectBP
--> BPmasterService calls BP.jsRejectBP
--> BP.jsFlow.status = R
--> BP.jsFlowStatus stores rejection row with remarks
-```
+### Vendor-Only Fields
 
-Frontend should require rejection remarks.
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| Vendor Type | Yes | `BP.jsMaster` | `type` | `vendorType` | SQL, SAP | Vendor marker, normalized to `V` |
+| PAN | Yes | `BP.jsTaxDetails` | `panNo` | `pan` | Tax, SAP fiscal tax | Vendor PAN |
+| TAN | No | `BP.jsTaxDetails` | `buyerTANNo` | `tan` | Tax, SAP UDF | Vendor TAN |
+| FSSAI License | No | `BP.jsTaxDetails` | `fssaiNo` | `fssaiLicense` | Tax, SAP UDF | Vendor FSSAI license |
+| MSME | No | `BP.jsTaxDetails` | `msmeNo` | `msme` | Tax, SAP UDF | Vendor MSME/Udyam number |
 
-### Pending Flow
+### Contact Fields
 
-`GetPendingBP` only returns records for the user's current stage. This is controlled by:
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| First Name | Recommended | `BP.jsContactPersons` | `firstName` | `firstName` | Details, SAP OCPR | Contact first name |
+| Last Name | No | `BP.jsContactPersons` | `lastName` | `lastName` | Details, SAP OCPR | Contact last name |
+| Designation | No | `BP.jsContactPersons` | `designation` | `designation`, `title` | Details, SAP OCPR | Role/title |
+| Mobile Number | Recommended | `BP.jsMaster`, `BP.jsContactPersons` | `mobileNo`, `mobileNumber` | `mobileNumber`, `mobile` | Header phone, contact, SAP | Primary mobile |
+| Alternate Contact | No | `BP.jsContactPersons` | `alternateContact` | `alternateContact` | Details, SAP OCPR phone | Alternate phone/contact |
+| Email Address | Recommended | `BP.jsContactPersons` | `emailAddress` | `emailAddress` | Details, SAP OCRD/OCPR | Primary email |
+| Alternate Email | No | `BP.jsContactPersons` | `alternateEmail` | `alternateEmail` | Details | Secondary email |
 
-```sql
-BP.jsFlow.currentStageId = dbo.jsUserStage.stageId
-AND dbo.jsUserStage.userId = @userId
-AND dbo.jsUserStage.status = 1
-```
+### Address Fields
 
-This means:
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| Address Type | Yes | `BP.jsMasterAddress` | `addressType` | derived from `billingAddresses` / `shippingAddresses` | SQL, SAP CRD1 | `B` for bill-to, `S` for ship-to |
+| Address Name | Recommended | `BP.jsMasterAddress` | `addressName` | `addressName` | SAP CRD1 | SAP address identifier |
+| Street | Yes | `BP.jsMasterAddress` | `addressLine1` | `street` | Details, SAP CRD1 | Street/address line |
+| Block Area | No | `BP.jsMasterAddress` | `addressLine2` | `blockArea` | Details, SAP CRD1 | Area/block/locality |
+| City | Yes | `BP.jsMasterAddress` | `cityID` | `city` | Details, SAP CRD1 | City |
+| State | Yes | `BP.jsMasterAddress` | `stateID` | `state` | Details, SAP CRD1 | State name or SAP code |
+| Pin Code | Yes | `BP.jsMasterAddress` | `pincode` | `pinCode` | Details, SAP CRD1 | Postal code |
+| Country | Yes | `BP.jsMasterAddress` | `countryID` | `country` | Details, SAP CRD1 | Country name/code |
+| GSTIN | Conditional | `BP.jsMasterAddress`, `BP.jsTaxDetails` | `gstNo`, `gstin` | `gstin` | Tax, SAP CRD1 | GST registration number |
 
-| User | Sees pending when |
-|---:|---|
-| `70` | BP is at stage 1. |
-| `69` | BP is at stage 2. |
-| `108` | BP is at stage 3. |
+### Tax Fields
 
-### Retry Flow
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| GSTIN | Conditional | `BP.jsTaxDetails` | `gstin` | `gstin` | Tax, SAP CRD1 | Header GSTIN/default GSTIN |
+| PAN Number | Yes | `BP.jsTaxDetails` | `panNo` | `panNumber`, `pan` | SAP fiscal tax | PAN |
+| TAN | Vendor optional | `BP.jsTaxDetails` | `buyerTANNo` | `tan` | SAP UDF | TAN |
+| MSME | No | `BP.jsTaxDetails` | `msmeNo` | `msme` | SAP UDF | MSME/Udyam |
+| FSSAI License | Vendor optional | `BP.jsTaxDetails` | `fssaiNo` | `fssaiLicense` | SAP UDF | FSSAI license |
 
-Retry is only for SAP failure at final stage.
+### Bank Fields
 
-```text
-Stage 3 SAP post fails
--> BP.jsSAPData.apiStatusTag = N
--> BP.jsFlow.status stays P
--> currentStage stays 3
--> GetPendingBP returns canRetrySap = true
--> SAP Team user clicks Retry
--> POST /api/BPmaster/RetrySapPost
-```
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| Bank Name | Vendor recommended | `BP.jsBankDetails` | `name` | `bankName` | Details, SAP OCRB | Bank name/code |
+| Branch Name | No | `BP.jsBankDetails` | `branch` | `branchName` | Details, SAP OCRB | Bank branch |
+| Account Number | Vendor recommended | `BP.jsBankDetails` | `accountNo` | `accountNumber` | Details, SAP OCRB | Bank account |
+| IFSC Code | Vendor recommended | `BP.jsBankDetails` | `ifscCode` | `ifscCode` | Details, SAP OCRB | IFSC |
+| SWIFT Code | No | `BP.jsBankDetails` | `swiftCode` | `swiftCode` | Details, SAP OCRB | SWIFT/IBAN support |
+| Account Type | No | `BP.jsBankDetails` | `accountType` | `accountType` | Details | Current/savings/etc. |
 
-## 3. Database Structure
+### Attachment Fields
 
-### Core Tables
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| File Name | Backend generated | `BP.jsAttachments` | `fileName` | multipart file | Details, SAP attachments | Stored file name |
+| File Path | Backend generated | `BP.jsAttachments` | `filePath` | backend generated | Download, SAP attachments | Relative upload folder |
+| File Size | Backend generated | `BP.jsAttachments` | `fileSize` | backend generated | Details | File size in bytes |
+| Content Type | Backend generated | `BP.jsAttachments` | `contentType` | backend generated | Details | MIME type |
+| File Type | Yes per file | `BP.jsAttachments` | `fileType` | `fileTypes` | Details | Business document category |
 
-| Table | Purpose | Important columns |
+---
+
+## 3. Removed Legacy Fields
+
+These fields are removed from active frontend and backend usage because they are not present in the current Customer Registration or Vendor Registration portal forms.
+
+| Removed Field | Old Table | Reason Removed | Replacement |
+|---|---|---|---|
+| `staffCode` | `BP.jsMaster` | Not present in new portal UI | None; `isStaff` remains |
+| `groupID` | `BP.jsMaster` | Old SAP grouping field hidden from UI | SAP setup no longer driven by portal form |
+| `mainGroupID` | `BP.jsMaster` | Old UDF hidden from UI | `industry` or `typeOfBusiness` where applicable |
+| `chain` | `BP.jsMaster` | Old chain field hidden from UI | None |
+| `contactPerson` | `BP.jsMaster` | Replaced by structured contact fields | `firstName`, `lastName`, `designation` |
+| `paymentTermID` | `BP.jsMaster` | Old payment term field hidden from UI | None |
+| `creditLimit` | `BP.jsMaster` | Credit limit moved out of BP registration | Credit Limit module |
+| `priceList` | `BP.jsMaster` | Old price list field hidden from UI | None |
+| `email` | `BP.jsMasterAddress` | Address-level email removed | `emailAddress` in contacts |
+| `isDefault` | `BP.jsMasterAddress` | UI uses billing/shipping arrays instead | Address array type |
+| `gstType` | `BP.jsMasterAddress` | Derived by SAP mapping when GSTIN valid | Valid GSTIN sets SAP GST type |
+| `addressUid` | `BP.jsMasterAddress` | Renamed for portal clarity | `addressName` |
+| `email` | `BP.jsContactPersons` | Renamed for portal clarity | `emailAddress` |
+| `phone` | `BP.jsContactPersons` | Renamed for portal clarity | `mobileNumber` |
+| `telephone` | `BP.jsContactPersons` | Renamed for portal clarity | `alternateContact` |
+| `isPrimary` | `BP.jsContactPersons` | UI currently submits one primary contact block | First contact row |
+| `contactUid` | `BP.jsContactPersons` | UID helper removed from UI | None |
+| `msmeType` | `BP.jsTaxDetails` | Not present in new UI | `msme` |
+| `msmeBusinessType` | `BP.jsTaxDetails` | Not present in new UI | `msme` |
+| `countryID` | `BP.jsBankDetails` | Bank country not in new UI | None |
+| `acctName` | `BP.jsBankDetails` | Account holder not in new UI | `companyName` is used as SAP account name |
+
+Removed helper routes:
+
+- `GET /api/BPmaster/CheckAddressUid`
+- `GET /api/BPmaster/CheckContactUid`
+
+Removed helper procedures in cleanup script:
+
+- `BP.jsGetAddressUid`
+- `BP.jsGetContactUid`
+- `BP.jsUpdateBPMasterData_DEBUG`
+
+### Removed Stored Procedure Parameters and DTO/API Fields
+
+The active SQL procedure contracts and .NET DTOs were aligned to the new Customer Registration and Vendor Registration forms. These retired inputs must not be reintroduced in frontend payloads, Swagger examples, validation rules, SQL TVPs, or SAP mapping without a new UI requirement.
+
+| Removed Input/Property | Previous Area | Reason Removed | Current Rule |
+|---|---|---|---|
+| `groupID` / `GroupCode` | DTO, procedures, SAP payload | Not shown in new frontend | Do not send to SAP from BP registration |
+| `mainGroupID` / `U_Main_Group` | DTO, procedures, SAP payload | Not shown in new frontend | Use `industry` or `typeOfBusiness` only when relevant |
+| `chain` / `U_Chain` | DTO, procedures, SAP payload | Not shown in new frontend | No replacement |
+| `contactPerson` | DTO, procedures | Replaced by structured contact fields | Use `firstName`, `lastName`, `designation` |
+| `paymentTermID` / `PayTermsGrpCode` | DTO, procedures, SAP payload | Not shown in new frontend | Payment term is not portal-controlled |
+| `creditLimit` / `CreditLimit` | DTO, procedures, SAP payload | Not part of BP registration | Managed by the credit-limit module |
+| `priceList` | DTO, procedures, SAP payload | Not shown in new frontend | No replacement |
+| `staffCode` | DTO, procedures | Old staff code field removed | Keep only `isStaff` |
+| `addressUid` | Address DTO/procedure | Renamed for portal clarity | Use `addressName` |
+| `contactUid` | Contact DTO/procedure | UID helper removed from UI | No replacement |
+| `msmeType`, `msmeBusinessType` | Tax DTO/procedure/SAP UDFs | Not shown in new frontend | Use `msme` as MSME/Udyam value |
+| `acctName`, `countryID` | Bank DTO/procedure | Not shown in new frontend | Use company name as SAP account name where needed |
+
+### Migration and Rollback Notes
+
+The cleanup script is `docs/implementation/bp-remove-unused-columns.sql`.
+
+| Requirement | How the migration handles it |
+|---|---|
+| Transaction safety | Uses `SET XACT_ABORT ON` and wraps schema changes in one transaction |
+| Rollback on error | Any runtime error rolls back the active transaction |
+| Backup before drop | Stores retired column values in `BP.*_RemovedColumnsBackup` tables with `MigrationRunId` |
+| IF EXISTS checks | Uses object/column existence checks before adding, backing up, or dropping |
+| Workflow preservation | Does not drop `BP.jsFlow`, `BP.jsFlowStatus`, stages, templates, audit, SAP, or attachment tables |
+| `isStaff` preservation | Keeps `BP.jsMaster.isStaff` as an active field |
+
+After a committed migration, rollback of removed business columns requires recreating the dropped columns and restoring values from the matching backup table and `MigrationRunId`. Workflow, approval history, SAP status, snapshots, and attachments should never be rolled back by deleting rows.
+
+---
+
+## 4. Database Table Structure
+
+### `BP.jsMaster`
+
+Purpose: BP header/master record.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `code` | BP portal primary key |
+| `type` | `C` customer or `V` vendor |
+| `isStaff` | Preserved staff flag |
+| `name` | Company name |
+| `foreignName` | Foreign/trade name |
+| `typeOfBusiness` | Customer business type |
+| `industry` | Industry/sector |
+| `mobileNo` | Header mobile number |
+| `currency` | SAP currency |
+| `remarks` | Notes |
+| `company` | Company id |
+| `userId` | Creator |
+| `companyByUser` | Creator company label |
+
+Inserted by: `BP.jsInsertBPMasterData`.
+
+Used by: lists, details, approval flow, SAP `OCRD`.
+
+### `BP.jsMasterAddress`
+
+Purpose: Billing and shipping address rows.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `addressID` | Address primary key |
+| `code` | FK to `BP.jsMaster.code` |
+| `addressType` | `B` bill-to or `S` ship-to |
+| `addressLine1` | Street |
+| `addressLine2` | Block/area |
+| `stateID` | State |
+| `cityID` | City |
+| `pincode` | Pin code |
+| `countryID` | Country |
+| `gstNo` | Address GSTIN |
+| `addressName` | SAP address identifier |
+
+Inserted by: create/update procedures.
+
+Used by: detail screen, SAP `CRD1`, PAN fiscal tax address link.
+
+### `BP.jsContactPersons`
+
+Purpose: BP contact person details.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `contactID` | Contact primary key |
+| `code` | FK to `BP.jsMaster.code` |
+| `firstName` | Contact first name |
+| `lastName` | Contact last name |
+| `designation` | Title/designation |
+| `emailAddress` | Primary email |
+| `alternateEmail` | Secondary email |
+| `mobileNumber` | Primary mobile |
+| `alternateContact` | Alternate phone/contact |
+
+Inserted by: create/update procedures.
+
+Used by: detail screen, SAP `OCPR`, list summaries.
+
+### `BP.jsTaxDetails`
+
+Purpose: BP tax and compliance fields.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `taxDetailID` | Tax primary key |
+| `code` | FK to `BP.jsMaster.code` |
+| `buyerTANNo` | TAN |
+| `panNo` | PAN |
+| `fssaiNo` | FSSAI license |
+| `msmeNo` | MSME/Udyam |
+| `gstin` | Header/default GSTIN |
+
+Inserted by: create/update procedures.
+
+Used by: details, SAP `BPFiscalTaxIDCollection`, SAP UDFs.
+
+### `BP.jsBankDetails`
+
+Purpose: Vendor bank details.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `bankDetailID` | Bank primary key |
+| `code` | FK to `BP.jsMaster.code` |
+| `name` | Bank name/code |
+| `branch` | Branch name |
+| `accountNo` | Account number |
+| `ifscCode` | IFSC |
+| `swiftCode` | SWIFT/IBAN value |
+| `accountType` | Account type |
+
+Inserted by: create/update procedures when vendor bank data is supplied.
+
+Used by: details, SAP `OCRB`.
+
+### `BP.jsAttachments`
+
+Purpose: Uploaded BP document metadata.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `attachmentID` | Attachment primary key |
+| `code` | FK to `BP.jsMaster.code` |
+| `fileName` | Stored file name |
+| `filePath` | Upload path |
+| `fileSize` | Size in bytes |
+| `contentType` | MIME type |
+| `uploadedOn` | Upload timestamp |
+| `fileType` | Business document type |
+
+Inserted by: controller upload handling and create/update procedures.
+
+Used by: download/details and SAP `Attachments2`.
+
+### `BP.jsFlow`
+
+Purpose: Runtime workflow state for each BP.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `id` | Flow id |
+| `bpCode` | BP code |
+| `status` | `P`, `A`, `R` |
+| `currentStageId` | Current stage id |
+| `templateId` | Approval template |
+| `totalStage` | Total stage count |
+| `currentStage` | Current stage priority |
+| `createdOn`, `updatedOn` | Flow timestamps |
+
+Inserted by: BP workflow trigger/procedure after master insert.
+
+Used by: pending/approved/rejected logic, approval flow, final-stage SAP trigger.
+
+### `BP.jsFlowStatus`
+
+Purpose: Stage action history.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `flowId` | FK to `BP.jsFlow.id` |
+| `status` | `A`, `R`, `Revoked`, etc. |
+| `stageId` | Stage acted on |
+| `templateId` | Template id |
+| `userId` | Approver |
+| `createdOn` | Action timestamp |
+| `description` | Remarks |
+
+Inserted by: `BP.jsApproveBP` and `BP.jsRejectBP`.
+
+Used by: approval history, duplicate action prevention, approved/rejected lists.
+
+### `BP.jsSAPData`
+
+Purpose: SAP posting setup and result status.
+
+Important columns:
+
+| Column | Meaning |
+|---|---|
+| `masterId` | BP code |
+| `apiStatusTag` | `P`, `Y`, `N` |
+| `apiMessage` | SAP result/error |
+| `sapCardCode` | Generated SAP card code |
+| `sapAttachmentEntry` | SAP attachment entry |
+| `payloadHash` | SHA-256 hash of SAP payload |
+| `retryCount` | SAP posting attempts |
+| `lastAttemptOn` | Last SAP attempt timestamp |
+| `lastAttemptBy` | User who triggered last attempt |
+
+Used by: final approval gate, retry button, SAP diagnostics.
+
+### Snapshot and Audit Tables
+
+| Table | Purpose | Data Inserted When |
 |---|---|---|
-| `BP.jsMaster` | Main BP header data. | `code`, `type`, `name`, `company`, `groupID`, `mainGroupID`, `chain`, `paymentTermID`, `creditLimit`, `priceList`, `userId`, `companyByUser` |
-| `BP.jsFlow` | Runtime workflow state. | `id`, `bpCode`, `status`, `currentStageId`, `templateId`, `totalStage`, `currentStage`, `createdOn`, `updatedOn` |
-| `BP.jsFlowStatus` | Stage action history. | `flowId`, `status`, `stageId`, `templateId`, `userId`, `createdOn`, `description` |
-| `BP.jsSAPData` | SAP posting metadata. | `masterId`, `debPayAcct`, `wtLabel`, `series`, `grpCode`, `apiStatusTag`, `apiMessage`, `sapCardCode`, `sapAttachmentEntry`, `payloadHash`, `retryCount`, `lastAttemptOn`, `lastAttemptBy` |
-| `BP.jsMasterAddress` | BP address records. This is the actual address table. | `code`, `addressType`, `addressLine1`, `stateID`, `cityID`, `pincode`, `countryID`, `gstNo`, `isDefault`, `addressUid` |
-| `BP.jsContactPersons` | Contact persons for BP. | `code`, `firstName`, `lastName`, `designation`, `email`, `phone`, `telephone`, `isPrimary`, `contactUid` |
-| `BP.jsBankDetails` | Bank information, mainly required for vendors. | `code`, `name`, `accountNo`, `ifscCode`, `countryID`, `acctName`, `branch`, `swiftCode` |
-| `BP.jsTaxDetails` | Tax and compliance fields. | `code`, `buyerTANNo`, `panNo`, `fssaiNo`, `msmeNo`, `msmeType`, `msmeBusinessType` |
-| `BP.jsAttachments` | Uploaded document metadata. | `code`, `fileName`, `filePath`, `fileSize`, `contentType`, `fileType` |
-
-Note: Some older notes call the address table `BP.jsAddress`. In this project the actual table is `BP.jsMasterAddress`.
+| `BP.jsAuditLog` | Field/table operation history | During update/restore operations |
+| `BP.jsMasterSnapshot` | Master before-update snapshot | Before update/restore |
+| `BP.jsMasterAddressSnapshot` | Address snapshot | Before address replacement |
+| `BP.jsContactPersonsSnapshot` | Contact snapshot | Before contact replacement |
+| `BP.jsBankDetailsSnapshot` | Bank snapshot | Before bank replacement |
+| `BP.jsTaxDetailsSnapshot` | Tax snapshot | Before tax update |
 
 ### Workflow Configuration Tables
 
 | Table | Purpose |
 |---|---|
-| `dbo.jsTemplate` | Approval template per company/module. |
-| `dbo.jsTemplateQuery` | Links template to validation query. |
-| `dbo.jsQuery` | Query used by trigger to pick the matching template. BP uses `type = 10`. |
-| `dbo.jsStageTemplate` | Maps a stage to a template and priority. |
-| `dbo.jsStage` | Stage definition, approval count, rejection count, description. |
-| `dbo.jsUserStage` | Maps approver users to stage IDs. |
-| `dbo.jsApprovalCount` | Number of approvals required at a stage. |
-| `dbo.jsRejectionCount` | Number of rejections required. |
+| `dbo.jsTemplate` | Approval template per module/company |
+| `dbo.jsStageTemplate` | Stages linked to template with priority |
+| `dbo.jsStage` | Stage metadata and approval/rejection requirements |
+| `dbo.jsUserStage` | Users assigned to stages |
 
-### Snapshot and Audit Tables
-
-| Table | Purpose |
-|---|---|
-| `BP.jsAuditLog` | Field-level change audit. |
-| `BP.jsMasterSnapshot` | Master header snapshot. |
-| `BP.jsMasterAddressSnapshot` | Address snapshot. |
-| `BP.jsBankDetailsSnapshot` | Bank detail snapshot. |
-| `BP.jsContactPersonsSnapshot` | Contact snapshot. |
-| `BP.jsAttachmentsSnapshot` | Attachment snapshot. |
-| `BP.jsTaxDetailsSnapshot` | Tax detail snapshot. |
-
-Related SQL procedures:
-
-| Procedure | Purpose | API exposed today |
-|---|---|---|
-| `BP.jsGetBPCompleteAuditLog` | Full field-change and snapshot audit view. | Not currently exposed in `BPmasterController`. |
-| `BP.jsGetBPSnapshots` | Snapshot list by BP code/date. | Not currently exposed. |
-| `BP.jsRestoreBPFromSnapshot` | Restore BP from snapshot with confirmation flag. | Not currently exposed. |
-
-Recommended future API routes:
+Relation summary:
 
 ```text
-GET  /api/BPmaster/GetBPCompleteAuditLog?bpCode=12001
-GET  /api/BPmaster/GetBPSnapshots?bpCode=12001
-POST /api/BPmaster/RestoreBPFromSnapshot
+BP.jsMaster.code
+  -> BP.jsMasterAddress.code
+  -> BP.jsContactPersons.code
+  -> BP.jsTaxDetails.code
+  -> BP.jsBankDetails.code
+  -> BP.jsAttachments.code
+  -> BP.jsFlow.bpCode
+       -> BP.jsFlowStatus.flowId
+  -> BP.jsSAPData.masterId
 ```
 
-## 4. Approval Engine
+---
+
+## 5. Data Flow Mapping
+
+### Header Fields
+
+| Frontend Field | API Payload | Stored In | Used In | Displayed In |
+|---|---|---|---|---|
+| Company Name | `companyName` | `BP.jsMaster.name` | SAP `OCRD.CardName` | Pending, approved, rejected, detail |
+| Customer Type | `customerType` | `BP.jsMaster.type = C` | SAP `CardType = cCustomer` | Lists, detail |
+| Vendor Type | `vendorType` | `BP.jsMaster.type = V` | SAP `CardType = cSupplier` | Lists, detail |
+| Foreign Name | `foreignName` / `foreignTradeName` | `BP.jsMaster.foreignName` | SAP `CardForeignName` | Detail |
+| Type Of Business | `typeOfBusiness` | `BP.jsMaster.typeOfBusiness` | SAP UDF | Detail |
+| Industry | `industry` / `industrySector` | `BP.jsMaster.industry` | SAP UDF | Detail |
+| Currency | `currency` | `BP.jsMaster.currency` | SAP `Currency` | Detail |
+| Remarks | `remarks` | `BP.jsMaster.remarks` | SAP `Notes` | Detail |
+| Is Staff | `isStaff` | `BP.jsMaster.isStaff` | Workflow/list flag | Lists, detail |
+
+### Contact Fields
+
+| Frontend Field | API Payload | Stored In | Used In | Displayed In |
+|---|---|---|---|---|
+| First Name | `firstName` | `BP.jsContactPersons.firstName` | SAP `OCPR.FirstName` | Detail |
+| Last Name | `lastName` | `BP.jsContactPersons.lastName` | SAP `OCPR.LastName` | Detail |
+| Designation | `designation` / `title` | `BP.jsContactPersons.designation` | SAP `OCPR.Position` | Detail |
+| Mobile | `mobileNumber` / `mobile` | `BP.jsMaster.mobileNo`, `BP.jsContactPersons.mobileNumber` | SAP `Phone1`, `MobilePhone` | Lists, detail |
+| Alternate Contact | `alternateContact` | `BP.jsContactPersons.alternateContact` | SAP `OCPR.Phone1` | Detail |
+| Email | `emailAddress` | `BP.jsContactPersons.emailAddress` | SAP `OCRD.EmailAddress`, `OCPR.E_Mail` | Detail |
+| Alternate Email | `alternateEmail` | `BP.jsContactPersons.alternateEmail` | Portal only | Detail |
+
+### Address Fields
+
+| Frontend Field | API Payload | Stored In | Used In | Displayed In |
+|---|---|---|---|---|
+| Billing Address | `billingAddresses[]` | `BP.jsMasterAddress.addressType = B` | SAP `bo_BillTo` | Detail |
+| Shipping Address | `shippingAddresses[]` | `BP.jsMasterAddress.addressType = S` | SAP `bo_ShipTo` | Detail |
+| Address Name | `addressName` | `BP.jsMasterAddress.addressName` | SAP address key | Detail |
+| Street | `street` | `BP.jsMasterAddress.addressLine1` | SAP `Street` | Detail |
+| Block Area | `blockArea` | `BP.jsMasterAddress.addressLine2` | SAP `Block` | Detail |
+| City | `city` | `BP.jsMasterAddress.cityID` | SAP `City` | Detail |
+| State | `state` | `BP.jsMasterAddress.stateID` | SAP `State` | Detail |
+| Pin Code | `pinCode` | `BP.jsMasterAddress.pincode` | SAP `ZipCode` | Detail |
+| Country | `country` | `BP.jsMasterAddress.countryID` | SAP `Country` | Detail |
+| GSTIN | `gstin` | `BP.jsMasterAddress.gstNo` | SAP `GSTIN` | Detail |
+
+### Tax and Bank Fields
+
+| Frontend Field | API Payload | Stored In | Used In | Displayed In |
+|---|---|---|---|---|
+| PAN | `panNumber` / `pan` | `BP.jsTaxDetails.panNo` | SAP fiscal tax | Detail |
+| TAN | `tan` | `BP.jsTaxDetails.buyerTANNo` | SAP UDF | Detail |
+| GSTIN | `gstin` | `BP.jsTaxDetails.gstin` | SAP address GSTIN fallback | Detail |
+| MSME | `msme` | `BP.jsTaxDetails.msmeNo` | SAP UDF | Detail |
+| FSSAI | `fssaiLicense` | `BP.jsTaxDetails.fssaiNo` | SAP UDF | Detail |
+| Bank Name | `bankName` | `BP.jsBankDetails.name` | SAP `OCRB.BankCode` | Detail |
+| Branch Name | `branchName` | `BP.jsBankDetails.branch` | SAP `OCRB.Branch` | Detail |
+| Account Number | `accountNumber` | `BP.jsBankDetails.accountNo` | SAP `OCRB.AccountNo` | Detail |
+| IFSC Code | `ifscCode` | `BP.jsBankDetails.ifscCode` | SAP `BICSwiftCode`, `UserNo1` | Detail |
+| SWIFT Code | `swiftCode` | `BP.jsBankDetails.swiftCode` | SAP `IBAN` | Detail |
+| Account Type | `accountType` | `BP.jsBankDetails.accountType` | Portal only | Detail |
+
+---
+
+## 6. Approval Workflow
+
+### Current Approval Stages
+
+| Stage | `currentStage` | UserId | Role |
+|---:|---:|---:|---|
+| 1 | `1` | `70` | Manager Approval |
+| 2 | `2` | `69` | Accounts Approval |
+| 3 | `3` | `108` | SAP Team Final Approval |
 
 ### How `currentStage` Works
 
-`BP.jsFlow.currentStage` is the numeric stage priority:
-
-| Value | Meaning |
-|---:|---|
-| `1` | Manager Approval |
-| `2` | Accounts Approval |
-| `3` | SAP Team Final Approval |
+`BP.jsFlow.currentStage` stores the priority number of the current stage. `BP.jsFlow.currentStageId` stores the actual stage id from `dbo.jsStage`.
 
 ### How `totalStage` Works
 
-`BP.jsFlow.totalStage` is the number of stages in the template. Current production design requires:
-
-```text
-totalStage = 3
-```
-
-The .NET service treats a BP as final when:
+`BP.jsFlow.totalStage` stores the total stage count. The backend treats a flow as final when:
 
 ```csharp
 CurrentStage >= TotalStage
 ```
 
-This is why `totalStage` must be correct. If `totalStage = 1`, SAP posting starts after the first approval.
+This is why the current template must keep `totalStage = 3`.
 
-### How Next Approver Is Detected
+### How Next Approver Is Determined
 
-`GetPendingBP` checks:
+Pending records are selected by matching the logged-in user to `BP.jsFlow.currentStageId` through `dbo.jsUserStage`.
 
 ```sql
 SELECT DISTINCT us.stageId
@@ -293,204 +625,133 @@ WHERE us.userId = @userId
   AND ISNULL(us.status, 1) = 1;
 ```
 
-Then it matches those stage IDs against `BP.jsFlow.currentStageId`.
-
-### How Stage Movement Works
-
-`BP.jsApproveBP`:
-
-1. Loads `BP.jsFlow`.
-2. Validates BP company.
-3. Resolves current stage from `jsStageTemplate`.
-4. Checks whether `@userId` is assigned to the current stage.
-5. Inserts or updates `BP.jsFlowStatus`.
-6. Counts approvals required from `jsApprovalCount`.
-7. If current stage is not final, moves `currentStage` and `currentStageId` forward.
-8. If current stage is final, refuses approval unless SAP status is `Y`.
-
-Stage movement example:
-
-```sql
-SELECT
-    f.id AS flowId,
-    f.bpCode,
-    f.status,
-    f.currentStage,
-    f.totalStage,
-    f.currentStageId,
-    s.stage AS currentStageName
-FROM BP.jsFlow f
-LEFT JOIN dbo.jsStage s ON s.id = f.currentStageId
-WHERE f.id = 1115;
-```
-
-## 5. SAP Integration
-
-### SAP Service Layer
-
-The backend posts to SAP Business One Service Layer through `BPMasterSapService`.
-
-Important SAP endpoints:
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `BusinessPartners?$filter=...` | GET | Find latest CardCode by prefix. |
-| `Attachments2` | POST | Upload SAP-readable attachment paths. |
-| `BusinessPartners` | POST | Create customer/vendor BP. |
-
-### SAP Company Session Mapping
-
-`BPMasterSapService.GetSessionAsync` chooses SAP login based on BP company:
-
-| Company | Session method |
-|---:|---|
-| `1` | `GetSAPSessionOilAsync()` |
-| `2` | `GetSAPSessionBevAsync()` |
-| `3` | `GetSAPSessionMartAsync()` |
-
-Unsupported company IDs throw an exception.
-
-### SAP Status Tags
-
-| Tag | Meaning | Workflow behavior |
-|---|---|---|
-| `P` | Processing | SAP posting has started. Prevent duplicate concurrent posts. |
-| `Y` | Success | SAP created BP. SQL final approval can complete. |
-| `N` | Failed | SAP failed. Workflow remains pending at stage 3. Retry allowed. |
-
-### CardCode Generation
-
-Default prefixes:
-
-| BP Type | SAP CardType | Default prefix |
-|---|---|---|
-| Customer | `cCustomer` | `CUSTA` |
-| Vendor | `cSupplier` | `VENDA` |
-
-If `BP.jsSAPData.series` contains a non-numeric value, it can be used as the prefix.
-
-The service queries SAP:
-
-```http
-GET /BusinessPartners?$filter=startswith(CardCode,'CUSTA') and CardType eq 'cCustomer'&$select=CardCode&$orderby=CardCode desc&$top=1
-```
-
-Then it increments the numeric suffix.
-
-### SAP BusinessPartners Header Mapping
-
-| Source | SAP field | Notes |
-|---|---|---|
-| Generated code | `CardCode` | Example `CUSTA000001`. |
-| `BP.jsMaster.name` | `CardName` | BP display name in SAP. |
-| `BP.jsMaster.type` | `CardType` | `C` -> `cCustomer`, `V` -> `cSupplier`. |
-| Fixed value | `Currency` | `INR`. |
-| `BP.jsMaster.mobileNo` | `Phone1` | Sanitized to digits, Indian mobile normalized. |
-| `BP.jsMaster.creditLimit` | `CreditLimit` | Only if greater than zero. |
-| `BP.jsMaster.groupID` or `BP.jsSAPData.grpCode` | `GroupCode` | Group must exist in SAP. |
-| `BP.jsMaster.paymentTermID` | `PayTermsGrpCode` | Payment term group code. |
-| SAP `Attachments2.AbsoluteEntry` | `AttachmentEntry` | Only if attachments were uploaded. |
-| `BP.jsMaster.mainGroupID` | `U_Main_Group` | SAP UDF. |
-| `BP.jsMaster.chain` | `U_Chain` | SAP UDF. |
-| `BP.jsTaxDetails.fssaiNo` | `U_Fssai` | Uppercase. |
-| `BP.jsTaxDetails.msmeNo` | `U_MSME` | Uppercase. |
-| `BP.jsTaxDetails.msmeType` | `U_MSME_Type` | Normalized. |
-| `BP.jsTaxDetails.msmeBusinessType` | `U_MSME_BType` | Normalized. |
-| `BP.jsSAPData.debPayAcct` | `DebitorAccount` | Set when available. |
-
-### BPAddresses Mapping
-
-| Source | SAP field | Rule |
-|---|---|---|
-| `addressUid` or generated name | `AddressName` | Required for tax linking. |
-| `addressType` | `AddressType` | Billing -> `bo_BillTo`, Shipping -> `bo_ShipTo`. |
-| `addressLine1` | `Street` | Truncated to 100 chars. |
-| `addressLine2` | `Block` | Truncated to 100 chars. |
-| `cityID` | `City` | Truncated to 100 chars. |
-| `pincode` | `ZipCode` | Truncated to 20 chars. |
-| `stateID` | `State` | Mapped to SAP state code. |
-| `countryID` | `Country` | Defaults to `IN`. |
-| `gstNo` | `GSTIN` | Only if valid GST format. |
-| valid GST | `GstType` | `gstRegularTDSISD`. |
-
-If no shipping address exists, bill-to address is reused as ship-to.
-
-### ContactEmployees Mapping
-
-| Source | SAP field |
-|---|---|
-| `firstName + lastName` | `Name` |
-| `firstName` | `FirstName` |
-| `lastName` | `LastName` |
-| `phone` | `MobilePhone` |
-| `email` | `E_Mail` |
-| fixed value | `Active = tYES` |
-
-### BPFiscalTaxIDCollection Mapping
-
-| Source | SAP field |
-|---|---|
-| First bill-to `AddressName` | `Address` |
-| fixed value | `AddrType = bo_BillTo` |
-| `panNo` | `TaxId0` |
-
-PAN must match:
+### Workflow Diagram
 
 ```text
-^[A-Z]{5}[0-9]{4}[A-Z]$
+Create BP
+  |
+  v
+BP.jsMaster + child tables inserted
+  |
+  v
+BP.jsFlow created with status P, currentStage 1
+  |
+  v
+Stage 1 Manager userId 70 approves
+  |
+  v
+Stage 2 Accounts userId 69 approves
+  |
+  v
+Stage 3 SAP Team userId 108 approves
+  |
+  v
+Backend posts to SAP Service Layer
+  |
+  +-- SAP success -> apiStatusTag Y -> BP.jsFlow status A
+  |
+  +-- SAP failure -> apiStatusTag N -> BP.jsFlow remains P -> Retry shown
 ```
 
-### BPBankAccounts Mapping
+### Pending Logic
 
-Bank accounts are posted for vendors.
+`GetPendingBP` returns only records where:
 
-| Source | SAP field |
+- `BP.jsFlow.status = P`
+- BP belongs to the requested company
+- current stage is assigned to the requested user
+- the user has not already approved/rejected the current stage
+
+### Approved Logic
+
+`GetApprovedBP` reads `BP.jsFlowStatus` rows with `status = A` for the user and joins the BP master record.
+
+### Rejected Logic
+
+`GetRejectedBP` reads `BP.jsFlowStatus` rows with `status = R` for the user and joins the BP master record.
+
+### Final SAP Trigger Rule
+
+SAP posting only runs on final-stage approval. Stage 1 and stage 2 approvals only move the workflow forward.
+
+---
+
+## 7. SAP Integration
+
+### When SAP API Triggers
+
+SAP posting triggers only from:
+
+- `POST /api/BPmaster/ApproveBP` when the BP is at final stage
+- `POST /api/BPmaster/RetrySapPost` when final-stage SAP posting previously failed
+
+### SAP Tables/Objects Created
+
+| SAP object | Source |
 |---|---|
-| `bankCode` | `BankCode` |
-| `accountNo` | `AccountNo` |
-| `branch` | `Branch` |
-| `acctName` or bank name | `AccountName` |
-| `ifscCode` | `BICSwiftCode`, `UserNo1` |
-| `swiftCode` | `IBAN` |
+| `OCRD` Business Partner header | `BP.jsMaster`, `BP.jsTaxDetails` |
+| `CRD1` Addresses | `BP.jsMasterAddress` |
+| `OCPR` Contact employees | `BP.jsContactPersons` |
+| `OCRB` Vendor bank accounts | `BP.jsBankDetails` |
+| `Attachments2` | `BP.jsAttachments` |
 
-If bank code is missing, that bank row is skipped and a warning is appended to the SAP result message.
+### SAP Header Mapping
 
-### Attachments2 Flow
+| Portal/DB field | SAP field |
+|---|---|
+| Generated card code | `CardCode` |
+| `BP.jsMaster.name` | `CardName` |
+| `type = C/V` | `CardType = cCustomer/cSupplier` |
+| `foreignName` | `CardForeignName` |
+| `mobileNo` | `Phone1` |
+| `emailAddress` | `EmailAddress` |
+| `currency` | `Currency` |
+| `remarks` | `Notes` |
+| `typeOfBusiness` | `U_TypeOfBusiness` |
+| `industry` | `U_Industry` |
+| `fssaiNo` | `U_Fssai` |
+| `msmeNo` | `U_MSME` |
+| `buyerTANNo` | `U_TAN` |
+| SAP attachment entry | `AttachmentEntry` |
 
-1. Portal saves file metadata in `BP.jsAttachments`.
-2. `BPMasterSapService` resolves a SAP-readable source path.
-3. Service posts:
+### `apiStatusTag`
 
-```json
-{
-  "Attachments2_Lines": [
-    {
-      "FileName": "gst_certificate",
-      "FileExtension": "pdf",
-      "SourcePath": "\\\\sap-share\\BPmaster",
-      "UserID": "1",
-      "Override": "tYES"
-    }
-  ]
-}
-```
+| Value | Meaning | UI behavior |
+|---|---|---|
+| `P` | SAP processing | Show processing badge, disable duplicate approve |
+| `Y` | SAP success | Show success badge, final approval completes |
+| `N` | SAP failed | Show failed badge, allow retry at final stage |
+| `NULL` | SAP not started | Normal pending state before final stage |
 
-4. SAP returns `AbsoluteEntry`.
-5. Backend sends `AttachmentEntry` in the `BusinessPartners` payload.
+### SAP Status Columns
 
-### Payload Hash
+| Column | Meaning |
+|---|---|
+| `sapCardCode` | CardCode generated/created in SAP |
+| `sapAttachmentEntry` | SAP `Attachments2.AbsoluteEntry` |
+| `retryCount` | Number of SAP processing attempts |
+| `payloadHash` | SHA-256 hash of SAP payload |
+| `apiMessage` | Success or error message |
+| `lastAttemptOn` | Last SAP attempt timestamp |
+| `lastAttemptBy` | User who triggered the last attempt |
 
-The SAP payload JSON is hashed with SHA-256. The hash is stored in `BP.jsSAPData.payloadHash`.
+### Retry Logic
 
-Use it to compare retries:
+`RetrySapPostAsync`:
 
-```sql
-SELECT masterId, apiStatusTag, payloadHash, retryCount, lastAttemptOn
-FROM BP.jsSAPData
-WHERE masterId = 12001;
-```
+1. Loads the flow runtime.
+2. Verifies company access.
+3. Verifies flow is pending.
+4. Verifies flow is at final stage.
+5. Checks `apiStatusTag`.
+6. Allows retry only when tag is `N` or already `Y`.
+7. Calls normal final approval path with `Action = Approve`.
 
-## 6. Complete API Documentation
+Retry is never allowed for stage 1 or stage 2.
+
+---
+
+## 8. API Documentation
 
 Base route:
 
@@ -498,168 +759,196 @@ Base route:
 /api/BPmaster
 ```
 
-Common headers:
+### Create BP
 
-| Header | Value |
+| Item | Value |
 |---|---|
-| `Authorization` | `Bearer <jwt-token>` when API authorization is enforced. |
-| `Content-Type` | `application/json` for normal APIs. |
-| `Content-Type` | `multipart/form-data` for create/update with files. |
-
-The project configures JWT authentication in `Program.cs`. Individual BP endpoints currently do not show `[Authorize]` attributes in the controller, so deployment security may depend on routing, gateway, or future attributes. Frontend should still send the bearer token consistently.
-
-### API Summary
-
-| API | Method | Purpose | Stored procedure or service |
-|---|---|---|---|
-| `/InsertBPmasterData` | POST multipart | Create Customer/Vendor BP request. | `BP.jsInsertBPMasterData` |
-| `/GetPendingBP` | GET | Current user's pending approval queue. | `BP.jsGetPendingBP` |
-| `/ApproveBP` | POST JSON | Approve current stage. Final stage posts SAP first. | `BPmasterService`, `BP.jsApproveBP` |
-| `/RejectBP` | POST JSON | Reject current stage. | `BP.jsRejectBP` |
-| `/RetrySapPost` | POST JSON | Retry final-stage SAP failure. | `RetrySapPostAsync` |
-| `/GetSingleBPData` | GET | Full BP detail. | `BP.jsGetSingleBPData` |
-| `/GetApprovedBP` | GET | Approved BP list. | `BP.jsGetApprovedBP` |
-| `/GetRejectedBP` | GET | Rejected BP list. | `BP.jsGetRejectedBP` |
-| `/GetBPApprovalFlow` | GET | Stage history and assigned users. | `BP.jsGetBPApprovalFlow` |
-| `/GetTotalBPData` | GET | Combined pending/approved/rejected list. | `BP.jsGetPendingBP`, `BP.jsGetApprovedBP`, `BP.jsGetRejectedBP` |
-| `/UpdateBPMaster` | POST multipart | Update BP data and attachments. | `BP.jsUpdateBPMasterData` |
-| `/UpdateSapData` | POST JSON | Update SAP-specific setup fields. | `BP.jsUpdateSAPData` |
-| `/GetSPAData` | GET | Read SAP-specific setup fields. | `BP.jsGetSPAData` |
-| `/GetOptions` | GET | Consolidated Flutter dropdown/options payload. | `BPmasterService.GetOptionsAsync` |
-| `/GetBPCompleteAuditLog` | Not exposed today | SQL procedure exists, controller route not implemented. | `BP.jsGetBPCompleteAuditLog` |
-
-### Lookup and Dropdown APIs
-
-Flutter should use these APIs to populate form dropdowns instead of hardcoding SAP values.
-
-| API | Method | Query parameters | Purpose | Source |
-|---|---|---|---|---|
-| `/GetOptions` | GET | `company`, `bpType`, `isStaff`, `countryCode` | Recommended single API for Flutter create/edit screens. Returns banks, groups, payment terms, states, chains, main groups, price lists, PANs, and existing BP cards. | HANA procedures with standard SAP table fallback. |
-| `/GetDistinctBankName` | GET | `company` | Bank code/name list. | HANA procedure `BPGETDISTINCTBANKNAME`; fallback `ODSC`. |
-| `/GetSLPname` | GET | `company` | Sales employee list. | HANA procedure `BPGETDISTINCTBSNAME`; fallback `OSLP`. |
-| `/GetChain` | GET | `company`, `BPType`, `IsStaff` | Chain values by BP type/staff flag. | HANA procedure `BPGETDISTINCTCHAIN`; fallback `@CHAIN`. |
-| `/GetCountry` | GET | `company` | Country list. | HANA procedure `BPGETDISTINCTCOUNTRIES`; fallback `OCRY`. |
-| `/GetMaingroup` | GET | `company`, `BPType`, `IsStaff` | Main group values. | HANA procedure `BPGETDISTINCTMAINGROUPS`; fallback `@MAIN_GROUP`. |
-| `/GetMSMEtype` | GET | `company` | MSME business type list. | HANA procedure `BPGETDISTINCTMSMEBTYPE`; fallback static `Manufacturing`, `Service`, `Trading`, `Others`. |
-| `/GetGroupNameByBPType` | GET | `company`, `bpType`, `isStaff` | BP group codes/names for Customer/Vendor. | HANA procedure `BPGETGROUPNAMEBYBPTYPE`; fallback `OCRG`. |
-| `/GetDistinctPaymentGroups` | GET | `company` | Payment term codes/names. | HANA procedure `BPGETDISTINCTPYMNTGROUP`; fallback `OCTG`. |
-| `/GetDistinctStates` | GET | `company`, `CountryCode` | State list by country. | HANA procedure `BPGETDISTINCTSTATE`; fallback `OCST`. |
-| `/BPGetCardInfo` | GET | `company`, `BPType`, `IsStaff` | Existing SAP BP card lookup. | HANA procedure `BPGETCARDINFO`; fallback `OCRD`/`CRD1`. |
-| `/GetUniquePANs` | GET | `company` | Existing PAN values for duplicate checks. | HANA procedure `BPGETUNIQUEPANS`; fallback `OCRD.LicTradNum`. |
-| `/GetGSTMismatchByState` | GET | `company`, `stateCode` | GST/state validation help. | HANA procedure `BPGETGSTMISMATCHBYSTATEV2`; fallback `OCST`. |
-| `/GetPricelist` | GET | `company` | Price list codes/names. | HANA procedure `BpGetPriceList`; fallback `OPLN`. |
-| `/GetBpPANByBranch` | GET | `Branch`, `company` | PAN lookup by branch/company. | HANA procedure `BP_GET_PAN_BY_BRANCH_COMPANY`; fallback `OCRD`/`CRD1`. |
-| `/CheckAddressUid` | GET | `addressUid` | Validate address UID uniqueness. | `BP.jsGetAddressUid`. |
-| `/CheckContactUid` | GET | `contactUid` | Validate contact UID uniqueness. | `BP.jsGetContactUid`. |
-
-Frontend recommendation: call `/GetOptions` first. Use individual lookup APIs only when refreshing one dropdown after a BP type, staff flag, branch, or country change.
-
-```http
-GET /api/BPmaster/GetOptions?company=1&bpType=C&isStaff=false&countryCode=IN
-```
-
-Important option fields:
-
-| Option bucket | Required value field | Display field |
-|---|---|---|
-| `banks` | `bankCode` | `bankName` |
-| `groups` | `groupCode` or `code` | `groupName` or `name` |
-| `paymentTerms` | `groupNum` or `code` | `pymntGroup` or `name` |
-| `mainGroups` | `code` or `u_Main_Group` | `name` |
-| `chains` | `code` or `u_Chain` | `name` |
-| `states` | `code` | `name` |
-| `countries` | `code` | `name` |
-| `priceLists` | `listNum` or `code` | `listName` or `name` |
-
-Lookup response shape varies by endpoint because older endpoints map to specific models. The frontend should treat these as typed dropdown sources and cache them per company/BP type where appropriate.
-
-Example:
-
-```http
-GET /api/BPmaster/GetGroupNameByBPType?company=1&bpType=C&isStaff=false
-```
-
-```json
-{
-  "success": true,
-  "data": [
-    { "groupCode": 100, "code": "100", "groupName": "BRANCH CUSTOMER", "name": "BRANCH CUSTOMER" },
-    { "groupCode": 115, "code": "115", "groupName": "PUNJAB", "name": "PUNJAB" }
-  ]
-}
-```
-
-Some lookup endpoints return raw arrays instead of `{ success, data }` because the current controller returns `Ok(result)` directly. Flutter should handle both shapes:
-
-```dart
-final body = jsonDecode(response.body);
-final data = body is Map && body.containsKey('data') ? body['data'] : body;
-```
-
-### Reporting and Combined Dashboard APIs
-
-| API | Method | Query parameters | Purpose |
-|---|---|---|---|
-| `/GetBPCounts` | GET | `month`, `userId` | Pending/rejected/approved counts. |
-| `/GetTotalBPData` | GET | `userId`, `companyId`, `month` | Combined pending, approved, rejected BP data. |
-| `/GetAllBpPendingApproval` | GET | `userId`, `companyId`, `month` | Combined BP and Item pending approval data. |
-| `/GetAllBpApprovedApproval` | GET | `userId`, `companyId`, `month` | Combined BP and Item approved data. |
-| `/GetAllBpRejectedApproval` | GET | `userId`, `companyId`, `month` | Combined BP and Item rejected data. |
-| `/GetAllBpTotalApproval` | GET | `userId`, `companyId`, `month` | Combined BP and Item total approval data. |
-| `/GetBPInsights` | GET | `userId`, `companyId`, `month` | BP counts for approval dashboard. |
-| `/GetBPInsightsByCreator` | GET | `userId`, `companyId`, `month` | BP counts from creator perspective. |
-
-These APIs are useful for dashboards, but workflow actions should still use the core BP APIs: `GetPendingBP`, `ApproveBP`, `RejectBP`, `RetrySapPost`, and `GetSingleBPData`.
-
-### InsertBPMasterData
-
-```http
-POST /api/BPmaster/InsertBPmasterData
-Content-Type: multipart/form-data
-```
+| URL | `/api/BPmaster/InsertBPmasterData` |
+| Method | `POST` |
+| Content type | `multipart/form-data` |
+| Purpose | Create customer/vendor BP request and start workflow |
 
 Form fields:
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `requests` | JSON string | Yes | Serialized `InsertBPMasterDataModel`. |
-| file parts | files | Optional | Uploaded documents. |
-| `fileTypes` | comma-separated string | Required if files exist | Count must match uploaded file count. |
+| Key | Type | Description |
+|---|---|---|
+| `requests` | Text | JSON request body |
+| `files` | File list | Attachments |
+| `fileTypes` | Text | Comma-separated file type labels |
 
-Validation:
+Customer request example:
 
-| Rule | Backend behavior |
-|---|---|
-| Missing `requests` | Returns `400` with `Missing request data`. |
-| File count differs from `fileTypes` count | Returns `400`. |
-| Invalid type | SQL rejects unless `type` is `V` or `C`. |
-| Staff without staff code | SQL rejects. |
-| Missing PAN | SQL rejects. |
-| MSME number without MSME type | SQL rejects. |
+```json
+{
+  "companyId": 1,
+  "customerType": "C",
+  "companyName": "North India Distributor",
+  "foreignName": "North India Distributor",
+  "typeOfBusiness": "Distributor",
+  "industry": "FMCG",
+  "firstName": "Ramesh",
+  "lastName": "Kumar",
+  "designation": "Owner",
+  "mobileNumber": "9876543210",
+  "emailAddress": "ramesh@example.com",
+  "alternateEmail": "accounts@example.com",
+  "gstin": "03ABCDE1234F1Z5",
+  "panNumber": "ABCDE1234F",
+  "currency": "INR",
+  "msme": "",
+  "remarks": "Customer registration",
+  "isStaff": false,
+  "userId": 107,
+  "companyByUser": "Jivo Oil",
+  "billingAddresses": [
+    {
+      "addressName": "BILL-PB-001",
+      "street": "Plot 14 Industrial Area",
+      "blockArea": "Phase 2",
+      "city": "Ludhiana",
+      "state": "PB",
+      "pinCode": "141001",
+      "country": "IN",
+      "gstin": "03ABCDE1234F1Z5"
+    }
+  ],
+  "shippingAddresses": []
+}
+```
 
-Success response:
+Vendor request example:
+
+```json
+{
+  "companyId": 1,
+  "vendorType": "V",
+  "companyName": "ABC Bottle Supplier Pvt Ltd",
+  "foreignTradeName": "ABC Bottles",
+  "industrySector": "Packaging",
+  "firstName": "Amit",
+  "lastName": "Sharma",
+  "designation": "Sales Head",
+  "mobile": "9876543210",
+  "alternateContact": "0161123456",
+  "emailAddress": "amit@example.com",
+  "gstin": "03AAKCA1234F1Z1",
+  "pan": "AAKCA1234F",
+  "tan": "PTLA12345B",
+  "currency": "INR",
+  "msme": "UDYAM-PB-00-0001234",
+  "fssaiLicense": "10012022000011",
+  "bankName": "HDFC",
+  "branchName": "Ludhiana",
+  "accountNumber": "50100123456789",
+  "ifscCode": "HDFC0001234",
+  "swiftCode": "HDFCINBB",
+  "accountType": "Current",
+  "remarks": "Vendor registration",
+  "isStaff": false,
+  "userId": 107,
+  "companyByUser": "Jivo Oil",
+  "billingAddresses": [],
+  "shippingAddresses": []
+}
+```
+
+Response example:
 
 ```json
 {
   "success": true,
   "message": "BP Master inserted successfully.",
-  "generatedCode": 12001
+  "generatedCode": 1234
 }
 ```
 
-### GetPendingBP
+Validation notes:
 
-```http
-GET /api/BPmaster/GetPendingBP?userId=70&companyId=1&month=05-2026
+- `companyId`, `companyName`, BP type, and PAN are required.
+- File count must match `fileTypes` count.
+- Attachments are optional.
+
+### Update BP
+
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/UpdateBPMaster` |
+| Method | `POST` |
+| Content type | `multipart/form-data` |
+| Purpose | Update BP data and optionally replace child rows/attachments |
+
+Request body is the same as create, plus:
+
+```json
+{
+  "code": 1234,
+  "updateAddresses": true,
+  "updateBankDetails": true,
+  "updateContacts": true,
+  "updateAttachments": false
+}
 ```
 
-Query parameters:
+Response:
 
-| Parameter | Type | Required | Notes |
-|---|---|---|---|
-| `userId` | int | Yes | Current approver user ID. |
-| `companyId` | int | Yes | Company filter. |
-| `month` | string | No | Format expected by SQL: `MM-YYYY`. |
+```json
+{
+  "success": true,
+  "message": "BP Master updated successfully."
+}
+```
+
+Important notes:
+
+- Update creates snapshots and audit rows.
+- Child tables are replaced only when the corresponding `update...` flag is true.
+
+### Get Single BP Data
+
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/GetSingleBPData?bpCode=1234` |
+| Method | `GET` |
+| Purpose | Load full BP detail |
+
+Response example:
+
+```json
+{
+  "master": {
+    "code": 1234,
+    "type": "C",
+    "isStaff": false,
+    "name": "North India Distributor",
+    "foreignName": "North India Distributor",
+    "typeOfBusiness": "Distributor",
+    "industry": "FMCG",
+    "mobileNumber": "9876543210",
+    "currency": "INR",
+    "remarks": "Customer registration",
+    "company": 1,
+    "flowId": 1115
+  },
+  "taxDetails": {
+    "panNumber": "ABCDE1234F",
+    "gstin": "03ABCDE1234F1Z5",
+    "msme": ""
+  },
+  "billingAddresses": [],
+  "shippingAddresses": [],
+  "bankDetails": [],
+  "contactPersons": [],
+  "attachments": []
+}
+```
+
+### Get Pending BP
+
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/GetPendingBP?userId=70&companyId=1&month=05-2026` |
+| Method | `GET` |
+| Purpose | Show current user's pending BP approvals |
 
 Response example:
 
@@ -669,32 +958,85 @@ Response example:
   "data": [
     {
       "flowId": 1115,
-      "code": 12001,
+      "code": 1234,
       "companyId": 1,
       "type": "C",
-      "name": "North India Canola Oil Distributor",
+      "companyName": "North India Distributor",
+      "isStaff": false,
       "currentStage": 1,
       "totalStage": 3,
-      "currentStageId": 1206,
-      "currentStageName": "BP Customer Manager Approval - C1",
+      "currentStageName": "Manager Approval",
       "isFinalStage": false,
       "apiStatusTag": null,
       "sapStatus": "SAP Not Started",
-      "retryCount": 0,
       "canRetrySap": false
     }
   ]
 }
 ```
 
-Workflow impact: read-only.
+Notes:
 
-### ApproveBP
+- User sees only records assigned to their current stage.
+- Final-stage failed SAP records return `canRetrySap = true`.
 
-```http
-POST /api/BPmaster/ApproveBP
-Content-Type: application/json
+### Get Approved BP
+
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/GetApprovedBP?userId=70&companyId=1&month=05-2026` |
+| Method | `GET` |
+| Purpose | Show records approved by the user |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "flowId": 1115,
+      "id": 1234,
+      "companyName": "North India Distributor",
+      "type": "C",
+      "createdOn": "2026-05-22T10:30:00"
+    }
+  ]
+}
 ```
+
+### Get Rejected BP
+
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/GetRejectedBP?userId=69&companyId=1&month=05-2026` |
+| Method | `GET` |
+| Purpose | Show records rejected by the user |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "flowId": 1115,
+      "id": 1234,
+      "companyName": "ABC Bottle Supplier Pvt Ltd",
+      "type": "V",
+      "remark": "Bank document missing"
+    }
+  ]
+}
+```
+
+### Approve BP
+
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/ApproveBP` |
+| Method | `POST` |
+| Purpose | Approve current stage; final stage posts SAP first |
 
 Request:
 
@@ -703,12 +1045,12 @@ Request:
   "flowId": 1115,
   "company": 1,
   "userId": 70,
-  "remarks": "Manager verified business requirement and party identity.",
+  "remarks": "Verified.",
   "action": "Approve"
 }
 ```
 
-Stage 1 or stage 2 success:
+Response:
 
 ```json
 {
@@ -716,7 +1058,7 @@ Stage 1 or stage 2 success:
   "data": {
     "success": true,
     "resultMessage": "BP moved to next stage",
-    "bpCode": 12001,
+    "bpCode": 1234,
     "bpCompany": 1,
     "approvalStatus": "Advanced",
     "sapStatus": "Not final stage"
@@ -724,49 +1066,28 @@ Stage 1 or stage 2 success:
 }
 ```
 
-Final stage SAP success:
+Final-stage SAP success response:
 
 ```json
 {
   "success": true,
   "data": {
-    "success": true,
-    "resultMessage": "BP approved and activated successfully. SAP CardCode: CUSTA000123 SAP Business Partner created as CUSTA000123.",
-    "bpCode": 12001,
-    "bpCompany": 1,
     "approvalStatus": "Approved",
     "sapStatus": "Success",
     "sapCardCode": "CUSTA000123",
     "attachmentEntry": 456,
-    "payloadHash": "B77E4B1F9A8A..."
+    "payloadHash": "A1B2C3..."
   }
 }
 ```
 
-Final stage SAP failure:
+### Reject BP
 
-```json
-{
-  "success": false,
-  "message": "SAP BP creation failed: Invalid BP group code",
-  "data": {
-    "success": false,
-    "bpCode": 12001,
-    "bpCompany": 1,
-    "resultMessage": "SAP BP creation failed: Invalid BP group code",
-    "approvalStatus": "Blocked",
-    "sapStatus": "Failed",
-    "payloadHash": "B77E4B1F9A8A..."
-  }
-}
-```
-
-### RejectBP
-
-```http
-POST /api/BPmaster/RejectBP
-Content-Type: application/json
-```
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/RejectBP` |
+| Method | `POST` |
+| Purpose | Reject current approval stage |
 
 Request:
 
@@ -775,24 +1096,31 @@ Request:
   "flowId": 1115,
   "company": 1,
   "userId": 69,
-  "remarks": "Bank account proof is missing.",
+  "remarks": "PAN attachment mismatch.",
   "action": "Reject"
 }
 ```
 
-Workflow impact:
+Response:
 
-```text
-BP.jsFlow.status = R
-BP.jsFlowStatus row inserted with status R and remarks
+```json
+{
+  "success": true,
+  "data": {
+    "approvalStatus": "Rejected",
+    "sapStatus": "Not applicable",
+    "resultMessage": "BP rejected successfully"
+  }
+}
 ```
 
-### RetrySapPost
+### Retry SAP Post
 
-```http
-POST /api/BPmaster/RetrySapPost
-Content-Type: application/json
-```
+| Item | Value |
+|---|---|
+| URL | `/api/BPmaster/RetrySapPost` |
+| Method | `POST` |
+| Purpose | Retry failed final-stage SAP posting |
 
 Request:
 
@@ -801,954 +1129,496 @@ Request:
   "flowId": 1115,
   "company": 1,
   "userId": 108,
-  "remarks": "Retry after correcting SAP group code."
+  "remarks": "Retry after SAP correction."
 }
 ```
 
 Rules:
 
-| Rule | Behavior |
+- Flow must be pending.
+- Flow must be at final stage.
+- SAP status must be `N` or already `Y`.
+- User must be assigned to final stage.
+
+### Get BP Approval Flow
+
+| Item | Value |
 |---|---|
-| Workflow not pending | Rejects retry. |
-| Not final stage | Rejects retry. |
-| No previous SAP attempt | Rejects retry and asks to use normal final approval. |
-| Previous tag `P` | Rejects retry because processing is already active. |
-| Previous tag `N` | Starts SAP posting again. |
-| Previous tag `Y` | Completes SQL approval without duplicate SAP post. |
-
-### GetSingleBPData
-
-```http
-GET /api/BPmaster/GetSingleBPData?bpCode=12001
-```
-
-Returns:
-
-| Section | Source |
-|---|---|
-| `master` | `BP.jsMaster` |
-| `taxDetails` | `BP.jsTaxDetails` |
-| `addresses` | `BP.jsMasterAddress` |
-| `bankDetails` | `BP.jsBankDetails` |
-| `contactPersons` | `BP.jsContactPersons` |
-| `attachments` | `BP.jsAttachments` |
-
-### GetApprovedBP
-
-```http
-GET /api/BPmaster/GetApprovedBP?userId=108&companyId=1&month=05-2026
-```
-
-Returns approved workflow records. A BP should be approved only after SAP success.
-
-### GetRejectedBP
-
-```http
-GET /api/BPmaster/GetRejectedBP?userId=69&companyId=1&month=05-2026
-```
-
-Returns rejected records.
-
-### GetBPApprovalFlow
-
-```http
-GET /api/BPmaster/GetBPApprovalFlow?flowId=1115
-```
-
-Returns stage list, assigned users, action status, action date, approval count, and remarks.
-
-### GetBPCompleteAuditLog
-
-SQL procedure exists:
-
-```sql
-EXEC BP.jsGetBPCompleteAuditLog @code = 12001;
-```
-
-Current API status: not exposed in `BPmasterController`.
-
-Recommended route:
-
-```http
-GET /api/BPmaster/GetBPCompleteAuditLog?bpCode=12001&fromDate=2026-05-01&toDate=2026-05-18
-```
-
-## 7. Frontend Integration Guide
-
-### Recommended Flutter Screens
-
-| Screen | Purpose |
-|---|---|
-| Create Customer BP | Capture customer onboarding details. |
-| Create Vendor BP | Capture supplier onboarding details. |
-| Pending Approvals | Show records returned by `GetPendingBP`. |
-| BP Detail Page | Show master data, tax, bank, contacts, addresses, attachments. |
-| Approval History | Show `GetBPApprovalFlow`. |
-| Approved List | Show approved BPs. |
-| Rejected List | Show rejected BPs. |
-| SAP Retry Queue | Filter pending BPs where `canRetrySap = true`. |
-
-### API Calling Sequence for Create Screen
-
-1. Load dropdowns by company:
-   - `GetGroupNameByBPType`
-   - `GetMaingroup`
-   - `GetChain`
-   - `GetDistinctPaymentGroups`
-   - `GetPricelist`
-   - `GetCountry`
-   - `GetDistinctBankName`
-   - `GetSLPname`
-   - `GetMSMEtype`
-2. User selects Customer or Vendor.
-3. Show customer/vendor specific sections.
-4. Validate fields locally.
-5. Build JSON payload.
-6. Attach files and `fileTypes`.
-7. Submit multipart request.
-8. Show generated BP code.
-9. Refresh user's own submitted list or pending dashboard.
-
-### Customer/Vendor Toggle Behavior
-
-| Toggle value | Backend `type` | UI behavior |
-|---|---|---|
-| Customer | `C` | Show customer group, credit limit, payment terms, billing/shipping addresses. |
-| Vendor | `V` | Show vendor group, bank details, MSME/FSSAI, supplier documents. |
-
-### Stage-Wise Status Display
-
-| `currentStage` | Label | UI badge |
-|---:|---|---|
-| 1 | Manager Approval | Pending Manager |
-| 2 | Accounts Approval | Pending Accounts |
-| 3 | SAP Team Final Approval | Pending SAP |
-
-### SAP Status Badge Logic
-
-| `apiStatusTag` | Badge | Color suggestion | Meaning |
-|---|---|---|---|
-| null | SAP Not Started | Gray | BP has not reached final stage or SAP has not started. |
-| `P` | SAP Processing | Blue | SAP posting is in progress. Disable approve/retry. |
-| `Y` | SAP Success | Green | SAP created BP. Workflow should be approved or ready to finalize. |
-| `N` | SAP Failed | Red | Show error and retry button if final stage. |
-
-### Retry Button Visibility
-
-Show Retry only when:
-
-```dart
-bp.isFinalStage == true &&
-bp.canRetrySap == true &&
-bp.apiStatusTag == 'N' &&
-currentUserId == 108
-```
-
-Do not show Retry at stage 1 or stage 2.
-
-### Approval Button Logic
-
-| Condition | Button |
-|---|---|
-| Pending row visible to user | Show Approve and Reject. |
-| `apiStatusTag = P` | Disable Approve/Retry. Show processing message. |
-| `apiStatusTag = N` and final stage | Show Retry, optionally still show Reject if business allows rejection after SAP failure. |
-| Approved or rejected list | Read-only. |
-
-### Attachment Upload Rules
-
-| Rule | Frontend behavior |
-|---|---|
-| If files are attached, send `fileTypes`. | File count must match fileTypes count. |
-| Use stable labels. | Example `GST Certificate`, `PAN Card`, `Cancelled Cheque`, `MSME Certificate`, `FSSAI License`. |
-| Use multipart form data. | JSON goes in `requests`, files go as file parts. |
-| Do not base64 encode for current API. | Controller expects multipart files. |
-
-### Suggested Flutter State Model
-
-```dart
-class BpWorkflowState {
-  final int flowId;
-  final int bpCode;
-  final String bpType;
-  final int currentStage;
-  final int totalStage;
-  final bool isFinalStage;
-  final String? apiStatusTag;
-  final String sapStatus;
-  final bool canRetrySap;
-  final bool isLoading;
-  final String? errorMessage;
-}
-```
-
-## 8. Complete Field Documentation
-
-### BP Basic Details
-
-| Field | Datatype | Required | Example | Business meaning | SAP mapping | Validation |
-|---|---|---|---|---|---|---|
-| `type` | string | Yes | `C` | Customer or Vendor. | `CardType` | Must be `C` or `V`. |
-| `isStaff` | bool | Yes | `false` | Whether BP is staff linked. | No direct mapping | If true, staffCode required. |
-| `staffCode` | string | Conditional | `EMP001` | Employee code when staff BP. | No direct mapping | Required when `isStaff = true`. |
-| `name` | string | Yes | `North India Canola Oil Distributor` | BP legal/display name. | `CardName` | Non-empty, recommend max 100. |
-| `company` | int | Yes | `1` | Internal company. | SAP session selection | Must be supported company. |
-| `groupID` | string | Yes | `101` | SAP BP group. | `GroupCode` | Should be numeric SAP group code. |
-| `mainGroupID` | string | Yes | `DISTRIBUTOR` | Main group classification. | `U_Main_Group` | Dropdown value. |
-| `chain` | string | Optional | `Modern Trade` | Chain/category. | `U_Chain` | Dropdown value. |
-| `contactPerson` | string | Optional | `Ramesh Kumar` | Primary contact name. | Informational | Text. |
-| `mobileNo` | string | Optional | `9876543210` | Primary mobile. | `Phone1` | Digits, Indian mobile preferred. |
-| `paymentTermID` | string | Optional | `15` | SAP payment term. | `PayTermsGrpCode` | Numeric SAP payment term. |
-| `creditLimit` | decimal | Optional | `250000` | Customer credit limit. | `CreditLimit` | Non-negative. |
-| `priceList` | string | Optional | `Retail` | SAP/customer price list. | Used by business/SAP mapping if extended | Dropdown value. |
-| `userId` | int | Yes | `107` | Creator user. | Audit/source | Must be logged-in user. |
-| `companyByUser` | string | Yes | `Jivo Oil` | Display company/user source. | Audit/source | Text. |
-
-### Tax and Compliance Fields
-
-| Field | Datatype | Required | Example | Business meaning | SAP mapping | Validation |
-|---|---|---|---|---|---|---|
-| `buyerTANNo` | string | Optional | `DELA12345B` | TAN number. | Stored in SQL | TAN format if used. |
-| `panNo` | string | Yes | `ABCDE1234F` | PAN for tax identity. | `BPFiscalTaxIDCollection.TaxId0` | `^[A-Z]{5}[0-9]{4}[A-Z]$` |
-| `fssaiNo` | string | Optional | `10012022000011` | Food license. | `U_Fssai` | Usually 14 digits. |
-| `msmeNo` | string | Optional | `UDYAM-PB-00-0001234` | MSME registration. | `U_MSME` | If provided, MSME type required. |
-| `msmeType` | string | Conditional | `Micro` | MSME category. | `U_MSME_Type` | Required when MSME number exists. |
-| `msmeBusinessType` | string | Optional | `Manufacturing` | MSME business type. | `U_MSME_BType` | Dropdown. |
-
-### Address Fields
-
-| Field | Datatype | Required | Example | Business meaning | SAP mapping | Validation |
-|---|---|---|---|---|---|---|
-| `email` | string | Optional | `billing@example.com` | Address email. | Not currently mapped in SAP payload | Email format. |
-| `addressType` | string | Yes | `Billing` | Billing or shipping address. | `AddressType` | Billing/BillTo or Shipping/ShipTo. |
-| `addressLine1` | string | Yes | `Plot 14 Industrial Area` | Street. | `Street` | Required, max 100 for SAP. |
-| `addressLine2` | string | Optional | `Phase 2` | Block/locality. | `Block` | Max 100 for SAP. |
-| `stateID` | string | Yes | `PB` | State. | `State` | Must map to SAP state code. |
-| `cityID` | string | Yes | `Ludhiana` | City. | `City` | Required. |
-| `pincode` | string | Yes | `141001` | Postal code. | `ZipCode` | 6 digits in India. |
-| `countryID` | string | Yes | `IN` | Country. | `Country` | Defaults to IN if missing in SAP mapping. |
-| `gstNo` | string | Optional | `03ABCDE1234F1Z5` | GSTIN. | `GSTIN` | GST regex. |
-| `isDefault` | bool | Optional | `true` | Default address marker. | Not directly mapped | One default recommended. |
-| `addressUid` | string | Yes | `BILL-PB-001` | Stable address name. | `AddressName` | Must be unique enough for SAP/tax link. |
-
-### Contact Fields
-
-| Field | Datatype | Required | Example | Business meaning | SAP mapping | Validation |
-|---|---|---|---|---|---|---|
-| `firstName` | string | Yes | `Ramesh` | Contact first name. | `FirstName` | Required if contact row exists. |
-| `lastName` | string | Optional | `Kumar` | Contact last name. | `LastName` | Text. |
-| `designation` | string | Optional | `Purchase Manager` | Role at BP. | Stored only currently | Text. |
-| `email` | string | Optional | `ramesh@example.com` | Contact email. | `E_Mail` | Email format. |
-| `phone` | string | Optional | `9876543210` | Mobile. | `MobilePhone` | Digits. |
-| `telephone` | string | Optional | `0161-123456` | Landline. | Not currently mapped | Text. |
-| `isPrimary` | bool | Optional | `true` | Primary contact flag. | Not currently mapped | One primary recommended. |
-| `contactUid` | string | Yes | `CONT-001` | Stable contact ID. | Stored in SQL | Must pass uniqueness check if used. |
-
-### Bank Fields
-
-| Field | Datatype | Required | Example | Business meaning | SAP mapping | Validation |
-|---|---|---|---|---|---|---|
-| `bankName` | string | Vendor recommended | `HDFC Bank` | Bank name. | `AccountName` fallback | Required for vendor onboarding. |
-| `bankCode` | string | SAP posting required for vendor bank row | `HDFC` | SAP bank code. | `BankCode` | Must exist in SAP bank master. |
-| `accountNo` | string | Vendor recommended | `50100123456789` | Bank account. | `AccountNo` | Digits, length by bank. |
-| `ifscCode` | string | Vendor recommended | `HDFC0001234` | IFSC. | `BICSwiftCode`, `UserNo1` | Indian IFSC format. |
-| `bankCountryID` | int | Optional | `1` | Bank country. | Stored in SQL | Lookup value. |
-| `acctName` | string | Optional | `ABC Packaging Pvt Ltd` | Account holder. | `AccountName` | Text. |
-| `branch` | string | Optional | `Ludhiana` | Branch. | `Branch` | Text. |
-| `swiftCode` | string | Optional | `HDFCINBB` | Swift/IBAN support. | `IBAN` | Text. |
-
-### Attachment Fields
-
-| Field | Datatype | Required | Example | Meaning |
-|---|---|---|---|---|
-| `fileName` | string | Backend generated | `guid.pdf` | Stored file name. |
-| `filePath` | string | Backend generated | `/Uploads/BPmaster` | Relative path. |
-| `fileSize` | long | Backend generated | `124000` | File size in bytes. |
-| `contentType` | string | Backend generated | `application/pdf` | MIME type. |
-| `fileType` | string | Frontend supplied | `GST Certificate` | Business document category. |
-
-### Approval Fields
-
-| Field | Datatype | Required | Example | Meaning |
-|---|---|---|---|---|
-| `flowId` | int | Yes | `1115` | Workflow ID from `BP.jsFlow`. |
-| `company` | int | Yes | `1` | Company validation. |
-| `userId` | int | Yes | `70` | Approver user. |
-| `remarks` | string | Recommended | `Verified` | Stored in `BP.jsFlowStatus.description`. |
-| `action` | string | Yes | `Approve` or `Reject` | Approval action. |
-
-## 9. Postman Testing Guide
-
-### Environment Variables
-
-| Variable | Example |
-|---|---|
-| `baseUrl` | `https://localhost:5001` |
-| `token` | JWT token |
-| `companyId` | `1` |
-| `managerUserId` | `70` |
-| `accountsUserId` | `69` |
-| `sapUserId` | `108` |
-
-### Customer Create Request
-
-Method:
-
-```text
-POST {{baseUrl}}/api/BPmaster/InsertBPmasterData
-```
-
-Body type: `form-data`
-
-| Key | Type | Value |
-|---|---|---|
-| `requests` | Text | JSON below |
-| `fileTypes` | Text | `GST Certificate,PAN Card` |
-| `files` | File | upload files |
-
-`requests`:
-
-```json
-{
-  "type": "C",
-  "isStaff": false,
-  "staffCode": "",
-  "name": "North India Canola Oil Distributor",
-  "company": 1,
-  "groupID": "101",
-  "mainGroupID": "DISTRIBUTOR",
-  "chain": "Modern Trade",
-  "contactPerson": "Ramesh Kumar",
-  "mobileNo": "9876543210",
-  "paymentTermID": "15",
-  "creditLimit": 250000,
-  "priceList": "Retail",
-  "userId": 107,
-  "companyByUser": "Jivo Oil",
-  "buyerTANNo": "",
-  "panNo": "ABCDE1234F",
-  "fssaiNo": "10012022000011",
-  "msmeNo": "",
-  "msmeType": "",
-  "msmeBusinessType": "",
-  "bankName": "",
-  "accountNo": "",
-  "ifscCode": "",
-  "bankCountryID": null,
-  "acctName": "",
-  "branch": "",
-  "swiftCode": "",
-  "addresses": [
-    {
-      "email": "billing@northcanola.example",
-      "addressType": "Billing",
-      "addressLine1": "Plot 14 Industrial Area",
-      "addressLine2": "Phase 2",
-      "stateID": "PB",
-      "cityID": "Ludhiana",
-      "pincode": "141001",
-      "countryID": "IN",
-      "gstNo": "03ABCDE1234F1Z5",
-      "isDefault": true,
-      "addressUid": "BILL-PB-001"
-    }
-  ],
-  "contacts": [
-    {
-      "firstName": "Ramesh",
-      "lastName": "Kumar",
-      "designation": "Purchase Manager",
-      "email": "ramesh@northcanola.example",
-      "phone": "9876543210",
-      "telephone": "",
-      "isPrimary": true,
-      "contactUid": "CONT-001"
-    }
-  ],
-  "attachments": []
-}
-```
-
-### Vendor Create Request
-
-Use same API and form structure. Main differences:
-
-```json
-{
-  "type": "V",
-  "name": "ABC Bottle Supplier Pvt Ltd",
-  "company": 1,
-  "groupID": "204",
-  "mainGroupID": "PACKAGING",
-  "panNo": "AAKCA1234F",
-  "msmeNo": "UDYAM-PB-00-0001234",
-  "msmeType": "Small",
-  "msmeBusinessType": "Manufacturing",
-  "bankName": "HDFC Bank",
-  "accountNo": "50100123456789",
-  "ifscCode": "HDFC0001234",
-  "bankCountryID": 1,
-  "acctName": "ABC Bottle Supplier Pvt Ltd",
-  "branch": "Ludhiana",
-  "swiftCode": "HDFCINBB",
-  "addresses": [],
-  "contacts": [],
-  "attachments": []
-}
-```
-
-### Stage Approval Requests
-
-Manager:
-
-```json
-{
-  "flowId": 1115,
-  "company": 1,
-  "userId": 70,
-  "remarks": "Manager approved.",
-  "action": "Approve"
-}
-```
-
-Accounts:
-
-```json
-{
-  "flowId": 1115,
-  "company": 1,
-  "userId": 69,
-  "remarks": "Accounts verified PAN, GST, and bank details.",
-  "action": "Approve"
-}
-```
-
-SAP Team:
-
-```json
-{
-  "flowId": 1115,
-  "company": 1,
-  "userId": 108,
-  "remarks": "SAP setup checked. Posting final BP.",
-  "action": "Approve"
-}
-```
-
-### Rejection Request
-
-```json
-{
-  "flowId": 1115,
-  "company": 1,
-  "userId": 69,
-  "remarks": "Cancelled cheque attachment is missing.",
-  "action": "Reject"
-}
-```
-
-### Retry Request
-
-```json
-{
-  "flowId": 1115,
-  "company": 1,
-  "userId": 108,
-  "remarks": "Retry after correcting SAP data."
-}
-```
-
-## 10. Error Handling Guide
-
-| Error category | Example | What frontend should do | Backend debugging |
-|---|---|---|---|
-| Validation | Missing PAN | Show field error. | Check SQL error from `jsInsertBPMasterData`. |
-| Attachment mismatch | File count != fileTypes count | Ask user to reselect documents. | Controller returns 400. |
-| Stage mismatch | User not authorized | Refresh pending queue. | Check `BP.jsFlow.currentStageId` and `dbo.jsUserStage`. |
-| Duplicate approval | User already approved | Disable repeated tap. | Check `BP.jsFlowStatus`. |
-| SAP processing | `apiStatusTag = P` | Show processing, disable buttons. | Check `BP.jsSAPData.lastAttemptOn`. |
-| SAP failed | `apiStatusTag = N` | Show error and retry button at final stage. | Check `apiMessage`, SAP logs. |
-| SQL failure | Procedure error | Show backend message. | Check procedure and SQL transaction. |
-| Attachment SAP failure | `Attachments2` failure | Ask support to check file share. | Check `SapServiceLayer:AttachmentSourcePath`. |
-
-## 11. Frontend State Flow
-
-### Draft State
-
-Use local state while user fills the form. Do not call insert API until the user confirms submission.
-
-### Pending State
-
-After insert, the BP enters `BP.jsFlow.status = P`. The creator may not see it in approval queue unless they are also a stage approver.
-
-### Approval Queue State
-
-Load with:
-
-```text
-GET /api/BPmaster/GetPendingBP?userId=<currentUserId>&companyId=<companyId>
-```
-
-Use pull-to-refresh after approval/rejection.
-
-### Retry Queue State
-
-Filter pending rows:
-
-```text
-isFinalStage == true
-canRetrySap == true
-apiStatusTag == 'N'
-```
-
-### Loading State
-
-Use separate loading flags:
-
-| Action | Suggested flag |
-|---|---|
-| Form submit | `isSubmitting` |
-| Pending list | `isLoadingPending` |
-| Approve | `approvingFlowId` |
-| Reject | `rejectingFlowId` |
-| Retry | `retryingFlowId` |
-| File upload | `isUploadingFiles` |
-
-### Attachment State
-
-Keep attachments as objects:
-
-```dart
-class BpAttachmentDraft {
-  final String localPath;
-  final String fileName;
-  final String fileType;
-  final int size;
-}
-```
-
-Before submission:
-
-1. Ensure every selected file has a file type.
-2. Build comma-separated `fileTypes`.
-3. Append files to multipart request.
-
-## 12. Security Notes
-
-### Approval Authorization
-
-Approval is not based only on UI buttons. SQL validates approver stage:
-
-```text
-@userId must be assigned to BP.jsFlow.currentStageId through dbo.jsUserStage
-```
-
-### Company Protection
-
-`BP.jsApproveBP` validates:
-
-```sql
-IF @bpCompany <> @company
-    THROW 50003, 'Access denied: BP belongs to different company', 1;
-```
-
-### Retry Restrictions
-
-`RetrySapPostAsync` blocks:
-
-| Blocked case | Reason |
-|---|---|
-| Workflow not pending | Already approved or rejected. |
-| Not final stage | Retry should not advance stage 1 or 2. |
-| No SAP attempt | User should use normal final approval. |
-| SAP already processing | Prevent duplicate posting. |
-
-### Duplicate Prevention
-
-| Layer | Protection |
-|---|---|
-| .NET | `_approvalLocks` per flow. |
-| .NET | `_sapPostLocks` per BP code. |
-| SQL | `apiStatusTag` stores processing/success/failure. |
-| SQL | Final approval blocked unless `apiStatusTag = Y`. |
-| SAP payload | `payloadHash` stored for diagnostics. |
-
-### Audit Logging
-
-Use:
-
-```sql
-EXEC BP.jsGetBPCompleteAuditLog @code = 12001;
-```
-
-This procedure is SQL-only until a controller endpoint is added.
-
-## 13. Maintenance Guide
-
-### Change Approval Users
-
-Update `dbo.jsUserStage` for the stage IDs used by BP templates.
-
-Find current mapping:
-
-```sql
-SELECT
-    t.id AS templateId,
-    t.name AS templateName,
-    st.priority,
-    s.id AS stageId,
-    s.stage,
-    us.userId,
-    u.loginUser
-FROM dbo.jsTemplate t
-JOIN dbo.jsStageTemplate st ON st.templateId = t.id
-JOIN dbo.jsStage s ON s.id = st.stageId
-LEFT JOIN dbo.jsUserStage us ON us.stageId = s.id AND ISNULL(us.status, 1) = 1
-LEFT JOIN dbo.jsUser u ON u.userId = us.userId
-WHERE t.name LIKE '%bp%'
-ORDER BY t.id, st.priority;
-```
-
-### Add a New Stage
-
-1. Add a row to `dbo.jsStage`.
-2. Add mapping to `dbo.jsStageTemplate` with the next priority.
-3. Assign approvers in `dbo.jsUserStage`.
-4. Update existing pending `BP.jsFlow.totalStage`.
-5. Verify `BPmasterService` final-stage logic still matches desired SAP trigger stage.
-
-Important: if you add a stage after SAP Team, SAP posting will move to the new final stage because .NET uses `currentStage >= totalStage`.
-
-### Add New BP Fields
-
-1. Add SQL column or child table field.
-2. Update TVP if it is part of addresses, contacts, or attachments.
-3. Update `BPmasterModels.cs`.
-4. Update `BPmasterService` DataTable mapping if child data.
-5. Update insert/update stored procedures.
-6. Update `BPMasterSapService` only if field must go to SAP.
-7. Update this documentation and Postman examples.
-
-### Modify SAP Mapping
-
-Main file:
-
-```text
-Services/Implementation/BPMasterSapService.cs
-```
-
-Important methods:
-
-| Method | Purpose |
-|---|---|
-| `PostBusinessPartnerAsync` | Orchestrates session, CardCode, attachments, payload, and post. |
-| `BuildBusinessPartnerPayload` | Header and collection payload mapping. |
-| `BuildAddresses` | Billing/shipping address mapping. |
-| `BuildContacts` | Contact employee mapping. |
-| `BuildFiscalTax` | PAN/tax mapping. |
-| `BuildBankAccounts` | Vendor bank account mapping. |
-| `UploadAttachmentsAsync` | SAP `Attachments2`. |
-
-### Debug Workflow Issues
-
-Use the debugging query in section 16. Check:
-
-1. `BP.jsFlow.status`
-2. `currentStage`
-3. `totalStage`
-4. `currentStageId`
-5. `currentApprover`
-6. `apiStatusTag`
-7. `apiMessage`
-
-## 14. Real Examples
-
-### SAP BusinessPartners Customer Payload Example
-
-```json
-{
-  "CardCode": "CUSTA000123",
-  "CardName": "North India Canola Oil Distributor",
-  "CardType": "cCustomer",
-  "Currency": "INR",
-  "Phone1": "9876543210",
-  "CreditLimit": 250000,
-  "GroupCode": 101,
-  "PayTermsGrpCode": 15,
-  "U_Main_Group": "DISTRIBUTOR",
-  "U_Chain": "Modern Trade",
-  "U_Fssai": "10012022000011",
-  "BPAddresses": [
-    {
-      "AddressName": "BILL-PB-001",
-      "AddressType": "bo_BillTo",
-      "Street": "Plot 14 Industrial Area",
-      "Block": "Phase 2",
-      "City": "Ludhiana",
-      "ZipCode": "141001",
-      "State": "PB",
-      "Country": "IN",
-      "GSTIN": "03ABCDE1234F1Z5",
-      "GstType": "gstRegularTDSISD"
-    }
-  ],
-  "ContactEmployees": [
-    {
-      "Name": "Ramesh Kumar",
-      "FirstName": "Ramesh",
-      "LastName": "Kumar",
-      "MobilePhone": "9876543210",
-      "E_Mail": "ramesh@northcanola.example",
-      "Active": "tYES"
-    }
-  ],
-  "BPFiscalTaxIDCollection": [
-    {
-      "Address": "BILL-PB-001",
-      "AddrType": "bo_BillTo",
-      "TaxId0": "ABCDE1234F"
-    }
-  ]
-}
-```
-
-### SAP BusinessPartners Vendor Payload Example
-
-```json
-{
-  "CardCode": "VENDA000045",
-  "CardName": "ABC Bottle Supplier Pvt Ltd",
-  "CardType": "cSupplier",
-  "Currency": "INR",
-  "GroupCode": 204,
-  "U_Main_Group": "PACKAGING",
-  "U_MSME": "UDYAM-PB-00-0001234",
-  "U_MSME_Type": "Small",
-  "U_MSME_BType": "Manufacturing",
-  "BPBankAccounts": [
-    {
-      "BankCode": "HDFC",
-      "AccountNo": "50100123456789",
-      "Branch": "Ludhiana",
-      "AccountName": "ABC Bottle Supplier Pvt Ltd",
-      "BICSwiftCode": "HDFC0001234",
-      "UserNo1": "HDFC0001234",
-      "IBAN": "HDFCINBB"
-    }
-  ]
-}
-```
-
-### SAP Success Response Stored in .NET
+| URL | `/api/BPmaster/GetBPApprovalFlow?flowId=1115` |
+| Method | `GET` |
+| Purpose | Show stage assignment and action history |
+
+Response:
 
 ```json
 {
   "success": true,
-  "message": "SAP Business Partner created as VENDA000045.",
-  "cardCode": "VENDA000045",
-  "attachmentEntry": 456,
-  "payloadHash": "2B7FA3D2B1..."
+  "data": [
+    {
+      "stageId": 1,
+      "stageName": "Manager Approval",
+      "priority": 1,
+      "assignedTo": "Manager User",
+      "actionStatus": "A",
+      "actionDate": "2026-05-22T10:30:00",
+      "description": "Verified",
+      "approvalRequired": 1,
+      "rejectRequired": 1
+    }
+  ]
 }
 ```
 
-### SAP Failure Response Stored in SQL
+### Insights APIs
+
+| API | Method | Purpose |
+|---|---|---|
+| `/GetBPInsights?userId=70&companyId=1&month=05-2026` | `GET` | Pending/approved/rejected counts for approver |
+| `/GetBPInsightsByCreator?userId=107&companyId=1&month=05-2026` | `GET` | Counts by creator |
+| `/GetBPCounts?month=05-2026&userId=70` | `GET` | BP count summary |
+
+Example:
 
 ```json
 {
-  "apiStatusTag": "N",
-  "apiMessage": "Invalid BP group code (SAP Error Code: -5002)",
-  "retryCount": 1,
-  "sapCardCode": "VENDA000045",
-  "payloadHash": "2B7FA3D2B1..."
+  "success": true,
+  "data": [
+    {
+      "totalPending": 4,
+      "totalApproved": 8,
+      "totalRejected": 1,
+      "totalBP": 13
+    }
+  ]
 }
 ```
 
-## 15. Important Current Configuration
+### Combined Approval APIs
 
-Current approval mapping:
+| API | Method | Purpose |
+|---|---|---|
+| `/GetTotalBPData` | `GET` | Combined pending/approved/rejected BP list |
+| `/GetAllBpPendingApproval` | `GET` | BP + Item pending approval data |
+| `/GetAllBpApprovedApproval` | `GET` | BP + Item approved data |
+| `/GetAllBpRejectedApproval` | `GET` | BP + Item rejected data |
+| `/GetAllBpTotalApproval` | `GET` | BP + Item total approval data |
 
-| Stage | UserId | Role |
-|---:|---:|---|
-| 1 | `70` | Manager Approval |
-| 2 | `69` | Accounts Approval |
-| 3 | `108` | SAP Team Final Approval |
+### Lookup APIs
 
-Who sees what:
+These APIs support dropdowns and validation. Some old lookup APIs are retained for compatibility, but new BP forms should use only active fields.
 
-| UserId | Queue visibility |
+| API | Method | Purpose |
+|---|---|---|
+| `/GetOptions?company=1&bpType=C&isStaff=false&countryCode=IN` | `GET` | Consolidated active options |
+| `/GetDistinctBankName?company=1` | `GET` | Bank options |
+| `/GetCountry?company=1` | `GET` | Country options |
+| `/GetDistinctStates?company=1&CountryCode=IN` | `GET` | State options |
+| `/GetUniquePANs?company=1` | `GET` | Existing PANs |
+| `/GetGSTMismatchByState?company=1&stateCode=PB` | `GET` | GST state validation helper |
+| `/BPGetCardInfo?company=1&BPType=C&IsStaff=false` | `GET` | Existing SAP card info |
+| `/GetBpPANByBranch?Branch=Ludhiana&company=1` | `GET` | PAN lookup by branch |
+| `/GetSPAData?masterId=1234` | `GET` | SAP setup/status data |
+| `/UpdateSapData` | `POST` | Update SAP setup metadata |
+
+Legacy dropdown APIs such as group, chain, payment term, price list, and MSME type are not part of the active Customer/Vendor registration fields.
+
+---
+
+## 9. Frontend Implementation Guide
+
+### Form Rules
+
+Flutter should maintain separate form models:
+
+- Customer Registration
+- Vendor Registration
+- Billing addresses
+- Shipping addresses
+- Attachments
+
+Required fields:
+
+| Field | Customer | Vendor |
+|---|---:|---:|
+| `companyId` | Yes | Yes |
+| `customerType` / `vendorType` | Yes | Yes |
+| `companyName` | Yes | Yes |
+| `panNumber` / `pan` | Yes | Yes |
+| `currency` | Yes | Yes |
+| `billingAddresses` | Recommended | Recommended |
+| `bankName`, `accountNumber`, `ifscCode` | No | Recommended |
+| `isStaff` | Yes | Yes |
+
+### Submit Flow
+
+1. Validate required fields.
+2. Build `requests` JSON.
+3. Append attachments as multipart files.
+4. Send matching comma-separated `fileTypes`.
+5. Call `POST /api/BPmaster/InsertBPmasterData`.
+6. On success, show generated BP code.
+7. Refresh creator dashboard or approval lists as needed.
+
+### Edit Flow
+
+1. Call `GetSingleBPData`.
+2. Populate form from master/tax/address/contact/bank/attachments.
+3. Submit `UpdateBPMaster`.
+4. Set update flags only for sections being replaced.
+
+### Approval Pages
+
+Pending page:
+
+- Call `GetPendingBP`.
+- Show company name, type, current stage, SAP badge, created date.
+- Show Approve/Reject buttons only when row is pending.
+
+Approved page:
+
+- Call `GetApprovedBP`.
+- Show records approved by the current user.
+
+Rejected page:
+
+- Call `GetRejectedBP`.
+- Show rejection remarks.
+
+### SAP Status Badges
+
+| `apiStatusTag` | Badge | Button behavior |
+|---|---|---|
+| `P` | Processing | Disable approve/retry |
+| `Y` | SAP Success | No retry |
+| `N` | SAP Failed | Show retry only for final stage |
+| `NULL` | Not Started | Normal pending |
+
+Retry button condition:
+
+```dart
+row.isFinalStage == true &&
+row.canRetrySap == true &&
+row.apiStatusTag == 'N'
+```
+
+### Stage Badges
+
+| Stage | Label |
 |---:|---|
-| `70` | Sees BP requests where `currentStage = 1`. |
-| `69` | Sees BP requests where `currentStage = 2`. |
-| `108` | Sees BP requests where `currentStage = 3`. |
+| 1 | Manager Approval |
+| 2 | Accounts Approval |
+| 3 | SAP Final Approval |
 
-Why users only see their own stage:
+After approval/rejection/retry:
 
-```text
-GetPendingBP joins BP.jsFlow.currentStageId to dbo.jsUserStage.stageId.
-If the current user is not assigned to that stage, the BP does not appear.
-```
+1. Show action result.
+2. Refresh pending list.
+3. Refresh insights count.
+4. Refresh approval flow if on detail page.
 
-This is intentional. Do not load all pending BPs and filter only in Flutter.
+---
 
-## 16. Debugging Section
+## 10. SQL Verification Queries
 
-### Master Debug Query
+Replace `1234`, `1115`, `70`, and `1` with real BP code, flow id, user id, and company id.
 
-Use this query to track workflow and SAP posting:
-
-```sql
-SELECT TOP 20
-f.id AS flowId,
-f.bpCode,
-m.name AS bpName,
-m.type,
-f.status AS workflowStatus,
-f.currentStage,
-f.totalStage,
-s.stage AS currentStageName,
-u.loginUser AS currentApprover,
-sd.apiStatusTag,
-CASE
-WHEN sd.apiStatusTag = 'Y' THEN 'SAP SUCCESS'
-WHEN sd.apiStatusTag = 'N' THEN 'SAP FAILED'
-WHEN sd.apiStatusTag = 'P' THEN 'SAP PROCESSING'
-ELSE 'SAP NOT STARTED'
-END AS sapStatus,
-sd.apiMessage,
-sd.sapCardCode,
-sd.sapAttachmentEntry,
-sd.retryCount,
-sd.lastAttemptOn
-FROM BP.jsFlow f
-INNER JOIN BP.jsMaster m
-ON m.code = f.bpCode
-LEFT JOIN dbo.jsStage s
-ON s.id = f.currentStageId
-LEFT JOIN dbo.jsUserStage us
-ON us.stageId = f.currentStageId
-AND us.status = 1
-LEFT JOIN dbo.jsUser u
-ON u.userId = us.userId
-LEFT JOIN BP.jsSAPData sd
-ON sd.masterId = f.bpCode
-ORDER BY f.id DESC
-```
-
-### BP Not Showing in Pending
-
-Check:
+### 1. Check BP Master
 
 ```sql
-SELECT id, bpCode, status, currentStage, totalStage, currentStageId
-FROM BP.jsFlow
-WHERE bpCode = 12001;
-
 SELECT *
-FROM dbo.jsUserStage
-WHERE stageId = <currentStageId>
-  AND status = 1;
+FROM BP.jsMaster
+WHERE code = 1234;
 ```
 
-Common causes:
+Purpose: Check BP header fields such as name, type, company, `isStaff`, currency, remarks.
 
-| Cause | Fix |
-|---|---|
-| Wrong user ID | Login as the configured stage approver. |
-| Stage user inactive | Set `dbo.jsUserStage.status = 1`. |
-| Flow already approved/rejected | Check `BP.jsFlow.status`. |
-| User already approved current stage | Check `BP.jsFlowStatus`. |
+### 2. Check Addresses
 
-### SAP Sync Failed
+```sql
+SELECT *
+FROM BP.jsMasterAddress
+WHERE code = 1234
+ORDER BY addressType, addressID;
+```
 
-Check:
+Purpose: Verify billing/shipping address rows and GSTIN.
+
+### 3. Check Contacts
+
+```sql
+SELECT *
+FROM BP.jsContactPersons
+WHERE code = 1234
+ORDER BY contactID;
+```
+
+Purpose: Verify contact name, designation, email, mobile, alternate contact.
+
+### 4. Check Tax Details
+
+```sql
+SELECT *
+FROM BP.jsTaxDetails
+WHERE code = 1234;
+```
+
+Purpose: Verify PAN, TAN, GSTIN, MSME, FSSAI.
+
+### 5. Check Bank Details
+
+```sql
+SELECT *
+FROM BP.jsBankDetails
+WHERE code = 1234;
+```
+
+Purpose: Verify vendor bank details.
+
+### 6. Check Attachments
+
+```sql
+SELECT *
+FROM BP.jsAttachments
+WHERE code = 1234
+ORDER BY uploadedOn DESC;
+```
+
+Purpose: Verify uploaded file metadata and file types.
+
+### 7. Check Approval Flow
+
+```sql
+SELECT *
+FROM BP.jsFlow
+WHERE bpCode = 1234;
+```
+
+Purpose: Check workflow status, current stage, total stage, and current stage id.
+
+### 8. Check Current Approver
+
+```sql
+SELECT
+    f.id AS flowId,
+    f.bpCode,
+    f.currentStage,
+    f.currentStageId,
+    s.stage AS stageName,
+    us.userId,
+    u.loginUser
+FROM BP.jsFlow f
+LEFT JOIN dbo.jsStage s ON s.id = f.currentStageId
+LEFT JOIN dbo.jsUserStage us ON us.stageId = f.currentStageId AND ISNULL(us.status, 1) = 1
+LEFT JOIN dbo.jsUser u ON u.userId = us.userId
+WHERE f.bpCode = 1234;
+```
+
+Purpose: Confirm which user should see the BP in pending approvals.
+
+### 9. Check SAP Status
 
 ```sql
 SELECT *
 FROM BP.jsSAPData
-WHERE masterId = 12001;
+WHERE masterId = 1234
+ORDER BY id DESC;
 ```
 
-Then inspect:
+Purpose: Check `apiStatusTag`, SAP error/success message, card code, retry count, payload hash.
 
-| Column | Meaning |
-|---|---|
-| `apiStatusTag` | `N` means failed. |
-| `apiMessage` | SAP error text. |
-| `sapCardCode` | Generated code attempted. |
-| `payloadHash` | Hash of payload sent. |
-| `retryCount` | How many processing attempts started. |
-
-### Approval Stuck at Stage 3
-
-Expected if SAP failed.
+### 10. Check Audit Logs
 
 ```sql
-SELECT f.status, f.currentStage, f.totalStage, sd.apiStatusTag, sd.apiMessage
-FROM BP.jsFlow f
-LEFT JOIN BP.jsSAPData sd ON sd.masterId = f.bpCode
-WHERE f.id = 1115;
+SELECT *
+FROM BP.jsAuditLog
+WHERE Code = 1234
+ORDER BY ChangedDate DESC;
 ```
 
-If `apiStatusTag = N`, show retry to user `108`.
+Purpose: Review field-level update/restore history.
 
-If `apiStatusTag = P` for too long, verify application logs and SAP connectivity. A support user may need to decide whether to mark it failed through a controlled support procedure.
+### 11. Check Snapshots
 
-### Wrong SAP Data Posted
+```sql
+EXEC BP.jsGetBPSnapshots
+    @code = 1234,
+    @fromDate = NULL,
+    @toDate = NULL;
+```
 
-1. Call `GetSingleBPData`.
-2. Compare SQL fields to SAP payload mapping in section 5.
-3. Check `BP.jsSAPData` for `grpCode`, `series`, `debPayAcct`.
-4. Check `BPMasterSapService.BuildBusinessPartnerPayload`.
-5. Check SAP Service Layer response.
+Purpose: Review available snapshots before update/restore.
 
-### Attachment Failure
+### 12. Check Pending Approvals
+
+```sql
+EXEC BP.jsGetPendingBP
+    @userId = 70,
+    @companyId = 1,
+    @month = NULL;
+```
+
+Purpose: Verify pending queue for a specific approver.
+
+### 13. Check Approved History
+
+```sql
+EXEC BP.jsGetApprovedBP
+    @userId = 70,
+    @companyId = 1,
+    @month = NULL;
+```
+
+Purpose: Verify records approved by a user.
+
+### 14. Check Rejected History
+
+```sql
+EXEC BP.jsGetRejectedBP
+    @userId = 69,
+    @companyId = 1,
+    @month = NULL;
+```
+
+Purpose: Verify records rejected by a user.
+
+### 15. Full Debug Query
+
+```sql
+SELECT TOP 20
+    f.id AS flowId,
+    f.bpCode,
+    m.name AS bpName,
+    m.type,
+    f.status AS workflowStatus,
+    f.currentStage,
+    f.totalStage,
+    s.stage AS currentStageName,
+    u.loginUser AS currentApprover,
+    sd.apiStatusTag,
+    CASE
+        WHEN sd.apiStatusTag = 'Y' THEN 'SAP SUCCESS'
+        WHEN sd.apiStatusTag = 'N' THEN 'SAP FAILED'
+        WHEN sd.apiStatusTag = 'P' THEN 'SAP PROCESSING'
+        ELSE 'SAP NOT STARTED'
+    END AS sapStatus,
+    sd.apiMessage,
+    sd.sapCardCode,
+    sd.sapAttachmentEntry,
+    sd.retryCount,
+    sd.lastAttemptOn
+FROM BP.jsFlow f
+INNER JOIN BP.jsMaster m ON m.code = f.bpCode
+LEFT JOIN dbo.jsStage s ON s.id = f.currentStageId
+LEFT JOIN dbo.jsUserStage us ON us.stageId = f.currentStageId AND us.status = 1
+LEFT JOIN dbo.jsUser u ON u.userId = us.userId
+LEFT JOIN BP.jsSAPData sd ON sd.masterId = f.bpCode
+ORDER BY f.id DESC;
+```
+
+Purpose: One query to diagnose workflow and SAP status.
+
+---
+
+## 11. Important Notes
+
+- The BP module now follows the new SAP Portal Customer Registration and Vendor Registration forms.
+- Only `isStaff` is preserved from the old field set.
+- All other retired legacy fields must not be sent by the frontend.
+- Approval workflow is 3-stage: `70 -> 69 -> 108`.
+- SAP posting happens only at final approval.
+- Retry is only available for failed final-stage SAP posting.
+- Attachments remain multipart uploads and are posted to SAP through `Attachments2`.
+- Audit logs preserve update/restore history.
+- Snapshots preserve before-update data for support and rollback workflows.
+- `BP.jsFlow`, `BP.jsFlowStatus`, `BP.jsSAPData`, and attachment tables must never be manually deleted during BP cleanup.
+
+---
+
+## 12. Cleanup
+
+The content from these old files has been merged into this guide:
+
+- `docs/BP_FIELD_MAPPING_DOCUMENTATION.md`
+- `docs/BP_UNUSED_FIELDS_REPORT.md`
+
+Those files have been removed from `docs`. This file is now the master BP module documentation and should be treated as the single source of truth for BP frontend/backend behavior.
+
+---
+
+## 13. Final Requirements
+
+This guide is intended to be the complete operational reference for the BP Master module. Future changes should keep the frontend form, DTOs, stored procedures, database tables, SAP payload mapping, validation rules, API examples, migration scripts, and this document in sync.
+
+### Troubleshooting Notes
+
+#### BP Not Showing in Pending
 
 Check:
 
-| Area | What to verify |
-|---|---|
-| Portal file | File exists under `wwwroot/Uploads/BPmaster`. |
-| File metadata | `BP.jsAttachments.fileName`, `filePath`, `fileType`. |
-| SAP path | `SapServiceLayer:AttachmentSourcePath` or `SAP_ATTACHMENT_PATH`. |
-| SAP access | SAP Service Layer host can read the source path. |
+- `BP.jsFlow.status` is `P`
+- `currentStageId` is assigned to the logged-in user in `dbo.jsUserStage`
+- user has not already approved/rejected the current stage
+- BP company matches the selected company
 
-## 17. AI-Assisted Development Notes
+#### Final Approval Fails
 
-When using an AI coding agent on this module, give it these rules:
+Check:
 
-1. Do not bypass `BP.jsApproveBP`.
-2. Do not mark `BP.jsFlow.status = A` directly.
-3. Do not call SAP before stage 3.
-4. Do not make retry advance stage 1 or stage 2.
-5. Keep SQL workflow as the source of truth.
-6. Keep SAP-first final approval.
-7. Keep attachments as multipart uploads for current APIs.
-8. Update this document when fields, APIs, stages, or SAP mappings change.
+- `BP.jsSAPData.apiStatusTag`
+- `BP.jsSAPData.apiMessage`
+- attachment source path configuration
+- SAP session configuration for company id
+- SAP-required values such as PAN, address name, and bank code/name
 
-Useful files for AI context:
+#### Retry Button Not Visible
+
+Retry should show only when:
+
+- row is final stage
+- `apiStatusTag = N`
+- `canRetrySap = true`
+- current user is the final-stage approver
+
+#### Wrong SAP Data Posted
+
+Check data in this order:
+
+1. `GetSingleBPData` API response
+2. `BP.jsMaster` and child tables
+3. `BPMasterSapService.BuildBusinessPartnerPayload`
+4. `BP.jsSAPData.payloadHash`
+5. SAP Service Layer response body
+
+### Safe Change Checklist
+
+Before changing BP fields again:
+
+1. Confirm the frontend form field exists.
+2. Update DTOs in `Models/BPmasterModels.cs`.
+3. Update `BPmasterService` stored procedure parameters and TVPs.
+4. Update SQL migration/procedure script.
+5. Update `BPMasterSapService` only if SAP needs the field.
+6. Update this document.
+7. Build the project.
+8. Dry-run SQL changes in a rollback transaction.
+
+Useful files:
 
 | File | Purpose |
 |---|---|
-| `Controllers/BPmasterController.cs` | API routes. |
-| `Services/Implementation/BPmasterService.cs` | Workflow orchestration and retry checks. |
-| `Services/Implementation/BPMasterSapService.cs` | SAP payload and posting logic. |
-| `Models/BPmasterModels.cs` | API DTOs. |
-| `Models/BPSapModels.cs` | SAP DTOs. |
-| `docs/BP_MASTER_FRONTEND_BACKEND_COMPLETE_GUIDE.md` | This guide. |
+| `Controllers/BPmasterController.cs` | API routes |
+| `Services/Implementation/BPmasterService.cs` | SQL/workflow orchestration |
+| `Services/Implementation/BPMasterSapService.cs` | SAP payload and posting |
+| `Models/BPmasterModels.cs` | DTO/request/response models |
+| `docs/implementation/bp-remove-unused-columns.sql` | SQL cleanup/migration script |
 
-## 18. Final Checklist
+### Maintainer Rules
 
-Before releasing BP Master changes:
-
-| Check | Expected |
-|---|---|
-| Stage config | Stage 1 user `70`, stage 2 user `69`, stage 3 user `108`. |
-| New BP flow | `totalStage = 3`, `currentStage = 1`. |
-| Stage 1 approval | Moves to stage 2, no SAP call. |
-| Stage 2 approval | Moves to stage 3, no SAP call. |
-| Stage 3 approval | Calls SAP first. |
-| SAP success | `apiStatusTag = Y`, workflow approved. |
-| SAP failure | `apiStatusTag = N`, workflow pending at stage 3. |
-| Retry | Only available at final stage after SAP failure. |
-| Pending queue | User sees only own stage records. |
-| Audit | `BP.jsFlowStatus` and snapshot/audit procedures available. |
+- Do not add a BP field unless it exists in the current Customer or Vendor Registration frontend.
+- Do not delete workflow, approval, SAP audit, snapshot, or attachment data.
+- Do not remove `isStaff`.
+- Do not send retired legacy fields to SAP from BP registration.
+- Keep retry available only for final-stage SAP failures.
+- Validate the .NET build after backend changes.
+- Validate stored procedures in a rollback transaction before deploying SQL changes.
+- Update this guide in the same pull request as any BP contract change.
