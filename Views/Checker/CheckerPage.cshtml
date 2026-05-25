@@ -488,16 +488,34 @@
 
     rows.forEach(item => {
 
+    /* hide paid entries */
+    if ((item.paymentStatus || "").toLowerCase() === "paid") {
+    return;
+    }
+
     /* hide entries without attachment */
     if (!item.attachmentPath) {
     return;
     }
 
-    /* hide already approved entries */
+    /* hide approved entries */
     if ((item.checkerStatus || "").toLowerCase() === "approved") {
     return;
     }
-    
+    /* hide paid entries */
+    if ((item.paymentStatus || "").toLowerCase() === "paid") {
+    return;
+    }
+
+    /* hide approved entries */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
+    return;
+    }
+
+    /* hide rejected entries */
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") {
+    return;
+    }
 
     const cs = item.checkerStatus || "Pending";
     const statusBadge =

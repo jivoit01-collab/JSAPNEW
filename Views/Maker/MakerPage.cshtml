@@ -450,14 +450,25 @@
 
     today.setHours(0,0,0,0);
 
-    data.forEach(item => {
+    data
+    .filter(item => item.paymentStatus !== "Paid")
+    .forEach(item => {
 
-    /* hide approved entries from maker */
-
-    if (
-    item.checkerStatus === "Approved"
-    ) {
+   
+    /* hide approved */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
     return;
+    }
+
+    /* show rejected for re-upload */
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") {
+    // allow rejected entries
+    }
+    else {
+    /* hide submitted pending entries */
+    if (item.attachmentPath) {
+    return;
+    }
     }
 
    
