@@ -37,7 +37,7 @@ namespace JSAPNEW.Controllers
                     _bomlogger.LogInformation("No name found");
                     return NotFound(new { Success = false, Message = "No name found" });
                 }
-
+   
                 _bomlogger.LogInformation("name retrieved successfully.");
                 return Ok(new { Success = true, Data = name });
             }

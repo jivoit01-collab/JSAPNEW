@@ -431,7 +431,8 @@ namespace JSAPNEW.Services.Implementation
                     var sapStatuses  = new List<string>();
                     var martStatuses = new List<string>();
 
-                    // ── Step 1: Check if this is the last approval stage (pending items exist) ──
+                    // ── Step 1: Check if this is the last approval stage ──
+                    bool isFinalApprovalStage = await IsItemLastStageAsync(request.itemId);
                     List<PendingItemApiInsertionsModel> pendingItems = null;
                     for (int i = 0; i < 3; i++)
                     {
@@ -441,10 +442,40 @@ namespace JSAPNEW.Services.Implementation
                         await Task.Delay(1000);
                     }
 
-                    bool isLastStage = pendingItems != null && pendingItems.Count > 0;
+                    bool hasSapPayload = pendingItems != null && pendingItems.Count > 0;
+                    bool isLastStage = isFinalApprovalStage || hasSapPayload;
+
+                    if (isFinalApprovalStage && !hasSapPayload)
+                    {
+                        var currentStatus = await conn.QueryFirstOrDefaultAsync<string>(
+                            "SELECT status FROM imc.jsFlow WHERE id = @id",
+                            new { id = request.itemId }
+                        );
+
+                        if (currentStatus == "A")
+                        {
+                            return new ItemMasterModel
+                            {
+                                Success = true,
+                                Message = "Item already approved successfully.",
+                                ApprovalStatus = "Done",
+                                SapStatus = "Already Synced",
+                                MartStatus = "Completed"
+                            };
+                        }
+
+                        return new ItemMasterModel
+                        {
+                            Success        = false,
+                            Message        = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}.",
+                            ApprovalStatus = "Blocked",
+                            SapStatus      = "Failed",
+                            MartStatus     = "Skipped"
+                        };
+                    }
 
                     // ── Step 2: If last stage, POST to SAP FIRST before approving ──
-                    if (isLastStage)
+                    if (hasSapPayload)
                     {
                         Console.WriteLine($"[INFO] Last approval stage for FlowId: {request.itemId}. Posting to SAP before approving...");
                         Console.WriteLine($"[INFO] {pendingItems.Count} pending item(s) fetched for FlowId: {request.itemId}");
@@ -452,7 +483,7 @@ namespace JSAPNEW.Services.Implementation
                         var apiResults = await PostItemsToSAPAsync(pendingItems);
 
                         // Collect SAP and MART statuses from results
-                        bool allSapSuccess = true;
+                        bool allSapSuccess = apiResults != null && apiResults.Count > 0;
                         var sapErrors = new List<string>();
 
                         foreach (var r in apiResults)
@@ -471,7 +502,9 @@ namespace JSAPNEW.Services.Implementation
                         // ── If SAP creation failed, DO NOT approve — return exact error to frontend ──
                         if (!allSapSuccess)
                         {
-                            string errorDetail = string.Join("; ", sapErrors);
+                            string errorDetail = sapErrors.Count > 0
+                                ? string.Join("; ", sapErrors)
+                                : "SAP creation failed: no response returned from SAP posting flow.";
                             Console.WriteLine($"[ERROR] SAP creation failed for FlowId: {request.itemId}. Approval blocked. Errors: {errorDetail}");
 
                             return new ItemMasterModel
@@ -484,7 +517,7 @@ namespace JSAPNEW.Services.Implementation
                             };
                         }
 
-                        resultMessages.Add("SAP item created successfully");
+                        resultMessages.Add(string.Join("; ", apiResults.Select(r => r.Message).Where(m => !string.IsNullOrWhiteSpace(m))));
                     }
 
                     // ── Step 3: SAP succeeded (or intermediate stage) — now approve in DB ──
@@ -500,7 +533,7 @@ namespace JSAPNEW.Services.Implementation
                         approvalStatus = "Done";
                         resultMessages.Add(result?.ToString() ?? $"Approved Document of FlowId {request.itemId}");
 
-                        if (isLastStage)
+                        if (hasSapPayload)
                             resultMessages.Add("API Triggered after final approval");
                     }
 
@@ -596,6 +629,18 @@ namespace JSAPNEW.Services.Implementation
                 // WaitAsync; removing it here would let a future GetOrAdd create a fresh lock,
                 // defeating mutual exclusion. Memory cost is bounded by the active FlowId set.
             }
+        }
+
+
+        private async Task<bool> IsItemLastStageAsync(int flowId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "EXEC [imc].[jsGetItemCurrentStage] @flowId",
+                new { flowId }
+            );
+
+            return result != null && Convert.ToBoolean(result.isLastStage);
         }
 
 
@@ -1428,6 +1473,19 @@ namespace JSAPNEW.Services.Implementation
                     continue;
                 }
 
+                if (previousTag == "P")
+                {
+                    Console.WriteLine($"[INFO] Item {first.InitId} is already being created in SAP (tag=P). Skipping duplicate API call.");
+                    results.Add(new SapItemSyncResult
+                    {
+                        ItemId = first.InitId,
+                        IsSuccess = false,
+                        Message = "Item SAP creation is already processing. Please retry shortly.",
+                        MartStatus = "Skipped — SAP creation already in progress"
+                    });
+                    continue;
+                }
+
                 SAPSessionModel session;
 
                 if (company == 1)
@@ -1505,9 +1563,48 @@ namespace JSAPNEW.Services.Implementation
                     _ => "tNO"
                 };
 
-                // ── CostAccountingMethod: BEV always FIFO, others SNB if batch else FIFO ──
-                string costMethod = company == 2 ? "bis_FIFO"
-                    : (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
+                string? costMethodFromDb = null;
+                if (company == 3)
+                {
+                    string dbBatchFlag = (first.ManBtchNum ?? "").Trim();
+                    if (dbBatchFlag.Equals("Y", StringComparison.OrdinalIgnoreCase) ||
+                        dbBatchFlag.Equals("tYES", StringComparison.OrdinalIgnoreCase))
+                    {
+                        manageBatch = "tYES";
+                    }
+                    else if (dbBatchFlag.Equals("N", StringComparison.OrdinalIgnoreCase) ||
+                             dbBatchFlag.Equals("tNO", StringComparison.OrdinalIgnoreCase))
+                    {
+                        manageBatch = "tNO";
+                    }
+
+                    string dbIssueMethod = (first.IssueMethod ?? "").Trim().ToUpperInvariant();
+                    if (dbIssueMethod is "M" or "B")
+                        issueMethod = dbIssueMethod;
+
+                    costMethodFromDb = (first.EvalSystem ?? "").Trim().ToUpperInvariant() switch
+                    {
+                        "F" => "bis_FIFO",
+                        "A" => "bis_MovingAverage",
+                        "S" => "bis_Standard",
+                        "B" or "SNB" => "bis_SNB",
+                        _ => null
+                    };
+                }
+
+                if (company == 3 && gc == "105")
+                {
+                    manageBatch = "tYES";
+                    issueMethod = "M";
+                    costMethodFromDb = "bis_SNB";
+                }
+
+                if (manageBatch == "tYES")
+                    issueMethod = "M";
+
+                // ── CostAccountingMethod: company 3 prefers saved SAP data; others use batch rule ──
+                string costMethod = costMethodFromDb
+                    ?? (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
 
                 // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
                 string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
@@ -1614,8 +1711,9 @@ namespace JSAPNEW.Services.Implementation
                     ChapterID = int.TryParse(first.ChapterId, out int chapterId) ? chapterId : 0,
                     U_Unit = first.Unit,
                     U_Brand = first.Brand,
-                    U_Sub_Group = first.SubGroup,
-                    U_Variety = first.Variety,
+                    // SAP expects these two UDF values swapped from the JSAP entry fields.
+                    U_Sub_Group = first.Variety,
+                    U_Variety = first.SubGroup,
                     U_SKU = first.Sku,
                     U_IsLitre = first.IsLitre,
                     U_Gross_Weight = first.GrossWeight,
@@ -1831,7 +1929,7 @@ namespace JSAPNEW.Services.Implementation
                         IsSuccess = false,
                         Message = errMsg
                     });
-                    await UpdateItemApiStatusAsync(first.InitId, errMsg, false.ToString());
+                    await UpdateItemApiStatusAsync(first.InitId, errMsg, "N");
                 }
                 }
                 finally
@@ -1848,6 +1946,8 @@ namespace JSAPNEW.Services.Implementation
 
         private async Task<string?> UpdateItemApiStatusAsync(int itemId, string apiMessage, string tag)
         {
+            apiMessage = TruncateForDb(apiMessage, 90);
+
             using (var connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
@@ -1877,6 +1977,14 @@ namespace JSAPNEW.Services.Implementation
             }
         }
 
+        private static string TruncateForDb(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+        }
+
         public async Task<ItemMasterModel> LogApiErrorAsync(LogApiErrorRequest model)
         {
             var result = new ItemMasterModel { Success = false };
@@ -1894,15 +2002,19 @@ namespace JSAPNEW.Services.Implementation
 
                     // NVARCHAR(100)
                     var pApi = cmd.Parameters.Add("@ApiName", SqlDbType.NVarChar, 100);
-                    pApi.Value = (object?)model.ApiName ?? DBNull.Value;
+                    pApi.Value = string.IsNullOrEmpty(model.ApiName)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ApiName, 100);
 
                     // NVARCHAR(2000) - Required
                     var pMsg = cmd.Parameters.Add("@ErrorMessage", SqlDbType.NVarChar, 2000);
-                    pMsg.Value = model.ErrorMessage;
+                    pMsg.Value = TruncateForDb(model.ErrorMessage, 2000);
 
                     // NVARCHAR(50)
                     var pCode = cmd.Parameters.Add("@ErrorCode", SqlDbType.NVarChar, 50);
-                    pCode.Value = (object?)model.ErrorCode ?? DBNull.Value;
+                    pCode.Value = string.IsNullOrEmpty(model.ErrorCode)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ErrorCode, 50);
 
                     // NVARCHAR(MAX)
                     var pPayload = cmd.Parameters.Add("@Payload", SqlDbType.NVarChar, -1);

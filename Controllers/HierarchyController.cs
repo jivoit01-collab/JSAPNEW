@@ -399,7 +399,9 @@ WHERE EmployeeCode = @EmployeeCode",
                 if (!IsUserLoggedIn())
                     return Ok(new { Success = false, Message = "User not logged in" });
 
+                var userId = GetUserId()!.Value;
                 var userInfo = await GetUserInfoFromDatabaseAsync();
+                var canManageHierarchy = await HasHierarchyMasterPermissionAsync(userId);
 
                 var request = new EmployeeSearchRequest
                 {
@@ -411,7 +413,7 @@ WHERE EmployeeCode = @EmployeeCode",
                     PageSize = pageSize
                 };
 
-                var employees = await _hierarchyService.GetEmployeesAsync(request, userInfo.EmpId, userInfo.IsAdmin);
+                var employees = await _hierarchyService.GetEmployeesAsync(request, userInfo.EmpId, canManageHierarchy || userInfo.IsAdmin);
                 return Ok(new { Success = true, Data = employees });
             }
             catch (Exception ex)
@@ -944,6 +946,22 @@ WHERE EmployeeCode = @EmployeeCode",
             catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
         }
 
+        [HttpPost("SyncHODDepartments")]
+        public async Task<IActionResult> SyncHODDepartments([FromBody] SyncHodDepartmentsRequest request)
+        {
+            try
+            {
+                if (!IsUserLoggedIn()) return Ok(new { Success = false, Message = "Not logged in" });
+                if (!await HasHierarchyMasterPermissionAsync(GetUserId()!.Value)) return Ok(new { Success = false, Message = "Admin only" });
+                if (!ModelState.IsValid)
+                    return Ok(new { Success = false, Message = "Validation failed", Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
+
+                var result = await _hierarchyService.SyncHodDepartmentsAsync(request, GetUserId() ?? 0);
+                return Ok(new { Success = result.Success, Message = result.Message });
+            }
+            catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
+        }
+
         [HttpPost("GetDepartmentChangeImpact")]
         public async Task<IActionResult> GetDepartmentChangeImpact([FromBody] DepartmentChangeImpactRequest request)
         {
@@ -1250,9 +1268,8 @@ WHERE EmployeeCode = @EmployeeCode",
 
         /// <summary>
         /// POST /api/Hierarchy/UnlockSalarySession
-        /// Opens a read-only connection to the live DB using the user-supplied password,
-        /// loads hie.vw_employee_salary, stores ONLY the salary map (not the password)
-        /// in the server-side session for 30 minutes, then immediately discards the password.
+        /// Calls the Tankha Payee API with the configured username plus
+        /// user-supplied password/action, then returns salary data directly.
         /// </summary>
         [HttpPost("UnlockSalarySession")]
         public async Task<IActionResult> UnlockSalarySession([FromBody] UnlockSalaryRequest request)
@@ -1260,74 +1277,194 @@ WHERE EmployeeCode = @EmployeeCode",
             if (!IsUserLoggedIn())
                 return Ok(new { Success = false, Message = "Not logged in" });
 
-            if (string.IsNullOrWhiteSpace(request?.DbPassword))
+            if (string.IsNullOrWhiteSpace(request?.Password))
                 return Ok(new { Success = false, Message = "Password is required" });
+
+            if (string.IsNullOrWhiteSpace(request?.Action))
+                return Ok(new { Success = false, Message = "Action is required" });
+
+            var apiUrl = _configuration["TankhaPayeeApi:Url"];
+            if (string.IsNullOrWhiteSpace(apiUrl))
+                return Ok(new { Success = false, Message = "Tankha Payee API URL is not configured." });
+
+            var apiUsername = _configuration["TankhaPayeeApi:Username"];
+            if (string.IsNullOrWhiteSpace(apiUsername))
+                apiUsername = request?.Username;
+
+            if (string.IsNullOrWhiteSpace(apiUsername))
+                return Ok(new { Success = false, Message = "Tankha Payee API username is not configured." });
 
             var userId = GetUserId() ?? 0;
             var currentEmployee = await GetCurrentHierarchyEmployeeAsync();
+            var action = request.Action.Trim();
+            var requestedActions = action.Equals("both", StringComparison.OrdinalIgnoreCase)
+                ? new[] { "belowfourtyemployee", "equalandabovefourty" }
+                : new[] { action };
 
-            var credentials = await _hierarchyService.GetSalaryDbCredentialAsync();
-            if (credentials == null)
-                return Ok(new { Success = false, Message = "Salary database credentials are not configured." });
-
-            // Build connection string in a local variable - never passed to logs
-            string cs = new SqlConnectionStringBuilder
-            {
-                DataSource = credentials.ServerName,
-                InitialCatalog = credentials.DatabaseName,
-                UserID = credentials.DbUserId,
-                Password = request.DbPassword,
-                ApplicationIntent = ApplicationIntent.ReadOnly,
-                ConnectTimeout = 15,
-                Encrypt = SqlConnectionEncryptOption.Mandatory,
-                TrustServerCertificate = true
-            }.ConnectionString;
-
-            Dictionary<string, decimal> salaryMap;
+            var salaryMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            var apiRows = new List<Dictionary<string, object>>();
+            var recordsByAction = new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase);
             int count;
             try
             {
-                using var conn = new SqlConnection(cs);
-                await conn.OpenAsync();
-                var rows = await conn.QueryAsync<dynamic>(
-                    "SELECT EmployeeCode, Salary FROM [hie].[vw_employee_salary]");
-                salaryMap = rows
-                    .Where(r => r.EmployeeCode != null)
-                    .GroupBy(r => (string)r.EmployeeCode)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => (decimal)(g.First().Salary ?? 0m));
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{apiUsername}:{request.Password}"));
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encoded);
+
+                // Discard credentials immediately after building the header
+                request.Username = null;
+                request.Password = null;
+
+                foreach (var apiAction in requestedActions)
+                {
+                    var body = System.Text.Json.JsonSerializer.Serialize(new { action = apiAction });
+                    var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync(apiUrl, content);
+
+                    if (!response.IsSuccessStatusCode)
+                        return Ok(new { Success = false, Message = $"API returned status {(int)response.StatusCode} for {SalaryActionText(apiAction)}." });
+
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    // Response may be a root array or wrapped in commonData/data/Data.
+                    System.Text.Json.JsonElement arr = default;
+                    if (root.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        arr = root;
+                    }
+                    else if (TryGetPropertyIgnoreCase(root, "commonData", out var commonData) && commonData.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        arr = commonData;
+                    }
+                    else if (TryGetPropertyIgnoreCase(root, "data", out var data) && data.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        arr = data;
+                    }
+                    else
+                    {
+                        return Ok(new { Success = false, Message = $"Unexpected response format from Tankha Payee API for {SalaryActionText(apiAction)}." });
+                    }
+
+                    var actionRows = new List<Dictionary<string, object>>();
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        string empCode = null;
+                        decimal ctcAmount = 0;
+                        var row = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+
+                        if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            foreach (var property in item.EnumerateObject())
+                                row[property.Name] = ReadJsonValue(property.Value);
+                        }
+
+                        if (TryGetPropertyIgnoreCase(item, "empcode", out var ec))
+                            empCode = ec.ValueKind == System.Text.Json.JsonValueKind.String ? ec.GetString() : ec.ToString();
+
+                        if (TryGetPropertyIgnoreCase(item, "ctc_amount", out var ctc))
+                            ctcAmount = ReadDecimal(ctc);
+
+                        if (!string.IsNullOrWhiteSpace(empCode))
+                            salaryMap[empCode.Trim()] = ctcAmount;
+
+                        if (row.Count > 0)
+                        {
+                            actionRows.Add(row);
+                            apiRows.Add(row);
+                        }
+                    }
+                    recordsByAction[apiAction] = actionRows;
+                }
                 count = salaryMap.Count;
             }
             catch
             {
-                // Deliberately generic — do NOT surface ex.Message (may contain conn info)
-                request.DbPassword = null;
-                cs = null;
-                return Ok(new { Success = false, Message = "Database connection failed. Please verify your credentials." });
-            }
-            finally
-            {
-                // Overwrite before GC
-                request.DbPassword = null;
-                cs = null;
+                request.Username = null;
+                request.Password = null;
+                return Ok(new { Success = false, Message = "API call failed. Please verify your credentials and try again." });
             }
 
-            // Store ONLY salary data in session — password is already gone
-            var expiresAt = DateTime.UtcNow.AddMinutes(30);
-            var sessionData = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                Salaries  = salaryMap,
-                ExpiresAt = expiresAt
-            });
-            HttpContext.Session.SetString(SalarySessionKey, sessionData);
-
-            // Audit log — no password, no connection string
             _ = LogSalaryEventAsync(userId, currentEmployee?.EmployeeId, "SalaryUnlock",
-                $"Salary session opened. {count} employee records loaded. Expires {expiresAt:HH:mm:ss} UTC.");
+                $"Salary data loaded directly from Tankha Payee API (action: {action}). {count} records loaded.");
 
-            return Ok(new { Success = true, ExpiresAt = expiresAt, Count = count,
-                Message = $"Salary data loaded for {count} employees. Access expires in 30 minutes." });
+            var sessionMinutes = _configuration.GetValue<int?>("TankhaPayeeApi:SessionMinutes") ?? 30;
+            if (sessionMinutes <= 0) sessionMinutes = 30;
+            var expiresAt = DateTime.UtcNow.AddMinutes(sessionMinutes);
+            var sessionPayload = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Salaries = salaryMap,
+                Records = apiRows,
+                RecordsByAction = recordsByAction,
+                ExpiresAt = expiresAt,
+                Action = action,
+                Count = count
+            });
+            HttpContext.Session.SetString(SalarySessionKey, sessionPayload);
+
+            return Ok(new
+            {
+                Success = true,
+                Salaries = salaryMap,
+                Records = apiRows,
+                RecordsByAction = recordsByAction,
+                Count = count,
+                ExpiresAt = expiresAt,
+                Action = action,
+                Message = $"Salary data loaded for {count} employees."
+            });
+
+            static bool TryGetPropertyIgnoreCase(System.Text.Json.JsonElement element, string name, out System.Text.Json.JsonElement value)
+            {
+                value = default;
+                if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
+                    return false;
+
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        value = property.Value;
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            static string SalaryActionText(string value)
+            {
+                return string.Equals(value, "equalandabovefourty", StringComparison.OrdinalIgnoreCase)
+                    ? "Equal and Above 40 Employees"
+                    : "Below 40 Employees";
+            }
+
+            static decimal ReadDecimal(System.Text.Json.JsonElement element)
+            {
+                if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetDecimal(out var number))
+                    return number;
+
+                if (element.ValueKind == System.Text.Json.JsonValueKind.String &&
+                    decimal.TryParse(element.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var textNumber))
+                    return textNumber;
+
+                return 0;
+            }
+
+            static object ReadJsonValue(System.Text.Json.JsonElement element)
+            {
+                return element.ValueKind switch
+                {
+                    System.Text.Json.JsonValueKind.String => element.GetString(),
+                    System.Text.Json.JsonValueKind.Number when element.TryGetDecimal(out var number) => number,
+                    System.Text.Json.JsonValueKind.True => true,
+                    System.Text.Json.JsonValueKind.False => false,
+                    System.Text.Json.JsonValueKind.Null => null,
+                    _ => element.ToString()
+                };
+            }
         }
 
         /// <summary>GET /api/Hierarchy/GetSalarySessionData — Returns live salary map if session is valid</summary>
@@ -1358,12 +1495,71 @@ WHERE EmployeeCode = @EmployeeCode",
                 foreach (var prop in salariesEl.EnumerateObject())
                     salaryDict[prop.Name] = prop.Value.GetDecimal();
 
+                var records = new List<Dictionary<string, object>>();
+                if (root.TryGetProperty("Records", out var recordsEl) && recordsEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var item in recordsEl.EnumerateArray())
+                    {
+                        var row = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                        if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            foreach (var property in item.EnumerateObject())
+                                row[property.Name] = property.Value.ValueKind switch
+                                {
+                                    System.Text.Json.JsonValueKind.String => property.Value.GetString(),
+                                    System.Text.Json.JsonValueKind.Number when property.Value.TryGetDecimal(out var number) => number,
+                                    System.Text.Json.JsonValueKind.True => true,
+                                    System.Text.Json.JsonValueKind.False => false,
+                                    System.Text.Json.JsonValueKind.Null => null,
+                                    _ => property.Value.ToString()
+                                };
+                        }
+                        if (row.Count > 0) records.Add(row);
+                    }
+                }
+
+                var recordsByAction = new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase);
+                if (root.TryGetProperty("RecordsByAction", out var recordsByActionEl) && recordsByActionEl.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    foreach (var actionProp in recordsByActionEl.EnumerateObject())
+                    {
+                        var actionRows = new List<Dictionary<string, object>>();
+                        if (actionProp.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var item in actionProp.Value.EnumerateArray())
+                            {
+                                var row = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                                if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                {
+                                    foreach (var property in item.EnumerateObject())
+                                        row[property.Name] = property.Value.ValueKind switch
+                                        {
+                                            System.Text.Json.JsonValueKind.String => property.Value.GetString(),
+                                            System.Text.Json.JsonValueKind.Number when property.Value.TryGetDecimal(out var number) => number,
+                                            System.Text.Json.JsonValueKind.True => true,
+                                            System.Text.Json.JsonValueKind.False => false,
+                                            System.Text.Json.JsonValueKind.Null => null,
+                                            _ => property.Value.ToString()
+                                        };
+                                }
+                                if (row.Count > 0) actionRows.Add(row);
+                            }
+                        }
+                        recordsByAction[actionProp.Name] = actionRows;
+                    }
+                }
+
                 var userId = GetUserId() ?? 0;
                 var currentEmployee = await GetCurrentHierarchyEmployeeAsync();
                 _ = LogSalaryEventAsync(userId, currentEmployee?.EmployeeId, "SalaryView",
                     $"Salary data viewed. {salaryDict.Count} employee salary records returned. Session expires {expiresAt:HH:mm:ss} UTC.");
 
-                return Ok(new { Success = true, Salaries = salaryDict, ExpiresAt = expiresAt });
+                var action = root.TryGetProperty("Action", out var actionEl) ? actionEl.GetString() : "";
+                var count = root.TryGetProperty("Count", out var countEl) && countEl.TryGetInt32(out var storedCount)
+                    ? storedCount
+                    : salaryDict.Count;
+
+                return Ok(new { Success = true, Salaries = salaryDict, Records = records, RecordsByAction = recordsByAction, ExpiresAt = expiresAt, Action = action, Count = count });
             }
             catch
             {
@@ -1521,6 +1717,17 @@ WHERE EmployeeCode = @EmployeeCode",
             {
                 var values = await _hierarchyService.GetEmployeeCustomValuesAsync(employeeId);
                 return Ok(new { Success = true, Data = values });
+            }
+            catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
+        }
+
+        [HttpGet("GetEmployeeModalExtras")]
+        public async Task<IActionResult> GetEmployeeModalExtras([FromQuery] int employeeId)
+        {
+            try
+            {
+                var extras = await _hierarchyService.GetEmployeeModalExtrasAsync(employeeId);
+                return Ok(new { Success = true, Data = extras });
             }
             catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
         }
