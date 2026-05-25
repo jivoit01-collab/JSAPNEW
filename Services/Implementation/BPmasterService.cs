@@ -190,10 +190,52 @@ namespace JSAPNEW.Services.Implementation
 
         private static string ResolveBpType(InsertBPMasterDataModel model)
         {
+            var type = (model.Type ?? string.Empty).Trim();
+            if (type.Equals("Vendor", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("V", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("Supplier", StringComparison.OrdinalIgnoreCase))
+            {
+                return "V";
+            }
+
+            if (type.Equals("Customer", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("C", StringComparison.OrdinalIgnoreCase))
+            {
+                return "C";
+            }
+
             if (!string.IsNullOrWhiteSpace(model.VendorType))
                 return "V";
 
             return NormalizeBpType(FirstText(model.CustomerType, model.VendorType, "C"));
+        }
+
+        private static int ResolveCompanyId(InsertBPMasterDataModel model)
+        {
+            if (model.CompanyId > 0)
+                return model.CompanyId;
+
+            var company = (model.Company ?? string.Empty).Trim();
+            if (int.TryParse(company, out var numericCompany) && numericCompany > 0)
+                return numericCompany;
+
+            return company.ToUpperInvariant() switch
+            {
+                "JIVO_OIL_HANADB" or "JIVO OIL" or "OIL" => 1,
+                "JIVO_BEVERAGES_HANADB" or "JIVO BEVERAGES" or "BEVERAGES" => 2,
+                "JIVO_MART_HANADB" or "JIVO MART" or "MART" => 3,
+                _ => 0
+            };
+        }
+
+        private static string ResolveCompanyByUser(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.CompanyByUser, model.Company);
+        }
+
+        private static string ResolveCompanyName(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.CompanyName, model.CardName);
         }
 
         private static string ResolveForeignName(InsertBPMasterDataModel model)
@@ -208,17 +250,186 @@ namespace JSAPNEW.Services.Implementation
 
         private static string ResolveDesignation(InsertBPMasterDataModel model)
         {
-            return FirstText(model.Designation, model.Title);
+            return FirstText(model.Designation, model.Title, model.ContactTitle);
+        }
+
+        private static string ResolveFirstName(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.FirstName, model.ContactFirst);
+        }
+
+        private static string ResolveLastName(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.LastName, model.ContactLast);
         }
 
         private static string ResolveMobile(InsertBPMasterDataModel model)
         {
-            return FirstText(model.MobileNumber, model.Mobile);
+            return FirstText(model.MobileNumber, model.Mobile, model.ContactMobile);
+        }
+
+        private static string ResolveEmail(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.EmailAddress, model.Email);
+        }
+
+        private static string ResolveAlternateEmail(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.AlternateEmail, model.ContactEmail);
+        }
+
+        private static string ResolveAlternateContact(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.AlternateContact, model.AltContact);
         }
 
         private static string ResolvePan(InsertBPMasterDataModel model)
         {
             return FirstText(model.PanNumber, model.Pan);
+        }
+
+        private static string ResolveFssai(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.FssaiLicense, model.FssaiNo);
+        }
+
+        private static string ResolveMsme(InsertBPMasterDataModel model)
+        {
+            if (model.HasMsme)
+                return FirstText(model.MsmeNo, model.Msme);
+
+            return FirstText(model.Msme, model.MsmeNo);
+        }
+
+        private static string ResolveCurrency(InsertBPMasterDataModel model)
+        {
+            var currency = FirstText(model.Currency, "INR").Trim();
+            return currency switch
+            {
+                "Indian Rupee" => "INR",
+                "US Dollar" => "USD",
+                "Euro" => "EUR",
+                "British Pound" => "GBP",
+                "UAE Dirham" => "AED",
+                _ => currency.ToUpperInvariant()
+            };
+        }
+
+        private static string SanitizeMobileForValidation(string mobile)
+        {
+            var digits = Regex.Replace(mobile ?? string.Empty, "\\D", string.Empty);
+            if (digits.Length == 12 && digits.StartsWith("91", StringComparison.Ordinal))
+                return digits[2..];
+            if (digits.Length == 13 && digits.StartsWith("091", StringComparison.Ordinal))
+                return digits[3..];
+            return digits.Length > 10 ? digits[^10..] : digits;
+        }
+
+        private static string GetGstStateCode(string gstin)
+        {
+            var normalized = (gstin ?? string.Empty).Trim().ToUpperInvariant();
+            return normalized.Length >= 2 ? normalized[..2] : string.Empty;
+        }
+
+        private static string MapIndianStateToGstCode(string state)
+        {
+            if (string.IsNullOrWhiteSpace(state))
+                return string.Empty;
+
+            var value = state.Trim().ToUpperInvariant();
+            if (Regex.IsMatch(value, "^\\d{2}$"))
+                return value;
+
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Jammu & Kashmir"] = "01",
+                ["Jammu and Kashmir"] = "01",
+                ["Himachal Pradesh"] = "02",
+                ["Punjab"] = "03",
+                ["Chandigarh"] = "04",
+                ["Uttarakhand"] = "05",
+                ["Uttaranchal"] = "05",
+                ["Haryana"] = "06",
+                ["Delhi"] = "07",
+                ["Rajasthan"] = "08",
+                ["Uttar Pradesh"] = "09",
+                ["Bihar"] = "10",
+                ["Sikkim"] = "11",
+                ["Arunachal Pradesh"] = "12",
+                ["Nagaland"] = "13",
+                ["Manipur"] = "14",
+                ["Mizoram"] = "15",
+                ["Tripura"] = "16",
+                ["Meghalaya"] = "17",
+                ["Assam"] = "18",
+                ["West Bengal"] = "19",
+                ["Jharkhand"] = "20",
+                ["Odisha"] = "21",
+                ["Orissa"] = "21",
+                ["Chhattisgarh"] = "22",
+                ["Madhya Pradesh"] = "23",
+                ["Gujarat"] = "24",
+                ["Dadra and Nagar Haveli and Daman and Diu"] = "26",
+                ["Dadra & Nagar Haveli"] = "26",
+                ["Daman & Diu"] = "26",
+                ["Maharashtra"] = "27",
+                ["Andhra Pradesh"] = "37",
+                ["Karnataka"] = "29",
+                ["Goa"] = "30",
+                ["Lakshadweep"] = "31",
+                ["Kerala"] = "32",
+                ["Tamil Nadu"] = "33",
+                ["Puducherry"] = "34",
+                ["Pondicherry"] = "34",
+                ["Andaman and Nicobar Islands"] = "35",
+                ["Andaman & Nicobar Islands"] = "35",
+                ["Telangana"] = "36",
+                ["Ladakh"] = "38"
+            };
+
+            return map.TryGetValue(state.Trim(), out var code) ? code : string.Empty;
+        }
+
+        private static bool GstStateMatchesAddress(string gstin, BPMasterAddress address)
+        {
+            if (string.IsNullOrWhiteSpace(gstin))
+                return true;
+
+            var gstStateCode = GetGstStateCode(gstin);
+            var addressStateCode = MapIndianStateToGstCode(address.State);
+            return string.IsNullOrWhiteSpace(gstStateCode)
+                || string.IsNullOrWhiteSpace(addressStateCode)
+                || string.Equals(gstStateCode, addressStateCode, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static BPBankAccount? ResolvePrimaryBank(InsertBPMasterDataModel model)
+        {
+            var account = (model.BankAccounts ?? new List<BPBankAccount>())
+                .Where(b => !string.IsNullOrWhiteSpace(b.AccNo))
+                .OrderByDescending(b => b.IsPrimary)
+                .FirstOrDefault();
+
+            return account;
+        }
+
+        private static string ResolveBankName(BPBankAccount? bank)
+        {
+            return bank == null ? string.Empty : FirstText(bank.BankCode, bank.MgrBankCode, bank.BankName);
+        }
+
+        private static string ResolveBankBranch(BPBankAccount? bank)
+        {
+            return bank == null ? string.Empty : bank.Branch;
+        }
+
+        private static string ResolveBankAccountNo(BPBankAccount? bank)
+        {
+            return bank == null ? string.Empty : bank.AccNo;
+        }
+
+        private static string ResolveBankIfsc(BPBankAccount? bank)
+        {
+            return bank == null ? string.Empty : bank.Ifsc;
         }
 
         private static List<BPMasterAddress> BuildAddressRows(InsertBPMasterDataModel model)
@@ -233,28 +444,82 @@ namespace JSAPNEW.Services.Implementation
                     {
                         AddressType = FirstText(address.AddressType, addressType),
                         Street = address.Street,
-                        BlockArea = address.BlockArea,
+                        BlockArea = FirstText(address.BlockArea, address.Block),
                         State = address.State,
                         City = address.City,
-                        PinCode = address.PinCode,
+                        PinCode = FirstText(address.PinCode, address.Zip),
                         Country = address.Country,
                         Gstin = FirstText(address.Gstin, model.Gstin),
-                        AddressName = address.AddressName
+                        AddressName = FirstText(address.AddressName, address.AddrName)
                     });
                 }
             }
 
-            AddRows(model.BillingAddresses, "B");
-            AddRows(model.ShippingAddresses, "S");
+            var billAddresses = model.BillingAddresses?.Count > 0
+                ? model.BillingAddresses
+                : model.AllBillAddresses;
+            var shipAddresses = model.ShippingAddresses?.Count > 0
+                ? model.ShippingAddresses
+                : model.AllShipAddresses;
+
+            if ((billAddresses == null || billAddresses.Count == 0)
+                && !string.IsNullOrWhiteSpace(model.BillStreet))
+            {
+                billAddresses = new List<BPMasterAddress>
+                {
+                    new()
+                    {
+                        AddressName = model.BillAddressName,
+                        Street = model.BillStreet,
+                        BlockArea = model.BillBlock,
+                        City = model.BillCity,
+                        PinCode = model.BillZip,
+                        State = model.BillState,
+                        Country = FirstText(model.BillCountry, "India"),
+                        Gstin = model.Gstin
+                    }
+                };
+            }
+
+            if ((shipAddresses == null || shipAddresses.Count == 0)
+                && !model.SameAsBill
+                && !string.IsNullOrWhiteSpace(model.ShipStreet))
+            {
+                shipAddresses = new List<BPMasterAddress>
+                {
+                    new()
+                    {
+                        AddressName = model.ShipAddressName,
+                        Street = model.ShipStreet,
+                        BlockArea = model.ShipBlock,
+                        City = model.ShipCity,
+                        PinCode = model.ShipZip,
+                        State = model.ShipState,
+                        Country = FirstText(model.ShipCountry, "India"),
+                        Gstin = string.Empty
+                    }
+                };
+            }
+
+            AddRows(billAddresses, "B");
+
+            if ((shipAddresses == null || shipAddresses.Count == 0) && model.SameAsBill && billAddresses?.Count > 0)
+                shipAddresses = billAddresses;
+
+            AddRows(shipAddresses, "S");
             return rows;
         }
 
         private static List<BPContactPerson> BuildContactRows(InsertBPMasterDataModel model)
         {
-            if (string.IsNullOrWhiteSpace(model.FirstName)
-                && string.IsNullOrWhiteSpace(model.LastName)
+            var firstName = ResolveFirstName(model);
+            var lastName = ResolveLastName(model);
+            var email = ResolveEmail(model);
+
+            if (string.IsNullOrWhiteSpace(firstName)
+                && string.IsNullOrWhiteSpace(lastName)
                 && string.IsNullOrWhiteSpace(ResolveMobile(model))
-                && string.IsNullOrWhiteSpace(model.EmailAddress))
+                && string.IsNullOrWhiteSpace(email))
             {
                 return new List<BPContactPerson>();
             }
@@ -263,13 +528,13 @@ namespace JSAPNEW.Services.Implementation
             {
                 new()
                 {
-                    FirstName = model.FirstName,
-                    LastName = model.LastName,
+                    FirstName = firstName,
+                    LastName = lastName,
                     Designation = ResolveDesignation(model),
                     MobileNumber = ResolveMobile(model),
-                    AlternateContact = model.AlternateContact,
-                    EmailAddress = model.EmailAddress,
-                    AlternateEmail = model.AlternateEmail
+                    AlternateContact = ResolveAlternateContact(model),
+                    EmailAddress = email,
+                    AlternateEmail = ResolveAlternateEmail(model)
                 }
             };
         }
@@ -283,11 +548,20 @@ namespace JSAPNEW.Services.Implementation
             if (bpType is not ("C" or "V"))
                 return "BP type must be Customer or Vendor.";
 
-            if (model.CompanyId <= 0)
+            if (ResolveCompanyId(model) <= 0)
                 return "Company is required.";
 
-            if (string.IsNullOrWhiteSpace(model.CompanyName))
+            if (string.IsNullOrWhiteSpace(ResolveCompanyName(model)))
                 return "Company name is required.";
+
+            if (string.IsNullOrWhiteSpace(ResolveIndustry(model)))
+                return "Industry is required.";
+
+            if (string.IsNullOrWhiteSpace(ResolveFirstName(model)))
+                return "Contact first name is required.";
+
+            if (string.IsNullOrWhiteSpace(ResolveLastName(model)))
+                return "Contact last name is required.";
 
             var pan = ResolvePan(model).Trim().ToUpperInvariant();
             if (string.IsNullOrWhiteSpace(pan))
@@ -296,52 +570,122 @@ namespace JSAPNEW.Services.Implementation
             if (!Regex.IsMatch(pan, "^[A-Z]{5}[0-9]{4}[A-Z]$"))
                 return "PAN format is invalid.";
 
-            var currency = FirstText(model.Currency, "INR").Trim().ToUpperInvariant();
+            var currency = ResolveCurrency(model);
             if (!Regex.IsMatch(currency, "^[A-Z]{3}$"))
                 return "Currency must be a valid three-letter code.";
 
             var mobile = ResolveMobile(model);
-            if (!string.IsNullOrWhiteSpace(mobile))
+            if (string.IsNullOrWhiteSpace(mobile))
             {
-                var digits = Regex.Replace(mobile, "\\D", string.Empty);
-                if (digits.Length < 10 || digits.Length > 13)
-                    return "Mobile number format is invalid.";
+                return "Mobile number is required.";
             }
 
-            if (!string.IsNullOrWhiteSpace(model.EmailAddress)
-                && !Regex.IsMatch(model.EmailAddress.Trim(), "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+            var sanitizedMobile = SanitizeMobileForValidation(mobile);
+            if (!Regex.IsMatch(sanitizedMobile, "^[6-9][0-9]{9}$"))
+                return "Mobile number format is invalid.";
+
+            var email = ResolveEmail(model);
+            if (string.IsNullOrWhiteSpace(email))
+                return "Email address is required.";
+
+            if (!Regex.IsMatch(email.Trim(), "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
             {
                 return "Email address format is invalid.";
             }
 
-            if (!string.IsNullOrWhiteSpace(model.AlternateEmail)
-                && !Regex.IsMatch(model.AlternateEmail.Trim(), "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+            var alternateEmail = ResolveAlternateEmail(model);
+            if (!string.IsNullOrWhiteSpace(alternateEmail)
+                && !Regex.IsMatch(alternateEmail.Trim(), "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
             {
                 return "Alternate email address format is invalid.";
             }
 
-            if (!string.IsNullOrWhiteSpace(model.Gstin)
-                && !Regex.IsMatch(model.Gstin.Trim().ToUpperInvariant(), "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"))
+            var gstin = model.Gstin?.Trim().ToUpperInvariant() ?? string.Empty;
+            if (bpType == "V" && string.IsNullOrWhiteSpace(gstin))
+                return "GSTIN is required for vendors.";
+
+            if (bpType == "C"
+                && string.Equals(model.CustomerType, "B2B", StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(gstin))
+            {
+                return "GSTIN is required for B2B customers.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(gstin)
+                && !Regex.IsMatch(gstin, "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"))
             {
                 return "GSTIN format is invalid.";
             }
 
-            foreach (var address in BuildAddressRows(model))
+            var addresses = BuildAddressRows(model);
+            var billingAddresses = addresses.Where(a => a.AddressType.StartsWith("B", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (billingAddresses.Count == 0)
+                return "At least one billing address is required.";
+
+            foreach (var address in billingAddresses)
+            {
+                if (string.IsNullOrWhiteSpace(address.Street))
+                    return "Billing address street is required.";
+
+                if (string.IsNullOrWhiteSpace(address.City))
+                    return "Billing address city is required.";
+
+                if (string.IsNullOrWhiteSpace(address.State))
+                    return "Billing address state is required.";
+
+                var addressGstin = FirstText(address.Gstin, gstin);
+                if (!GstStateMatchesAddress(addressGstin, address))
+                    return "GSTIN state code does not match the billing address state.";
+            }
+
+            foreach (var address in addresses)
             {
                 if (!string.IsNullOrWhiteSpace(address.Gstin)
                     && !Regex.IsMatch(address.Gstin.Trim().ToUpperInvariant(), "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"))
                 {
                     return "Address GSTIN format is invalid.";
                 }
+
+                if (!GstStateMatchesAddress(address.Gstin, address))
+                    return "Address GSTIN state code does not match the selected state.";
             }
 
-            if (bpType == "V" && !string.IsNullOrWhiteSpace(model.AccountNumber))
+            if (model.HasMsme)
             {
-                if (string.IsNullOrWhiteSpace(model.BankName))
-                    return "Bank name is required when account number is provided.";
+                var msmeNo = ResolveMsme(model).Trim().ToUpperInvariant();
+                if (string.IsNullOrWhiteSpace(msmeNo))
+                    return "MSME/Udyam registration number is required when MSME is enabled.";
 
-                if (!string.IsNullOrWhiteSpace(model.IfscCode)
-                    && !Regex.IsMatch(model.IfscCode.Trim().ToUpperInvariant(), "^[A-Z]{4}0[A-Z0-9]{6}$"))
+                if (!Regex.IsMatch(msmeNo, "^UDYAM-[A-Z]{2}-\\d{2}-\\d{7}$"))
+                    return "MSME/Udyam registration number format is invalid.";
+
+                if (bpType == "V" && string.IsNullOrWhiteSpace(model.MsmeType))
+                    return "MSME type is required for MSME vendors.";
+
+                if (bpType == "V" && string.IsNullOrWhiteSpace(model.MsmeBType))
+                    return "MSME business type is required for MSME vendors.";
+            }
+
+            if (string.IsNullOrWhiteSpace(model.Remarks))
+                return "Remarks are required.";
+
+            var primaryBank = ResolvePrimaryBank(model);
+            if (bpType == "V")
+            {
+                if (primaryBank == null)
+                    return "At least one vendor bank account is required.";
+
+                if (string.IsNullOrWhiteSpace(ResolveBankName(primaryBank)))
+                    return "Bank name/code is required for vendor bank account.";
+
+                if (string.IsNullOrWhiteSpace(ResolveBankAccountNo(primaryBank)))
+                    return "Bank account number is required for vendor bank account.";
+
+                var ifsc = ResolveBankIfsc(primaryBank);
+                if (string.IsNullOrWhiteSpace(ifsc))
+                    return "IFSC code is required for vendor bank account.";
+
+                if (!Regex.IsMatch(ifsc.Trim().ToUpperInvariant(), "^[A-Z]{4}0[A-Z0-9]{6}$"))
                 {
                     return "IFSC code format is invalid.";
                 }
@@ -388,6 +732,9 @@ namespace JSAPNEW.Services.Implementation
 
             try
             {
+                var companyId = ResolveCompanyId(model);
+                var primaryBank = ResolvePrimaryBank(model);
+
                 using (var conn = new SqlConnection(_connectionString))
                 using (var cmd = new SqlCommand("[BP].[jsInsertBPMasterData]", conn))
                 {
@@ -395,34 +742,36 @@ namespace JSAPNEW.Services.Implementation
 
                     cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
-                    cmd.Parameters.AddWithValue("@name", model.CompanyName);
-                    cmd.Parameters.AddWithValue("@company", model.CompanyId);
+                    cmd.Parameters.AddWithValue("@name", ResolveCompanyName(model));
+                    cmd.Parameters.AddWithValue("@company", companyId);
                     cmd.Parameters.AddWithValue("@foreignName", (object?)ResolveForeignName(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@typeOfBusiness", (object?)model.TypeOfBusiness ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@industry", (object?)ResolveIndustry(model) ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@firstName", (object?)model.FirstName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@lastName", (object?)model.LastName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@firstName", (object?)ResolveFirstName(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@lastName", (object?)ResolveLastName(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@designation", (object?)ResolveDesignation(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@mobileNo", (object?)ResolveMobile(model) ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@emailAddress", (object?)model.EmailAddress ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@alternateEmail", (object?)model.AlternateEmail ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@currency", (object?)FirstText(model.Currency, "INR") ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@emailAddress", (object?)ResolveEmail(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@alternateEmail", (object?)ResolveAlternateEmail(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@currency", (object?)ResolveCurrency(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@remarks", (object?)model.Remarks ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
-                    cmd.Parameters.AddWithValue("@companyByUser", model.CompanyByUser ?? "");
+                    cmd.Parameters.AddWithValue("@companyByUser", ResolveCompanyByUser(model));
 
                     cmd.Parameters.AddWithValue("@tan", (object?)model.Tan ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@panNo", ResolvePan(model));
-                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)model.FssaiLicense ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeNo", (object?)model.Msme ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)ResolveFssai(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeNo", (object?)ResolveMsme(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeType", (object?)model.MsmeType ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeBType", (object?)model.MsmeBType ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstin", (object?)model.Gstin ?? DBNull.Value);
 
-                    cmd.Parameters.AddWithValue("@bankName", (object?)model.BankName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@branchName", (object?)model.BranchName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accountNo", (object?)model.AccountNumber ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@ifscCode", (object?)model.IfscCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@swiftCode", (object?)model.SwiftCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accountType", (object?)model.AccountType ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@bankName", (object?)ResolveBankName(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@branchName", (object?)ResolveBankBranch(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountNo", (object?)ResolveBankAccountNo(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ifscCode", (object?)ResolveBankIfsc(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@swiftCode", (object?)primaryBank?.SwiftCode ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountType", (object?)primaryBank?.AccountType ?? DBNull.Value);
 
                     var addressTable = ToAddressDataTable(BuildAddressRows(model));
                     var contactTable = ToContactDataTable(BuildContactRows(model));
@@ -460,10 +809,10 @@ namespace JSAPNEW.Services.Implementation
                     model.CompanyId,
                     model.UserId,
                     ResolveBpType(model));
-                response.Success = false;
-                response.Message = "BP Master insert failed.";
-                response.GeneratedCode = 0;
-            }
+                    response.Success = false;
+                    response.Message = "BP Master insert failed.";
+                    response.GeneratedCode = 0;
+                }
 
             return response;
         }
@@ -1733,6 +2082,9 @@ ORDER BY id DESC;";
 
             try
             {
+                var companyId = ResolveCompanyId(model);
+                var primaryBank = ResolvePrimaryBank(model);
+
                 using (var conn = new SqlConnection(_connectionString))
                 using (var cmd = new SqlCommand("[BP].[jsUpdateBPMasterData]", conn))
                 {
@@ -1741,34 +2093,36 @@ ORDER BY id DESC;";
                     cmd.Parameters.AddWithValue("@Code", model.Code);
                     cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
-                    cmd.Parameters.AddWithValue("@name", model.CompanyName);
-                    cmd.Parameters.AddWithValue("@company", model.CompanyId);
+                    cmd.Parameters.AddWithValue("@name", ResolveCompanyName(model));
+                    cmd.Parameters.AddWithValue("@company", companyId);
                     cmd.Parameters.AddWithValue("@foreignName", (object?)ResolveForeignName(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@typeOfBusiness", (object?)model.TypeOfBusiness ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@industry", (object?)ResolveIndustry(model) ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@firstName", (object?)model.FirstName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@lastName", (object?)model.LastName ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@firstName", (object?)ResolveFirstName(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@lastName", (object?)ResolveLastName(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@designation", (object?)ResolveDesignation(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@mobileNo", (object?)ResolveMobile(model) ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@emailAddress", (object?)model.EmailAddress ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@alternateEmail", (object?)model.AlternateEmail ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@currency", (object?)FirstText(model.Currency, "INR") ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@emailAddress", (object?)ResolveEmail(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@alternateEmail", (object?)ResolveAlternateEmail(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@currency", (object?)ResolveCurrency(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@remarks", (object?)model.Remarks ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
-                    cmd.Parameters.AddWithValue("@companyByUser", model.CompanyByUser ?? "");
+                    cmd.Parameters.AddWithValue("@companyByUser", ResolveCompanyByUser(model));
 
                     cmd.Parameters.AddWithValue("@tan", (object?)model.Tan ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@panNo", ResolvePan(model));
-                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)model.FssaiLicense ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@msmeNo", (object?)model.Msme ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@fssaiNo", (object?)ResolveFssai(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeNo", (object?)ResolveMsme(model) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeType", (object?)model.MsmeType ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@msmeBType", (object?)model.MsmeBType ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstin", (object?)model.Gstin ?? DBNull.Value);
 
-                    cmd.Parameters.AddWithValue("@bankName", (object?)model.BankName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@branchName", (object?)model.BranchName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accountNo", (object?)model.AccountNumber ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@ifscCode", (object?)model.IfscCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@swiftCode", (object?)model.SwiftCode ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accountType", (object?)model.AccountType ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@bankName", (object?)ResolveBankName(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@branchName", (object?)ResolveBankBranch(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountNo", (object?)ResolveBankAccountNo(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ifscCode", (object?)ResolveBankIfsc(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@swiftCode", (object?)primaryBank?.SwiftCode ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@accountType", (object?)primaryBank?.AccountType ?? DBNull.Value);
 
                     // Control flags
                     cmd.Parameters.Add(new SqlParameter("@updateAddresses", SqlDbType.Bit) { Value = model.UpdateAddresses });

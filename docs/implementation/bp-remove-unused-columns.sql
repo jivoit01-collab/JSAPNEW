@@ -1,11 +1,12 @@
 /*
     BP Master portal field cleanup
-    Generated: 2026-05-22
+    Generated: 2026-05-25
 
     Purpose:
     - Keep workflow, approval history, SAP status/audit, stage, and attachment tables intact.
     - Keep BP.jsMaster.isStaff.
-    - Remove only retired BP business fields that are not present in the current SAP Portal forms.
+    - Remove only retired BP business fields that are not present in the current Node-compatible SAP Portal forms.
+    - Preserve active MSME fields: msmeNo, msmeType, and msmeBType.
     - Back up removed-column data before any drop.
 
     Rollback:
@@ -89,7 +90,6 @@ BEGIN TRY
             BackedUpOn DATETIME2(0) NOT NULL,
             taxDetailID INT NOT NULL,
             code INT NOT NULL,
-            msmeType NVARCHAR(50) NULL,
             msmeBusinessType NVARCHAR(100) NULL
         );
     END;
@@ -108,30 +108,76 @@ BEGIN TRY
         );
     END;
 
-    INSERT INTO BP.jsMaster_RemovedColumnsBackup
-        (MigrationRunId, BackedUpOn, code, staffCode, groupID, mainGroupID, chain, contactPerson, paymentTermID, creditLimit, priceList)
-    SELECT @MigrationRunId, @StartedOn, code, staffCode, groupID, mainGroupID, chain, contactPerson, paymentTermID, creditLimit, priceList
-    FROM BP.jsMaster;
+    SET @sql = N'
+        INSERT INTO BP.jsMaster_RemovedColumnsBackup
+            (MigrationRunId, BackedUpOn, code, staffCode, groupID, mainGroupID, chain, contactPerson, paymentTermID, creditLimit, priceList)
+        SELECT @MigrationRunId, @StartedOn, code, ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'staffCode') IS NOT NULL THEN N'staffCode' ELSE N'CAST(NULL AS VARCHAR(10))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'groupID') IS NOT NULL THEN N'groupID' ELSE N'CAST(NULL AS VARCHAR(256))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'mainGroupID') IS NOT NULL THEN N'mainGroupID' ELSE N'CAST(NULL AS VARCHAR(256))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'chain') IS NOT NULL THEN N'chain' ELSE N'CAST(NULL AS NVARCHAR(100))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'contactPerson') IS NOT NULL THEN N'contactPerson' ELSE N'CAST(NULL AS NVARCHAR(100))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'paymentTermID') IS NOT NULL THEN N'paymentTermID' ELSE N'CAST(NULL AS VARCHAR(50))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'creditLimit') IS NOT NULL THEN N'creditLimit' ELSE N'CAST(NULL AS DECIMAL(18,2))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMaster', N'priceList') IS NOT NULL THEN N'priceList' ELSE N'CAST(NULL AS VARCHAR(100))' END + N'
+        FROM BP.jsMaster;';
+    EXEC sp_executesql @sql,
+        N'@MigrationRunId UNIQUEIDENTIFIER, @StartedOn DATETIME2(0)',
+        @MigrationRunId = @MigrationRunId,
+        @StartedOn = @StartedOn;
 
-    INSERT INTO BP.jsMasterAddress_RemovedColumnsBackup
-        (MigrationRunId, BackedUpOn, addressID, code, email, isDefault, gstType, addressUid)
-    SELECT @MigrationRunId, @StartedOn, addressID, code, email, isDefault, gstType, addressUid
-    FROM BP.jsMasterAddress;
+    SET @sql = N'
+        INSERT INTO BP.jsMasterAddress_RemovedColumnsBackup
+            (MigrationRunId, BackedUpOn, addressID, code, email, isDefault, gstType, addressUid)
+        SELECT @MigrationRunId, @StartedOn, addressID, code, ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMasterAddress', N'email') IS NOT NULL THEN N'email' ELSE N'CAST(NULL AS NVARCHAR(100))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMasterAddress', N'isDefault') IS NOT NULL THEN N'isDefault' ELSE N'CAST(NULL AS BIT)' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMasterAddress', N'gstType') IS NOT NULL THEN N'gstType' ELSE N'CAST(NULL AS VARCHAR(10))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsMasterAddress', N'addressUid') IS NOT NULL THEN N'addressUid' ELSE N'CAST(NULL AS VARCHAR(100))' END + N'
+        FROM BP.jsMasterAddress;';
+    EXEC sp_executesql @sql,
+        N'@MigrationRunId UNIQUEIDENTIFIER, @StartedOn DATETIME2(0)',
+        @MigrationRunId = @MigrationRunId,
+        @StartedOn = @StartedOn;
 
-    INSERT INTO BP.jsContactPersons_RemovedColumnsBackup
-        (MigrationRunId, BackedUpOn, contactID, code, email, phone, telephone, isPrimary, contactUid)
-    SELECT @MigrationRunId, @StartedOn, contactID, code, email, phone, telephone, isPrimary, contactUid
-    FROM BP.jsContactPersons;
+    SET @sql = N'
+        INSERT INTO BP.jsContactPersons_RemovedColumnsBackup
+            (MigrationRunId, BackedUpOn, contactID, code, email, phone, telephone, isPrimary, contactUid)
+        SELECT @MigrationRunId, @StartedOn, contactID, code, ' +
+        CASE WHEN COL_LENGTH(N'BP.jsContactPersons', N'email') IS NOT NULL THEN N'email' ELSE N'CAST(NULL AS NVARCHAR(100))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsContactPersons', N'phone') IS NOT NULL THEN N'phone' ELSE N'CAST(NULL AS NVARCHAR(15))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsContactPersons', N'telephone') IS NOT NULL THEN N'telephone' ELSE N'CAST(NULL AS NVARCHAR(15))' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsContactPersons', N'isPrimary') IS NOT NULL THEN N'isPrimary' ELSE N'CAST(NULL AS BIT)' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsContactPersons', N'contactUid') IS NOT NULL THEN N'contactUid' ELSE N'CAST(NULL AS VARCHAR(100))' END + N'
+        FROM BP.jsContactPersons;';
+    EXEC sp_executesql @sql,
+        N'@MigrationRunId UNIQUEIDENTIFIER, @StartedOn DATETIME2(0)',
+        @MigrationRunId = @MigrationRunId,
+        @StartedOn = @StartedOn;
 
-    INSERT INTO BP.jsTaxDetails_RemovedColumnsBackup
-        (MigrationRunId, BackedUpOn, taxDetailID, code, msmeType, msmeBusinessType)
-    SELECT @MigrationRunId, @StartedOn, taxDetailID, code, msmeType, msmeBusinessType
-    FROM BP.jsTaxDetails;
+    IF COL_LENGTH(N'BP.jsTaxDetails', N'msmeBusinessType') IS NOT NULL
+    BEGIN
+        EXEC sp_executesql N'
+            INSERT INTO BP.jsTaxDetails_RemovedColumnsBackup
+                (MigrationRunId, BackedUpOn, taxDetailID, code, msmeBusinessType)
+            SELECT @MigrationRunId, @StartedOn, taxDetailID, code, msmeBusinessType
+            FROM BP.jsTaxDetails;',
+            N'@MigrationRunId UNIQUEIDENTIFIER, @StartedOn DATETIME2(0)',
+            @MigrationRunId = @MigrationRunId,
+            @StartedOn = @StartedOn;
+    END;
 
-    INSERT INTO BP.jsBankDetails_RemovedColumnsBackup
-        (MigrationRunId, BackedUpOn, bankDetailID, code, countryID, acctName)
-    SELECT @MigrationRunId, @StartedOn, bankDetailID, code, countryID, acctName
-    FROM BP.jsBankDetails;
+    SET @sql = N'
+        INSERT INTO BP.jsBankDetails_RemovedColumnsBackup
+            (MigrationRunId, BackedUpOn, bankDetailID, code, countryID, acctName)
+        SELECT @MigrationRunId, @StartedOn, bankDetailID, code, ' +
+        CASE WHEN COL_LENGTH(N'BP.jsBankDetails', N'countryID') IS NOT NULL THEN N'countryID' ELSE N'CAST(NULL AS INT)' END + N', ' +
+        CASE WHEN COL_LENGTH(N'BP.jsBankDetails', N'acctName') IS NOT NULL THEN N'acctName' ELSE N'CAST(NULL AS NVARCHAR(100))' END + N'
+        FROM BP.jsBankDetails;';
+    EXEC sp_executesql @sql,
+        N'@MigrationRunId UNIQUEIDENTIFIER, @StartedOn DATETIME2(0)',
+        @MigrationRunId = @MigrationRunId,
+        @StartedOn = @StartedOn;
 
     -------------------------------------------------------------------------
     -- 2. Add active portal columns. Snapshot/audit tables are expanded only;
@@ -172,14 +218,41 @@ BEGIN TRY
     IF COL_LENGTH(N'BP.jsContactPersons', N'alternateContact') IS NULL
         ALTER TABLE BP.jsContactPersons ADD alternateContact NVARCHAR(15) NULL;
 
-    EXEC(N'
-        UPDATE BP.jsContactPersons
-        SET emailAddress = COALESCE(NULLIF(emailAddress, ''''), email),
-            mobileNumber = COALESCE(NULLIF(mobileNumber, ''''), phone),
-            alternateContact = COALESCE(NULLIF(alternateContact, ''''), telephone);');
+    IF COL_LENGTH(N'BP.jsContactPersons', N'email') IS NOT NULL
+    BEGIN
+        EXEC(N'
+            UPDATE BP.jsContactPersons
+            SET emailAddress = COALESCE(NULLIF(emailAddress, ''''), email);');
+    END;
+
+    IF COL_LENGTH(N'BP.jsContactPersons', N'phone') IS NOT NULL
+    BEGIN
+        EXEC(N'
+            UPDATE BP.jsContactPersons
+            SET mobileNumber = COALESCE(NULLIF(mobileNumber, ''''), phone);');
+    END;
+
+    IF COL_LENGTH(N'BP.jsContactPersons', N'telephone') IS NOT NULL
+    BEGIN
+        EXEC(N'
+            UPDATE BP.jsContactPersons
+            SET alternateContact = COALESCE(NULLIF(alternateContact, ''''), telephone);');
+    END;
 
     IF COL_LENGTH(N'BP.jsTaxDetails', N'gstin') IS NULL
         ALTER TABLE BP.jsTaxDetails ADD gstin VARCHAR(15) NULL;
+    IF COL_LENGTH(N'BP.jsTaxDetails', N'msmeType') IS NULL
+        ALTER TABLE BP.jsTaxDetails ADD msmeType NVARCHAR(50) NULL;
+    IF COL_LENGTH(N'BP.jsTaxDetails', N'msmeBType') IS NULL
+        ALTER TABLE BP.jsTaxDetails ADD msmeBType NVARCHAR(100) NULL;
+
+    IF COL_LENGTH(N'BP.jsTaxDetails', N'msmeBusinessType') IS NOT NULL
+    BEGIN
+        EXEC(N'
+            UPDATE BP.jsTaxDetails
+            SET msmeBType = COALESCE(NULLIF(msmeBType, ''''), msmeBusinessType)
+            WHERE ISNULL(msmeBusinessType, '''') <> '''';');
+    END;
 
     EXEC(N'
         UPDATE td
@@ -219,6 +292,10 @@ BEGIN TRY
         ALTER TABLE BP.jsContactPersonsSnapshot ADD alternateContact NVARCHAR(15) NULL;
     IF COL_LENGTH(N'BP.jsTaxDetailsSnapshot', N'gstin') IS NULL
         ALTER TABLE BP.jsTaxDetailsSnapshot ADD gstin VARCHAR(15) NULL;
+    IF COL_LENGTH(N'BP.jsTaxDetailsSnapshot', N'msmeType') IS NULL
+        ALTER TABLE BP.jsTaxDetailsSnapshot ADD msmeType NVARCHAR(50) NULL;
+    IF COL_LENGTH(N'BP.jsTaxDetailsSnapshot', N'msmeBType') IS NULL
+        ALTER TABLE BP.jsTaxDetailsSnapshot ADD msmeBType NVARCHAR(100) NULL;
     IF COL_LENGTH(N'BP.jsBankDetailsSnapshot', N'accountType') IS NULL
         ALTER TABLE BP.jsBankDetailsSnapshot ADD accountType NVARCHAR(50) NULL;
 
@@ -286,6 +363,8 @@ CREATE OR ALTER PROCEDURE BP.jsInsertBPMasterData
     @panNo VARCHAR(10),
     @fssaiNo VARCHAR(14) = NULL,
     @msmeNo VARCHAR(20) = NULL,
+    @msmeType NVARCHAR(50) = NULL,
+    @msmeBType NVARCHAR(100) = NULL,
     @gstin VARCHAR(15) = NULL,
     @addresses BP.AddressTableType READONLY,
     @bankName NVARCHAR(100) = NULL,
@@ -300,6 +379,10 @@ CREATE OR ALTER PROCEDURE BP.jsInsertBPMasterData
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @templateId INT;
+    DECLARE @currentStageId INT;
+    DECLARE @totalStage INT;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -315,8 +398,8 @@ BEGIN
 
         SET @generatedCode = CONVERT(INT, SCOPE_IDENTITY());
 
-        INSERT INTO BP.jsTaxDetails (code, buyerTANNo, panNo, fssaiNo, msmeNo, gstin)
-        VALUES (@generatedCode, @tan, @panNo, @fssaiNo, @msmeNo, @gstin);
+        INSERT INTO BP.jsTaxDetails (code, buyerTANNo, panNo, fssaiNo, msmeNo, msmeType, msmeBType, gstin)
+        VALUES (@generatedCode, @tan, @panNo, @fssaiNo, @msmeNo, @msmeType, @msmeBType, @gstin);
 
         IF EXISTS (SELECT 1 FROM @addresses)
         BEGIN
@@ -355,6 +438,51 @@ BEGIN
             FROM @attachments;
         END;
 
+        -- Template lookup: select only an active BP-specific workflow template for this company.
+        SELECT TOP 1
+            @templateId = id
+        FROM dbo.jsTemplate
+        WHERE company = @company
+          AND isActive = 1
+          AND name LIKE ''%BP%''
+        ORDER BY id DESC;
+
+        IF @templateId IS NULL
+            THROW 50005, ''Active BP workflow template not found for company.'', 1;
+
+        -- Stage lookup: start approval at the first priority stage in the BP template.
+        SELECT TOP 1
+            @currentStageId = stageId
+        FROM dbo.jsStageTemplate
+        WHERE templateId = @templateId
+        ORDER BY priority ASC;
+
+        SELECT
+            @totalStage = COUNT(*)
+        FROM dbo.jsStageTemplate
+        WHERE templateId = @templateId;
+
+        IF @currentStageId IS NULL
+            THROW 50006, ''No stages found for active BP workflow template.'', 1;
+
+        IF ISNULL(@totalStage, 0) = 0
+            THROW 50007, ''BP workflow template has no stages.'', 1;
+
+        -- Workflow insert: creates the pending approval route used by GetPendingBP/ApproveBP/RejectBP.
+        -- Guarded with UPDLOCK/HOLDLOCK because some environments already have legacy SQL workflow creation.
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM BP.jsFlow WITH (UPDLOCK, HOLDLOCK)
+            WHERE bpCode = @generatedCode
+        )
+        BEGIN
+            INSERT INTO BP.jsFlow
+                (bpCode, status, currentStageId, templateId, totalStage, currentStage, createdOn, updatedOn)
+            VALUES
+                (@generatedCode, ''P'', @currentStageId, @templateId, @totalStage, 1, GETDATE(), GETDATE());
+        END;
+
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -387,6 +515,8 @@ CREATE OR ALTER PROCEDURE BP.jsUpdateBPMasterData
     @panNo VARCHAR(10) = NULL,
     @fssaiNo VARCHAR(14) = NULL,
     @msmeNo VARCHAR(20) = NULL,
+    @msmeType NVARCHAR(50) = NULL,
+    @msmeBType NVARCHAR(100) = NULL,
     @gstin VARCHAR(15) = NULL,
     @addresses BP.AddressTableType READONLY,
     @bankName NVARCHAR(100) = NULL,
@@ -423,8 +553,8 @@ BEGIN
         WHERE code = @code;
 
         INSERT INTO BP.jsTaxDetailsSnapshot
-            (OriginalCode, SessionID, buyerTANNo, panNo, fssaiNo, msmeNo, gstin)
-        SELECT @code, @SessionID, buyerTANNo, panNo, fssaiNo, msmeNo, gstin
+            (OriginalCode, SessionID, buyerTANNo, panNo, fssaiNo, msmeNo, msmeType, msmeBType, gstin)
+        SELECT @code, @SessionID, buyerTANNo, panNo, fssaiNo, msmeNo, msmeType, msmeBType, gstin
         FROM BP.jsTaxDetails
         WHERE code = @code;
 
@@ -477,13 +607,15 @@ BEGIN
             remarks = ISNULL(@remarks, remarks)
         WHERE code = @code;
 
-        IF @tan IS NOT NULL OR @panNo IS NOT NULL OR @fssaiNo IS NOT NULL OR @msmeNo IS NOT NULL OR @gstin IS NOT NULL
+        IF @tan IS NOT NULL OR @panNo IS NOT NULL OR @fssaiNo IS NOT NULL OR @msmeNo IS NOT NULL OR @msmeType IS NOT NULL OR @msmeBType IS NOT NULL OR @gstin IS NOT NULL
         BEGIN
             UPDATE BP.jsTaxDetails
             SET buyerTANNo = ISNULL(@tan, buyerTANNo),
                 panNo = ISNULL(@panNo, panNo),
                 fssaiNo = ISNULL(@fssaiNo, fssaiNo),
                 msmeNo = ISNULL(@msmeNo, msmeNo),
+                msmeType = ISNULL(@msmeType, msmeType),
+                msmeBType = ISNULL(@msmeBType, msmeBType),
                 gstin = ISNULL(@gstin, gstin)
             WHERE code = @code;
         END;
@@ -577,6 +709,8 @@ BEGIN
         panNo AS panNumber,
         fssaiNo AS fssaiLicense,
         msmeNo AS msme,
+        msmeType,
+        msmeBType,
         gstin
     FROM BP.jsTaxDetails
     WHERE code = @bpCode;
@@ -955,6 +1089,8 @@ BEGIN
             panNo = ISNULL(s.panNo, t.panNo),
             fssaiNo = s.fssaiNo,
             msmeNo = s.msmeNo,
+            msmeType = s.msmeType,
+            msmeBType = s.msmeBType,
             gstin = s.gstin
         FROM BP.jsTaxDetails t
         INNER JOIN BP.jsTaxDetailsSnapshot s ON s.OriginalCode = t.code
@@ -962,7 +1098,7 @@ BEGIN
 
         DELETE FROM BP.jsMasterAddress WHERE code = @code;
         INSERT INTO BP.jsMasterAddress (code, addressType, addressLine1, addressLine2, stateID, cityID, pincode, countryID, gstNo, addressName)
-        SELECT @code, addressType, addressLine1, addressLine2, stateID, cityID, pincode, countryID, gstNo, COALESCE(addressName, addressUid)
+        SELECT @code, addressType, addressLine1, addressLine2, stateID, cityID, pincode, countryID, gstNo, addressName
         FROM BP.jsMasterAddressSnapshot
         WHERE OriginalCode = @code AND SessionID = @sessionID;
 
@@ -974,7 +1110,7 @@ BEGIN
 
         DELETE FROM BP.jsContactPersons WHERE code = @code;
         INSERT INTO BP.jsContactPersons (code, designation, emailAddress, alternateEmail, mobileNumber, alternateContact, firstName, lastName)
-        SELECT @code, designation, COALESCE(emailAddress, email), alternateEmail, COALESCE(mobileNumber, phone), COALESCE(alternateContact, telephone), firstName, lastName
+        SELECT @code, designation, emailAddress, alternateEmail, mobileNumber, alternateContact, firstName, lastName
         FROM BP.jsContactPersonsSnapshot
         WHERE OriginalCode = @code AND SessionID = @sessionID;
 
@@ -1019,7 +1155,6 @@ END;');
         (N'jsContactPersons', N'telephone'),
         (N'jsContactPersons', N'isPrimary'),
         (N'jsContactPersons', N'contactUid'),
-        (N'jsTaxDetails', N'msmeType'),
         (N'jsTaxDetails', N'msmeBusinessType'),
         (N'jsBankDetails', N'countryID'),
         (N'jsBankDetails', N'acctName');

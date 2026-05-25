@@ -71,22 +71,32 @@ namespace JSAPNEW.Models
 
     public class InsertBPMasterDataModel
     {
+        public string Type { get; set; } = string.Empty;
+        public string Company { get; set; } = string.Empty;
         public int CompanyId { get; set; }
         public string CustomerType { get; set; } = string.Empty;
         public string VendorType { get; set; } = string.Empty;
+        public string CardName { get; set; } = string.Empty;
         public string CompanyName { get; set; } = string.Empty;
         public string ForeignName { get; set; } = string.Empty;
         public string ForeignTradeName { get; set; } = string.Empty;
         public string TypeOfBusiness { get; set; } = string.Empty;
         public string Industry { get; set; } = string.Empty;
         public string IndustrySector { get; set; } = string.Empty;
+        public string ContactFirst { get; set; } = string.Empty;
+        public string ContactLast { get; set; } = string.Empty;
+        public string ContactTitle { get; set; } = string.Empty;
+        public string ContactMobile { get; set; } = string.Empty;
+        public string ContactEmail { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Designation { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string MobileNumber { get; set; } = string.Empty;
         public string Mobile { get; set; } = string.Empty;
+        public string AltContact { get; set; } = string.Empty;
         public string AlternateContact { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
         public string EmailAddress { get; set; } = string.Empty;
         public string AlternateEmail { get; set; } = string.Empty;
         public string Gstin { get; set; } = string.Empty;
@@ -94,34 +104,70 @@ namespace JSAPNEW.Models
         public string Pan { get; set; } = string.Empty;
         public string Tan { get; set; } = string.Empty;
         public string Currency { get; set; } = "INR";
+        public bool HasMsme { get; set; }
+        public string MsmeNo { get; set; } = string.Empty;
+        public string MsmeType { get; set; } = string.Empty;
+        public string MsmeBType { get; set; } = string.Empty;
         public string Msme { get; set; } = string.Empty;
+        public string FssaiNo { get; set; } = string.Empty;
         public string FssaiLicense { get; set; } = string.Empty;
-        public string BankName { get; set; } = string.Empty;
-        public string BranchName { get; set; } = string.Empty;
-        public string AccountNumber { get; set; } = string.Empty;
-        public string IfscCode { get; set; } = string.Empty;
-        public string SwiftCode { get; set; } = string.Empty;
-        public string AccountType { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public bool IsStaff { get; set; }
         public int UserId { get; set; }
         public string CompanyByUser { get; set; } = string.Empty;
+        public bool SameAsBill { get; set; }
+        public string BillAddressName { get; set; } = string.Empty;
+        public string BillStreet { get; set; } = string.Empty;
+        public string BillBlock { get; set; } = string.Empty;
+        public string BillCity { get; set; } = string.Empty;
+        public string BillZip { get; set; } = string.Empty;
+        public string BillState { get; set; } = string.Empty;
+        public string BillCountry { get; set; } = string.Empty;
+        public string ShipAddressName { get; set; } = string.Empty;
+        public string ShipStreet { get; set; } = string.Empty;
+        public string ShipBlock { get; set; } = string.Empty;
+        public string ShipCity { get; set; } = string.Empty;
+        public string ShipZip { get; set; } = string.Empty;
+        public string ShipState { get; set; } = string.Empty;
+        public string ShipCountry { get; set; } = string.Empty;
         public List<BPMasterAddress> BillingAddresses { get; set; } = new();
         public List<BPMasterAddress> ShippingAddresses { get; set; } = new();
+        public List<BPMasterAddress> AllBillAddresses { get; set; } = new();
+        public List<BPMasterAddress> AllShipAddresses { get; set; } = new();
+        public List<BPBankAccount> BankAccounts { get; set; } = new();
+        [Newtonsoft.Json.JsonIgnore]
         public List<BPAttachment> Attachments { get; set; } = new();
+        [Newtonsoft.Json.JsonProperty("attachments")]
+        public Newtonsoft.Json.Linq.JToken? AttachmentPayload { get; set; }
     }
 
     public class BPMasterAddress
     {
         public string AddressType { get; set; } = string.Empty;
+        public string AddrName { get; set; } = string.Empty;
         public string Street { get; set; } = string.Empty;
+        public string Block { get; set; } = string.Empty;
         public string BlockArea { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
+        public string Zip { get; set; } = string.Empty;
         public string PinCode { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public string Gstin { get; set; } = string.Empty;
         public string AddressName { get; set; } = string.Empty;
+    }
+
+    public class BPBankAccount
+    {
+        public string BankName { get; set; } = string.Empty;
+        public string BankCode { get; set; } = string.Empty;
+        public string MgrBankCode { get; set; } = string.Empty;
+        public string Branch { get; set; } = string.Empty;
+        public string AccNo { get; set; } = string.Empty;
+        public string Ifsc { get; set; } = string.Empty;
+        public string SwiftCode { get; set; } = string.Empty;
+        public string AccountType { get; set; } = string.Empty;
+        public bool IsPrimary { get; set; }
     }
 
     public class BPContactPerson

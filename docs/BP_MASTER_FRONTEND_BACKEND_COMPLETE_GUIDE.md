@@ -13,6 +13,21 @@ Audience:
 
 The BP module has been refactored to match the current SAP Portal Customer Registration and Vendor Registration forms. Only fields visible in the current portal forms should be used by the frontend and backend. The old legacy business fields were removed from active DTOs, stored procedure contracts, SAP payload mapping, and planned database cleanup scripts. The only preserved old field is `isStaff`.
 
+## Official Node-Compatible Contract
+
+The working Node.js SAP portal is the source of truth for request JSON. New clients must use the flat contract below; nested `contact`, `tax`, `msme`, `bank`, `billingAddress`, and `shippingAddress` objects are retired.
+
+| Area | Active Request Fields |
+|---|---|
+| BP header | `company`, `type`, `customerType`, `vendorType`, `cardName`, `foreignName`, `typeOfBusiness`, `industry`, `isStaff`, `currency`, `remarks` |
+| Contact | `contactFirst`, `contactLast`, `contactTitle`, `mobile`, `email`, `contactEmail`, `altContact` |
+| Address | `sameAsBill`, `allBillAddresses[]`, `allShipAddresses[]`; address rows use `addrName`, `street`, `block`, `city`, `zip`, `state`, `country`, `gstin` |
+| Tax/MSME | `gstin`, `pan`, `tan`, `hasMsme`, `msmeNo`, `msmeType`, `msmeBType`, `fssaiNo` |
+| Vendor bank | `bankAccounts[]`; bank rows use `bankCode`, `bankName`, `branch`, `accNo`, `ifsc`, `swiftCode`, `accountType`, `isPrimary` |
+| Attachments | `multipart/form-data` files with aligned `fileTypes` |
+
+Retired request fields must not be used by new clients: `bpName`, `businessType`, nested `contact`, nested `tax`, nested `msme`, singular nested `bank`, `tax.msmeStatus`, `bankAccounts[].accountNo`, and `bankAccounts[].ifscCode`.
+
 ---
 
 ## 1. Module Overview
@@ -129,11 +144,11 @@ Only these fields are active for BP Master. The frontend must not send retired l
 
 | Field Name | Required | Table | Column | API Field | Used In | Description |
 |---|---:|---|---|---|---|---|
-| Company Id | Yes | `BP.jsMaster` | `company` | `companyId` | SQL, SAP session, queues | Portal company/database identifier |
-| BP Type | Yes | `BP.jsMaster` | `type` | `customerType` or `vendorType` | Workflow, SAP | `C` for customer, `V` for vendor |
-| Company Name | Yes | `BP.jsMaster` | `name` | `companyName` | Lists, details, SAP | Legal/display BP name |
+| Company Id | Yes | `BP.jsMaster` | `company` | `company` / `companyId` | SQL, SAP session, queues | Portal company/database identifier |
+| BP Type | Yes | `BP.jsMaster` | `type` | `type`, `customerType` or `vendorType` | Workflow, SAP | `C` for customer, `V` for vendor |
+| Company Name | Yes | `BP.jsMaster` | `name` | `cardName` | Lists, details, SAP | Legal/display BP name |
 | Foreign Name | No | `BP.jsMaster` | `foreignName` | `foreignName`, `foreignTradeName` | Details, SAP | Alternate/foreign/trade name |
-| Industry | No | `BP.jsMaster` | `industry` | `industry`, `industrySector` | Details, SAP UDF | Industry or sector |
+| Industry | Yes | `BP.jsMaster` | `industry` | `industry` | Details | Industry or sector; SQL/workflow only |
 | Currency | Yes | `BP.jsMaster` | `currency` | `currency` | SAP | BP currency, normally `INR` |
 | Remarks | No | `BP.jsMaster` | `remarks` | `remarks` | Details, SAP notes | User-entered comments |
 | Is Staff | Yes | `BP.jsMaster` | `isStaff` | `isStaff` | Portal/workflow | Preserved old flag |
@@ -145,9 +160,9 @@ Only these fields are active for BP Master. The frontend must not send retired l
 | Field Name | Required | Table | Column | API Field | Used In | Description |
 |---|---:|---|---|---|---|---|
 | Customer Type | Yes | `BP.jsMaster` | `type` | `customerType` | SQL, SAP | Customer marker, normalized to `C` |
-| Type Of Business | No | `BP.jsMaster` | `typeOfBusiness` | `typeOfBusiness` | Details, SAP UDF | Distributor, dealer, retailer, etc. |
+| Type Of Business | No | `BP.jsMaster` | `typeOfBusiness` | `typeOfBusiness` | Details | Distributor, dealer, retailer, etc.; SQL/workflow only |
 | PAN Number | Yes | `BP.jsTaxDetails` | `panNo` | `panNumber` | Tax, SAP fiscal tax | Customer PAN |
-| MSME | No | `BP.jsTaxDetails` | `msmeNo` | `msme` | Tax, SAP UDF | MSME/Udyam number if available |
+| MSME Number | Conditional | `BP.jsTaxDetails` | `msmeNo` | `msmeNo` | Tax, SAP UDF | MSME/Udyam number if `hasMsme=true` |
 
 ### Vendor-Only Fields
 
@@ -155,33 +170,33 @@ Only these fields are active for BP Master. The frontend must not send retired l
 |---|---:|---|---|---|---|---|
 | Vendor Type | Yes | `BP.jsMaster` | `type` | `vendorType` | SQL, SAP | Vendor marker, normalized to `V` |
 | PAN | Yes | `BP.jsTaxDetails` | `panNo` | `pan` | Tax, SAP fiscal tax | Vendor PAN |
-| TAN | No | `BP.jsTaxDetails` | `buyerTANNo` | `tan` | Tax, SAP UDF | Vendor TAN |
+| TAN | No | `BP.jsTaxDetails` | `buyerTANNo` | `tan` | Tax | Vendor TAN; SQL/workflow only |
 | FSSAI License | No | `BP.jsTaxDetails` | `fssaiNo` | `fssaiLicense` | Tax, SAP UDF | Vendor FSSAI license |
-| MSME | No | `BP.jsTaxDetails` | `msmeNo` | `msme` | Tax, SAP UDF | Vendor MSME/Udyam number |
+| MSME Number | Conditional | `BP.jsTaxDetails` | `msmeNo` | `msmeNo` | Tax, SAP UDF | Vendor MSME/Udyam number |
 
 ### Contact Fields
 
 | Field Name | Required | Table | Column | API Field | Used In | Description |
 |---|---:|---|---|---|---|---|
-| First Name | Recommended | `BP.jsContactPersons` | `firstName` | `firstName` | Details, SAP OCPR | Contact first name |
-| Last Name | No | `BP.jsContactPersons` | `lastName` | `lastName` | Details, SAP OCPR | Contact last name |
-| Designation | No | `BP.jsContactPersons` | `designation` | `designation`, `title` | Details, SAP OCPR | Role/title |
+| First Name | Yes | `BP.jsContactPersons` | `firstName` | `contactFirst` | Details, SAP OCPR | Contact first name |
+| Last Name | Yes | `BP.jsContactPersons` | `lastName` | `contactLast` | Details, SAP OCPR | Contact last name |
+| Designation | No | `BP.jsContactPersons` | `designation` | `contactTitle` | Details, SAP OCPR | Role/title |
 | Mobile Number | Recommended | `BP.jsMaster`, `BP.jsContactPersons` | `mobileNo`, `mobileNumber` | `mobileNumber`, `mobile` | Header phone, contact, SAP | Primary mobile |
-| Alternate Contact | No | `BP.jsContactPersons` | `alternateContact` | `alternateContact` | Details, SAP OCPR phone | Alternate phone/contact |
-| Email Address | Recommended | `BP.jsContactPersons` | `emailAddress` | `emailAddress` | Details, SAP OCRD/OCPR | Primary email |
+| Alternate Contact | No | `BP.jsContactPersons` | `alternateContact` | `altContact` | Details, SAP OCPR phone | Alternate phone/contact |
+| Email Address | Yes | `BP.jsContactPersons` | `emailAddress` | `email` | Details, SAP OCRD/OCPR | Primary email |
 | Alternate Email | No | `BP.jsContactPersons` | `alternateEmail` | `alternateEmail` | Details | Secondary email |
 
 ### Address Fields
 
 | Field Name | Required | Table | Column | API Field | Used In | Description |
 |---|---:|---|---|---|---|---|
-| Address Type | Yes | `BP.jsMasterAddress` | `addressType` | derived from `billingAddresses` / `shippingAddresses` | SQL, SAP CRD1 | `B` for bill-to, `S` for ship-to |
-| Address Name | Recommended | `BP.jsMasterAddress` | `addressName` | `addressName` | SAP CRD1 | SAP address identifier |
+| Address Type | Yes | `BP.jsMasterAddress` | `addressType` | derived from `allBillAddresses` / `allShipAddresses` | SQL, SAP CRD1 | `B` for bill-to, `S` for ship-to |
+| Address Name | Recommended | `BP.jsMasterAddress` | `addressName` | `addrName` | SAP CRD1 | SAP address identifier |
 | Street | Yes | `BP.jsMasterAddress` | `addressLine1` | `street` | Details, SAP CRD1 | Street/address line |
-| Block Area | No | `BP.jsMasterAddress` | `addressLine2` | `blockArea` | Details, SAP CRD1 | Area/block/locality |
+| Block Area | No | `BP.jsMasterAddress` | `addressLine2` | `block` | Details, SAP CRD1 | Area/block/locality |
 | City | Yes | `BP.jsMasterAddress` | `cityID` | `city` | Details, SAP CRD1 | City |
 | State | Yes | `BP.jsMasterAddress` | `stateID` | `state` | Details, SAP CRD1 | State name or SAP code |
-| Pin Code | Yes | `BP.jsMasterAddress` | `pincode` | `pinCode` | Details, SAP CRD1 | Postal code |
+| Pin Code | Yes | `BP.jsMasterAddress` | `pincode` | `zip` | Details, SAP CRD1 | Postal code |
 | Country | Yes | `BP.jsMasterAddress` | `countryID` | `country` | Details, SAP CRD1 | Country name/code |
 | GSTIN | Conditional | `BP.jsMasterAddress`, `BP.jsTaxDetails` | `gstNo`, `gstin` | `gstin` | Tax, SAP CRD1 | GST registration number |
 
@@ -191,18 +206,20 @@ Only these fields are active for BP Master. The frontend must not send retired l
 |---|---:|---|---|---|---|---|
 | GSTIN | Conditional | `BP.jsTaxDetails` | `gstin` | `gstin` | Tax, SAP CRD1 | Header GSTIN/default GSTIN |
 | PAN Number | Yes | `BP.jsTaxDetails` | `panNo` | `panNumber`, `pan` | SAP fiscal tax | PAN |
-| TAN | Vendor optional | `BP.jsTaxDetails` | `buyerTANNo` | `tan` | SAP UDF | TAN |
-| MSME | No | `BP.jsTaxDetails` | `msmeNo` | `msme` | SAP UDF | MSME/Udyam |
+| TAN | Vendor optional | `BP.jsTaxDetails` | `buyerTANNo` | `tan` | SQL/workflow | TAN |
+| MSME Number | Conditional | `BP.jsTaxDetails` | `msmeNo` | `msmeNo` | SAP UDF | MSME/Udyam |
+| MSME Type | Conditional | `BP.jsTaxDetails` | `msmeType` | `msmeType` | SQL/workflow | MSME size classification |
+| MSME Business Type | Conditional | `BP.jsTaxDetails` | `msmeBType` | `msmeBType` | SQL/workflow | MSME business classification |
 | FSSAI License | Vendor optional | `BP.jsTaxDetails` | `fssaiNo` | `fssaiLicense` | SAP UDF | FSSAI license |
 
 ### Bank Fields
 
 | Field Name | Required | Table | Column | API Field | Used In | Description |
 |---|---:|---|---|---|---|---|
-| Bank Name | Vendor recommended | `BP.jsBankDetails` | `name` | `bankName` | Details, SAP OCRB | Bank name/code |
-| Branch Name | No | `BP.jsBankDetails` | `branch` | `branchName` | Details, SAP OCRB | Bank branch |
-| Account Number | Vendor recommended | `BP.jsBankDetails` | `accountNo` | `accountNumber` | Details, SAP OCRB | Bank account |
-| IFSC Code | Vendor recommended | `BP.jsBankDetails` | `ifscCode` | `ifscCode` | Details, SAP OCRB | IFSC |
+| Bank Name/Code | Vendor required | `BP.jsBankDetails` | `name` | `bankAccounts[].bankCode` / `bankAccounts[].bankName` | Details, SAP OCRB | Must resolve to SAP `ODSC.BankCode` |
+| Branch Name | No | `BP.jsBankDetails` | `branch` | `bankAccounts[].branch` | Details, SAP OCRB | Bank branch |
+| Account Number | Vendor required | `BP.jsBankDetails` | `accountNo` | `bankAccounts[].accNo` | Details, SAP OCRB | Bank account |
+| IFSC Code | Vendor required | `BP.jsBankDetails` | `ifscCode` | `bankAccounts[].ifsc` | Details, SAP OCRB | IFSC |
 | SWIFT Code | No | `BP.jsBankDetails` | `swiftCode` | `swiftCode` | Details, SAP OCRB | SWIFT/IBAN support |
 | Account Type | No | `BP.jsBankDetails` | `accountType` | `accountType` | Details | Current/savings/etc. |
 
@@ -241,8 +258,7 @@ These fields are removed from active frontend and backend usage because they are
 | `telephone` | `BP.jsContactPersons` | Renamed for portal clarity | `alternateContact` |
 | `isPrimary` | `BP.jsContactPersons` | UI currently submits one primary contact block | First contact row |
 | `contactUid` | `BP.jsContactPersons` | UID helper removed from UI | None |
-| `msmeType` | `BP.jsTaxDetails` | Not present in new UI | `msme` |
-| `msmeBusinessType` | `BP.jsTaxDetails` | Not present in new UI | `msme` |
+| `msmeBusinessType` | `BP.jsTaxDetails` | Old column name replaced by Node-compatible field name | `msmeBType` |
 | `countryID` | `BP.jsBankDetails` | Bank country not in new UI | None |
 | `acctName` | `BP.jsBankDetails` | Account holder not in new UI | `companyName` is used as SAP account name |
 
@@ -273,7 +289,7 @@ The active SQL procedure contracts and .NET DTOs were aligned to the new Custome
 | `staffCode` | DTO, procedures | Old staff code field removed | Keep only `isStaff` |
 | `addressUid` | Address DTO/procedure | Renamed for portal clarity | Use `addressName` |
 | `contactUid` | Contact DTO/procedure | UID helper removed from UI | No replacement |
-| `msmeType`, `msmeBusinessType` | Tax DTO/procedure/SAP UDFs | Not shown in new frontend | Use `msme` as MSME/Udyam value |
+| `msmeBusinessType` | Tax DTO/procedure/SAP UDFs | Old duplicate naming | Use `msmeBType`; keep `msmeType` active |
 | `acctName`, `countryID` | Bank DTO/procedure | Not shown in new frontend | Use company name as SAP account name where needed |
 
 ### Migration and Rollback Notes
@@ -558,9 +574,9 @@ BP.jsMaster.code
 
 | Frontend Field | API Payload | Stored In | Used In | Displayed In |
 |---|---|---|---|---|
-| Billing Address | `billingAddresses[]` | `BP.jsMasterAddress.addressType = B` | SAP `bo_BillTo` | Detail |
-| Shipping Address | `shippingAddresses[]` | `BP.jsMasterAddress.addressType = S` | SAP `bo_ShipTo` | Detail |
-| Address Name | `addressName` | `BP.jsMasterAddress.addressName` | SAP address key | Detail |
+| Billing Address | `allBillAddresses[]` | `BP.jsMasterAddress.addressType = B` | SAP `bo_BillTo` | Detail |
+| Shipping Address | `allShipAddresses[]` | `BP.jsMasterAddress.addressType = S` | SAP `bo_ShipTo` | Detail |
+| Address Name | `addrName` | `BP.jsMasterAddress.addressName` | SAP address key | Detail |
 | Street | `street` | `BP.jsMasterAddress.addressLine1` | SAP `Street` | Detail |
 | Block Area | `blockArea` | `BP.jsMasterAddress.addressLine2` | SAP `Block` | Detail |
 | City | `city` | `BP.jsMasterAddress.cityID` | SAP `City` | Detail |
@@ -578,12 +594,12 @@ BP.jsMaster.code
 | GSTIN | `gstin` | `BP.jsTaxDetails.gstin` | SAP address GSTIN fallback | Detail |
 | MSME | `msme` | `BP.jsTaxDetails.msmeNo` | SAP UDF | Detail |
 | FSSAI | `fssaiLicense` | `BP.jsTaxDetails.fssaiNo` | SAP UDF | Detail |
-| Bank Name | `bankName` | `BP.jsBankDetails.name` | SAP `OCRB.BankCode` | Detail |
-| Branch Name | `branchName` | `BP.jsBankDetails.branch` | SAP `OCRB.Branch` | Detail |
-| Account Number | `accountNumber` | `BP.jsBankDetails.accountNo` | SAP `OCRB.AccountNo` | Detail |
-| IFSC Code | `ifscCode` | `BP.jsBankDetails.ifscCode` | SAP `BICSwiftCode`, `UserNo1` | Detail |
-| SWIFT Code | `swiftCode` | `BP.jsBankDetails.swiftCode` | SAP `IBAN` | Detail |
-| Account Type | `accountType` | `BP.jsBankDetails.accountType` | Portal only | Detail |
+| Bank Name/Code | `bankAccounts[].bankCode` / `bankAccounts[].bankName` | `BP.jsBankDetails.name` | SAP `OCRB.BankCode` after `ODSC` validation | Detail |
+| Branch Name | `bankAccounts[].branch` | `BP.jsBankDetails.branch` | SAP `OCRB.Branch` | Detail |
+| Account Number | `bankAccounts[].accNo` | `BP.jsBankDetails.accountNo` | SAP `OCRB.AccountNo` | Detail |
+| IFSC Code | `bankAccounts[].ifsc` | `BP.jsBankDetails.ifscCode` | SAP `BICSwiftCode`, `UserNo1` | Detail |
+| SWIFT Code | `bankAccounts[].swiftCode` | `BP.jsBankDetails.swiftCode` | SAP `IBAN` | Detail |
+| Account Type | `bankAccounts[].accountType` | `BP.jsBankDetails.accountType` | Portal only | Detail |
 
 ---
 
@@ -708,11 +724,11 @@ SAP posting triggers only from:
 | `emailAddress` | `EmailAddress` |
 | `currency` | `Currency` |
 | `remarks` | `Notes` |
-| `typeOfBusiness` | `U_TypeOfBusiness` |
-| `industry` | `U_Industry` |
+| `typeOfBusiness` | SQL/workflow only; not posted to SAP unless the SAP UDF is explicitly installed |
+| `industry` | SQL/workflow only; not posted to SAP unless the SAP UDF is explicitly installed |
 | `fssaiNo` | `U_Fssai` |
 | `msmeNo` | `U_MSME` |
-| `buyerTANNo` | `U_TAN` |
+| `buyerTANNo` | SQL/tax only; not posted to SAP unless the SAP UDF is explicitly installed |
 | SAP attachment entry | `AttachmentEntry` |
 
 ### `apiStatusTag`
@@ -781,39 +797,41 @@ Customer request example:
 
 ```json
 {
-  "companyId": 1,
-  "customerType": "C",
-  "companyName": "North India Distributor",
+  "company": "JIVO_OIL_HANADB",
+  "customerType": "B2B",
+  "cardName": "North India Distributor",
   "foreignName": "North India Distributor",
-  "typeOfBusiness": "Distributor",
+  "typeOfBusiness": "Company",
   "industry": "FMCG",
-  "firstName": "Ramesh",
-  "lastName": "Kumar",
-  "designation": "Owner",
-  "mobileNumber": "9876543210",
-  "emailAddress": "ramesh@example.com",
-  "alternateEmail": "accounts@example.com",
+  "contactFirst": "Ramesh",
+  "contactLast": "Kumar",
+  "contactTitle": "Owner",
+  "mobile": "9876543210",
+  "email": "ramesh@example.com",
+  "contactEmail": "accounts@example.com",
   "gstin": "03ABCDE1234F1Z5",
-  "panNumber": "ABCDE1234F",
+  "pan": "ABCDE1234F",
   "currency": "INR",
-  "msme": "",
   "remarks": "Customer registration",
   "isStaff": false,
-  "userId": 107,
-  "companyByUser": "Jivo Oil",
-  "billingAddresses": [
+  "sameAsBill": true,
+  "allBillAddresses": [
     {
-      "addressName": "BILL-PB-001",
+      "addrName": "BILL-PB-001",
       "street": "Plot 14 Industrial Area",
-      "blockArea": "Phase 2",
+      "block": "Phase 2",
       "city": "Ludhiana",
+      "zip": "141001",
       "state": "PB",
-      "pinCode": "141001",
       "country": "IN",
       "gstin": "03ABCDE1234F1Z5"
     }
   ],
-  "shippingAddresses": []
+  "allShipAddresses": [],
+  "hasMsme": false,
+  "msmeNo": "",
+  "msmeType": "",
+  "msmeBType": ""
 }
 ```
 
@@ -821,35 +839,44 @@ Vendor request example:
 
 ```json
 {
-  "companyId": 1,
-  "vendorType": "V",
-  "companyName": "ABC Bottle Supplier Pvt Ltd",
-  "foreignTradeName": "ABC Bottles",
-  "industrySector": "Packaging",
-  "firstName": "Amit",
-  "lastName": "Sharma",
-  "designation": "Sales Head",
+  "company": "JIVO_OIL_HANADB",
+  "vendorType": "SUPPLIER",
+  "cardName": "ABC Bottle Supplier Pvt Ltd",
+  "foreignName": "ABC Bottles",
+  "typeOfBusiness": "Company",
+  "industry": "Packaging",
+  "contactFirst": "Amit",
+  "contactLast": "Sharma",
+  "contactTitle": "Sales Head",
   "mobile": "9876543210",
-  "alternateContact": "0161123456",
-  "emailAddress": "amit@example.com",
+  "altContact": "0161123456",
+  "email": "amit@example.com",
   "gstin": "03AAKCA1234F1Z1",
   "pan": "AAKCA1234F",
   "tan": "PTLA12345B",
   "currency": "INR",
-  "msme": "UDYAM-PB-00-0001234",
-  "fssaiLicense": "10012022000011",
-  "bankName": "HDFC",
-  "branchName": "Ludhiana",
-  "accountNumber": "50100123456789",
-  "ifscCode": "HDFC0001234",
-  "swiftCode": "HDFCINBB",
-  "accountType": "Current",
+  "hasMsme": true,
+  "msmeNo": "UDYAM-PB-00-0001234",
+  "msmeType": "MICRO",
+  "msmeBType": "Manufacturing",
+  "fssaiNo": "10012022000011",
+  "bankAccounts": [
+    {
+      "bankCode": "HDFC",
+      "bankName": "HDFC BANK",
+      "branch": "Ludhiana",
+      "accNo": "50100123456789",
+      "ifsc": "HDFC0001234",
+      "swiftCode": "HDFCINBB",
+      "accountType": "Current",
+      "isPrimary": true
+    }
+  ],
   "remarks": "Vendor registration",
   "isStaff": false,
-  "userId": 107,
-  "companyByUser": "Jivo Oil",
-  "billingAddresses": [],
-  "shippingAddresses": []
+  "sameAsBill": true,
+  "allBillAddresses": [],
+  "allShipAddresses": []
 }
 ```
 
@@ -1241,13 +1268,13 @@ Required fields:
 
 | Field | Customer | Vendor |
 |---|---:|---:|
-| `companyId` | Yes | Yes |
+| `company` | Yes | Yes |
 | `customerType` / `vendorType` | Yes | Yes |
-| `companyName` | Yes | Yes |
-| `panNumber` / `pan` | Yes | Yes |
+| `cardName` | Yes | Yes |
+| `pan` | Yes | Yes |
 | `currency` | Yes | Yes |
-| `billingAddresses` | Recommended | Recommended |
-| `bankName`, `accountNumber`, `ifscCode` | No | Recommended |
+| `allBillAddresses[]` | Yes | Yes |
+| `bankAccounts[].bankCode`, `bankAccounts[].accNo`, `bankAccounts[].ifsc` | No | Yes |
 | `isStaff` | Yes | Yes |
 
 ### Submit Flow
@@ -1488,7 +1515,7 @@ Purpose: Verify records rejected by a user.
 SELECT TOP 20
     f.id AS flowId,
     f.bpCode,
-    m.name AS bpName,
+    m.name AS cardName,
     m.type,
     f.status AS workflowStatus,
     f.currentStage,

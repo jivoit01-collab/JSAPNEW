@@ -97,11 +97,32 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
 
+            var bankValidation = await ValidateVendorBankDetailsAsync(request.Company, request.BpData, cardType, cancellationToken);
+            if (!bankValidation.IsValid)
+            {
+                _logger.LogWarning(
+                    "BP vendor bank validation failed. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, ErrorCode={ErrorCode}, Message={Message}",
+                    request.FlowId,
+                    request.BpCode,
+                    request.Company,
+                    bankValidation.ErrorCode,
+                    bankValidation.Message);
+
+                return new BpSapPostResult
+                {
+                    Success = false,
+                    Message = bankValidation.Message,
+                    ErrorCode = bankValidation.ErrorCode,
+                    CardCode = string.Empty,
+                    CardType = cardType
+                };
+            }
+
             var prefix = ResolveCardCodePrefix(request, cardType);
             var cardCode = await GetNextCardCodeAsync(prefix, cardType, session, cancellationToken);
             var warnings = new List<string>();
             var attachmentEntry = await UploadAttachmentsAsync(request.BpData, session, warnings, cancellationToken);
-            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, accountValidation.AccountCode, attachmentEntry, warnings);
+            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, accountValidation.AccountCode, attachmentEntry, bankValidation.BankCodeByInput, warnings);
             var payloadJson = payload.ToString(Formatting.None);
             var payloadHash = ComputeHash(payloadJson);
 
@@ -452,6 +473,126 @@ LIMIT 1";
             return result;
         }
 
+        private async Task<BpBankValidationResult> ValidateVendorBankDetailsAsync(
+            int companyId,
+            SingleBPDataModel bp,
+            string cardType,
+            CancellationToken cancellationToken)
+        {
+            if (!string.Equals(cardType, "cSupplier", StringComparison.OrdinalIgnoreCase))
+                return BpBankValidationResult.Ok();
+
+            var banks = (bp.BankDetails ?? new List<BP_Bank>())
+                .Where(b => !string.IsNullOrWhiteSpace(b.AccountNumber))
+                .ToList();
+
+            if (banks.Count == 0)
+            {
+                return BpBankValidationResult.Fail(
+                    "At least one vendor bank account is required before SAP posting.",
+                    "VENDOR_BANK_ACCOUNT_REQUIRED");
+            }
+
+            var resolvedBanks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var bank in banks)
+            {
+                var inputBank = (bank.BankName ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(inputBank))
+                {
+                    return BpBankValidationResult.Fail(
+                        "Vendor bank name/code is required before SAP posting.",
+                        "VENDOR_BANK_REQUIRED");
+                }
+
+                var accountNumber = (bank.AccountNumber ?? string.Empty).Trim();
+                if (accountNumber.Length < 4 || accountNumber.Length > 30)
+                {
+                    return BpBankValidationResult.Fail(
+                        "Vendor bank account number must be between 4 and 30 characters.",
+                        "INVALID_BANK_ACCOUNT_NUMBER");
+                }
+
+                var ifsc = (bank.IfscCode ?? string.Empty).Trim().ToUpperInvariant();
+                if (!Regex.IsMatch(ifsc, "^[A-Z]{4}0[A-Z0-9]{6}$"))
+                {
+                    return BpBankValidationResult.Fail(
+                        "Vendor IFSC code is invalid.",
+                        "INVALID_IFSC_CODE");
+                }
+
+                BpSapBankRow? sapBank;
+                try
+                {
+                    sapBank = await ResolveSapBankAsync(companyId, inputBank, cancellationToken);
+                }
+                catch
+                {
+                    return BpBankValidationResult.Fail(
+                        "Vendor bank validation failed against SAP bank master.",
+                        "BANK_VALIDATION_FAILED");
+                }
+
+                if (sapBank == null || string.IsNullOrWhiteSpace(sapBank.BankCode))
+                {
+                    return BpBankValidationResult.Fail(
+                        $"Vendor bank '{inputBank}' was not found in SAP ODSC.",
+                        "BANK_NOT_FOUND_IN_SAP");
+                }
+
+                resolvedBanks[inputBank] = sapBank.BankCode.Trim().ToUpperInvariant();
+                if (!string.IsNullOrWhiteSpace(bank.BankName))
+                    resolvedBanks[bank.BankName.Trim()] = sapBank.BankCode.Trim().ToUpperInvariant();
+                _logger.LogInformation(
+                    "BP vendor bank validation succeeded. Company={Company}, InputBank={InputBank}, SapBankCode={SapBankCode}, SapBankName={SapBankName}, AccountNo={AccountNo}",
+                    companyId,
+                    inputBank,
+                    sapBank.BankCode,
+                    sapBank.BankName,
+                    accountNumber);
+            }
+
+            return BpBankValidationResult.Ok(resolvedBanks);
+        }
+
+        private async Task<BpSapBankRow?> ResolveSapBankAsync(
+            int companyId,
+            string bankNameOrCode,
+            CancellationToken cancellationToken)
+        {
+            var settings = GetHanaSettings(companyId);
+            var lookup = bankNameOrCode.Trim().ToUpperInvariant();
+            var sql = $@"
+SELECT
+    ""BankCode"" AS ""BankCode"",
+    ""BankName"" AS ""BankName"",
+    ""CountryCode"" AS ""CountryCode"",
+    ""SwiftNo"" AS ""SwiftNo""
+FROM ""{settings.Schema}"".""ODSC""
+WHERE UPPER(""BankCode"") = ?
+   OR UPPER(""BankName"") = ?
+LIMIT 1";
+
+            try
+            {
+                using var connection = new HanaConnection(settings.ConnectionString);
+                var parameters = new DynamicParameters();
+                parameters.Add("BankCode", lookup);
+                parameters.Add("BankName", lookup);
+
+                return await connection.QueryFirstOrDefaultAsync<BpSapBankRow>(
+                    new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "SAP bank lookup failed. Company={Company}, BankNameOrCode={BankNameOrCode}",
+                    companyId,
+                    bankNameOrCode);
+                throw;
+            }
+        }
+
         private async Task<string> GetNextCardCodeAsync(string prefix, string cardType, SAPSessionModel session, CancellationToken cancellationToken)
         {
             var safePrefix = prefix.Replace("'", "''").Trim();
@@ -483,6 +624,7 @@ LIMIT 1";
             string cardType,
             string controlAccountCode,
             int? attachmentEntry,
+            IReadOnlyDictionary<string, string> bankCodeByInput,
             List<string> warnings)
         {
             var bp = request.BpData;
@@ -510,18 +652,12 @@ LIMIT 1";
                 payload["EmailAddress"] = master.EmailAddress.Trim();
             if (!string.IsNullOrWhiteSpace(master.Remarks))
                 payload["Notes"] = master.Remarks.Trim();
-            if (!string.IsNullOrWhiteSpace(master.TypeOfBusiness))
-                payload["U_TypeOfBusiness"] = master.TypeOfBusiness.Trim();
-            if (!string.IsNullOrWhiteSpace(master.Industry))
-                payload["U_Industry"] = master.Industry.Trim();
             if (attachmentEntry.HasValue)
                 payload["AttachmentEntry"] = attachmentEntry.Value;
             if (!string.IsNullOrWhiteSpace(tax?.FssaiLicense))
                 payload["U_Fssai"] = tax.FssaiLicense.Trim().ToUpperInvariant();
             if (!string.IsNullOrWhiteSpace(tax?.Msme))
                 payload["U_MSME"] = tax.Msme.Trim().ToUpperInvariant();
-            if (!string.IsNullOrWhiteSpace(tax?.Tan))
-                payload["U_TAN"] = tax.Tan.Trim().ToUpperInvariant();
 
             var contacts = BuildContacts(bp);
             if (contacts.Count > 0)
@@ -537,7 +673,7 @@ LIMIT 1";
 
             if (isVendor)
             {
-                var banks = BuildBankAccounts(bp, warnings);
+                var banks = BuildBankAccounts(bp, bankCodeByInput, warnings);
                 if (banks.Count > 0)
                     payload["BPBankAccounts"] = banks;
             }
@@ -554,17 +690,20 @@ LIMIT 1";
                 if (string.IsNullOrWhiteSpace(name))
                     continue;
 
-                result.Add(new JObject
+                var obj = new JObject
                 {
                     ["Name"] = Truncate(name, 50),
-                    ["FirstName"] = contact.FirstName ?? string.Empty,
-                    ["LastName"] = contact.LastName ?? string.Empty,
-                    ["Position"] = contact.Designation ?? string.Empty,
-                    ["MobilePhone"] = SanitizeMobile(contact.MobileNumber),
-                    ["Phone1"] = SanitizeMobile(contact.AlternateContact),
-                    ["E_Mail"] = contact.EmailAddress ?? string.Empty,
                     ["Active"] = "tYES"
-                });
+                };
+
+                AddIfNotBlank(obj, "FirstName", contact.FirstName, 50);
+                AddIfNotBlank(obj, "LastName", contact.LastName, 50);
+                AddIfNotBlank(obj, "Position", contact.Designation, 50);
+                AddIfNotBlank(obj, "MobilePhone", SanitizeMobile(contact.MobileNumber), 20);
+                AddIfNotBlank(obj, "Phone1", SanitizeMobile(contact.AlternateContact), 20);
+                AddIfNotBlank(obj, "E_Mail", contact.EmailAddress, 100);
+
+                result.Add(obj);
             }
 
             return result;
@@ -601,13 +740,14 @@ LIMIT 1";
             {
                 ["AddressName"] = Truncate(addressName, 50),
                 ["AddressType"] = addressType,
-                ["Street"] = Truncate(address.Street, 100),
-                ["Block"] = Truncate(address.BlockArea, 100),
-                ["City"] = Truncate(address.City, 100),
-                ["ZipCode"] = Truncate(address.PinCode, 20),
-                ["State"] = MapStateCode(address.State),
                 ["Country"] = MapCountry(address.Country)
             };
+
+            AddIfNotBlank(obj, "Street", address.Street, 100);
+            AddIfNotBlank(obj, "Block", address.BlockArea, 100);
+            AddIfNotBlank(obj, "City", address.City, 100);
+            AddIfNotBlank(obj, "ZipCode", address.PinCode, 20);
+            AddIfNotBlank(obj, "State", MapStateCode(address.State), 10);
 
             var gstin = (address.Gstin ?? string.Empty).Trim().ToUpperInvariant();
             if (Regex.IsMatch(gstin, "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"))
@@ -643,7 +783,10 @@ LIMIT 1";
             return result;
         }
 
-        private JArray BuildBankAccounts(SingleBPDataModel bp, List<string> warnings)
+        private JArray BuildBankAccounts(
+            SingleBPDataModel bp,
+            IReadOnlyDictionary<string, string> bankCodeByInput,
+            List<string> warnings)
         {
             var result = new JArray();
             foreach (var bank in bp.BankDetails ?? new List<BP_Bank>())
@@ -651,24 +794,33 @@ LIMIT 1";
                 if (string.IsNullOrWhiteSpace(bank.AccountNumber))
                     continue;
 
-                var bankCode = bank.BankName;
-                if (string.IsNullOrWhiteSpace(bankCode))
+                var inputBank = (bank.BankName ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(inputBank))
                 {
                     warnings.Add($"Bank account {bank.AccountNumber} was skipped because bank name/code is missing.");
                     continue;
                 }
 
-                var ifsc = (bank.IfscCode ?? string.Empty).Trim().ToUpperInvariant();
-                result.Add(new JObject
+                if (!bankCodeByInput.TryGetValue(inputBank, out var bankCode) || string.IsNullOrWhiteSpace(bankCode))
                 {
-                    ["BankCode"] = bankCode.Trim(),
+                    warnings.Add($"Bank account {bank.AccountNumber} was skipped because bank {inputBank} was not validated in SAP.");
+                    continue;
+                }
+
+                var ifsc = (bank.IfscCode ?? string.Empty).Trim().ToUpperInvariant();
+                var obj = new JObject
+                {
+                    ["BankCode"] = bankCode.Trim().ToUpperInvariant(),
                     ["AccountNo"] = bank.AccountNumber.Trim(),
-                    ["Branch"] = Truncate(bank.BranchName, 50),
-                    ["AccountName"] = Truncate(bp.Master.Name, 100),
-                    ["BICSwiftCode"] = Truncate(ifsc, 50),
-                    ["UserNo1"] = Truncate(ifsc, 50),
-                    ["IBAN"] = Truncate(bank.SwiftCode, 34)
-                });
+                    ["AccountName"] = Truncate(bp.Master.Name, 100)
+                };
+
+                AddIfNotBlank(obj, "Branch", bank.BranchName, 50);
+                AddIfNotBlank(obj, "BICSwiftCode", ifsc, 50);
+                AddIfNotBlank(obj, "UserNo1", ifsc, 50);
+                AddIfNotBlank(obj, "IBAN", bank.SwiftCode, 34);
+
+                result.Add(obj);
             }
 
             return result;
@@ -914,6 +1066,14 @@ LIMIT 1";
             return value.Length <= length ? value : value[..length];
         }
 
+        private static void AddIfNotBlank(JObject obj, string propertyName, string? value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            obj[propertyName] = Truncate(value.Trim(), maxLength);
+        }
+
         private static string ComputeHash(string value)
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
@@ -953,6 +1113,43 @@ LIMIT 1";
             public string AccountName { get; set; } = string.Empty;
             public string Postable { get; set; } = string.Empty;
             public int? GroupMask { get; set; }
+        }
+
+        private sealed class BpSapBankRow
+        {
+            public string BankCode { get; set; } = string.Empty;
+            public string BankName { get; set; } = string.Empty;
+            public string CountryCode { get; set; } = string.Empty;
+            public string SwiftNo { get; set; } = string.Empty;
+        }
+
+        private sealed class BpBankValidationResult
+        {
+            public bool IsValid { get; private init; }
+            public string Message { get; private init; } = string.Empty;
+            public string ErrorCode { get; private init; } = string.Empty;
+            public IReadOnlyDictionary<string, string> BankCodeByInput { get; private init; } =
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            public static BpBankValidationResult Ok(
+                IReadOnlyDictionary<string, string>? bankCodeByInput = null)
+            {
+                return new BpBankValidationResult
+                {
+                    IsValid = true,
+                    BankCodeByInput = bankCodeByInput ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                };
+            }
+
+            public static BpBankValidationResult Fail(string message, string errorCode)
+            {
+                return new BpBankValidationResult
+                {
+                    IsValid = false,
+                    Message = message,
+                    ErrorCode = errorCode
+                };
+            }
         }
 
         private sealed class BpControlAccountResolution
