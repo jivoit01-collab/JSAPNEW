@@ -666,9 +666,6 @@ namespace JSAPNEW.Services.Implementation
                     return "MSME business type is required for MSME vendors.";
             }
 
-            if (string.IsNullOrWhiteSpace(model.Remarks))
-                return "Remarks are required.";
-
             var primaryBank = ResolvePrimaryBank(model);
             if (bpType == "V")
             {
@@ -810,12 +807,28 @@ namespace JSAPNEW.Services.Implementation
                     model.UserId,
                     ResolveBpType(model));
                     response.Success = false;
-                    response.Message = "BP Master insert failed.";
+                    response.Message = GetBpInsertFailureMessage(ex);
                     response.GeneratedCode = 0;
                 }
 
             return response;
         }
+
+        private static string GetBpInsertFailureMessage(Exception ex)
+        {
+            if (ex is SqlException sqlException)
+            {
+                var businessError = sqlException.Errors
+                    .Cast<SqlError>()
+                    .FirstOrDefault(error => error.Number is >= 50001 and <= 50020);
+
+                if (businessError != null && !string.IsNullOrWhiteSpace(businessError.Message))
+                    return businessError.Message;
+            }
+
+            return "BP Master insert failed.";
+        }
+
         private DataTable ToAddressDataTable(List<BPMasterAddress> list)
         {
             var table = new DataTable();
@@ -1384,9 +1397,7 @@ namespace JSAPNEW.Services.Implementation
                     }
                     catch (Exception ex)
                     {
-                        var mappedSapError = ex is BpSapException sapException
-                            ? sapException.SapError
-                            : BpSapErrorMapper.Map(null, GetExactErrorMessage(ex));
+                        var mappedSapError = BpSapErrorMapper.ExtractSapError(ex);
 
                         _logger.LogWarning(
                             ex,
@@ -1401,7 +1412,7 @@ namespace JSAPNEW.Services.Implementation
                         return new ApproveOrRejectBpResponse
                         {
                             Success = false,
-                            ResultMessage = $"SAP BP creation failed: {mappedSapError.Message}",
+                            ResultMessage = mappedSapError.Message,
                             ErrorCode = mappedSapError.ErrorCode,
                             SapError = mappedSapError.ToResponseInfo(),
                             FlowId = flow.FlowId,
@@ -1807,10 +1818,7 @@ ORDER BY id DESC;";
 
         private static string FormatBpSapFailureMessage(BpSapPostResult sapResult)
         {
-            if (IsControlAccountConfigurationError(sapResult.ErrorCode))
-                return sapResult.Message;
-
-            return $"SAP BP creation failed: {sapResult.Message}";
+            return sapResult.Message;
         }
 
         private static bool IsControlAccountConfigurationError(string? errorCode)

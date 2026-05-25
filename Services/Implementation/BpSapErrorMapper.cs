@@ -35,6 +35,22 @@ namespace JSAPNEW.Services.Implementation
 
     internal static class BpSapErrorMapper
     {
+        public static BpSapError ParseSapError(string? sapResponse, string? fallbackMessage = null)
+        {
+            return Map(sapResponse, fallbackMessage);
+        }
+
+        public static BpSapError ExtractSapError(Exception ex)
+        {
+            if (ex is BpSapException sapException)
+                return sapException.SapError;
+
+            var sapBody = FindSapErrorBody(ex);
+            return !string.IsNullOrWhiteSpace(sapBody)
+                ? Map(sapBody, ex.GetBaseException()?.Message ?? ex.Message)
+                : Map(null, ex.GetBaseException()?.Message ?? ex.Message);
+        }
+
         public static BpSapError Map(string? rawResponse, string? fallbackMessage = null)
         {
             var raw = rawResponse ?? string.Empty;
@@ -104,6 +120,35 @@ namespace JSAPNEW.Services.Implementation
         private static string NormalizeMessage(string value)
         {
             return Regex.Replace(value.Trim(), "\\s+", " ");
+        }
+
+        private static string? FindSapErrorBody(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                var message = current.Message;
+                if (string.IsNullOrWhiteSpace(message))
+                    continue;
+
+                var start = message.IndexOf('{');
+                var end = message.LastIndexOf('}');
+                if (start < 0 || end <= start)
+                    continue;
+
+                var candidate = message[start..(end + 1)];
+                try
+                {
+                    var json = JObject.Parse(candidate);
+                    if (json["error"] != null || json["message"] != null || json["Message"] != null)
+                        return candidate;
+                }
+                catch (JsonException)
+                {
+                    // Continue scanning inner exceptions.
+                }
+            }
+
+            return null;
         }
     }
 }

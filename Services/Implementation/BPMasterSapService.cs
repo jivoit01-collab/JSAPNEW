@@ -87,14 +87,15 @@ namespace JSAPNEW.Services.Implementation
 
             if (!accountValidation.IsValid)
             {
-                return new BpSapPostResult
-                {
-                    Success = false,
-                    Message = accountValidation.Message,
-                    ErrorCode = accountValidation.ErrorCode,
-                    CardCode = string.Empty,
-                    CardType = cardType
-                };
+                _logger.LogWarning(
+                    "BP control account pre-validation failed; continuing to SAP Service Layer so SAP returns the authoritative error. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, BpType={BpType}, AccountCode={AccountCode}, ErrorCode={ErrorCode}, Message={Message}",
+                    request.FlowId,
+                    request.BpCode,
+                    request.Company,
+                    bpType,
+                    accountResolution.AccountCode,
+                    accountValidation.ErrorCode,
+                    accountValidation.Message);
             }
 
             var bankValidation = await ValidateVendorBankDetailsAsync(request.Company, request.BpData, cardType, cancellationToken);
@@ -113,8 +114,14 @@ namespace JSAPNEW.Services.Implementation
                     Success = false,
                     Message = bankValidation.Message,
                     ErrorCode = bankValidation.ErrorCode,
+                    SapError = bankValidation.SapError ?? new BpSapErrorInfo
+                    {
+                        code = null,
+                        message = bankValidation.Message
+                    },
                     CardCode = string.Empty,
-                    CardType = cardType
+                    CardType = cardType,
+                    RawResponse = bankValidation.RawResponse
                 };
             }
 
@@ -122,7 +129,10 @@ namespace JSAPNEW.Services.Implementation
             var cardCode = await GetNextCardCodeAsync(prefix, cardType, session, cancellationToken);
             var warnings = new List<string>();
             var attachmentEntry = await UploadAttachmentsAsync(request.BpData, session, warnings, cancellationToken);
-            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, accountValidation.AccountCode, attachmentEntry, bankValidation.BankCodeByInput, warnings);
+            var controlAccountCode = accountValidation.IsValid
+                ? accountValidation.AccountCode
+                : accountResolution.AccountCode;
+            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, controlAccountCode, attachmentEntry, bankValidation.BankCodeByInput, warnings);
             var payloadJson = payload.ToString(Formatting.None);
             var payloadHash = ComputeHash(payloadJson);
 
@@ -134,7 +144,7 @@ namespace JSAPNEW.Services.Implementation
                 request.UserId,
                 cardType,
                 cardCode,
-                accountValidation.AccountCode,
+                controlAccountCode,
                 attachmentEntry,
                 payloadHash);
 
@@ -152,9 +162,10 @@ namespace JSAPNEW.Services.Implementation
                 var sapError = MapSapError(errorBody);
 
                 _logger.LogWarning(
-                    "SAP BP POST FAILED FlowId={FlowId} BpCode={BpCode} SapCode={SapCode} SapMessage={SapMessage} CandidateCardCode={CandidateCardCode} PayloadHash={PayloadHash} RawResponse={RawResponse}",
+                    "SAP BP POST FAILED FlowId={FlowId} BpCode={BpCode} HttpStatus={HttpStatus} SapCode={SapCode} SapMessage={SapMessage} CandidateCardCode={CandidateCardCode} PayloadHash={PayloadHash} RawResponse={RawResponse}",
                     request.FlowId,
                     request.BpCode,
+                    (int)response.StatusCode,
                     sapError.SapCode,
                     sapError.Message,
                     cardCode,
@@ -525,18 +536,29 @@ LIMIT 1";
                 {
                     sapBank = await ResolveSapBankAsync(companyId, inputBank, cancellationToken);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    return BpBankValidationResult.Fail(
-                        "Vendor bank validation failed against SAP bank master.",
-                        "BANK_VALIDATION_FAILED");
+                    var exactMessage = NormalizeSingleLine(ex.GetBaseException()?.Message ?? ex.Message);
+                    _logger.LogWarning(
+                        ex,
+                        "SAP bank master pre-validation failed; continuing to SAP Service Layer so SAP returns the authoritative error. Company={Company}, InputBank={InputBank}, SapLookupError={SapLookupError}",
+                        companyId,
+                        inputBank,
+                        exactMessage);
+
+                    resolvedBanks[inputBank] = inputBank;
+                    continue;
                 }
 
                 if (sapBank == null || string.IsNullOrWhiteSpace(sapBank.BankCode))
                 {
-                    return BpBankValidationResult.Fail(
-                        $"Vendor bank '{inputBank}' was not found in SAP ODSC.",
-                        "BANK_NOT_FOUND_IN_SAP");
+                    _logger.LogWarning(
+                        "SAP bank master pre-validation found no ODSC match; continuing to SAP Service Layer so SAP returns the authoritative error. Company={Company}, InputBank={InputBank}",
+                        companyId,
+                        inputBank);
+
+                    resolvedBanks[inputBank] = inputBank;
+                    continue;
                 }
 
                 resolvedBanks[inputBank] = sapBank.BankCode.Trim().ToUpperInvariant();
@@ -564,9 +586,7 @@ LIMIT 1";
             var sql = $@"
 SELECT
     ""BankCode"" AS ""BankCode"",
-    ""BankName"" AS ""BankName"",
-    ""CountryCode"" AS ""CountryCode"",
-    ""SwiftNo"" AS ""SwiftNo""
+    ""BankName"" AS ""BankName""
 FROM ""{settings.Schema}"".""ODSC""
 WHERE UPPER(""BankCode"") = ?
    OR UPPER(""BankName"") = ?
@@ -870,6 +890,13 @@ LIMIT 1";
             if (!response.IsSuccessStatusCode)
             {
                 var sapError = MapSapError(body);
+                _logger.LogWarning(
+                    "SAP ATTACHMENT POST FAILED HttpStatus={HttpStatus} SapCode={SapCode} SapMessage={SapMessage} RawResponse={RawResponse}",
+                    (int)response.StatusCode,
+                    sapError.SapCode,
+                    sapError.Message,
+                    sapError.RawResponse);
+
                 throw new BpSapException("SAP Attachments2 upload failed", sapError);
             }
 
@@ -1101,6 +1128,11 @@ LIMIT 1";
             return BpSapErrorMapper.Map(responseJson);
         }
 
+        private static string NormalizeSingleLine(string value)
+        {
+            return Regex.Replace((value ?? string.Empty).Trim(), "\\s+", " ");
+        }
+
         private sealed class BpControlAccountConfigRow
         {
             public string AccountCode { get; set; } = string.Empty;
@@ -1128,6 +1160,8 @@ LIMIT 1";
             public bool IsValid { get; private init; }
             public string Message { get; private init; } = string.Empty;
             public string ErrorCode { get; private init; } = string.Empty;
+            public BpSapErrorInfo? SapError { get; private init; }
+            public string RawResponse { get; private init; } = string.Empty;
             public IReadOnlyDictionary<string, string> BankCodeByInput { get; private init; } =
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1141,13 +1175,23 @@ LIMIT 1";
                 };
             }
 
-            public static BpBankValidationResult Fail(string message, string errorCode)
+            public static BpBankValidationResult Fail(
+                string message,
+                string errorCode,
+                string? sapMessage = null,
+                string? rawResponse = null)
             {
                 return new BpBankValidationResult
                 {
                     IsValid = false,
                     Message = message,
-                    ErrorCode = errorCode
+                    ErrorCode = errorCode,
+                    SapError = new BpSapErrorInfo
+                    {
+                        code = null,
+                        message = sapMessage ?? message
+                    },
+                    RawResponse = rawResponse ?? string.Empty
                 };
             }
         }

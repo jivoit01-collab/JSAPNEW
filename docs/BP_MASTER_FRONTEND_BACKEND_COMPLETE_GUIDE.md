@@ -752,6 +752,45 @@ SAP posting triggers only from:
 | `lastAttemptOn` | Last SAP attempt timestamp |
 | `lastAttemptBy` | User who triggered the last attempt |
 
+### SAP Error Handling Policy
+
+BP approval and retry APIs must forward SAP validation/business errors without replacing them with manual text. When SAP Service Layer returns an error body, the backend parses `error.code` and `error.message.value` and returns those values directly to Flutter/Postman.
+
+Failure response shape:
+
+```json
+{
+  "success": false,
+  "message": "Define account in \"Liabilities\" drawer [OCRD.DebPayAcct]",
+  "errorCode": "SAP_-5002",
+  "sapError": {
+    "code": -5002,
+    "message": "Define account in \"Liabilities\" drawer [OCRD.DebPayAcct]"
+  },
+  "data": null
+}
+```
+
+Frontend rule: display `sapError.message` when it exists; otherwise display `message`.
+
+Backend rules:
+
+- Do not replace SAP messages with generic text such as `SAP rejected the payload`.
+- Do not prefix SAP messages with additional text in API responses.
+- Do not expose stack traces, connection strings, or raw SQL errors to the frontend.
+- Log the full SAP request payload, SAP HTTP status, raw SAP response body, `flowId`, `bpCode`, `sapCardCode`, and `payloadHash`.
+- `sapError` must be populated for every SAP Service Layer failure.
+
+Examples of SAP messages that should pass through unchanged:
+
+| SAP message | Typical cause |
+|---|---|
+| `Define account in "Liabilities" drawer [OCRD.DebPayAcct]` | Vendor control account is invalid for supplier BP |
+| `Define account in "Assets" drawer [OCRD.DebPayAcct]` | Customer control account is invalid for customer BP |
+| `No matching records found (ODSC)` | Vendor bank code does not exist in SAP bank master |
+| `Specify an active branch [OCRD.BPLId]` | Branch mapping is invalid/inactive |
+| `Property 'U_Industry' of 'BusinessPartner' is invalid` | Unsupported SAP UDF is being posted |
+
 ### Retry Logic
 
 `RetrySapPostAsync`:

@@ -459,16 +459,33 @@ namespace JSAPNEW.Controllers
 
         private IActionResult BpFailure(string message, string errorCode, int statusCode = 400, BpSapErrorInfo? sapError = null)
         {
+            var responseMessage = string.IsNullOrWhiteSpace(message) ? "BP workflow operation failed." : message;
+            var responseErrorCode = string.IsNullOrWhiteSpace(errorCode) ? "BP_ERROR" : errorCode;
+            var responseSapError = sapError ?? BuildSapErrorFallback(responseErrorCode, responseMessage);
+
             var response = new
             {
                 success = false,
-                message = string.IsNullOrWhiteSpace(message) ? "BP workflow operation failed." : message,
-                errorCode = string.IsNullOrWhiteSpace(errorCode) ? "BP_ERROR" : errorCode,
-                sapError,
+                message = responseMessage,
+                errorCode = responseErrorCode,
+                sapError = responseSapError,
                 data = (object?)null
             };
 
             return statusCode == 400 ? BadRequest(response) : StatusCode(statusCode, response);
+        }
+
+        private static BpSapErrorInfo? BuildSapErrorFallback(string errorCode, string message)
+        {
+            if (!errorCode.StartsWith("SAP_", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var rawCode = errorCode["SAP_".Length..];
+            return new BpSapErrorInfo
+            {
+                code = int.TryParse(rawCode, out var parsedCode) ? parsedCode : null,
+                message = message
+            };
         }
 
         private static BpApprovalResponseData ToApprovalResponseData(ApproveOrRejectBpResponse result, int fallbackFlowId)
