@@ -104,7 +104,7 @@ namespace JSAPNEW.Controllers
                 return BadRequest(new BPMasterResponse
                 {
                     Success = false,
-                    Message = ex.Message,
+                    Message = "BP Master insert failed.",
                     GeneratedCode = 0
                 });
             }
@@ -132,7 +132,7 @@ namespace JSAPNEW.Controllers
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "Error fetching BP options.");
-                return StatusCode(500, new { Success = false, Message = ex.Message });
+                return StatusCode(500, new { Success = false, Message = "BP options could not be loaded." });
             }
         }
 
@@ -281,7 +281,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching approved BPs.");
+                return BadRequest(new { Success = false, Message = "Approved BP list could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -300,7 +301,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching pending BPs.");
+                return BadRequest(new { Success = false, Message = "Pending BP list could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -334,11 +336,13 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return StatusCode(500, new { message = "SQL error", error = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching BP details. BpCode={BpCode}", bpCode);
+                return StatusCode(500, new { Success = false, Message = "BP details could not be loaded." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Unexpected error", error = ex.Message });
+                _BPlogger.LogError(ex, "Unexpected error while fetching BP details. BpCode={BpCode}", bpCode);
+                return StatusCode(500, new { Success = false, Message = "BP details could not be loaded." });
             }
         }
 
@@ -350,18 +354,29 @@ namespace JSAPNEW.Controllers
             {
                 var result = await _BPService.ApproveBPAsync(request);
                 if (!result.Success)
-                    return BadRequest(new { Success = false, Message = result.ResultMessage, Data = result });
+                    return BpFailure(result.ResultMessage, result.ErrorCode, sapError: result.SapError);
 
-                return Ok(new { Success = true, Data = result });
+                return BpSuccess(result.ResultMessage, ToApprovalResponseData(result, request.FlowId));
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(
+                    ex,
+                    "SQL error during BP approval. FlowId={FlowId}, Company={Company}, UserId={UserId}",
+                    request.FlowId,
+                    request.Company,
+                    request.UserId);
+                return BpFailure(MapSqlExceptionMessage(ex), MapSqlExceptionCode(ex));
             }
             catch (Exception ex)
             {
-                _BPlogger.LogError(ex, "Error during BP approval.");
-                return StatusCode(500, new { Success = false, Message = "Internal server error" });
+                _BPlogger.LogError(
+                    ex,
+                    "Error during BP approval. FlowId={FlowId}, Company={Company}, UserId={UserId}",
+                    request.FlowId,
+                    request.Company,
+                    request.UserId);
+                return BpFailure("BP approval failed because of an internal server error.", "BP_INTERNAL_ERROR", 500);
             }
         }
 
@@ -372,18 +387,29 @@ namespace JSAPNEW.Controllers
             {
                 var result = await _BPService.RejectBPAsync(request);
                 if (!result.Success)
-                    return BadRequest(new { Success = false, Message = result.ResultMessage, Data = result });
+                    return BpFailure(result.ResultMessage, result.ErrorCode, sapError: result.SapError);
 
-                return Ok(new { Success = true, Data = result });
+                return BpSuccess(result.ResultMessage, ToApprovalResponseData(result, request.FlowId));
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(
+                    ex,
+                    "SQL error during BP rejection. FlowId={FlowId}, Company={Company}, UserId={UserId}",
+                    request.FlowId,
+                    request.Company,
+                    request.UserId);
+                return BpFailure(MapSqlExceptionMessage(ex), MapSqlExceptionCode(ex));
             }
             catch (Exception ex)
             {
-                _BPlogger.LogError(ex, "Error during BP rejection.");
-                return StatusCode(500, new { Success = false, Message = "Internal server error" });
+                _BPlogger.LogError(
+                    ex,
+                    "Error during BP rejection. FlowId={FlowId}, Company={Company}, UserId={UserId}",
+                    request.FlowId,
+                    request.Company,
+                    request.UserId);
+                return BpFailure("BP rejection failed because of an internal server error.", "BP_INTERNAL_ERROR", 500);
             }
         }
 
@@ -395,19 +421,95 @@ namespace JSAPNEW.Controllers
                 request.Action = "Approve";
                 var result = await _BPService.RetrySapPostAsync(request);
                 if (!result.Success)
-                    return BadRequest(new { Success = false, Message = result.ResultMessage, Data = result });
+                    return BpFailure(result.ResultMessage, result.ErrorCode, sapError: result.SapError);
 
-                return Ok(new { Success = true, Data = result });
+                return BpSuccess(result.ResultMessage, ToApprovalResponseData(result, request.FlowId));
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(
+                    ex,
+                    "SQL error during BP SAP retry. FlowId={FlowId}, Company={Company}, UserId={UserId}",
+                    request.FlowId,
+                    request.Company,
+                    request.UserId);
+                return BpFailure(MapSqlExceptionMessage(ex), MapSqlExceptionCode(ex));
             }
             catch (Exception ex)
             {
-                _BPlogger.LogError(ex, "Error during BP SAP retry.");
-                return StatusCode(500, new { Success = false, Message = "Internal server error" });
+                _BPlogger.LogError(
+                    ex,
+                    "Error during BP SAP retry. FlowId={FlowId}, Company={Company}, UserId={UserId}",
+                    request.FlowId,
+                    request.Company,
+                    request.UserId);
+                return BpFailure("BP SAP retry failed because of an internal server error.", "BP_INTERNAL_ERROR", 500);
             }
+        }
+
+        private IActionResult BpSuccess(string message, object? data)
+        {
+            return Ok(new
+            {
+                success = true,
+                message,
+                data
+            });
+        }
+
+        private IActionResult BpFailure(string message, string errorCode, int statusCode = 400, BpSapErrorInfo? sapError = null)
+        {
+            var response = new
+            {
+                success = false,
+                message = string.IsNullOrWhiteSpace(message) ? "BP workflow operation failed." : message,
+                errorCode = string.IsNullOrWhiteSpace(errorCode) ? "BP_ERROR" : errorCode,
+                sapError,
+                data = (object?)null
+            };
+
+            return statusCode == 400 ? BadRequest(response) : StatusCode(statusCode, response);
+        }
+
+        private static BpApprovalResponseData ToApprovalResponseData(ApproveOrRejectBpResponse result, int fallbackFlowId)
+        {
+            return new BpApprovalResponseData
+            {
+                flowId = result.FlowId == 0 ? fallbackFlowId : result.FlowId,
+                bpCode = result.BPCode,
+                bpCompany = result.BPCompany,
+                approvalStatus = result.ApprovalStatus,
+                sapStatus = result.SapStatus,
+                sapCardCode = result.SapCardCode,
+                attachmentEntry = result.AttachmentEntry,
+                payloadHash = result.PayloadHash
+            };
+        }
+
+        private static string MapSqlExceptionCode(SqlException ex)
+        {
+            return ex.Number switch
+            {
+                50006 => "BP_UNAUTHORIZED_APPROVER",
+                50020 => "BP_DUPLICATE_APPROVAL",
+                50110 => "BP_SAP_NOT_SUCCESSFUL",
+                50111 => "BP_SAP_ALREADY_PROCESSING",
+                50112 => "BP_SAP_ALREADY_POSTED",
+                _ => "BP_SQL_ERROR"
+            };
+        }
+
+        private static string MapSqlExceptionMessage(SqlException ex)
+        {
+            return ex.Number switch
+            {
+                50006 => "User is not authorized for the current BP approval stage.",
+                50020 => "This BP approval action has already been processed.",
+                50110 => "BP cannot be approved until SAP posting succeeds.",
+                50111 => "SAP BP creation is already processing. Please retry shortly.",
+                50112 => "BP has already been posted successfully to SAP.",
+                _ => "BP workflow operation failed."
+            };
         }
 
         [HttpGet("sp_GetSingleBPData")]
@@ -454,7 +556,8 @@ namespace JSAPNEW.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Success = false, message = "Error retrieving unique PANs", error = ex.Message });
+                _BPlogger.LogError(ex, "Error retrieving unique PANs.");
+                return StatusCode(500, new { Success = false, message = "Unique PAN list could not be loaded." });
             }
         }
 
@@ -469,7 +572,7 @@ namespace JSAPNEW.Controllers
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "Error fetching BP card info.");
-                return StatusCode(500, new { Success = false, message = "Error fetching GST mismatch data", error = ex.Message });
+                return StatusCode(500, new { Success = false, message = "GST mismatch data could not be loaded." });
             }
         }
 
@@ -483,11 +586,13 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return StatusCode(500, new { message = "SQL error occurred", error = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching BP counts.");
+                return StatusCode(500, new { Success = false, Message = "BP counts could not be loaded." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Unexpected error occurred", error = ex.Message });
+                _BPlogger.LogError(ex, "Unexpected error while fetching BP counts.");
+                return StatusCode(500, new { Success = false, Message = "BP counts could not be loaded." });
             }
         }
 
@@ -518,7 +623,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error fetching BP PAN by branch. Branch={Branch}, Company={Company}", Branch, company);
+                return BadRequest(new { Success = false, Message = "BP PAN by branch could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -540,11 +646,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException sqlEx)
             {
-                if (sqlEx.Number == 50000)
-                {
-                    return BadRequest(sqlEx.Message);
-                }
-                return StatusCode(500, "A database error occurred.");
+                _BPlogger.LogError(sqlEx, "SQL error while fetching SPA data. MasterId={MasterId}", masterId);
+                return BadRequest(new { Success = false, Message = "SPA data could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -557,9 +660,9 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetTotalBPData")]
         public async Task<IActionResult> GetTotalBPData(int userId, int companyId, string month = null)
         {
-            var result = await _BPService.GetMergeBpModelAsync(userId, companyId, month);
             try
             {
+                var result = await _BPService.GetMergeBpModelAsync(userId, companyId, month);
                 if (result == null)
                 {
                     return NotFound($"No MergeBP data found:{userId}");
@@ -568,7 +671,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException sqlEx)
             {
-                return BadRequest(sqlEx.Message);
+                _BPlogger.LogError(sqlEx, "SQL error while fetching total BP data. UserId={UserId}, CompanyId={CompanyId}", userId, companyId);
+                return BadRequest(new { Success = false, Message = "Total BP data could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -597,12 +701,13 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching all BP pending approvals.");
+                return BadRequest(new { Success = false, Message = "Pending approval list could not be loaded." });
             }
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "Error fetching pending BPs.");
-                return StatusCode(500, new { Success = false, Message = "Internal server error: " + ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Pending approval list could not be loaded." });
             }
         }
 
@@ -622,12 +727,13 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching all approved BP approvals.");
+                return BadRequest(new { Success = false, Message = "Approved approval list could not be loaded." });
             }
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "error fetching Approved BPs");
-                return StatusCode(500, new { Success = false, Message = "Internal Sever Error:" + ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Approved approval list could not be loaded." });
             }
         }
 
@@ -647,12 +753,13 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching all rejected BP approvals.");
+                return BadRequest(new { Success = false, Message = "Rejected approval list could not be loaded." });
             }
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "error fetching rejected BPs");
-                return StatusCode(500, new { Success = false, Message = "Internal Sever Error:" + ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Rejected approval list could not be loaded." });
             }
         }
 
@@ -672,12 +779,13 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                _BPlogger.LogError(ex, "SQL error while fetching all BP total approvals.");
+                return BadRequest(new { Success = false, Message = "Total approval list could not be loaded." });
             }
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "error fetching total BPs");
-                return StatusCode(500, new { Success = false, Message = "Internal Sever Error:" + ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Total approval list could not be loaded." });
             }
         }
 
@@ -755,7 +863,7 @@ namespace JSAPNEW.Controllers
                 return BadRequest(new BPmasterModels
                 {
                     Success = false,
-                    Message = ex.Message
+                    Message = "BP Master update failed."
                 });
             }
         }
@@ -778,7 +886,7 @@ namespace JSAPNEW.Controllers
                 return BadRequest(new BPmasterModels
                 {
                     Success = false,
-                    Message = ex.Message
+                    Message = "SAP metadata update failed."
                 });
             }
         }
@@ -786,9 +894,9 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetBPInsights")]
         public async Task<ActionResult<BPinsightsModel>> GetBPInsights(int userId, int companyId, string? month = null)
         {
-            var result = await _BPService.GetBPInsightsAsync(userId, companyId, month);
             try
             {
+                var result = await _BPService.GetBPInsightsAsync(userId, companyId, month);
                 if (result == null)
                 {
                     return NotFound($"No BP data found:{userId}");
@@ -797,7 +905,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException sqlEx)
             {
-                return BadRequest(sqlEx.Message);
+                _BPlogger.LogError(sqlEx, "SQL error while fetching BP insights.");
+                return BadRequest(new { Success = false, Message = "BP insights could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -809,9 +918,9 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetBPInsightsByCreator")]
         public async Task<ActionResult<BPinsightsModel>> GetBPInsightsByCreator(int userId, int companyId, string? month = null)
         {
-            var result = await _BPService.GetBPInsightsByCreatorAsync(userId, companyId, month);
             try
             {
+                var result = await _BPService.GetBPInsightsByCreatorAsync(userId, companyId, month);
                 if (result == null)
                 {
                     return NotFound($"No BP data found:{userId}");
@@ -820,7 +929,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException sqlEx)
             {
-                return BadRequest(sqlEx.Message);
+                _BPlogger.LogError(sqlEx, "SQL error while fetching BP insights by creator.");
+                return BadRequest(new { Success = false, Message = "BP insights by creator could not be loaded." });
             }
             catch (Exception ex)
             {
@@ -832,9 +942,9 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetBPApprovalFlow")]
         public async Task<ActionResult<BPApprovalFlowModel>> GetBPApprovalFlow (int flowId)
         {
-            var result = await _BPService.GetBPApprovalFlowAsync(flowId);
             try
             {
+                var result = await _BPService.GetBPApprovalFlowAsync(flowId);
                 if (result == null)
                 {
                     return NotFound($"No BP data found:{flowId}");
@@ -843,7 +953,8 @@ namespace JSAPNEW.Controllers
             }
             catch (SqlException sqlEx)
             {
-                return BadRequest(sqlEx.Message);
+                _BPlogger.LogError(sqlEx, "SQL error while fetching BP approval flow. FlowId={FlowId}", flowId);
+                return BadRequest(new { Success = false, Message = "BP approval flow could not be loaded." });
             }
             catch (Exception ex)
             {

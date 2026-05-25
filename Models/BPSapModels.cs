@@ -18,6 +18,8 @@ namespace JSAPNEW.Models
     {
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
+        public string ErrorCode { get; set; } = string.Empty;
+        public BpSapErrorInfo? SapError { get; set; }
         public string CardCode { get; set; } = string.Empty;
         public int? AttachmentEntry { get; set; }
         public string PayloadHash { get; set; } = string.Empty;
@@ -26,11 +28,30 @@ namespace JSAPNEW.Models
         public string RawResponse { get; set; } = string.Empty;
     }
 
+    public class BpSapErrorInfo
+    {
+        public int? code { get; set; }
+        public string message { get; set; } = string.Empty;
+    }
+
     public class BpApiStatusUpdateResult
     {
         public bool ProcedureAvailable { get; set; } = true;
         public string? PreviousTag { get; set; }
         public string Message { get; set; } = string.Empty;
+    }
+
+    public class BpControlAccountValidationResult
+    {
+        public bool IsValid { get; set; }
+        public string ErrorCode { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public int CompanyId { get; set; }
+        public string BpType { get; set; } = string.Empty;
+        public string AccountCode { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+        public string Postable { get; set; } = string.Empty;
+        public int? GroupMask { get; set; }
     }
 
     public class BpFlowRuntimeModel

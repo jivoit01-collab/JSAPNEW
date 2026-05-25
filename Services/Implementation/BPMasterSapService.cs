@@ -2,10 +2,13 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using Dapper;
 using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Sap.Data.Hana;
 
 namespace JSAPNEW.Services.Implementation
 {
@@ -14,15 +17,28 @@ namespace JSAPNEW.Services.Implementation
         private readonly IConfiguration _configuration;
         private readonly IBom2Service _bom2Service;
         private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<BPMasterSapService> _logger;
         private readonly string _sapBaseUrl;
+        private readonly string _connectionString;
+        private readonly Dictionary<int, HanaCompanySettings> _hanaSettings;
 
-        public BPMasterSapService(IConfiguration configuration, IBom2Service bom2Service, IWebHostEnvironment environment)
+        public BPMasterSapService(
+            IConfiguration configuration,
+            IBom2Service bom2Service,
+            IWebHostEnvironment environment,
+            ILogger<BPMasterSapService> logger)
         {
             _configuration = configuration;
             _bom2Service = bom2Service;
             _environment = environment;
+            _logger = logger;
             _sapBaseUrl = configuration["SapServiceLayer:BaseUrl"]
                 ?? throw new ArgumentNullException("SapServiceLayer:BaseUrl not found in configuration.");
+            _connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new ArgumentNullException("DefaultConnection not found in configuration.");
+            var activeEnv = configuration["ActiveEnvironment"];
+            _hanaSettings = configuration.GetSection($"HanaSettings:{activeEnv}")
+                .Get<Dictionary<int, HanaCompanySettings>>() ?? new Dictionary<int, HanaCompanySettings>();
         }
 
         public async Task<BpSapPostResult> PostBusinessPartnerAsync(BpSapPostRequest request, CancellationToken cancellationToken = default)
@@ -32,34 +48,137 @@ namespace JSAPNEW.Services.Implementation
 
             var session = await GetSessionAsync(request.Company);
             var cardType = IsVendor(request.BpType) ? "cSupplier" : "cCustomer";
+            var bpType = cardType == "cSupplier" ? "V" : "C";
+            var accountResolution = await ResolveControlAccountAsync(request.Company, bpType, cancellationToken);
+            if (!accountResolution.Success)
+            {
+                _logger.LogWarning(
+                    "BP control account resolution failed. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, BpType={BpType}, ErrorCode={ErrorCode}, Message={Message}",
+                    request.FlowId,
+                    request.BpCode,
+                    request.Company,
+                    bpType,
+                    accountResolution.ErrorCode,
+                    accountResolution.Message);
+
+                return new BpSapPostResult
+                {
+                    Success = false,
+                    Message = accountResolution.Message,
+                    ErrorCode = accountResolution.ErrorCode,
+                    CardCode = string.Empty,
+                    CardType = cardType
+                };
+            }
+
+            var accountValidation = await ValidateControlAccountAsync(request.Company, accountResolution.AccountCode, bpType, cancellationToken);
+            _logger.LogInformation(
+                "BP control account selected. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, BpType={BpType}, AccountCode={AccountCode}, AccountName={AccountName}, Source={Source}, IsValid={IsValid}, GroupMask={GroupMask}, Postable={Postable}",
+                request.FlowId,
+                request.BpCode,
+                request.Company,
+                bpType,
+                accountResolution.AccountCode,
+                accountValidation.AccountName,
+                accountResolution.Source,
+                accountValidation.IsValid,
+                accountValidation.GroupMask,
+                accountValidation.Postable);
+
+            if (!accountValidation.IsValid)
+            {
+                return new BpSapPostResult
+                {
+                    Success = false,
+                    Message = accountValidation.Message,
+                    ErrorCode = accountValidation.ErrorCode,
+                    CardCode = string.Empty,
+                    CardType = cardType
+                };
+            }
+
             var prefix = ResolveCardCodePrefix(request, cardType);
             var cardCode = await GetNextCardCodeAsync(prefix, cardType, session, cancellationToken);
             var warnings = new List<string>();
             var attachmentEntry = await UploadAttachmentsAsync(request.BpData, session, warnings, cancellationToken);
-            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, attachmentEntry, warnings);
+            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, accountValidation.AccountCode, attachmentEntry, warnings);
             var payloadJson = payload.ToString(Formatting.None);
+            var payloadHash = ComputeHash(payloadJson);
+
+            _logger.LogInformation(
+                "Posting BP to SAP. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, UserId={UserId}, CardType={CardType}, CandidateCardCode={CandidateCardCode}, ControlAccount={ControlAccount}, AttachmentEntry={AttachmentEntry}, PayloadHash={PayloadHash}",
+                request.FlowId,
+                request.BpCode,
+                request.Company,
+                request.UserId,
+                cardType,
+                cardCode,
+                accountValidation.AccountCode,
+                attachmentEntry,
+                payloadHash);
+
+            _logger.LogDebug(
+                "BP SAP payload. FlowId={FlowId}, BpCode={BpCode}, PayloadHash={PayloadHash}, Payload={Payload}",
+                request.FlowId,
+                request.BpCode,
+                payloadHash,
+                payloadJson);
 
             var response = await SendSapRequestAsync(HttpMethod.Post, "BusinessPartners", session, payloadJson, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                var sapError = MapSapError(errorBody);
+
+                _logger.LogWarning(
+                    "SAP BP POST FAILED FlowId={FlowId} BpCode={BpCode} SapCode={SapCode} SapMessage={SapMessage} CandidateCardCode={CandidateCardCode} PayloadHash={PayloadHash} RawResponse={RawResponse}",
+                    request.FlowId,
+                    request.BpCode,
+                    sapError.SapCode,
+                    sapError.Message,
+                    cardCode,
+                    payloadHash,
+                    sapError.RawResponse);
+
                 return new BpSapPostResult
                 {
                     Success = false,
-                    Message = ExtractSapError(errorBody),
-                    CardCode = cardCode,
+                    Message = sapError.Message,
+                    ErrorCode = sapError.ErrorCode,
+                    SapError = sapError.ToResponseInfo(),
+                    CardCode = string.Empty,
                     AttachmentEntry = attachmentEntry,
                     Payload = payload,
-                    PayloadHash = ComputeHash(payloadJson),
+                    PayloadHash = payloadHash,
                     CardType = cardType,
                     RawResponse = errorBody
                 };
             }
 
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            var message = string.IsNullOrWhiteSpace(responseBody)
-                ? $"SAP Business Partner created as {cardCode}."
-                : $"SAP Business Partner created as {cardCode}.";
+            var confirmedCardCode = ExtractConfirmedCardCode(responseBody);
+            if (string.IsNullOrWhiteSpace(confirmedCardCode))
+            {
+                return new BpSapPostResult
+                {
+                    Success = false,
+                    Message = "SAP BP creation response did not include confirmed CardCode.",
+                    ErrorCode = "SAP_MISSING_CONFIRMED_CARD_CODE",
+                    SapError = new BpSapErrorInfo
+                    {
+                        code = null,
+                        message = "SAP BP creation response did not include confirmed CardCode."
+                    },
+                    CardCode = string.Empty,
+                    AttachmentEntry = attachmentEntry,
+                    Payload = payload,
+                    PayloadHash = payloadHash,
+                    CardType = cardType,
+                    RawResponse = responseBody
+                };
+            }
+
+            var message = $"SAP Business Partner created as {confirmedCardCode}.";
 
             if (warnings.Count > 0)
                 message += " Warnings: " + string.Join(" ", warnings);
@@ -68,10 +187,10 @@ namespace JSAPNEW.Services.Implementation
             {
                 Success = true,
                 Message = message,
-                CardCode = cardCode,
+                CardCode = confirmedCardCode,
                 AttachmentEntry = attachmentEntry,
                 Payload = payload,
-                PayloadHash = ComputeHash(payloadJson),
+                PayloadHash = payloadHash,
                 CardType = cardType,
                 RawResponse = responseBody
             };
@@ -88,6 +207,251 @@ namespace JSAPNEW.Services.Implementation
             };
         }
 
+        private HanaCompanySettings GetHanaSettings(int company)
+        {
+            if (_hanaSettings == null || !_hanaSettings.TryGetValue(company, out var settings) || settings == null)
+                throw new InvalidOperationException($"Invalid SAP HANA company ID: {company}");
+
+            if (string.IsNullOrWhiteSpace(settings.ConnectionString))
+                throw new InvalidOperationException($"SAP HANA connection string is missing for company ID: {company}");
+
+            if (string.IsNullOrWhiteSpace(settings.Schema))
+                throw new InvalidOperationException($"SAP HANA schema is missing for company ID: {company}");
+
+            return settings;
+        }
+
+        private async Task<BpControlAccountResolution> ResolveControlAccountAsync(int companyId, string bpType, CancellationToken cancellationToken)
+        {
+            var normalizedBpType = NormalizeControlAccountBpType(bpType);
+            var label = GetBpTypeLabel(normalizedBpType);
+
+            var configRow = await GetControlAccountConfigRowAsync(companyId, normalizedBpType, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(configRow?.AccountCode))
+            {
+                return BpControlAccountResolution.Ok(
+                    configRow.AccountCode,
+                    configRow.AccountName,
+                    "BP.jsSAPAccountConfig");
+            }
+
+            var fallbackAccount = GetFallbackControlAccount(companyId, normalizedBpType);
+            if (!string.IsNullOrWhiteSpace(fallbackAccount))
+            {
+                return BpControlAccountResolution.Ok(
+                    fallbackAccount,
+                    string.Empty,
+                    "appsettings:BPControlAccounts");
+            }
+
+            return BpControlAccountResolution.Fail(
+                $"{label} control account configuration missing.",
+                "CONTROL_ACCOUNT_NOT_CONFIGURED");
+        }
+
+        private async Task<BpControlAccountConfigRow?> GetControlAccountConfigRowAsync(int companyId, string bpType, CancellationToken cancellationToken)
+        {
+            const string sql = @"
+IF OBJECT_ID(N'BP.jsSAPAccountConfig', N'U') IS NULL
+BEGIN
+    SELECT TOP 0
+        CAST(NULL AS NVARCHAR(50)) AS AccountCode,
+        CAST(NULL AS NVARCHAR(200)) AS AccountName;
+    RETURN;
+END;
+
+SELECT TOP 1
+    accountCode AS AccountCode,
+    accountName AS AccountName
+FROM BP.jsSAPAccountConfig
+WHERE companyId = @CompanyId
+  AND bpType = @BpType
+  AND isActive = 1
+ORDER BY id DESC;";
+
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                return await connection.QueryFirstOrDefaultAsync<BpControlAccountConfigRow>(
+                    new CommandDefinition(
+                        sql,
+                        new { CompanyId = companyId, BpType = bpType },
+                        cancellationToken: cancellationToken));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "BP control account SQL config lookup failed. Company={Company}, BpType={BpType}. Falling back to appsettings.",
+                    companyId,
+                    bpType);
+                return null;
+            }
+        }
+
+        private string GetFallbackControlAccount(int companyId, string bpType)
+        {
+            var key = bpType == "V" ? "Vendor" : "Customer";
+            return FirstText(
+                _configuration[$"BPControlAccounts:{companyId}:{key}"],
+                _configuration[$"BPControlAccounts:{key}"]);
+        }
+
+        public async Task<BpControlAccountValidationResult> ValidateControlAccountAsync(
+            int companyId,
+            string accountCode,
+            string bpType,
+            CancellationToken cancellationToken = default)
+        {
+            var normalizedBpType = NormalizeControlAccountBpType(bpType);
+            var label = GetBpTypeLabel(normalizedBpType);
+            var expectedGroupMask = normalizedBpType == "V" ? 2 : 1;
+            var invalidGroupCode = normalizedBpType == "V"
+                ? "INVALID_VENDOR_CONTROL_ACCOUNT"
+                : "INVALID_CUSTOMER_CONTROL_ACCOUNT";
+            var invalidGroupMessage = normalizedBpType == "V"
+                ? "Configured Vendor control account is not a valid liability account."
+                : "Configured Customer control account is not a valid receivable account.";
+
+            if (string.IsNullOrWhiteSpace(accountCode))
+            {
+                return ControlAccountInvalid(
+                    companyId,
+                    normalizedBpType,
+                    accountCode,
+                    $"{label} control account configuration missing.",
+                    "CONTROL_ACCOUNT_NOT_CONFIGURED");
+            }
+
+            try
+            {
+                var settings = GetHanaSettings(companyId);
+                var sql = $@"
+SELECT
+    ""AcctCode"" AS ""AccountCode"",
+    ""AcctName"" AS ""AccountName"",
+    ""Postable"" AS ""Postable"",
+    ""GroupMask"" AS ""GroupMask""
+FROM ""{settings.Schema}"".""OACT""
+WHERE ""AcctCode"" = ?
+LIMIT 1";
+
+                using var connection = new HanaConnection(settings.ConnectionString);
+                var parameters = new DynamicParameters();
+                parameters.Add("AccountCode", accountCode.Trim());
+
+                var account = await connection.QueryFirstOrDefaultAsync<BpSapOactAccountRow>(
+                    new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+
+                if (account == null || string.IsNullOrWhiteSpace(account.AccountCode))
+                {
+                    return ControlAccountInvalid(
+                        companyId,
+                        normalizedBpType,
+                        accountCode,
+                        $"Configured {label} control account was not found in SAP OACT.",
+                        "CONTROL_ACCOUNT_NOT_FOUND_IN_SAP");
+                }
+
+                var postable = (account.Postable ?? string.Empty).Trim().ToUpperInvariant();
+                if (postable != "Y")
+                {
+                    return ControlAccountInvalid(
+                        companyId,
+                        normalizedBpType,
+                        account.AccountCode,
+                        $"Configured {label} control account is not postable in SAP.",
+                        "CONTROL_ACCOUNT_NOT_POSTABLE",
+                        account);
+                }
+
+                if (account.GroupMask != expectedGroupMask)
+                {
+                    return ControlAccountInvalid(
+                        companyId,
+                        normalizedBpType,
+                        account.AccountCode,
+                        invalidGroupMessage,
+                        invalidGroupCode,
+                        account);
+                }
+
+                var result = new BpControlAccountValidationResult
+                {
+                    IsValid = true,
+                    CompanyId = companyId,
+                    BpType = normalizedBpType,
+                    AccountCode = account.AccountCode,
+                    AccountName = account.AccountName,
+                    Postable = postable,
+                    GroupMask = account.GroupMask,
+                    Message = $"{label} control account is valid."
+                };
+
+                _logger.LogInformation(
+                    "BP control account validation succeeded. Company={Company}, BpType={BpType}, AccountCode={AccountCode}, AccountName={AccountName}, GroupMask={GroupMask}, Postable={Postable}",
+                    companyId,
+                    normalizedBpType,
+                    result.AccountCode,
+                    result.AccountName,
+                    result.GroupMask,
+                    result.Postable);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "BP control account validation failed. Company={Company}, BpType={BpType}, AccountCode={AccountCode}",
+                    companyId,
+                    normalizedBpType,
+                    accountCode);
+
+                return ControlAccountInvalid(
+                    companyId,
+                    normalizedBpType,
+                    accountCode,
+                    $"{label} control account validation failed.",
+                    "CONTROL_ACCOUNT_VALIDATION_FAILED");
+            }
+        }
+
+        private BpControlAccountValidationResult ControlAccountInvalid(
+            int companyId,
+            string bpType,
+            string accountCode,
+            string message,
+            string errorCode,
+            BpSapOactAccountRow? account = null)
+        {
+            var result = new BpControlAccountValidationResult
+            {
+                IsValid = false,
+                CompanyId = companyId,
+                BpType = bpType,
+                AccountCode = account?.AccountCode ?? accountCode,
+                AccountName = account?.AccountName ?? string.Empty,
+                Postable = account?.Postable ?? string.Empty,
+                GroupMask = account?.GroupMask,
+                Message = message,
+                ErrorCode = errorCode
+            };
+
+            _logger.LogWarning(
+                "BP control account validation failed. Company={Company}, BpType={BpType}, AccountCode={AccountCode}, AccountName={AccountName}, GroupMask={GroupMask}, Postable={Postable}, ErrorCode={ErrorCode}, Message={Message}",
+                companyId,
+                bpType,
+                result.AccountCode,
+                result.AccountName,
+                result.GroupMask,
+                result.Postable,
+                errorCode,
+                message);
+
+            return result;
+        }
+
         private async Task<string> GetNextCardCodeAsync(string prefix, string cardType, SAPSessionModel session, CancellationToken cancellationToken)
         {
             var safePrefix = prefix.Replace("'", "''").Trim();
@@ -97,7 +461,7 @@ namespace JSAPNEW.Services.Implementation
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException("Unable to generate SAP CardCode: " + ExtractSapError(body));
+                throw new BpSapException("Unable to generate SAP CardCode", MapSapError(body));
 
             var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
             var lastCode = json["value"]?.FirstOrDefault()?["CardCode"]?.ToString();
@@ -117,6 +481,7 @@ namespace JSAPNEW.Services.Implementation
             BpSapPostRequest request,
             string cardCode,
             string cardType,
+            string controlAccountCode,
             int? attachmentEntry,
             List<string> warnings)
         {
@@ -130,9 +495,13 @@ namespace JSAPNEW.Services.Implementation
                 ["CardCode"] = cardCode,
                 ["CardName"] = master.Name,
                 ["CardType"] = cardType,
-                ["Currency"] = string.IsNullOrWhiteSpace(master.Currency) ? "INR" : master.Currency.Trim().ToUpperInvariant()
+                ["Currency"] = string.IsNullOrWhiteSpace(master.Currency) ? "INR" : master.Currency.Trim().ToUpperInvariant(),
+                ["DebitorAccount"] = controlAccountCode.Trim()
             };
 
+            var sapData = request.SapData;
+            if (int.TryParse(sapData?.grpCode, out var groupCode) && groupCode > 0)
+                payload["GroupCode"] = groupCode;
             if (!string.IsNullOrWhiteSpace(master.ForeignName))
                 payload["CardForeignName"] = master.ForeignName.Trim();
             if (!string.IsNullOrWhiteSpace(master.MobileNumber))
@@ -347,7 +716,10 @@ namespace JSAPNEW.Services.Implementation
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException("SAP Attachments2 upload failed: " + ExtractSapError(body));
+            {
+                var sapError = MapSapError(body);
+                throw new BpSapException("SAP Attachments2 upload failed", sapError);
+            }
 
             var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
             return json["AbsoluteEntry"]?.Value<int?>();
@@ -407,6 +779,22 @@ namespace JSAPNEW.Services.Implementation
         {
             return string.Equals(bpType, "V", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(bpType, "Vendor", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string NormalizeControlAccountBpType(string bpType)
+        {
+            var value = (bpType ?? string.Empty).Trim().ToUpperInvariant();
+            return value is "V" or "S" or "SUPPLIER" or "VENDOR" ? "V" : "C";
+        }
+
+        private static string GetBpTypeLabel(string bpType)
+        {
+            return NormalizeControlAccountBpType(bpType) == "V" ? "Vendor" : "Customer";
+        }
+
+        private static string FirstText(params string?[] values)
+        {
+            return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
         }
 
         private static bool IsBillTo(BP_Address address)
@@ -532,26 +920,69 @@ namespace JSAPNEW.Services.Implementation
             return Convert.ToHexString(bytes);
         }
 
-        private static string ExtractSapError(string responseJson)
+        private static string ExtractConfirmedCardCode(string responseJson)
         {
             if (string.IsNullOrWhiteSpace(responseJson))
-                return "SAP returned an empty error response.";
+                return string.Empty;
 
             try
             {
                 var obj = JObject.Parse(responseJson);
-                var code = obj["error"]?["code"]?.ToString();
-                var value = obj["error"]?["message"]?["value"]?.ToString()
-                    ?? obj["error"]?["message"]?.ToString();
-
-                if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(value))
-                    return $"{value} (SAP Error Code: {code})";
-
-                return obj.ToString(Formatting.None);
+                return obj["CardCode"]?.ToString() ?? string.Empty;
             }
             catch
             {
-                return responseJson;
+                return string.Empty;
+            }
+        }
+
+        private static BpSapError MapSapError(string responseJson)
+        {
+            return BpSapErrorMapper.Map(responseJson);
+        }
+
+        private sealed class BpControlAccountConfigRow
+        {
+            public string AccountCode { get; set; } = string.Empty;
+            public string AccountName { get; set; } = string.Empty;
+        }
+
+        private sealed class BpSapOactAccountRow
+        {
+            public string AccountCode { get; set; } = string.Empty;
+            public string AccountName { get; set; } = string.Empty;
+            public string Postable { get; set; } = string.Empty;
+            public int? GroupMask { get; set; }
+        }
+
+        private sealed class BpControlAccountResolution
+        {
+            public bool Success { get; private init; }
+            public string AccountCode { get; private init; } = string.Empty;
+            public string AccountName { get; private init; } = string.Empty;
+            public string Source { get; private init; } = string.Empty;
+            public string Message { get; private init; } = string.Empty;
+            public string ErrorCode { get; private init; } = string.Empty;
+
+            public static BpControlAccountResolution Ok(string accountCode, string accountName, string source)
+            {
+                return new BpControlAccountResolution
+                {
+                    Success = true,
+                    AccountCode = accountCode.Trim(),
+                    AccountName = accountName,
+                    Source = source
+                };
+            }
+
+            public static BpControlAccountResolution Fail(string message, string errorCode)
+            {
+                return new BpControlAccountResolution
+                {
+                    Success = false,
+                    Message = message,
+                    ErrorCode = errorCode
+                };
             }
         }
     }

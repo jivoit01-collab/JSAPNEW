@@ -325,6 +325,9 @@ namespace JSAPNEW.Models
     {
         public bool Success { get; set; } = true;
         public string ResultMessage { get; set; } = string.Empty;
+        public string ErrorCode { get; set; } = string.Empty;
+        public BpSapErrorInfo? SapError { get; set; }
+        public int FlowId { get; set; }
         public int BPCode { get; set; }
         public int BPCompany { get; set; }
         public string ApprovalStatus { get; set; } = string.Empty;
@@ -332,6 +335,18 @@ namespace JSAPNEW.Models
         public string SapCardCode { get; set; } = string.Empty;
         public int? AttachmentEntry { get; set; }
         public string PayloadHash { get; set; } = string.Empty;
+    }
+
+    public class BpApprovalResponseData
+    {
+        public int flowId { get; set; }
+        public int bpCode { get; set; }
+        public int bpCompany { get; set; }
+        public string approvalStatus { get; set; } = string.Empty;
+        public string sapStatus { get; set; } = string.Empty;
+        public string sapCardCode { get; set; } = string.Empty;
+        public int? attachmentEntry { get; set; }
+        public string payloadHash { get; set; } = string.Empty;
     }
 
     public class BPGetCard
@@ -390,7 +405,7 @@ namespace JSAPNEW.Models
         public string debPayAcct { get; set; } = string.Empty;
         public string wtLabel { get; set; } = string.Empty;
         public string series { get; set; } = string.Empty;
-        public int grpCode { get; set; }
+        public string grpCode { get; set; } = string.Empty;
     }
 
     public class BPMasterUpdateRequest : InsertBPMasterDataModel

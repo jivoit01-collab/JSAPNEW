@@ -85,11 +85,12 @@ Final approver approves
 -> BPMasterSapService posts attachments and BusinessPartners payload
 -> if SAP success:
       apiStatusTag = Y
-      sapCardCode and payloadHash saved
+      SAP-confirmed sapCardCode and payloadHash saved
       BP.jsApproveBP marks workflow approved
    if SAP failure:
       apiStatusTag = N
       apiMessage saved
+      sapCardCode remains NULL
       workflow stays pending at stage 3
       RetrySapPost is enabled
 ```
@@ -727,7 +728,7 @@ SAP posting triggers only from:
 
 | Column | Meaning |
 |---|---|
-| `sapCardCode` | CardCode generated/created in SAP |
+| `sapCardCode` | SAP-confirmed CardCode; must remain `NULL` for failed or processing SAP posts |
 | `sapAttachmentEntry` | SAP `Attachments2.AbsoluteEntry` |
 | `retryCount` | Number of SAP processing attempts |
 | `payloadHash` | SHA-256 hash of SAP payload |
