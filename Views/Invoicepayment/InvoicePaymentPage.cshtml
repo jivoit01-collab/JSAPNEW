@@ -32,7 +32,7 @@
                 <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" alt="Juice product" />
                 <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" alt="Pomace oil" />
                 <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
-                <img src="@Url.Content("~/images/71ohxqRTikL._AC_UF894,1000_QL80_.jpg")" class="product-img clickable-product" alt="Wellness product" />
+                    <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
             </div>
         </div>
 
@@ -205,7 +205,14 @@
             Search
 
         </button>
+            <button class="btn btn-export"
+                    onclick="exportToExcel()">
 
+                <i class="fa-solid fa-file-excel"></i>
+
+                Export
+
+            </button>
     </div>
 
     <!-- TABLE -->
@@ -810,5 +817,61 @@
     loadData();
 
     });
+    function exportToExcel()
+    {
+    const rows = document.querySelectorAll("#PaymentTable tr");
+
+    if (!rows.length)
+    {
+    alert("No data to export");
+    return;
+    }
+
+    let csv = "";
+
+    rows.forEach(row =>
+    {
+    const cols = row.querySelectorAll("td");
+
+    let rowData = [];
+
+    cols.forEach((col, i) =>
+    {
+    if(i === 7) return;
+
+    let text = col.innerText
+    .replace(/\n/g, " ")
+    .trim();
+
+    text = '"' + text.replace(/"/g, '""') + '"';
+
+    rowData.push(text);
+    });
+
+    csv += rowData.join(",") + "\n";
+    });
+
+    const blob = new Blob(
+    [csv],
+    {
+    type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download = "invoice_payment_export.csv";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+    }
 
 </script>

@@ -657,7 +657,7 @@ body {
 .admin-dashboard-shell .dt-maker .col-voucher { width: 9%; }
 .admin-dashboard-shell .dt-maker .col-date { width: 10%; }
 .admin-dashboard-shell .dt-maker .col-amount { width: 11%; }
-.admin-dashboard-shell .dt-maker .col-remark { width: 24%; }
+.admin-dashboard-shell .dt-maker .col-remark { width: 14%; }
 .admin-dashboard-shell .dt-maker .col-status { width: 11%; }
 .admin-dashboard-shell .dt-maker .col-attachment { width: 9%; }
 .admin-dashboard-shell .dt-maker .col-delete { width: 6%; }
@@ -2588,4 +2588,129 @@ body {
         animation: none !important;
         transition: none !important;
     }
+}
+.admin-dashboard-shell .btn-mark-paid {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    min-height: 34px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient( 135deg, #059669, #10b981 );
+    color: #fff;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(5,150,105,.22);
+    transition: transform .25s, box-shadow .25s, opacity .25s;
+    white-space: nowrap;
+}
+
+    .admin-dashboard-shell .btn-mark-paid:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(5,150,105,.32);
+    }
+
+    .admin-dashboard-shell .btn-mark-paid:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+.admin-dashboard-shell .dt-invoice .col-action {
+    width: 12%;
+}
+.admin-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.btn-export {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 22px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg,#16a34a,#22c55e);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: .25s ease;
+    box-shadow: 0 10px 24px rgba(34,197,94,.24);
+}
+
+    .btn-export:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 34px rgba(34,197,94,.34);
+    }
+/* =========================================
+   EXPANDED ROW STABILITY ONLY
+========================================= */
+
+/* checker + payment checker detail row */
+
+.checker-workflow-table .detail-row td,
+.payment-checker-table .detail-row td {
+    padding: 18px !important;
+    background: rgba(10,15,25,.96);
+    overflow-x: auto;
+    max-width: 0;
+}
+
+/* detail container */
+
+.checker-workflow-table .detail-container,
+.payment-checker-table .detail-container {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
+    gap: 18px;
+    overflow-x: auto;
+}
+
+/* detail card */
+
+.checker-workflow-table .detail-card,
+.payment-checker-table .detail-card {
+    min-width: 240px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* prevent expanded row from stretching table */
+
+.checker-workflow-table .detail-inner,
+.payment-checker-table .detail-inner {
+    width: 100%;
+    overflow-x: auto;
+}
+
+
+
+
+/* =========================================
+   ONLY INVOICE + PAYMENT CHECKER
+========================================= */
+
+.invoice-payment-shell .btn-export,
+.payment-checker-shell .btn-export {
+    width: 160px !important;
+    min-width: 160px !important;
+    max-width: 160px !important;
+    height: 42px !important;
+    flex: 0 0 160px !important;
+    margin-top: 0 !important;
+    white-space: nowrap;
+}
+
+.invoice-payment-shell .admin-search-btn,
+.payment-checker-shell .admin-search-btn {
+    height: 42px !important;
+    min-width: 140px !important;
 }

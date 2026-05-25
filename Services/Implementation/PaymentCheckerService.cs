@@ -101,10 +101,17 @@ namespace JSAPNEW.Services.Implementation
                             items.Add(new InvoiceItemDto
                             {
                                 ProductName = reader["ProductName"]?.ToString(),
+
+                                HSNSACID = reader["HSNSACID"]?.ToString(),
+
                                 Quantity = reader["Quantity"],
+
                                 WarehouseName = reader["WarehouseName"] == DBNull.Value ? "-" : reader["WarehouseName"].ToString(),
+
                                 Tax = reader["TaxRate"],
+
                                 TaxName = reader["TaxName"] == DBNull.Value ? "-" : reader["TaxName"].ToString(),
+
                                 ItemValue = reader["ItemValue"]
                             });
                         }
