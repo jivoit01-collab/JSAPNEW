@@ -330,6 +330,7 @@
     /* ═══════════════════════════════════════
     PRODUCT IMAGE MODAL
     ═══════════════════════════════════════ */
+    let _invoiceDataCache = [];
 
     $(document).on("click", ".clickable-product", function () {
 
@@ -547,6 +548,7 @@
 
     if (!data || data.length === 0) {
 
+
     $("#rowCount").text("0 records");
 
     $("#PaymentTable").html(`
@@ -564,6 +566,7 @@
 
     return;
     }
+    _invoiceDataCache = data || [];
 
     let approvedData = data.filter(item =>
 
@@ -817,60 +820,83 @@
     loadData();
 
     });
-    function exportToExcel()
-    {
-    const rows = document.querySelectorAll("#PaymentTable tr");
+    function exportToExcel() {
 
-    if (!rows.length)
-    {
-    alert("No data to export");
-    return;
+    var data = (_invoiceDataCache || []).filter(function(item) {
+    return item.checkerStatus === "Approved" && item.paymentStatus === "UnPaid";
+    });
+
+    if (!data.length) { alert("No data to export"); return; }
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "invoice-payment_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
+    "Account Name","Voucher No","Voucher Date","Bill Amount",
+    "Supplier Ref","Ref Date","Due Date",
+    "Checker Status","Payment Status",
+    "Maker Remark","Checker Remark"
+    ]);
+
+    data.forEach(function(item) {
+    rows.push([
+    item.accountName   || "",
+    item.vchNumber     || "",
+    formatDate(item.voucherDate)      || "",
+    item.billAmount    || "",
+    item.supplierRef   || "",
+    formatDate(item.supplierRefDate)  || "",
+    formatDate(item.dueDate)          || "",
+    item.checkerStatus || "",
+    item.paymentStatus || "",
+    item.makerRemark   || "",
+    item.checkerRemark || ""
+    ]);
+    });
+
+    var totalAmt    = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    var overdue     = 0;
+    var today       = new Date(); today.setHours(0,0,0,0);
+    data.forEach(function(x) {
+    if (x.dueDate) { var d = new Date(x.dueDate); d.setHours(0,0,0,0); if(d<today) overdue++; }
+    });
+    var vendors = new Set(data.map(function(x){ return x.accountName; })).size;
+
+    rows.push([]);
+    rows.push(["TOTALS","","","₹" + totalAmt.toLocaleString("en-IN"),"","","","","","",""]);
+    rows.push(["Unique Vendors","" + vendors,"Overdue Bills","" + overdue,"","","","","","",""]);
+
+    downloadCSV(rows, filename);
     }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
 
-    let csv = "";
-
-    rows.forEach(row =>
-    {
-    const cols = row.querySelectorAll("td");
-
-    let rowData = [];
-
-    cols.forEach((col, i) =>
-    {
-    if(i === 7) return;
-
-    let text = col.innerText
-    .replace(/\n/g, " ")
-    .trim();
-
-    text = '"' + text.replace(/"/g, '""') + '"';
-
-    rowData.push(text);
-    });
-
-    csv += rowData.join(",") + "\n";
-    });
-
-    const blob = new Blob(
-    [csv],
-    {
-    type: "text/csv;charset=utf-8;"
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-
-    a.href = url;
-
-    a.download = "invoice_payment_export.csv";
-
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
     document.body.appendChild(a);
-
     a.click();
-
     document.body.removeChild(a);
-
     URL.revokeObjectURL(url);
     }
 

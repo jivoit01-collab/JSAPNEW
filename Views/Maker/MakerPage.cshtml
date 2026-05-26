@@ -321,6 +321,7 @@
     /* ═══════════════════════════════════
     BOOT
     ═══════════════════════════════════ */
+    let makerDataCache = [];
     
     $(document).ready(function () {
 
@@ -338,6 +339,9 @@
     }
 
     $.get("/Maker/GetAccountSuggestions", { term: searchText }, function (data) {
+    makerDataCache = data || [];
+
+
 
     let html = "";
 
@@ -450,14 +454,25 @@
 
     today.setHours(0,0,0,0);
 
-    data.forEach(item => {
+    data
+    .filter(item => item.paymentStatus !== "Paid")
+    .forEach(item => {
 
-    /* hide approved entries from maker */
-
-    if (
-    item.checkerStatus === "Approved"
-    ) {
+   
+    /* hide approved */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
     return;
+    }
+
+    /* show rejected for re-upload */
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") {
+    // allow rejected entries
+    }
+    else {
+    /* hide submitted pending entries */
+    if (item.attachmentPath) {
+    return;
+    }
     }
 
    
@@ -480,6 +495,7 @@
     )
     return;
     /* DUE DATE FILTER */
+
 
     if (dueFilter && item.dueDate) {
 
@@ -842,59 +858,85 @@
 
     }
 
-    /* ═══════════════════════════════════
-    EXPORT TO EXCEL
-    ═══════════════════════════════════ */
     function exportToExcel() {
-    const rows = document.querySelectorAll("#makerBody tr");
-    if (!rows.length) { showToast("No data to export", "error"); return; }
+    if (!makerDataCache || !makerDataCache.length) {
+    showToast("No data to export", "error"); return;
+    }
 
-    const headers = [
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "maker-entries_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
     "Account Name","Voucher No","Voucher Date","Bill Amount",
-    "Supplier Ref","Supplier Ref Date","Due Date","Maker Remark",
-    "Checker Status","Total Qty","Total Value","Total Items",
+    "Supplier Ref","Supplier Ref Date","Due Date",
+    "Maker Remark","Checker Status",
+    "Total Qty","Total Value","Total Items",
     "Payment Status","Payment Date"
-    ];
+    ]);
 
-    // Build CSV
-    let csv = headers.join(",") + "\n";
-
-    rows.forEach(row => {
-    const cells = row.querySelectorAll("td");
-    if (!cells.length) return;
-
-    // Map visible column indices (skip Attachment col index 7, Action col index 10)
-    const skipCols = new Set([7, 10]);
-    let rowData = [];
-
-    cells.forEach((cell, i) => {
-    if (skipCols.has(i)) return;
-    // Get plain text, strip badges/buttons
-    let val = cell.innerText.replace(/\n/g, " ").trim();
-    // Escape commas and quotes
-    val = '"' + val.replace(/"/g, '""') + '"';
-    rowData.push(val);
+    var seenVch = new Set();
+    makerDataCache.forEach(function(item) {
+    if (seenVch.has(item.vchNumber)) return;
+    seenVch.add(item.vchNumber);
+    rows.push([
+    item.accountName      || "",
+    item.vchNumber        || "",
+    formatDate(item.voucherDate)      || "",
+    item.billAmount       || "",
+    item.supplierRef      || "",
+    formatDate(item.supplierRefDate)  || "",
+    formatDate(item.dueDate)          || "",
+    item.makerRemark      || "",
+    item.checkerStatus    || "Pending",
+    item.totalQuantity    != null ? item.totalQuantity  : "",
+    item.totalItemValue   != null ? item.totalItemValue : "",
+    item.totalItems       != null ? item.totalItems     : "",
+    item.paymentStatus    || "",
+    formatDate(item.paymentDate)      || ""
+    ]);
     });
 
-    csv += rowData.join(",") + "\n";
-    });
+    var totalAmt = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.billAmount)||0);},0);
+    var totalQty = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.totalQuantity)||0);},0);
+    var totalVal = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.totalItemValue)||0);},0);
+    var totalItm = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.totalItems)||0);},0);
 
-    // Trigger download
-    const fromDate = $("#fromDate").val() || "export";
-    const toDate   = $("#toDate").val()   || "";
-    const filename = `maker-entries_${fromDate}_${toDate}.csv`;
+    rows.push([]);
+    rows.push(["TOTALS","","","₹"+totalAmt.toLocaleString("en-IN"),"","","","","",totalQty,totalVal,totalItm,"",""]);
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
+    downloadCSV(rows, filename);
+    showToast("Exported successfully!", "success");
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
+
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
     a.href     = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    showToast("Exported successfully!", "success");
     }
 </script>
 
