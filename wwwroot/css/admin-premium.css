@@ -2714,3 +2714,249 @@ body {
     height: 42px !important;
     min-width: 140px !important;
 }
+/* ═══════════════════════════════════════════
+   ERP COMPACT INLINE ITEM TABLE
+   Used in: Checker + Payment Checker detail rows
+═══════════════════════════════════════════ */
+
+.erp-detail-cell {
+    padding: 0 !important;
+    background: #F0F4FF !important;
+    border-left: 4px solid #3B82F6;
+}
+
+.erp-detail-wrap {
+    overflow-x: auto;
+    padding: 10px 16px 12px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #93c5fd #e2e8f0;
+}
+
+    .erp-detail-wrap::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .erp-detail-wrap::-webkit-scrollbar-track {
+        background: #e2e8f0;
+        border-radius: 999px;
+    }
+
+    .erp-detail-wrap::-webkit-scrollbar-thumb {
+        background: #93c5fd;
+        border-radius: 999px;
+    }
+
+.erp-detail-table {
+    width: 100%;
+    min-width: 700px;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+}
+
+    /* Header */
+    .erp-detail-table thead tr {
+        background: #1E3A5F;
+    }
+
+    .erp-detail-table thead th {
+        padding: 7px 12px;
+        color: #CBD5E1;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        text-align: left;
+        white-space: nowrap;
+        border: none;
+    }
+
+        .erp-detail-table thead th:first-child {
+            border-radius: 6px 0 0 0;
+            width: 42px;
+            text-align: center;
+        }
+
+        .erp-detail-table thead th:last-child {
+            border-radius: 0 6px 0 0;
+            text-align: right;
+        }
+
+/* Body rows */
+.erp-item-row {
+    border-bottom: 1px solid #E2E8F0;
+    transition: background 0.12s;
+}
+
+    .erp-item-row:last-child {
+        border-bottom: none;
+    }
+
+    .erp-item-row:nth-child(even) {
+        background: rgba(239, 246, 255, 0.6);
+    }
+
+    .erp-item-row:hover {
+        background: #DBEAFE !important;
+    }
+
+.erp-detail-table tbody td {
+    padding: 6px 12px;
+    color: #1E293B;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    vertical-align: middle;
+    border: none;
+}
+
+/* Column-specific styles */
+.erp-sno {
+    text-align: center;
+    color: #94A3B8 !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    width: 42px;
+}
+
+.erp-product {
+    font-weight: 700 !important;
+    color: #0F2B5B !important;
+    min-width: 160px;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.erp-hsn {
+    color: #475569 !important;
+    font-family: 'Courier New', monospace;
+    font-size: 11px !important;
+}
+
+.erp-qty {
+    text-align: right;
+    font-weight: 800 !important;
+    color: #1D4ED8 !important;
+}
+
+.erp-rate,
+.erp-amount,
+.erp-rate {
+    text-align: right;
+    font-weight: 800 !important;
+    color: #059669 !important;
+}
+
+.erp-disc,
+.erp-margin,
+.erp-tax {
+    text-align: right;
+    color: #92400E !important;
+    font-weight: 700 !important;
+}
+
+.erp-mrp {
+    text-align: right;
+    color: #6D28D9 !important;
+    font-weight: 700 !important;
+}
+
+.erp-taxname,
+.erp-warehouse,
+.erp-uom {
+    color: #64748B !important;
+}
+
+.erp-amount {
+    color: #0F172A !important;
+    font-weight: 900 !important;
+    font-size: 13px !important;
+}
+/* =========================================
+   ERP EXPANDED DETAIL TABLE FIX
+========================================= */
+
+.erp-detail-cell {
+    background: #ffffff !important;
+    padding: 14px !important;
+}
+
+.erp-detail-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.erp-detail-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+    background: #ffffff;
+}
+
+    .erp-detail-table thead tr {
+        background: #f8fafc;
+    }
+
+    .erp-detail-table thead th {
+        padding: 12px 14px !important;
+        border: 1px solid #e5e7eb;
+        color: #475569 !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        background: #f8fafc !important;
+        white-space: nowrap;
+    }
+
+    .erp-detail-table tbody tr {
+        background: #ffffff !important;
+    }
+
+        .erp-detail-table tbody tr:nth-child(even) {
+            background: #f9fafb !important;
+        }
+
+    .erp-detail-table tbody td {
+        padding: 12px 14px !important;
+        border: 1px solid #e5e7eb;
+        color: #111827 !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        background: #ffffff !important;
+        white-space: nowrap;
+    }
+
+    .erp-detail-table tbody tr:hover td {
+        background: #eff6ff !important;
+    }
+
+/* REMOVE DARK COLORS */
+.erp-item-row,
+.erp-item-row td,
+.erp-product,
+.erp-hsn,
+.erp-qty,
+.erp-rate,
+.erp-disc,
+.erp-margin,
+.erp-mrp,
+.erp-amount,
+.erp-sno {
+    background: #ffffff !important;
+    color: #111827 !important;
+}
+
+/* AMOUNT COLUMN */
+.erp-amount {
+    font-weight: 800 !important;
+    color: #0f172a !important;
+}
+
+/* PRODUCT COLUMN */
+.erp-product {
+    font-weight: 700 !important;
+}

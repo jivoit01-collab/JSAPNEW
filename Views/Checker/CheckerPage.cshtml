@@ -299,6 +299,7 @@
     STATE
     ═══════════════════════════════════════ */
     let _pendingAction = null;   // function to call on confirm
+    let _checkerDataCache = [];
 
     /* ═══════════════════════════════════════
     BOOT
@@ -373,6 +374,7 @@
     { fromDate: fromDate || null, toDate: toDate || null, accountName, status },
     function (data) {
     renderTable(data || []);
+    _checkerDataCache = data || [];
     updateCheckerKPIs(data || []);
     }
     ).fail(function () {
@@ -717,152 +719,77 @@
     }
 
     function loadDetails(vchNumber, serialNumber) {
-
     const existing = document.getElementById("details-" + vchNumber);
-
-    if (existing) {
-    existing.remove();
-    return;
-    }
-
+    if (existing) { existing.remove(); return; }
     document.querySelectorAll("[id^='details-']").forEach(el => el.remove());
-
     const row = document.getElementById("row-" + vchNumber);
-
     if (!row) return;
 
     row.insertAdjacentHTML("afterend", `
     <tr id="details-${vchNumber}" class="detail-row">
     <td colspan="11">
-
     <div class="detail-inner">
-    <i class="fa-solid fa-spinner fa-spin"
-    style="color:#9CA3AF"></i>
+    <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
     Loading items...
     </div>
-
     </td>
-    </tr>
-    `);
+    </tr>`);
 
     const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 15000);
 
-    const timeout = setTimeout(() => {
-    ctrl.abort();
-    }, 15000);
-
-    fetch("/Checker/GetInvoiceItems?serialNumber=" + serialNumber, {
-    signal: ctrl.signal
-    })
-
-    .then(r => {
-    if (!r.ok) throw new Error();
-    return r.json();
-    })
-
+    fetch("/Checker/GetInvoiceItems?serialNumber=" + serialNumber, { signal: ctrl.signal })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
     .then(data => {
-
     clearTimeout(timeout);
-
-    const rows = data.map(item => `
-
-    <div class="detail-card">
-
-    <div class="detail-top">
-
-    <div class="detail-product">
-    ${item.productName ?? "-"}
-    </div>
-
-    <div class="detail-amount">
-    ₹${item.amount ?? 0}
-    </div>
-
-    </div>
-
-    <div class="detail-grid">
-
-    <div class="detail-item">
-    <span>Serial</span>
-    <strong>${item.serialNumber ?? "-"}</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>HSN/SAC</span>
-    <strong>${item.hsnsacid ?? "-"}</strong>
-
-
-    </div>
-
-    <div class="detail-item">
-    <span>Purchase Rate</span>
-    <strong>₹${item.purchaseRate ?? 0}</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>Quantity</span>
-    <strong>${item.quantity ?? 0}</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>Discount</span>
-    <strong>${item.discountPercent ?? 0}%</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>Margin</span>
-    <strong>${item.margin ?? 0}%</strong>
-    </div>
-
-    </div>
-
-    </div>
-
-    `).join("");
+    const bodyRows = data.map((item, idx) => `
+    <tr class="erp-item-row">
+    <td class="erp-sno">${item.serialNumber ?? idx + 1}</td>
+    <td class="erp-product">${item.productName ?? "-"}</td>
+    <td class="erp-hsn">${item.hsnsacid ?? "-"}</td>
+    <td class="erp-qty">${item.quantity ?? 0}</td>
+    <td class="erp-rate">₹${item.purchaseRate ?? 0}</td>
+    <td class="erp-disc">${item.discountPercent ?? 0}%</td>
+    <td class="erp-margin">${item.margin ?? 0}%</td>
+    <td class="erp-mrp">₹${item.mrp ?? "-"}</td>
+    <td class="erp-amount">₹${item.amount ?? 0}</td>
+    </tr>`).join("");
 
     const el = document.getElementById("details-" + vchNumber);
-
     if (el) {
-
     el.outerHTML = `
     <tr id="details-${vchNumber}" class="detail-row">
-    <td colspan="11">
-
-    <div class="detail-container">
-    ${rows}
-    </div>
-
-    </td>
+    <td colspan="11" class="erp-detail-cell">
+    <div class="erp-detail-wrap">
+    <table class="erp-detail-table">
+    <thead>
+    <tr>
+    <th>S.No</th>
+    <th>Product Name</th>
+    <th>HSN/SAC</th>
+    <th>Qty</th>
+    <th>Pur. Rate</th>
+    <th>Disc %</th>
+    <th>Margin %</th>
+    <th>MRP</th>
+    <th>Amount</th>
     </tr>
-    `;
-    }
-
-    })
-
-    .catch(err => {
-
-    clearTimeout(timeout);
-
-    const el = document.getElementById("details-" + vchNumber);
-
-    if (el) {
-
-    el.innerHTML = `
-    <td colspan="11"
-    class="empty-row"
-    style="color:#EF4444">
-
-    ${err.name === "AbortError"
-    ? "Request timed out ⏱"
-    : "Error loading items ❌"}
-
+    </thead>
+    <tbody>${bodyRows}</tbody>
+    </table>
+    </div>
     </td>
-    `;
+    </tr>`;
     }
-
+    })
+    .catch(err => {
+    clearTimeout(timeout);
+    const el = document.getElementById("details-" + vchNumber);
+    if (el) el.innerHTML = `<td colspan="11" class="empty-row" style="color:#EF4444">
+    ${err.name === "AbortError" ? "Request timed out ⏱" : "Error loading items ❌"}
+    </td>`;
     });
-
-    }
+ }
 
     /* ═══════════════════════════════════════
     PDF
@@ -938,59 +865,116 @@
     document.getElementById("scroll-btns")
     .classList.toggle("visible", window.scrollY > 200);
     });
-    /* ═══════════════════════════════════
-    EXPORT TO EXCEL
-    ═══════════════════════════════════ */
-    function exportToExcel() {
-    const rows = document.querySelectorAll("#checkerTable tr");
-    if (!rows.length) { showToast("No data to export", "error"); return; }
+    async function exportToExcel() {
+    var data = (_checkerDataCache || []).filter(function(item) {
+    if ((item.paymentStatus || "").toLowerCase() === "paid")    return false;
+    if (!item.attachmentPath)                                     return false;
+    if ((item.checkerStatus || "").toLowerCase() === "approved") return false;
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") return false;
+    return true;
+    });
 
-    const headers = [
+    // dedupe by voucher
+    var seen = new Set();
+    data = data.filter(function(item) {
+    if (seen.has(item.vchNumber)) return false;
+    seen.add(item.vchNumber);
+    return true;
+    });
+
+    if (!data.length) { showToast("No data to export", "error"); return; }
+
+    showToast("Preparing export with item details...", "success");
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "checker-entries_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
     "Account Name","Voucher No","Voucher Date","Bill Amount",
-    "Supplier Ref","Supplier Ref Date","Due Date","Maker Remark",
-    "Checker Status","Total Qty","Total Value","Total Items",
-    "Payment Status","Payment Date"
+    "Supplier Ref","Due Date","Maker Remark","Checker Status","Checker Remark",
+    // item columns
+    "Product Name","Serial No","HSN/SAC","Purchase Rate","Quantity","Discount %","Margin %","Item Amount"
+    ]);
+
+    for (var i = 0; i < data.length; i++) {
+    var item = data[i];
+    var baseRow = [
+    item.accountName   || "",
+    item.vchNumber     || "",
+    formatDate(item.voucherDate) || "",
+    item.billAmount    || "",
+    item.supplierRef   || "",
+    formatDate(item.dueDate)     || "",
+    item.makerRemark   || "",
+    item.checkerStatus || "Pending",
+    item.checkerRemark || ""
     ];
 
-    // Build CSV
-    let csv = headers.join(",") + "\n";
-
-    rows.forEach(row => {
-    const cells = row.querySelectorAll("td");
-    if (!cells.length) return;
-
-    // Map visible column indices (skip Attachment col index 7, Action col index 10)
-    const skipCols = new Set([7, 10]);
-    let rowData = [];
-
-    cells.forEach((cell, i) => {
-    if (skipCols.has(i)) return;
-    // Get plain text, strip badges/buttons
-    let val = cell.innerText.replace(/\n/g, " ").trim();
-    // Escape commas and quotes
-    val = '"' + val.replace(/"/g, '""') + '"';
-    rowData.push(val);
+    // fetch item details
+    try {
+    var resp = await fetch("/Checker/GetInvoiceItems?serialNumber=" + item.serialNumber);
+    var items = await resp.json();
+    if (items && items.length) {
+    items.forEach(function(d, idx) {
+    var row = idx === 0 ? baseRow.slice() : ["","","","","","","","",""];
+    row.push(
+    d.productName    || "",
+    d.serialNumber   || "",
+    d.hsnsacid       || "",
+    d.purchaseRate   || "",
+    d.quantity       || "",
+    d.discountPercent|| "",
+    d.margin         || "",
+    d.amount         || ""
+    );
+    rows.push(row);
     });
+    } else {
+    baseRow.push("","","","","","","","");
+    rows.push(baseRow);
+    }
+    } catch(e) {
+    baseRow.push("","","","","","","","");
+    rows.push(baseRow);
+    }
+    }
 
-    csv += rowData.join(",") + "\n";
-    });
+    var totalAmt = data.reduce(function(s,x){ return s+(parseFloat(x.billAmount)||0);},0);
+    rows.push([]);
+    rows.push(["TOTALS","","","₹"+totalAmt.toLocaleString("en-IN")]);
 
-    // Trigger download
-    const fromDate = $("#fromDate").val() || "export";
-    const toDate   = $("#toDate").val()   || "";
-    const filename = `maker-entries_${fromDate}_${toDate}.csv`;
+    downloadCSV(rows, filename);
+    showToast("Exported successfully!", "success");
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
     a.href     = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    showToast("Exported successfully!", "success");
     }
-
 </script>
