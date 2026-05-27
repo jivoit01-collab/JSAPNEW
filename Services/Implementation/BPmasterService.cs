@@ -53,6 +53,25 @@ namespace JSAPNEW.Services.Implementation
             return settings;
         }
 
+        private static string? NormalizeMonthFilter(string? month)
+        {
+            if (string.IsNullOrWhiteSpace(month))
+                return null;
+
+            var value = month.Trim();
+
+            if (Regex.IsMatch(value, @"^\d{2}-\d{4}$"))
+                return value;
+
+            if (Regex.IsMatch(value, @"^\d{4}-\d{2}$"))
+                return $"{value.Substring(5, 2)}-{value.Substring(0, 4)}";
+
+            if (Regex.IsMatch(value, @"^\d{1,2}$") && int.TryParse(value, out var monthNumber) && monthNumber >= 1 && monthNumber <= 12)
+                return $"{monthNumber:00}-{DateTime.Now.Year}";
+
+            return value;
+        }
+
         private async Task<IEnumerable<T>> QueryHanaWithFallbackAsync<T>(
             int company,
             string optionName,
@@ -1133,10 +1152,11 @@ namespace JSAPNEW.Services.Implementation
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", userId);
                 parameters.Add("@companyId", companyId);
-                parameters.Add("@month", month);
+                parameters.Add("@month", normalizedMonth);
 
                 var result = await connection.QueryAsync<ApprovedBpModel>(
                     "[BP].[jsGetApprovedBP]",
@@ -1152,10 +1172,11 @@ namespace JSAPNEW.Services.Implementation
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            var normalizedMonth = NormalizeMonthFilter(month);
             var parameters = new DynamicParameters();
             parameters.Add("@userId", userId);
             parameters.Add("@companyId", companyId);
-            parameters.Add("@month", month);
+            parameters.Add("@month", normalizedMonth);
 
             var result = await connection.QueryAsync<PendingBpModel>(
                 "[BP].[jsGetPendingBP]",
@@ -1170,10 +1191,11 @@ namespace JSAPNEW.Services.Implementation
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            var normalizedMonth = NormalizeMonthFilter(month);
             var parameters = new DynamicParameters();
             parameters.Add("@userId", userId);
             parameters.Add("@companyId", companyId);
-            parameters.Add("@month", month);
+            parameters.Add("@month", normalizedMonth);
 
             var result = await connection.QueryAsync<RejectedBPModel>(
                 "[BP].[jsGetRejectedBP]",
@@ -1946,21 +1968,47 @@ ORDER BY id DESC;";
                 fallbackSql,
                 fallbackParameters);
         }
-        public async Task<BPCountModel> GetBPCountsAsync(string month, int userId)
+        public async Task<BPCountModel> GetBPCountsAsync(string month, int userId, int companyId = 0)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
-                parameters.Add("@month", month);    // Format: "MM-YYYY"
+                parameters.Add("@month", normalizedMonth);    // Format: "MM-YYYY"
                 parameters.Add("@userId", userId);
+                parameters.Add("@companyId", companyId);
 
-                var result = await connection.QueryFirstOrDefaultAsync<BPCountModel>(
-                    "[BP].[jsGetBPCounts]",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
+                try
+                {
+                    var result = await connection.QueryFirstOrDefaultAsync<BPCountModel>(
+                        "[BP].[jsGetBPCounts]",
+                        parameters,
+                        commandType: CommandType.StoredProcedure
+                    );
 
-                return result;
+                    return result ?? new BPCountModel();
+                }
+                catch (SqlException ex) when (ex.Number == 8144)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "BP.jsGetBPCounts does not yet accept @companyId. Falling back to user/month counts. UserId={UserId}, CompanyId={CompanyId}, Month={Month}",
+                        userId,
+                        companyId,
+                        normalizedMonth);
+
+                    var fallbackParameters = new DynamicParameters();
+                    fallbackParameters.Add("@month", normalizedMonth);
+                    fallbackParameters.Add("@userId", userId);
+
+                    var fallbackResult = await connection.QueryFirstOrDefaultAsync<BPCountModel>(
+                        "[BP].[jsGetBPCounts]",
+                        fallbackParameters,
+                        commandType: CommandType.StoredProcedure
+                    );
+
+                    return fallbackResult ?? new BPCountModel();
+                }
             }
         }
         public async Task<IEnumerable<GetPricelist>> GetPricelistAsync(int company)
@@ -2047,15 +2095,26 @@ ORDER BY id DESC;";
             using (var connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
+                var normalizedMonth = NormalizeMonthFilter(month);
+                var parameters = new DynamicParameters();
+                parameters.Add("@userId", userId);
+                parameters.Add("@companyId", companyId);
+                parameters.Add("@month", normalizedMonth);
 
                 var pendingBP = await connection.QueryAsync<MergeBpModel>(
-                    "EXEC [BP].[jsGetPendingBP] @userId, @companyId, @month", new { userId, companyId, month });
+                    "[BP].[jsGetPendingBP]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
                 var approvedBP = await connection.QueryAsync<MergeBpModel>(
-                    "EXEC [BP].[jsGetApprovedBP] @userId, @companyId, @month", new { userId, companyId, month });
+                    "[BP].[jsGetApprovedBP]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
                 var rejectedBP = await connection.QueryAsync<MergeBpModel>(
-                    "EXEC [BP].[jsGetRejectedBP] @userId, @companyId, @month", new { userId, companyId, month });
+                    "[BP].[jsGetRejectedBP]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
                 var allBP = new List<MergeBpModel>();
 
@@ -2230,10 +2289,11 @@ ORDER BY id DESC;";
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", userId);
                 parameters.Add("@companyId", companyId);
-                parameters.Add("@month", month);
+                parameters.Add("@month", normalizedMonth);
 
                 var result = await connection.QueryAsync<BPinsightsModel>(
                     "[BP].[jsGetBPInsights]",
@@ -2249,13 +2309,14 @@ ORDER BY id DESC;";
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", userId);
                 parameters.Add("@companyId", companyId);
-                parameters.Add("@month", month);
+                parameters.Add("@month", normalizedMonth);
 
                 var result = await connection.QueryAsync<BPinsightsModel>(
-                    "[BP].[jsGetBPInsightsByCreator]",
+                    "[BP].[jsGetBPInsights]",
                     parameters,
                     commandType: CommandType.StoredProcedure
                 );
