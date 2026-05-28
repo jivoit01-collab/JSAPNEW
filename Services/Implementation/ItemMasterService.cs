@@ -71,18 +71,21 @@ namespace JSAPNEW.Services.Implementation
             };
         }
 
-        private static bool IsFixedAssetGroup(object? itemGroupCode, string? itemGroupName)
+        private static bool IsGroupCode112(object? itemGroupCode)
         {
             var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
-            var groupName = (itemGroupName ?? "").Trim();
 
-            return groupCode == "112"
-                || groupName.Equals("FIXED ASSETS", StringComparison.OrdinalIgnoreCase);
+            return groupCode == "112";
         }
 
-        private static object GetUTypeDbValue(object? itemGroupCode, string? itemGroupName)
+        private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
         {
-            return IsFixedAssetGroup(itemGroupCode, itemGroupName) ? "" : DBNull.Value;
+            return IsGroupCode112(itemGroupCode) ? "" : (object?)utype ?? DBNull.Value;
+        }
+
+        private static string GetUTypeSapValue(object? itemGroupCode, string? utype)
+        {
+            return IsGroupCode112(itemGroupCode) ? "" : utype ?? "";
         }
 
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
@@ -777,9 +780,7 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.itemGroupName));
-
-                //cmd.Parameters.AddWithValue("@utype", (object?)request.Utype ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.Utype));
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -945,8 +946,7 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.itemGroupName));
-                // cmd.Parameters.AddWithValue("@utype",(object ?)request.Utype ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.Utype));
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -1229,7 +1229,7 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@boxSize", (object?)model.BoxSize ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@UnitSize", (object?)model.UnitSize ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@UomGroup", (object?)model.UomGroup ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(model.ItemGroupCode, model.itemGroupName));
+                    cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(model.ItemGroupCode, model.Utype));
 
                     // SAP Data
                     cmd.Parameters.AddWithValue("@franName", (object?)model.FranName ?? DBNull.Value);
@@ -1677,16 +1677,8 @@ namespace JSAPNEW.Services.Implementation
                     _ => 0
                 };
 
-                // ── U_TYPE: Premium vs Commodity; fixed assets must be blank for SAP ──
-                string isLitre = (first.IsLitre ?? "").Trim();
-                string variety = (first.Variety?.Trim() ?? "");
-                bool isFixedAssetGroup = IsFixedAssetGroup(gc, first.itemGroupName);
-                bool isPremium =
-                    (isLitre.Equals("N", StringComparison.OrdinalIgnoreCase)
-                        && new[] { "CANOLA", "OLIVE", "GROUNDNUT" }.Contains(variety, StringComparer.OrdinalIgnoreCase))
-                    || (isLitre.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                        && new[] { "EXTRA VIRGIN", "POMACE", "EXTRA LIGHT" }.Contains(variety, StringComparer.OrdinalIgnoreCase));
-                string uType = isFixedAssetGroup ? "" : (isPremium ? "PREMIUM" : "COMMODITY");
+                // U_TYPE must match the frontend value. Only group code 112 is blanked.
+                string uType = GetUTypeSapValue(gc, first.Utype);
 
                 // ── Series: mapped by (company, groupCode) — differs across companies ──
                 int? seriesFromGroup = (company, gc) switch
