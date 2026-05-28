@@ -950,6 +950,10 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@litre", (object?)request.Litre ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@boxSize", (object?)request.BoxSize ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@unitSize", (object?)request.UnitSize ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@uomGroup", (object?)request.UomGroup ?? DBNull.Value);
 
                 await conn.OpenAsync();
 
@@ -1622,6 +1626,10 @@ namespace JSAPNEW.Services.Implementation
                 // ── CostAccountingMethod: company 3 prefers saved SAP data; others use batch rule ──
                 string costMethod = costMethodFromDb
                     ?? (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
+
+                // BEV finished goods must always use FIFO, even when batch-managed.
+                if (company == 2 && gc == "102")
+                    costMethod = "bis_FIFO";
 
                 // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
                 string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
