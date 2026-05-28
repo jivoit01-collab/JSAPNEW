@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Sap.Data.Hana;
 using ServiceStack;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Globalization;
 using System.Net.Http.Headers;
@@ -27,6 +28,14 @@ namespace JSAPNEW.Services.Implementation
         private readonly string _HanaLiveMartconnectionString;
         private readonly IBom2Service _bom2Service;
         private readonly string _sapBaseUrl;
+
+        // Prevents concurrent SAP calls for the same item (e.g., double-click approve)
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _approvalLocks = new();
+
+        // Per-InitId gate around PostItemsToSAPAsync. Protects every caller (approval + manual
+        // endpoint + SFTP trigger) from racing against each other and double-POSTing the same
+        // item to SAP. Keyed by InitId, not FlowId, because that is the unit SAP receives.
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _sapPostLocks = new();
 
 
 
@@ -61,6 +70,21 @@ namespace JSAPNEW.Services.Implementation
                 _ => throw new ArgumentException("Invalid company ID (only 1, 2, and 3 are allowed).")
             };
         }
+
+        private static bool IsFixedAssetGroup(object? itemGroupCode, string? itemGroupName)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupName = (itemGroupName ?? "").Trim();
+
+            return groupCode == "112"
+                || groupName.Equals("FIXED ASSETS", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static object GetUTypeDbValue(object? itemGroupCode, string? itemGroupName)
+        {
+            return IsFixedAssetGroup(itemGroupCode, itemGroupName) ? "" : DBNull.Value;
+        }
+
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
         {
             if (!_hanaSettings.TryGetValue(company, out var settings))
@@ -394,6 +418,21 @@ namespace JSAPNEW.Services.Implementation
 
         public async Task<ItemMasterModel> ApproveItemAsync(ApproveItemModel request)
         {
+            // ── Concurrency guard: prevent duplicate SAP calls for the same item ──
+            var itemLock = _approvalLocks.GetOrAdd(request.itemId, _ => new SemaphoreSlim(1, 1));
+
+            if (!await itemLock.WaitAsync(TimeSpan.FromSeconds(5)))
+            {
+                return new ItemMasterModel
+                {
+                    Success = false,
+                    Message = $"Item {request.itemId} is already being processed. Please wait and try again.",
+                    ApprovalStatus = "Blocked",
+                    SapStatus = "Skipped — concurrent request detected",
+                    MartStatus = "Skipped"
+                };
+            }
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(_configuration.GetConnectionString("DefaultConnection")))
@@ -404,9 +443,99 @@ namespace JSAPNEW.Services.Implementation
 
                     // Structured status fields for clean Postman response
                     string approvalStatus = "Pending";
-                    var sapStatuses  = new List<string>();
+                    var sapStatuses = new List<string>();
                     var martStatuses = new List<string>();
 
+                    // ── Step 1: Check if this is the last approval stage ──
+                    bool isFinalApprovalStage = await IsItemLastStageAsync(request.itemId);
+                    List<PendingItemApiInsertionsModel> pendingItems = null;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        pendingItems = await GetPendingItemApiInsertionsAsync(request.itemId);
+                        if (pendingItems != null && pendingItems.Count > 0)
+                            break;
+                        await Task.Delay(1000);
+                    }
+
+                    bool hasSapPayload = pendingItems != null && pendingItems.Count > 0;
+                    bool isLastStage = isFinalApprovalStage || hasSapPayload;
+
+                    if (isFinalApprovalStage && !hasSapPayload)
+                    {
+                        var currentStatus = await conn.QueryFirstOrDefaultAsync<string>(
+                            "SELECT status FROM imc.jsFlow WHERE id = @id",
+                            new { id = request.itemId }
+                        );
+
+                        if (currentStatus == "A")
+                        {
+                            return new ItemMasterModel
+                            {
+                                Success = true,
+                                Message = "Item already approved successfully.",
+                                ApprovalStatus = "Done",
+                                SapStatus = "Already Synced",
+                                MartStatus = "Completed"
+                            };
+                        }
+
+                        return new ItemMasterModel
+                        {
+                            Success = false,
+                            Message = $"Final approval blocked: SAP payload was not returned for FlowId {request.itemId}.",
+                            ApprovalStatus = "Blocked",
+                            SapStatus = "Failed",
+                            MartStatus = "Skipped"
+                        };
+                    }
+
+                    // ── Step 2: If last stage, POST to SAP FIRST before approving ──
+                    if (hasSapPayload)
+                    {
+                        Console.WriteLine($"[INFO] Last approval stage for FlowId: {request.itemId}. Posting to SAP before approving...");
+                        Console.WriteLine($"[INFO] {pendingItems.Count} pending item(s) fetched for FlowId: {request.itemId}");
+
+                        var apiResults = await PostItemsToSAPAsync(pendingItems);
+
+                        // Collect SAP and MART statuses from results
+                        bool allSapSuccess = apiResults != null && apiResults.Count > 0;
+                        var sapErrors = new List<string>();
+
+                        foreach (var r in apiResults)
+                        {
+                            sapStatuses.Add(r.IsSuccess ? "Success" : $"Failed: {r.Message}");
+                            if (!string.IsNullOrEmpty(r.MartStatus))
+                                martStatuses.Add(r.MartStatus);
+
+                            if (!r.IsSuccess)
+                            {
+                                allSapSuccess = false;
+                                sapErrors.Add(r.Message);
+                            }
+                        }
+
+                        // ── If SAP creation failed, DO NOT approve — return exact error to frontend ──
+                        if (!allSapSuccess)
+                        {
+                            string errorDetail = sapErrors.Count > 0
+                                ? string.Join("; ", sapErrors)
+                                : "SAP creation failed: no response returned from SAP posting flow.";
+                            Console.WriteLine($"[ERROR] SAP creation failed for FlowId: {request.itemId}. Approval blocked. Errors: {errorDetail}");
+
+                            return new ItemMasterModel
+                            {
+                                Success = false,
+                                Message = errorDetail,
+                                ApprovalStatus = "Blocked",
+                                SapStatus = string.Join("; ", sapStatuses),
+                                MartStatus = martStatuses.Count > 0 ? string.Join("; ", martStatuses) : "Skipped"
+                            };
+                        }
+
+                        resultMessages.Add(string.Join("; ", apiResults.Select(r => r.Message).Where(m => !string.IsNullOrWhiteSpace(m))));
+                    }
+
+                    // ── Step 3: SAP succeeded (or intermediate stage) — now approve in DB ──
                     using (SqlCommand cmd = new SqlCommand("[imc].[jsApproveItem]", conn))
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
@@ -419,118 +548,84 @@ namespace JSAPNEW.Services.Implementation
                         approvalStatus = "Done";
                         resultMessages.Add(result?.ToString() ?? $"Approved Document of FlowId {request.itemId}");
 
-                        List<PendingItemApiInsertionsModel> pendingItems = null;
-
-                        // Retry logic (important)
-                        for (int i = 0; i < 3; i++)
-                        {
-                            pendingItems = await GetPendingItemApiInsertionsAsync(request.itemId);
-
-                            if (pendingItems != null && pendingItems.Count > 0)
-                                break;
-
-                            await Task.Delay(1000); // wait 1 second
-                        }
-
-                        // Call API after data is available
-                        if (pendingItems != null && pendingItems.Count > 0)
-                        {
-                            Console.WriteLine($"[INFO] Approval completed for FlowId: {request.itemId}");
-                            Console.WriteLine($"[INFO] {pendingItems.Count} pending item(s) fetched for FlowId: {request.itemId}");
-
-                            // PostItemsToSAPAsync now handles both SAP and MART internally
-                            var apiResults = await PostItemsToSAPAsync(pendingItems);
+                        if (hasSapPayload)
                             resultMessages.Add("API Triggered after final approval");
+                    }
 
-                            // Collect SAP and MART statuses from results
-                            foreach (var r in apiResults)
-                            {
-                                sapStatuses.Add($"[InitId:{r.ItemId}] {(r.IsSuccess ? "Success" : $"Failed: {r.Message}")}");
-                                if (!string.IsNullOrEmpty(r.MartStatus))
-                                    martStatuses.Add($"[InitId:{r.ItemId}] {r.MartStatus}");
-                            }
-                        }
-                        var notifications = await GetItemUserIdsSendNotificatiosAsync(request.itemId);
-                        if (notifications != null)
-                            allNotificationModels.AddRange(notifications);
+                    // ── Step 4: Send notifications ──
+                    var notifications = await GetItemUserIdsSendNotificatiosAsync(request.itemId);
+                    if (notifications != null)
+                        allNotificationModels.AddRange(notifications);
 
-                        // ✅ FIX 1: Deduplicate notification models (same userId multiple times)
-                        allNotificationModels = allNotificationModels
-                            .Where(m => !string.IsNullOrWhiteSpace(m.userIdsToApprove))
-                            .GroupBy(m => m.userIdsToApprove)
-                            .Select(g => g.First())
-                            .ToList();
+                    allNotificationModels = allNotificationModels
+                        .Where(m => !string.IsNullOrWhiteSpace(m.userIdsToApprove))
+                        .GroupBy(m => m.userIdsToApprove)
+                        .Select(g => g.First())
+                        .ToList();
 
-                        // ✅ FIX 2: Get unique user IDs
-                        var uniqueUserIds = new HashSet<int>(
-                            allNotificationModels
-                                .SelectMany(m => m.userIdsToApprove.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                                .Select(s => int.Parse(s.Trim()))
-                        );
+                    var uniqueUserIds = new HashSet<int>(
+                        allNotificationModels
+                            .SelectMany(m => m.userIdsToApprove.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                            .Select(s => int.Parse(s.Trim()))
+                    );
 
-                        //int? initId = await GetItemUserDocumentIdAsync(request.itemId);
-                        // int docId = initId ?? request.itemId;
-                        int docId = request.itemId;
+                    int docId = request.itemId;
 
-                        string notificationTitle = "Item Master Request";
-                        string notificationBody = $"A new Item (Item Id: {docId}) is awaiting your approval.";
+                    string notificationTitle = "Item Master Request";
+                    string notificationBody = $"A new Item (Item Id: {docId}) is awaiting your approval.";
 
-                        var data = new Dictionary<string, string>
-                     {
-                         { "screen", "Item Master" },
-                         { "company", request.company.ToString() },
-                         { "ItemId", docId.ToString() }
-                     };
+                    var data = new Dictionary<string, string>
+                    {
+                        { "screen", "Item Master" },
+                        { "company", request.company.ToString() },
+                        { "ItemId", docId.ToString() }
+                    };
 
-                        // ✅ Track sent tokens to avoid duplicates
-                        var sentTokens = new HashSet<string>();
+                    var sentTokens = new HashSet<string>();
 
-                        foreach (var userId in uniqueUserIds)
+                    foreach (var userId in uniqueUserIds)
+                    {
+                        var fcmTokenList = await _notificationService.GetUserFcmTokenAsync(userId);
+                        if (fcmTokenList == null || fcmTokenList.Count == 0)
+                            continue;
+
+                        foreach (var token in fcmTokenList)
                         {
-                            var fcmTokenList = await _notificationService.GetUserFcmTokenAsync(userId);
-                            if (fcmTokenList == null || fcmTokenList.Count == 0)
+                            if (string.IsNullOrWhiteSpace(token.fcmToken))
                                 continue;
 
-                            foreach (var token in fcmTokenList)
-                            {
-                                if (string.IsNullOrWhiteSpace(token.fcmToken))
-                                    continue;
+                            if (sentTokens.Contains(token.fcmToken))
+                                continue;
 
-                                if (sentTokens.Contains(token.fcmToken))
-                                    continue;
+                            await _notificationService.SendPushNotificationAsync(
+                                notificationTitle,
+                                notificationBody,
+                                token.fcmToken,
+                                data
+                            );
 
-                                await _notificationService.SendPushNotificationAsync(
-                                    notificationTitle,
-                                    notificationBody,
-                                    token.fcmToken,
-                                    data
-                                );
-
-                                sentTokens.Add(token.fcmToken);
-                            }
-
-                            // ✅ Insert database notification once per user
-                            await _notificationService.InsertNotificationAsync(new InsertNotificationModel
-                            {
-                                userId = userId,
-                                title = "Item Master",
-                                message = notificationBody,
-                                pageId = 6,
-                                data = $"Flow ID: {request.itemId}",
-                                BudgetId = request.itemId
-                            });
+                            sentTokens.Add(token.fcmToken);
                         }
 
-                        return new ItemMasterModel
+                        await _notificationService.InsertNotificationAsync(new InsertNotificationModel
                         {
-                            Success       = true,
-                            Message       = string.Join(" | ", resultMessages),
-                            ApprovalStatus = approvalStatus,
-                            SapStatus      = sapStatuses.Count  > 0 ? string.Join("; ", sapStatuses)  : "Skipped (intermediate approval stage)",
-                            MartStatus     = martStatuses.Count > 0 ? string.Join("; ", martStatuses) : "Skipped (not FG item or intermediate stage)"
-                        };
-
+                            userId = userId,
+                            title = "Item Master",
+                            message = notificationBody,
+                            pageId = 6,
+                            data = $"Flow ID: {request.itemId}",
+                            BudgetId = request.itemId
+                        });
                     }
+
+                    return new ItemMasterModel
+                    {
+                        Success = true,
+                        Message = string.Join(" | ", resultMessages),
+                        ApprovalStatus = approvalStatus,
+                        SapStatus = sapStatuses.Count > 0 ? string.Join("; ", sapStatuses) : "Skipped (intermediate approval stage)",
+                        MartStatus = martStatuses.Count > 0 ? string.Join("; ", martStatuses) : "Skipped (not FG item or intermediate stage)"
+                    };
                 }
             }
             catch (SqlException ex)
@@ -541,6 +636,26 @@ namespace JSAPNEW.Services.Implementation
             {
                 return new ItemMasterModel { Success = false, Message = $"Error: {ex.Message}" };
             }
+            finally
+            {
+                itemLock.Release();
+                // Intentionally do NOT remove the lock from _approvalLocks: a concurrent thread
+                // could have just fetched this same SemaphoreSlim via GetOrAdd and be sitting in
+                // WaitAsync; removing it here would let a future GetOrAdd create a fresh lock,
+                // defeating mutual exclusion. Memory cost is bounded by the active FlowId set.
+            }
+        }
+
+
+        private async Task<bool> IsItemLastStageAsync(int flowId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "EXEC [imc].[jsGetItemCurrentStage] @flowId",
+                new { flowId }
+            );
+
+            return result != null && Convert.ToBoolean(result.isLastStage);
         }
 
 
@@ -662,6 +777,7 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.itemGroupName));
 
                 //cmd.Parameters.AddWithValue("@utype", (object?)request.Utype ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
@@ -829,10 +945,15 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.itemGroupName));
                 // cmd.Parameters.AddWithValue("@utype",(object ?)request.Utype ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@litre", (object?)request.Litre ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@boxSize", (object?)request.BoxSize ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@unitSize", (object?)request.UnitSize ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@uomGroup", (object?)request.UomGroup ?? DBNull.Value);
 
                 await conn.OpenAsync();
 
@@ -1108,6 +1229,7 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@boxSize", (object?)model.BoxSize ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@UnitSize", (object?)model.UnitSize ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@UomGroup", (object?)model.UomGroup ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(model.ItemGroupCode, model.itemGroupName));
 
                     // SAP Data
                     cmd.Parameters.AddWithValue("@franName", (object?)model.FranName ?? DBNull.Value);
@@ -1139,7 +1261,6 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@series", (object?)model.Series ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstRelevant", (object?)model.GstRelevant ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstTaxCtg", (object?)model.GstTaxCtg ?? DBNull.Value);
-                    //cmd.Parameters.AddWithValue("@utype", (object?)model.Utype ?? DBNull.Value);
 
                     await conn.OpenAsync();
                     var reader = await cmd.ExecuteReaderAsync();
@@ -1336,344 +1457,537 @@ namespace JSAPNEW.Services.Implementation
                 var first = itemList.First();
                 int company = first.Company;
 
-                SAPSessionModel session;
-
-                if (company == 1)
-                    session = await _bom2Service.GetSAPSessionOilAsync();
-                else if (company == 2)
-                    session = await _bom2Service.GetSAPSessionBevAsync();
-                else if (company == 3)
-                    session = await _bom2Service.GetSAPSessionMartAsync();
-                else
+                // ── Per-InitId gate: blocks a second concurrent POST for the same item,
+                //    regardless of entry point (approval flow, manual /Items endpoint, SFTP
+                //    trigger). Defends against the observed duplicate-creation race where two
+                //    requests both saw previousTag != "Y" before either UPDATE landed.
+                var postLock = _sapPostLocks.GetOrAdd(first.InitId, _ => new SemaphoreSlim(1, 1));
+                if (!await postLock.WaitAsync(TimeSpan.FromSeconds(30)))
                 {
-                    string msg = $"Unsupported company: {company}";
-                    await LogApiErrorAsync(new LogApiErrorRequest
-                    {
-                        ReferenceID = first.InitId,
-                        ApiName = "SAP/Items",
-                        ErrorMessage = msg,
-                        ErrorCode = "UNSUPPORTED_COMPANY",
-                        Payload = System.Text.Json.JsonSerializer.Serialize(new
-                        {
-                            ItemId = first.InitId,
-                            Company = company
-                        }),
-                        CreatedBy = first.UserId
-                    });
-
                     results.Add(new SapItemSyncResult
                     {
                         ItemId = first.InitId,
                         IsSuccess = false,
-                        Message = msg
+                        Message = "Another request is already creating this item in SAP. Please retry shortly.",
+                        MartStatus = "Skipped — concurrent SAP post in progress"
                     });
-                    // await UpdateItemApiStatusAsync(first.InitId, msg, false.ToString());
-
-                    await UpdateItemApiStatusAsync(first.InitId, msg, "N")
-                        ;
-
-                    //await UpdateItemApiStatusAsync(first.InitId, msg, status);
-
                     continue;
                 }
 
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                };
-
-                using var client = new HttpClient(handler);
-                client.BaseAddress = new Uri(_sapBaseUrl);
-                client.DefaultRequestHeaders.Clear();
-                client.DefaultRequestHeaders.Add("Cookie", $"{session.B1Session}; {session.RouteId}");
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                // Determine IssueMethod based on ItemGroupCode
-                //string issueMethod = first.ItemGroupCode == "111" || first.ItemGroupCode == "114" ? "im_Backflush" : "im_Manual";
-                string issueMethod = first.ItemGroupCode == "109" || first.ItemGroupCode == "111" || first.ItemGroupCode == "114" ? "B" : "M";
-
-                // Determine CostAccountingMethod based on EvalSystem
-                string costAccountingMethod = first.EvalSystem == "F" ? "bis_FIFO" : (first.EvalSystem == "B" ? "bis_SNB" : ""); // Default if neither F nor B
-                string sapSalesItem = (first.SellItem ?? "").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) ? "tYES" : "tNO";
-                string sapPurchaseItem = (first.PrchseItem ?? "").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) ? "tYES" : "tNO";
-                string sapInventoryItem = (first.InvItem ?? "").Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) ? "tYES" : "tNO";
-
-                bool isSales = sapSalesItem == "tYES";
-                bool isPurchase = sapPurchaseItem == "tYES";
-                bool isInv = sapInventoryItem == "tYES";
-
-                int uomGroupEntryForSap = first.UomGroup switch
-                {
-                    "Manual" => -1,
-                    "MTS2LITRE" => 1,
-                    "KG2LITRE" => 2,
-                    "MTS2LITRE(OLIVE)" => 3,
-                    _ => 0 // default if none match
-                };
-
-                //string uType = first.Utype;
-                string uType = null;
-                // Apply correct rule: uType only when IsLitre = Y
-                if ((first.IsLitre ?? "").Trim().Equals("N", StringComparison.OrdinalIgnoreCase))
-                {
-                    var premiumItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        "CANOLA", "OLIVE", "GROUNDNUT"
-                    };
-
-                    uType = premiumItems.Contains(first.Variety?.Trim() ?? "")
-                        ? "PREMIUM"
-                        : "COMMODITY";
-                }
-                else
-                {
-                    uType = "COMMODITY";
-                }
-
-                var tree = new ItemsTree
-                {
-                    ItemName = first.ItemName,
-                    ItemsGroupCode = first.ItemGroupCode,
-                    U_Rev_tax_Rate = first.TaxRate,
-                    U_Tax_Rate = first.TaxRate,
-                    PurchaseItem = sapPurchaseItem,
-                    InventoryItem = sapInventoryItem,
-                    SalesItem = sapSalesItem,
-                    ChapterID = int.TryParse(first.ChapterId, out int chapterId) ? chapterId : 0,
-                    U_Unit = first.Unit,
-                    U_Brand = first.Brand,
-                    U_Sub_Group = first.Variety,
-                    U_Variety = first.SubGroup,
-                    U_SKU = first.Sku,
-                    U_IsLitre = first.IsLitre,
-                    U_Gross_Weight = first.GrossWeight,
-                    U_MRP = first.Mrp,
-                    U_PACK_TYPE = first.PackType,
-                    //U_FA_TYPE = first.FaType,
-                    SalesUnit = isSales ? first.SalesUom : null,
-                    SalesPackagingUnit = isSales ? first.SalesUom : null,
-                    InventoryUOM = isInv ? first.InvUom : null,
-                    PurchaseUnit = isPurchase ? first.PurchaseUom : null,
-                    PurchasePackagingUnit = isPurchase ? first.PurchaseUom : null,
-                    SalesQtyPerPackUnit = first.UnitSize,
-                    SalesFactor2 = first.BoxSize,
-                    UoMGroupEntry = uomGroupEntryForSap,
-                    CostAccountingMethod = costAccountingMethod, // Use the dynamically set CostAccountingMethod
-                    WTLiable = "tYES",
-                    IssueMethod = issueMethod, // Use the dynamically set IssueMethod
-                    ManageBatchNumbers = first.ManBtchNum,
-                    ManageSerialNumbers = "tNO",
-                    ForceSelectionOfSerialNumber = "tYES",
-                    SRIAndBatchManageMethod = "bomm_OnEveryTransaction",
-                    Series = first.Series,
-                    TaxType = "tt_Yes",
-                    GSTRelevnt = "tYES",
-                    GSTTaxCategory = "gtc_Regular",
-                    GLMethod = "glm_WH",
-                    U_TYPE = uType
-                    //SalPackUn = first.SalPackUn
-                };
-                if (company == 1)
-                {
-                    tree.U_Packing_Type = first.PackingType;
-                }
-                if (company == 3)
-                {
-                    tree.U_FA_TYPE = first.FaType;
-                }
-                else
-                {
-                    tree.U_FA_Type = first.FaType;
-                }
                 try
                 {
-                    var json = JsonConvert.SerializeObject(tree);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    var response = await client.PostAsync("Items", content);
-                    var responseBody = await response.Content.ReadAsStringAsync();
-
-                    string message;
-                    string? sapErrCode = null;
-
-                    if (response.IsSuccessStatusCode)
+                    // ── Duplicate check: mark as Processing and check if already created ──
+                    //    Safe inside the per-InitId lock: check-then-update cannot interleave with
+                    //    another in-process caller, so "previousTag == Y" reliably short-circuits
+                    //    any retry once the first POST has succeeded.
+                    var previousTag = await UpdateItemApiStatusAsync(first.InitId, "Processing SAP creation", "P");
+                    if (previousTag == "Y")
                     {
-                        message = "Successfully created";
+                        Console.WriteLine($"[INFO] Item {first.InitId} already created in SAP (tag=Y). Skipping duplicate API call.");
+                        results.Add(new SapItemSyncResult
+                        {
+                            ItemId = first.InitId,
+                            IsSuccess = true,
+                            Message = "Item already created in SAP (skipped duplicate call)",
+                            MartStatus = "Skipped — primary item already exists"
+                        });
+                        continue;
                     }
+
+                    if (previousTag == "P")
+                    {
+                        Console.WriteLine($"[INFO] Item {first.InitId} is already being created in SAP (tag=P). Skipping duplicate API call.");
+                        results.Add(new SapItemSyncResult
+                        {
+                            ItemId = first.InitId,
+                            IsSuccess = false,
+                            Message = "Item SAP creation is already processing. Please retry shortly.",
+                            MartStatus = "Skipped — SAP creation already in progress"
+                        });
+                        continue;
+                    }
+
+                    SAPSessionModel session;
+
+                    if (company == 1)
+                        session = await _bom2Service.GetSAPSessionOilAsync();
+                    else if (company == 2)
+                        session = await _bom2Service.GetSAPSessionBevAsync();
+                    else if (company == 3)
+                        session = await _bom2Service.GetSAPSessionMartAsync();
                     else
                     {
-                        message = ExtractSapErrorCodeAndMessage(responseBody);
+                        string msg = $"Unsupported company: {company}";
                         await LogApiErrorAsync(new LogApiErrorRequest
                         {
                             ReferenceID = first.InitId,
                             ApiName = "SAP/Items",
-                            ErrorMessage = message,
-                            ErrorCode = sapErrCode ?? response.StatusCode.ToString(),
+                            ErrorMessage = msg,
+                            ErrorCode = "UNSUPPORTED_COMPANY",
                             Payload = System.Text.Json.JsonSerializer.Serialize(new
                             {
-                                Request = tree,
-                                ResponseStatus = (int)response.StatusCode,
-                                ResponseBody = responseBody
+                                ItemId = first.InitId,
+                                Company = company
                             }),
                             CreatedBy = first.UserId
                         });
-                    }
 
-                    string status = response.IsSuccessStatusCode ? "Y" : "N";
-                    await UpdateItemApiStatusAsync(first.InitId, message, status);
-
-                    // ── MART SAP SYNC (call SAP API for Company 3 if FG item from Oil/Bev) ──
-                    string martStatus;
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        martStatus = $"Skipped — Primary SAP creation failed: {message}";
-                    }
-                    else if (company == 3)
-                    {
-                        martStatus = "Skipped — Item is already for Company 3 (MART), no duplicate sync needed";
-                    }
-                    else if (company != 1 && company != 2)
-                    {
-                        martStatus = $"Skipped — Company {company} is not eligible for MART sync (only Company 1 and 2)";
-                    }
-                    else
-                    {
-                        // Trim the values to avoid whitespace mismatch from DB
-                        string groupCode = (first.ItemGroupCode ?? "").Trim();
-                        string groupName = (first.itemGroupName ?? "").Trim();
-
-                        bool isGroupCode102 = groupCode == "102";
-                        bool isFinishedGroup = groupName.Contains("FINISHED", StringComparison.OrdinalIgnoreCase) ||
-                                               groupName.Contains("FG", StringComparison.OrdinalIgnoreCase);
-
-                        bool isMartCandidate = isGroupCode102 || isFinishedGroup;
-
-                        Console.WriteLine($"[INFO] MART SAP Condition → InitId: {first.InitId}, Company: {company}, GroupCode: '{groupCode}', GroupName: '{groupName}', IsGroupCode102: {isGroupCode102}, IsFinishedGroup: {isFinishedGroup}, IsCandidate: {isMartCandidate}");
-
-                        if (!isMartCandidate)
+                        results.Add(new SapItemSyncResult
                         {
-                            martStatus = $"Skipped — Not an FG item (GroupCode: '{groupCode}', GroupName: '{groupName}'). MART sync requires GroupCode '102' or GroupName containing 'FINISHED'/'FG'";
+                            ItemId = first.InitId,
+                            IsSuccess = false,
+                            Message = msg
+                        });
+                        // await UpdateItemApiStatusAsync(first.InitId, msg, false.ToString());
+
+                        await UpdateItemApiStatusAsync(first.InitId, msg, "N")
+                            ;
+
+                        //await UpdateItemApiStatusAsync(first.InitId, msg, status);
+
+                        continue;
+                    }
+
+                    var handler = new HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                    };
+
+                    using var client = new HttpClient(handler);
+                    client.BaseAddress = new Uri(_sapBaseUrl);
+                    client.DefaultRequestHeaders.Clear();
+                    client.DefaultRequestHeaders.Add("Cookie", $"{session.B1Session}; {session.RouteId}");
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                    string gc = (first.ItemGroupCode ?? "").Trim();
+
+                    // ── IssueMethod: Backflush = auto-consumed, Manual = tracked individually ──
+                    string issueMethod = gc switch
+                    {
+                        "109" or "105" => "B",
+                        "111" or "114" when company == 1 || company == 2 => "B",
+                        "101" when company == 2 || company == 3 => "B",
+                        "112" when company == 2 => "B",
+                        "113" when company == 1 => "B",
+                        "106" when company == 3 => "B",
+                        "107" when company == 2 => "B",
+                        _ => "M"
+                    };
+
+                    // ── ManageBatchNumbers ──
+                    string manageBatch = gc switch
+                    {
+                        "102" => "tYES",
+                        "106" when company == 1 || company == 2 => "tYES",
+                        "107" when company == 1 => "tYES",
+                        "115" when company == 1 => "tYES",
+                        _ => "tNO"
+                    };
+
+                    string? costMethodFromDb = null;
+                    if (company == 3)
+                    {
+                        string dbBatchFlag = (first.ManBtchNum ?? "").Trim();
+                        if (dbBatchFlag.Equals("Y", StringComparison.OrdinalIgnoreCase) ||
+                            dbBatchFlag.Equals("tYES", StringComparison.OrdinalIgnoreCase))
+                        {
+                            manageBatch = "tYES";
+                        }
+                        else if (dbBatchFlag.Equals("N", StringComparison.OrdinalIgnoreCase) ||
+                                 dbBatchFlag.Equals("tNO", StringComparison.OrdinalIgnoreCase))
+                        {
+                            manageBatch = "tNO";
+                        }
+
+                        string dbIssueMethod = (first.IssueMethod ?? "").Trim().ToUpperInvariant();
+                        if (dbIssueMethod is "M" or "B")
+                            issueMethod = dbIssueMethod;
+
+                        costMethodFromDb = (first.EvalSystem ?? "").Trim().ToUpperInvariant() switch
+                        {
+                            "F" => "bis_FIFO",
+                            "A" => "bis_MovingAverage",
+                            "S" => "bis_Standard",
+                            "B" or "SNB" => "bis_SNB",
+                            _ => null
+                        };
+                    }
+
+                    if (company == 3 && gc == "105")
+                    {
+                        manageBatch = "tYES";
+                        issueMethod = "M";
+                        costMethodFromDb = "bis_SNB";
+                    }
+
+                    if (manageBatch == "tYES")
+                        issueMethod = "M";
+
+                    // ── CostAccountingMethod: company 3 prefers saved SAP data; others use batch rule ──
+                    string costMethod = costMethodFromDb
+                        ?? (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
+
+                    // BEV finished goods must always use FIFO, even when batch-managed.
+                    if (company == 2 && gc == "102")
+                        costMethod = "bis_FIFO";
+
+                    // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
+                    string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
+
+                    // ── SalesItem / PurchaseItem / InventoryItem ──
+                    string salesItem, purchaseItem, inventoryItem;
+                    switch (gc)
+                    {
+                        case "102":
+                        case "105":
+                        case "106":
+                        case "107":
+                        case "115":
+                        case "113":
+                            salesItem = "tYES"; purchaseItem = "tYES"; inventoryItem = "tYES";
+                            break;
+                        case "114":
+                            salesItem = company == 2 ? "tYES" : "tNO";
+                            purchaseItem = "tYES";
+                            inventoryItem = company == 2 ? "tYES" : "tNO";
+                            break;
+                        case "109":
+                            salesItem = "tYES"; purchaseItem = "tNO"; inventoryItem = "tNO";
+                            break;
+                        case "101":
+                        case "111":
+                            salesItem = "tNO"; purchaseItem = "tYES"; inventoryItem = "tNO";
+                            break;
+                        case "110":
+                            salesItem = "tNO"; purchaseItem = "tYES"; inventoryItem = "tYES";
+                            break;
+                        case "112":
+                            salesItem = "tNO"; purchaseItem = "tYES";
+                            inventoryItem = company == 2 ? "tNO" : "tYES";
+                            break;
+                        default:
+                            salesItem = "tYES"; purchaseItem = "tYES"; inventoryItem = "tYES";
+                            break;
+                    }
+
+                    bool isSales = salesItem == "tYES";
+                    bool isPurchase = purchaseItem == "tYES";
+                    bool isInv = inventoryItem == "tYES";
+
+                    int uomGroupEntryForSap = first.UomGroup switch
+                    {
+                        "Manual" => -1,
+                        "MTS2LITRE" => 1,
+                        "KG2LITRE" => 2,
+                        "MTS2LITRE(OLIVE)" => 3,
+                        _ => 0
+                    };
+
+                    // ── U_TYPE: Premium vs Commodity; fixed assets must be blank for SAP ──
+                    string isLitre = (first.IsLitre ?? "").Trim();
+                    string variety = (first.Variety?.Trim() ?? "");
+                    bool isFixedAssetGroup = IsFixedAssetGroup(gc, first.itemGroupName);
+                    bool isPremium =
+                        (isLitre.Equals("N", StringComparison.OrdinalIgnoreCase)
+                            && new[] { "CANOLA", "OLIVE", "GROUNDNUT" }.Contains(variety, StringComparer.OrdinalIgnoreCase))
+                        || (isLitre.Equals("Y", StringComparison.OrdinalIgnoreCase)
+                            && new[] { "EXTRA VIRGIN", "POMACE", "EXTRA LIGHT" }.Contains(variety, StringComparer.OrdinalIgnoreCase));
+                    string uType = isFixedAssetGroup ? "" : (isPremium ? "PREMIUM" : "COMMODITY");
+
+                    // ── Series: mapped by (company, groupCode) — differs across companies ──
+                    int? seriesFromGroup = (company, gc) switch
+                    {
+                        // Same series across all companies
+                        (_, "102") => 389,
+                        (_, "105") => 391,
+                        (_, "106") => 392,
+                        (_, "107") => 393,
+                        (_, "109") => 394,
+
+                        // Group 101 — BEV & MART only
+                        (2, "101") or (3, "101") => 395,
+
+                        // Group 110 — BEV & MART only
+                        (2, "110") or (3, "110") => 390,
+
+                        // Group 111 — OIL=395, BEV=822
+                        (1, "111") => 395,
+                        (2, "111") => 822,
+
+                        // Group 112 — OIL=390, BEV=824
+                        (1, "112") => 390,
+                        (2, "112") => 824,
+
+                        // Group 113 — OIL only
+                        (1, "113") => 820,
+
+                        // Group 114 — OIL=821, BEV=2367
+                        (1, "114") => 821,
+                        (2, "114") => 2367,
+
+                        // Group 115 — OIL only
+                        (1, "115") => 2364,
+
+                        _ => first.Series
+                    };
+
+                    var tree = new ItemsTree
+                    {
+                        ItemName = first.ItemName,
+                        ItemsGroupCode = first.ItemGroupCode,
+                        U_Rev_tax_Rate = first.TaxRate,
+                        U_Tax_Rate = first.TaxRate,
+                        PurchaseItem = purchaseItem,
+                        InventoryItem = inventoryItem,
+                        SalesItem = salesItem,
+                        ChapterID = int.TryParse(first.ChapterId, out int chapterId) ? chapterId : 0,
+                        U_Unit = first.Unit,
+                        U_Brand = first.Brand,
+                        // SAP expects these two UDF values swapped from the JSAP entry fields.
+                        U_Sub_Group = first.Variety,
+                        U_Variety = first.SubGroup,
+                        U_SKU = first.Sku,
+                        U_IsLitre = first.IsLitre,
+                        U_Gross_Weight = first.GrossWeight,
+                        U_MRP = first.Mrp,
+                        U_PACK_TYPE = first.PackType,
+                        SalesUnit = isSales ? first.SalesUom : null,
+                        SalesPackagingUnit = isSales ? first.SalesUom : null,
+                        InventoryUOM = isInv ? first.InvUom : null,
+                        PurchaseUnit = isPurchase ? first.PurchaseUom : null,
+                        PurchasePackagingUnit = isPurchase ? first.PurchaseUom : null,
+                        SalesQtyPerPackUnit = first.UnitSize,
+                        SalesFactor2 = first.BoxSize,
+                        UoMGroupEntry = uomGroupEntryForSap,
+                        CostAccountingMethod = costMethod,
+                        WTLiable = wtLiable,
+                        IssueMethod = issueMethod,
+                        ManageBatchNumbers = manageBatch,
+                        ManageSerialNumbers = "tNO",
+                        ForceSelectionOfSerialNumber = "tYES",
+                        SRIAndBatchManageMethod = "bomm_OnEveryTransaction",
+                        Series = seriesFromGroup,
+                        TaxType = "tt_Yes",
+                        GSTRelevnt = "tYES",
+                        GSTTaxCategory = "gtc_Regular",
+                        GLMethod = "glm_WH",
+                        U_TYPE = uType
+                    };
+                    // U_Packing_Type exists in OIL(1) and BEV(2), NOT in MART(3)
+                    if (company == 1 || company == 2)
+                        tree.U_Packing_Type = first.PackingType;
+
+                    // U_FA_TYPE (ALL CAPS) for MART(3), U_FA_Type (mixed case) for OIL & BEV
+                    if (company == 3)
+                        tree.U_FA_TYPE = first.FaType;
+                    else
+                        tree.U_FA_Type = first.FaType;
+                    try
+                    {
+                        var json = JsonConvert.SerializeObject(tree);
+                        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                        var response = await client.PostAsync("Items", content);
+                        var responseBody = await response.Content.ReadAsStringAsync();
+
+                        string message;
+                        string? sapErrCode = null;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            message = "Successfully created";
                         }
                         else
                         {
-                            Console.WriteLine($"[INFO] MART SAP Condition TRUE → Calling SAP API for Company 3 (MART), InitId: {first.InitId}");
-                            try
+                            message = ExtractSapErrorCodeAndMessage(responseBody);
+                            await LogApiErrorAsync(new LogApiErrorRequest
                             {
-                                // Get MART SAP session (Company 3)
-                                var martSession = await _bom2Service.GetSAPSessionMartAsync();
-
-                                if (martSession == null || string.IsNullOrEmpty(martSession.B1Session))
+                                ReferenceID = first.InitId,
+                                ApiName = "SAP/Items",
+                                ErrorMessage = message,
+                                ErrorCode = sapErrCode ?? response.StatusCode.ToString(),
+                                Payload = System.Text.Json.JsonSerializer.Serialize(new
                                 {
-                                    martStatus = "Failed — Could not establish MART SAP session (Company 3). Check SAP credentials/connectivity for MART database";
-                                }
-                                else
+                                    Request = tree,
+                                    ResponseStatus = (int)response.StatusCode,
+                                    ResponseBody = responseBody
+                                }),
+                                CreatedBy = first.UserId
+                            });
+                        }
+
+                        string status = response.IsSuccessStatusCode ? "Y" : "N";
+                        await UpdateItemApiStatusAsync(first.InitId, message, status);
+
+                        // ── MART SAP SYNC (call SAP API for Company 3 if FG item from Oil/Bev) ──
+                        string martStatus;
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            martStatus = $"Skipped — Primary SAP creation failed: {message}";
+                        }
+                        else if (company == 3)
+                        {
+                            martStatus = "Skipped — Item is already for Company 3 (MART), no duplicate sync needed";
+                        }
+                        else if (company != 1 && company != 2)
+                        {
+                            martStatus = $"Skipped — Company {company} is not eligible for MART sync (only Company 1 and 2)";
+                        }
+                        else
+                        {
+                            // Trim the values to avoid whitespace mismatch from DB
+                            string groupCode = (first.ItemGroupCode ?? "").Trim();
+                            string groupName = (first.itemGroupName ?? "").Trim();
+
+                            bool isGroupCode102 = groupCode == "102";
+                            bool isFinishedGroup = groupName.Contains("FINISHED", StringComparison.OrdinalIgnoreCase) ||
+                                                   groupName.Contains("FG", StringComparison.OrdinalIgnoreCase);
+
+                            bool isMartCandidate = isGroupCode102 || isFinishedGroup;
+
+                            Console.WriteLine($"[INFO] MART SAP Condition → InitId: {first.InitId}, Company: {company}, GroupCode: '{groupCode}', GroupName: '{groupName}', IsGroupCode102: {isGroupCode102}, IsFinishedGroup: {isFinishedGroup}, IsCandidate: {isMartCandidate}");
+
+                            if (!isMartCandidate)
+                            {
+                                martStatus = $"Skipped — Not an FG item (GroupCode: '{groupCode}', GroupName: '{groupName}'). MART sync requires GroupCode '102' or GroupName containing 'FINISHED'/'FG'";
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[INFO] MART SAP Condition TRUE → Calling SAP API for Company 3 (MART), InitId: {first.InitId}");
+                                try
                                 {
-                                    // MART SAP does not have these UDFs — clear them
-                                    tree.U_FA_TYPE = null;
-                                    tree.U_Packing_Type = null;
+                                    // Get MART SAP session (Company 3)
+                                    var martSession = await _bom2Service.GetSAPSessionMartAsync();
 
-                                    var martHandler = new HttpClientHandler
+                                    if (martSession == null || string.IsNullOrEmpty(martSession.B1Session))
                                     {
-                                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                                    };
-
-                                    using var martClient = new HttpClient(martHandler);
-                                    martClient.BaseAddress = new Uri(_sapBaseUrl);
-                                    martClient.DefaultRequestHeaders.Clear();
-                                    martClient.DefaultRequestHeaders.Add("Cookie", $"{martSession.B1Session}; {martSession.RouteId}");
-                                    martClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                                    var martJson    = JsonConvert.SerializeObject(tree);
-                                    var martContent = new StringContent(martJson, Encoding.UTF8, "application/json");
-
-                                    Console.WriteLine($"[INFO] MART SAP API Request → InitId: {first.InitId}, Payload: {martJson}");
-                                    var martResponse     = await martClient.PostAsync("Items", martContent);
-                                    var martResponseBody = await martResponse.Content.ReadAsStringAsync();
-
-                                    if (martResponse.IsSuccessStatusCode)
-                                    {
-                                        Console.WriteLine($"[INFO] MART SAP API Success → InitId: {first.InitId}, Created in Company 3");
-                                        martStatus = "Success — Item created in MART SAP (Company 3)";
+                                        martStatus = "Failed — Could not establish MART SAP session (Company 3). Check SAP credentials/connectivity for MART database";
                                     }
                                     else
                                     {
-                                        var martErrMsg = ExtractSapErrorCodeAndMessage(martResponseBody);
-                                        Console.WriteLine($"[ERROR] MART SAP API Failed → {martErrMsg}, InitId: {first.InitId}");
+                                        // MART adjustments — clear UDFs that don't exist, recalculate MART-specific fields
+                                        tree.U_FA_TYPE = null;
+                                        tree.U_FA_Type = null;
+                                        tree.U_Packing_Type = null;
+                                        tree.WTLiable = "tNO";
+                                        // Recalculate CostAccountingMethod for MART (not BEV's always-FIFO rule)
+                                        tree.CostAccountingMethod = tree.ManageBatchNumbers == "tYES" ? "bis_SNB" : "bis_FIFO";
 
-                                        await LogApiErrorAsync(new LogApiErrorRequest
+                                        var martHandler = new HttpClientHandler
                                         {
-                                            ReferenceID  = first.InitId,
-                                            ApiName      = "SAP/Items/MART",
-                                            ErrorMessage = martErrMsg,
-                                            ErrorCode    = martResponse.StatusCode.ToString(),
-                                            Payload      = System.Text.Json.JsonSerializer.Serialize(new
-                                            {
-                                                Request        = tree,
-                                                ResponseStatus = (int)martResponse.StatusCode,
-                                                ResponseBody   = martResponseBody
-                                            }),
-                                            CreatedBy = first.UserId
-                                        });
+                                            ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                                        };
 
-                                        martStatus = $"Failed — MART SAP API error: {martErrMsg}";
+                                        using var martClient = new HttpClient(martHandler);
+                                        martClient.BaseAddress = new Uri(_sapBaseUrl);
+                                        martClient.DefaultRequestHeaders.Clear();
+                                        martClient.DefaultRequestHeaders.Add("Cookie", $"{martSession.B1Session}; {martSession.RouteId}");
+                                        martClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                                        var martJson = JsonConvert.SerializeObject(tree);
+                                        var martContent = new StringContent(martJson, Encoding.UTF8, "application/json");
+
+                                        Console.WriteLine($"[INFO] MART SAP API Request → InitId: {first.InitId}, Payload: {martJson}");
+                                        var martResponse = await martClient.PostAsync("Items", martContent);
+                                        var martResponseBody = await martResponse.Content.ReadAsStringAsync();
+
+                                        if (martResponse.IsSuccessStatusCode)
+                                        {
+                                            Console.WriteLine($"[INFO] MART SAP API Success → InitId: {first.InitId}, Created in Company 3");
+                                            martStatus = "Success — Item created in MART SAP (Company 3)";
+                                        }
+                                        else
+                                        {
+                                            var martErrMsg = ExtractSapErrorCodeAndMessage(martResponseBody);
+                                            Console.WriteLine($"[ERROR] MART SAP API Failed → {martErrMsg}, InitId: {first.InitId}");
+
+                                            await LogApiErrorAsync(new LogApiErrorRequest
+                                            {
+                                                ReferenceID = first.InitId,
+                                                ApiName = "SAP/Items/MART",
+                                                ErrorMessage = martErrMsg,
+                                                ErrorCode = martResponse.StatusCode.ToString(),
+                                                Payload = System.Text.Json.JsonSerializer.Serialize(new
+                                                {
+                                                    Request = tree,
+                                                    ResponseStatus = (int)martResponse.StatusCode,
+                                                    ResponseBody = martResponseBody
+                                                }),
+                                                CreatedBy = first.UserId
+                                            });
+
+                                            martStatus = $"Failed — MART SAP API error: {martErrMsg}";
+                                        }
                                     }
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"[ERROR] MART SAP API Exception → {ex.Message}, InitId: {first.InitId}");
-                                martStatus = $"Failed — MART SAP exception: {ex.Message}";
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[ERROR] MART SAP API Exception → {ex.Message}, InitId: {first.InitId}");
+                                    martStatus = $"Failed — MART SAP exception: {ex.Message}";
+                                }
                             }
                         }
-                    }
 
-                    results.Add(new SapItemSyncResult
-                    {
-                        ItemId     = first.InitId,
-                        IsSuccess  = response.IsSuccessStatusCode,
-                        Message    = message,
-                        MartStatus = martStatus
-                    });
-
-
-                }
-                catch (Exception ex)
-                {
-                    string errMsg = $"-1000: {ex.Message}";
-                    await LogApiErrorAsync(new LogApiErrorRequest
-                    {
-                        ReferenceID = first.InitId,
-                        ApiName = "SAP/Items",
-                        ErrorMessage = ex.Message,
-                        ErrorCode = "EXCEPTION",
-                        Payload = System.Text.Json.JsonSerializer.Serialize(new
+                        results.Add(new SapItemSyncResult
                         {
-                            Request = tree,
-                            Exception = ex.ToString()
-                        }),
-                        CreatedBy = first.UserId
-                    });
-                    results.Add(new SapItemSyncResult
+                            ItemId = first.InitId,
+                            IsSuccess = response.IsSuccessStatusCode,
+                            Message = message,
+                            MartStatus = martStatus
+                        });
+
+
+                    }
+                    catch (Exception ex)
                     {
-                        ItemId = first.InitId,
-                        IsSuccess = false,
-                        Message = errMsg
-                    });
-                    await UpdateItemApiStatusAsync(first.InitId, errMsg, false.ToString());
+                        string errMsg = ex.Message;
+                        await LogApiErrorAsync(new LogApiErrorRequest
+                        {
+                            ReferenceID = first.InitId,
+                            ApiName = "SAP/Items",
+                            ErrorMessage = ex.Message,
+                            ErrorCode = "EXCEPTION",
+                            Payload = System.Text.Json.JsonSerializer.Serialize(new
+                            {
+                                Request = tree,
+                                Exception = ex.ToString()
+                            }),
+                            CreatedBy = first.UserId
+                        });
+                        results.Add(new SapItemSyncResult
+                        {
+                            ItemId = first.InitId,
+                            IsSuccess = false,
+                            Message = errMsg
+                        });
+                        await UpdateItemApiStatusAsync(first.InitId, errMsg, "N");
+                    }
+                }
+                finally
+                {
+                    // Always release so retries (e.g., after a transient SAP failure marked "N")
+                    // can proceed. Lock stays in the dictionary — cheap, and avoids a race where
+                    // a second waiter acquires just before we remove it.
+                    postLock.Release();
                 }
             }
 
             return results;
         }
 
-        private async Task UpdateItemApiStatusAsync(int itemId, string apiMessage, string tag)
+        private async Task<string?> UpdateItemApiStatusAsync(int itemId, string apiMessage, string tag)
         {
-            var sqlQuery = "EXEC  [imc].[jsUpdateItemApiStatus] @itemId,@apiMessage,@tag";
+            apiMessage = TruncateForDb(apiMessage, 90);
 
             using (var connection = new SqlConnection(_connectionString))
             {
-                await connection.ExecuteAsync(sqlQuery, new { itemId, apiMessage, tag });
+                await connection.OpenAsync();
+                var previousTag = await connection.QueryFirstOrDefaultAsync<string>(
+                    "EXEC [imc].[jsUpdateItemApiStatus] @itemId, @apiMessage, @tag",
+                    new { itemId, apiMessage, tag }
+                );
+                return previousTag;
             }
         }
 
@@ -1686,13 +2000,21 @@ namespace JSAPNEW.Services.Implementation
                 var value = obj["error"]?["message"]?["value"]?.ToString();
 
                 return !string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(value)
-                    ? $"Code - {code}:Message- {value}"
-                    : "-5000: Unknown SAP error structure";
+                    ? $"{value} (SAP Error Code: {code})"
+                    : "Unknown SAP error";
             }
             catch
             {
-                return "-5001: Failed to parse SAP error response";
+                return "Failed to parse SAP error response";
             }
+        }
+
+        private static string TruncateForDb(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
         }
 
         public async Task<ItemMasterModel> LogApiErrorAsync(LogApiErrorRequest model)
@@ -1712,15 +2034,19 @@ namespace JSAPNEW.Services.Implementation
 
                     // NVARCHAR(100)
                     var pApi = cmd.Parameters.Add("@ApiName", SqlDbType.NVarChar, 100);
-                    pApi.Value = (object?)model.ApiName ?? DBNull.Value;
+                    pApi.Value = string.IsNullOrEmpty(model.ApiName)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ApiName, 100);
 
                     // NVARCHAR(2000) - Required
                     var pMsg = cmd.Parameters.Add("@ErrorMessage", SqlDbType.NVarChar, 2000);
-                    pMsg.Value = model.ErrorMessage;
+                    pMsg.Value = TruncateForDb(model.ErrorMessage, 2000);
 
                     // NVARCHAR(50)
                     var pCode = cmd.Parameters.Add("@ErrorCode", SqlDbType.NVarChar, 50);
-                    pCode.Value = (object?)model.ErrorCode ?? DBNull.Value;
+                    pCode.Value = string.IsNullOrEmpty(model.ErrorCode)
+                        ? DBNull.Value
+                        : TruncateForDb(model.ErrorCode, 50);
 
                     // NVARCHAR(MAX)
                     var pPayload = cmd.Parameters.Add("@Payload", SqlDbType.NVarChar, -1);
@@ -2849,6 +3175,26 @@ namespace JSAPNEW.Services.Implementation
             catch (Exception ex)
             {
                 throw new Exception("Error Executing : ", ex);
+            }
+        }
+        // new service for rejected item to creator //
+        public async Task<IEnumerable<RejectedItemsForCreatorModel>> GetRejectedItemsForCreatorAsync(int userId, int? company)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                var parameters = new DynamicParameters();
+                parameters.Add("@userId", userId);
+                parameters.Add("@company", company);
+
+                var result = await connection.QueryAsync<RejectedItemsForCreatorModel>(
+                    "[imc].[jsGetRejectedItemsForCreator]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure
+                );
+
+                return result;
             }
         }
     }

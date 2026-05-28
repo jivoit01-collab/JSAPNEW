@@ -911,3 +911,35 @@ namespace JSAPNEW.Models
         public int rejectRequired { get; set; }
     }
 }
+// rejected item to creator //
+public class RejectedItemsForCreatorModel
+{
+    public int flowId { get; set; }
+    public int InitDataId { get; set; }
+    public string itemName { get; set; }
+
+    public int itemGroupCode { get; set; }
+    public string itemGroupName { get; set; }
+    public decimal taxRate { get; set; }
+    public int chapterId { get; set; }
+    public string chapterName { get; set; }
+
+    public string unit { get; set; }
+    public string brand { get; set; }
+    public string variety { get; set; }
+    public string subGroup { get; set; }
+    public string sku { get; set; }
+
+    public string isLitre { get; set; }
+    public decimal grossWeight { get; set; }
+    public decimal mrp { get; set; }
+
+    public string packType { get; set; }
+    public string packingType { get; set; }
+    public string faType { get; set; }
+    public string uom { get; set; }
+    public string utype { get; set; }
+
+    public string createdByName { get; set; }
+    public DateTime createDate { get; set; }
+}

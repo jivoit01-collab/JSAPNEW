@@ -1,18 +1,24 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Data;
+﻿using JSAPNEW.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-
+using System.Data;
+using JSAPNEW.Models;
 namespace JSAPNEW.Controllers
+
 {
     public class AdminController : Controller
     {
         private readonly IConfiguration _config;
         private readonly string _connStr;
+        private readonly IPaymentCheckerService _paymentService;
 
-        public AdminController(IConfiguration configuration)
+        public AdminController(IConfiguration configuration, IPaymentCheckerService paymentService)
         {
             _config = configuration;
             _connStr = _config.GetConnectionString("FHConnection");
+            _paymentService = paymentService;
+
+
         }
 
         // ✅ Admin Dashboard Page
@@ -28,51 +34,44 @@ namespace JSAPNEW.Controllers
             using var conn = new SqlConnection(_connStr);
             conn.Open();
 
-            var cmd = new SqlCommand(@"
-               /* SELECT 
-                    COUNT(DISTINCT A.VchNumber)                                     AS TotalBills,
-                    SUM(CASE WHEN AU.Status = 'Pending'          THEN 1 ELSE 0 END) AS PendingMaker,
-                    SUM(CASE WHEN AU.CheckerStatus = 'Approved'  THEN 1 ELSE 0 END) AS ApprovedChecker,
-                    SUM(CASE WHEN G.RefName IS NOT NULL          THEN 1 ELSE 0 END) AS TotalPaid
-                FROM PurchaseHeader A 
-                LEFT JOIN AttachmentUpload AU 
-                    ON AU.VchNumber = A.VchNumber
-                LEFT JOIN RefMaster G 
-                    ON G.RefName    = A.SupplierRef
-                    AND G.AccountID = A.AccountID
-                    AND G.ToBy      = 43 */
-DECLARE @StartDate DATE = '2026-04-01';
+            //            var cmd = new SqlCommand(@"
 
-SELECT 
-    COUNT(DISTINCT A.VchNumber) AS TotalBills,
+            //DECLARE @StartDate DATE = '2026-04-01';
 
-    COUNT(DISTINCT CASE 
-        WHEN AU.Status IS NULL OR AU.Status = 'Pending' 
-        THEN A.VchNumber 
-    END) AS PendingMaker,
+            //SELECT 
+            //  COUNT(DISTINCT A.VchNumber) AS TotalBills,
 
-    COUNT(DISTINCT CASE 
-        WHEN AU.CheckerStatus = 'Approved' 
-        THEN A.VchNumber 
-    END) AS ApprovedChecker,
+            //    COUNT(DISTINCT CASE 
+            //       WHEN AU.Status IS NULL OR AU.Status = 'Pending' 
+            //        THEN A.VchNumber 
+            //    END) AS PendingMaker,
 
-    COUNT(DISTINCT CASE 
-        WHEN G.RefName IS NOT NULL 
-        THEN A.VchNumber 
-    END) AS TotalPaid
+            //    COUNT(DISTINCT CASE 
+            //       WHEN AU.CheckerStatus = 'Approved' 
+            //        THEN A.VchNumber 
+            //    END) AS ApprovedChecker,
 
-FROM PurchaseHeader A
+            //   COUNT(DISTINCT CASE 
+            //        WHEN G.RefName IS NOT NULL 
+            //        THEN A.VchNumber 
+            //    END) AS TotalPaid
 
-LEFT JOIN AttachmentUpload AU 
-    ON AU.VchNumber = A.VchNumber
+            //FROM PurchaseHeader A
 
-LEFT JOIN RefMaster G 
-    ON G.RefName    = A.SupplierRef
-    AND G.AccountID = A.AccountID
-    AND G.ToBy      = 43
+            //LEFT JOIN AttachmentUpload AU 
+            //    ON AU.VchNumber = A.VchNumber
 
-WHERE A.VoucherDate >= @StartDate
-            ", conn);
+            //LEFT JOIN RefMaster G 
+            //   ON G.RefName    = A.SupplierRef
+            //   AND G.AccountID = A.AccountID
+            //    AND G.ToBy      = 43
+
+            //WHERE A.VoucherDate >= @StartDate
+            //           ", conn);
+            var cmd = new SqlCommand("GetSummaryData", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            cmd.Parameters.AddWithValue("@StartDate", new DateTime(2026, 4, 1));
 
             var reader = cmd.ExecuteReader();
             if (reader.Read())
@@ -159,12 +158,21 @@ WHERE A.VoucherDate >= @StartDate
 
         // ✅ Invoice Payment Tab
         [HttpGet]
-        public IActionResult GetInvoiceActivity(string accountName, string fromDate, string toDate)
+        public IActionResult GetInvoicePaymentActivity(string accountName, string fromDate, string toDate)
         {
             var data = FetchBillDetails(accountName, fromDate, toDate);
             return Json(data);
         }
+        [HttpGet]
+        public IActionResult GetPaymentCheckerActivity(string accountName, string fromDate, string toDate)
+        {
+            DateTime? from = string.IsNullOrEmpty(fromDate) ? null : DateTime.Parse(fromDate);
+            DateTime? to = string.IsNullOrEmpty(toDate) ? null : DateTime.Parse(toDate);
 
+            var data = _paymentService.GetPaidBillDetails(from, to, accountName);
+
+            return Json(data);
+        }
         // ✅ Delete Attachment — Admin Only
         [HttpPost]
         public IActionResult DeleteAttachment([FromBody] DeleteRequest req)
@@ -180,7 +188,7 @@ WHERE A.VoucherDate >= @StartDate
             getCmd.Parameters.AddWithValue("@VchNumber", req.VchNumber);
             var path = getCmd.ExecuteScalar()?.ToString();
 
-            // Step 2 — Delete physical file from wwwroot
+            //            // Step 2 — Delete physical file from wwwroot
             if (!string.IsNullOrEmpty(path))
             {
                 var fullPath = Path.Combine(
@@ -191,7 +199,7 @@ WHERE A.VoucherDate >= @StartDate
 
             // Step 3 — Delete record from DB
             var delCmd = new SqlCommand(
-                "DELETE FROM AttachmentUpload WHERE VchNumber = @VchNumber", conn);
+                  "DELETE FROM AttachmentUpload WHERE VchNumber = @VchNumber", conn);
             delCmd.Parameters.AddWithValue("@VchNumber", req.VchNumber);
             delCmd.ExecuteNonQuery();
 
@@ -199,9 +207,11 @@ WHERE A.VoucherDate >= @StartDate
         }
     }
 
-    // ✅ Request model for Delete
-    public class DeleteRequest
-    {
-        public int VchNumber { get; set; }
-    }
 }
+
+   // ✅ Request model for Delete
+//    public class DeleteRequest
+//   {
+//       public int VchNumber { get; set; }
+//   }
+//}

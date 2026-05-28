@@ -395,6 +395,21 @@ namespace JSAPNEW.Controllers
                     _Itemmasterlogger.LogInformation("No items found for approval");
                     return NotFound(new { Success = false, Message = "No items found for approval" });
                 }
+
+                // If SAP creation failed at last stage, return error so frontend can show it
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("Approval blocked due to SAP failure. FlowId: {ItemId}, Message: {Message}", request.itemId, result.Message);
+                    return BadRequest(new
+                    {
+                        Success        = result.Success,
+                        ApprovalStatus = result.ApprovalStatus,
+                        SapStatus      = result.SapStatus,
+                        MartStatus     = result.MartStatus,
+                        Message        = result.Message
+                    });
+                }
+
                 _Itemmasterlogger.LogInformation("Items approved. Result: {Message}", result.Message);
                 return Ok(new
                 {
@@ -408,7 +423,7 @@ namespace JSAPNEW.Controllers
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error occurred while approving items.");
-                return StatusCode(500, new { Success = false, Message = ex.Message });
+                return StatusCode(500, new { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
 
@@ -538,13 +553,18 @@ namespace JSAPNEW.Controllers
                     _Itemmasterlogger.LogInformation("Failed to insert init data");
                     return NotFound(new { Success = false, Message = "Failed to insert init data" });
                 }
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("InsertInitData failed: {Message}", result.Message);
+                    return BadRequest(new { Success = false, Message = result.Message });
+                }
                 _Itemmasterlogger.LogInformation("Init data inserted successfully.");
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error occurred while inserting init data.");
-                return StatusCode(500, new { Success = false, Message = ex.Message });
+                return StatusCode(500, new { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
 
@@ -565,13 +585,18 @@ namespace JSAPNEW.Controllers
                     _Itemmasterlogger.LogInformation("Failed to insert SAP data");
                     return NotFound(new { Success = false, Message = "Failed to insert SAP data" });
                 }
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("InsertSAPData failed: {Message}", result.Message);
+                    return BadRequest(new { Success = false, Message = result.Message });
+                }
                 _Itemmasterlogger.LogInformation("SAP data inserted successfully.");
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error occurred while inserting SAP data.");
-                return StatusCode(500, new { Success = false, Message = ex.Message });
+                return StatusCode(500, new { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
 
@@ -592,13 +617,18 @@ namespace JSAPNEW.Controllers
                     _Itemmasterlogger.LogInformation("Failed to reject item");
                     return NotFound(new { Success = false, Message = "Failed to reject item" });
                 }
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("RejectItem failed: {Message}", result.Message);
+                    return BadRequest(new { Success = false, Message = result.Message });
+                }
                 _Itemmasterlogger.LogInformation("Item rejected successfully.");
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error occurred while rejecting item.");
-                return StatusCode(500, new { Success = false, Message = ex.Message });
+                return StatusCode(500, new { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
 
@@ -622,13 +652,19 @@ namespace JSAPNEW.Controllers
                     return NotFound(new ItemMasterModel { Success = false, Message = "Failed to update init data" });
                 }
 
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("UpdateInitData failed: {Message}", result.Message);
+                    return BadRequest(new ItemMasterModel { Success = false, Message = result.Message });
+                }
+
                 _Itemmasterlogger.LogInformation("Init data updated successfully.");
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error occurred while updating init data.");
-                return StatusCode(500, new ItemMasterModel { Success = false, Message = ex.Message });
+                return StatusCode(500, new ItemMasterModel { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
         
@@ -652,13 +688,18 @@ namespace JSAPNEW.Controllers
                     _Itemmasterlogger.LogInformation("Failed to update SAP data");
                     return NotFound(new { Success = false, Message = "Failed to update SAP data" });
                 }
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("UpdateSAPData failed: {Message}", result.Message);
+                    return BadRequest(new { Success = false, Message = result.Message });
+                }
                 _Itemmasterlogger.LogInformation("SAP data updated successfully.");
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error occurred while updating SAP data.");
-                return StatusCode(500, new { Success = false, Message = ex.Message });
+                return StatusCode(500, new { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
 
@@ -695,12 +736,18 @@ namespace JSAPNEW.Controllers
 
                 var result = await _ItemMasterService.InsertFullItemDataAsync(request);
 
+                if (!result.Success)
+                {
+                    _Itemmasterlogger.LogWarning("InsertFullItem failed: {Message}", result.Message);
+                    return BadRequest(new ItemMasterModel { Success = false, Message = result.Message });
+                }
+
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _Itemmasterlogger.LogError(ex, "Error in InsertFullItemData");
-                return StatusCode(500, new ItemMasterModel { Success = false, Message = ex.Message });
+                return StatusCode(500, new ItemMasterModel { Success = false, Message = $"Server error: {ex.Message}" });
             }
         }
 
@@ -1911,6 +1958,29 @@ namespace JSAPNEW.Controllers
             {
                 _Itemmasterlogger.LogError(ex, "Error sending Item  Notification.");
                 return StatusCode(500, new { Success = false, Message = "Internal server error" });
+            }
+        }
+        // add new  method for rejected item to creator //
+        [HttpGet("GetRejectedItemsForCreator")]
+        public async Task<ActionResult> GetRejectedItemsForCreator(int userId, int? company)
+        {
+            try
+            {
+                var data = await _ItemMasterService.GetRejectedItemsForCreatorAsync(userId, company);
+
+                if (data == null || !data.Any())
+                {
+                    _Itemmasterlogger.LogInformation("No rejected items found for creator");
+                    return NotFound(new { Success = false, Message = "No rejected items found" });
+                }
+
+                _Itemmasterlogger.LogInformation("Rejected items for creator retrieved successfully.");
+                return Ok(new { Success = true, Data = data });
+            }
+            catch (Exception ex)
+            {
+                _Itemmasterlogger.LogError(ex, "Error occurred while retrieving rejected items for creator.");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
             }
         }
     }

@@ -46,7 +46,7 @@ namespace JSAPNEW.Models
 
     }
 
-    public class summary
+    public class Summary
     {
         public int totalStages { get; set; }
         public int totalQueries { get; set; }
@@ -59,7 +59,7 @@ namespace JSAPNEW.Models
         public List<stageCloning> stages { get; set; }
         public List<approvalCloning> approvals { get; set; }
         public List<queryCloning> queries { get; set; }
-        public summary summary { get; set; }
+        public Summary summary { get; set; }
     }
 
 

@@ -14,7 +14,7 @@ namespace JSAPNEW.Controllers
     public class FileController : ControllerBase
     {
 
-        private readonly string _sftpHost = "103.89.44.176";
+        private readonly string _sftpHost = "103.89.45.247";
         private readonly string _sftpUsername = "Admin";
         private readonly string _sftpPassword = "Manav@2024";
         private readonly string _sftpPort = "22"; // Default SSH port

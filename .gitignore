@@ -368,7 +368,7 @@ Firebase/service-account.json
 # Build folders
 bin/
 obj/
-
+*.lscache
 # Visual Studio
 .vs/
 *.user

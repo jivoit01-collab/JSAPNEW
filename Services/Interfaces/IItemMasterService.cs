@@ -48,6 +48,8 @@ namespace JSAPNEW.Services.Interfaces
         Task<ItemMasterModel> LogApiErrorAsync(LogApiErrorRequest model);
         Task<IEnumerable<GetIMCApprovalFlowModel>> GetIMCApprovalFlowAsync(int flowId);
         Task<IEnumerable<CreatedByDetailModel>> GetCreatedByDetailAsync(int userId, int companyId);
+        Task<IEnumerable<RejectedItemsForCreatorModel>> GetRejectedItemsForCreatorAsync(int userId, int? company);
+
 
         // --------------------------- BKDT start --------------------------------
         Task<IEnumerable<GetUserDetailsModel>> GetUserDetailsAsync(int company);
@@ -71,6 +73,7 @@ namespace JSAPNEW.Services.Interfaces
         Task<IEnumerable<UserIdsForNotificationModel>> GetBkdtUserIdsSendNotificatiosAsync(int flowId);
         Task<PrdoModels> SendPendingBkdtCountNotificationAsync();
         Task<IEnumerable<AfterCreatedRequestSendNotificationToUser>> GetBKDTCurrentUsersSendNotificationAsync(int userDocumentId);
+        //Task<IEnumerable<RejectedItemsForCreatorModel>> GetRejectedItemsForCreatorAsync(int userId, int? company);
 
         // --------------------------- BKDT end --------------------------------
         Task<ItemMasterModel> InsertFullItemDataAsync(InsertFullItemDataModel model);
