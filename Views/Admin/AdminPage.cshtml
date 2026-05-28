@@ -1,0 +1,1634 @@
+﻿@{
+    ViewData["Title"] = "Admin Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="~/css/bill-verification.css" />
+<link rel="stylesheet" href="~/css/admin-premium.css" />
+
+
+@* <nav class="premium-nav">
+
+    <!-- GLASS PANEL -->
+    <div class="nav-glass">
+
+        <!-- LEFT -->
+        <div class="nav-left-section">
+
+            <div class="brand-logo-wrap">
+                <img src="~/images/logo.png" class="brand-logo" />
+            </div>
+
+            <div class="brand-content">
+
+                <div class="ary-brand-header">
+                    Akal Rozgar Yojana
+                </div>
+
+                <div class="brand-title">
+                    Wellness
+                </div>
+
+                <div class="brand-subtitle">
+                    Healthy Oils • Super Juices • Smart Living
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- PRODUCTS -->
+        <div class="product-slider">
+
+            <div class="product-track">
+
+                <img src="@Url.Content("~/images/canola.jpg")"
+                     class="product-img clickable-product" />
+
+                <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")"
+                     class="product-img clickable-product" />
+
+                <img src="@Url.Content("~/images/groundnut-oil.jpg")"
+                     class="product-img tall-product" />
+
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")"
+                     class="product-img clickable-product" />
+
+                <img src="@Url.Content("/images/download.jpg")"
+                     class="product-img clickable-product" />
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT -->
+        <div class="module-box">
+
+            <div class="module-dot"></div>
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <span>Admin Dashboard</span>
+
+        </div>
+
+    </div>
+
+</nav> *@
+<div class="admin-dashboard-shell">
+    <nav class="premium-nav">
+        <div class="nav-glass">
+            <div class="nav-left-section">
+                <div class="brand-logo-wrap">
+                    <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+                </div>
+                <div class="brand-content">
+                    <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                    <div class="brand-title">Wellness Finance Operations</div>
+                    <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
+                </div>
+            </div>
+
+            <div class="product-slider" aria-label="Product showcase">
+                <div class="product-track">
+                    <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                    <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img clickable-product" alt="Pomace oil" />
+                    <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img clickable-product" alt="Groundnut oil" />
+                    <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                    <img src="@Url.Content("~/images/download.jpg")" class="product-img clickable-product" alt="Wellness product" />
+                </div>
+            </div>
+
+            <div class="module-box">
+                <span class="module-dot"></span>
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Admin Dashboard</span>
+            </div>
+        </div>
+    </nav>
+    <div class="body admin-dashboard-body">
+
+        <!-- PRODUCT MODAL -->
+        <div class="product-modal" id="productModal">
+            <span class="close-modal">&times;</span>
+            <img id="modalImage" class="modal-product-image" />
+        </div>
+
+        <!-- FILTER -->
+        <div class="filter-card dashboard-filter-card">
+            <div class="f-group">
+                <span class="f-label">From Date</span>
+                <input type="date" class="f-input" id="fromDate" />
+            </div>
+            <div class="f-group">
+                <span class="f-label">To Date</span>
+                <input type="date" class="f-input" id="toDate" />
+            </div>
+            <div class="f-group grow">
+                <span class="f-label">Account Name</span>
+                <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
+            </div>
+            <div class="admin-filter-actions">
+
+                <button class="btn btn-dark admin-search-btn"
+                        onclick="loadAllData()">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    Search
+
+                </button>
+
+                <button class="btn btn-export"
+                        onclick="exportCurrentTab()">
+
+                    <i class="fa-solid fa-file-excel"></i>
+
+                    Export
+
+                </button>
+
+            </div>
+        </div>
+
+        <!-- =========================================================
+         KPI GRID — REDESIGNED
+    ========================================================= -->
+        <div class="kpi-grid">
+
+            <div class="kpi-card k-blue">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="totalBills">0</div>
+                        <div class="kpi-label">Total Bills</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,22 12,14 24,18 36,8 48,16 60,6 72,12 80,8"
+                                  stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-arrow-trend-up fa-xs"></i> All Entries</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-amber">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="pendingMaker">0</div>
+                        <div class="kpi-label">Pending Maker</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,10 12,18 24,12 36,20 48,10 60,16 72,8 80,14"
+                                  stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-green">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="approvedChecker">0</div>
+                        <div class="kpi-label">Approved Checker</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,18 12,10 24,16 36,6 48,14 60,4 72,10 80,6"
+                                  stroke="#10B981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Verified</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-purple">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="totalPaid">0</div>
+                        <div class="kpi-label">Total Paid</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,12 24,18 36,8 48,18 60,10 72,14 80,8"
+                                  stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-wallet fa-xs"></i> Cleared</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TABS -->
+        <div class="tab-bar">
+            <button class="tab-btn on" onclick="switchTab('maker',this)" type="button">
+                <i class="fa-solid fa-pen-to-square"></i> Maker Activity
+            </button>
+            <button class="tab-btn" onclick="switchTab('checker',this)" type="button">
+                <i class="fa-solid fa-clipboard-check"></i> Checker Activity
+            </button>
+            <button class="tab-btn" onclick="switchTab('invoice',this)" type="button">
+                <i class="fa-solid fa-money-check-dollar"></i> Invoice Payment
+            </button>
+            <button class="tab-btn" onclick="switchTab('paymentchecker',this)" type="button">
+                <i class="fa-solid fa-circle-check"></i> Payment Checker
+            </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════
+         TAB: MAKER
+    ══════════════════════════════════════════ -->
+        <div class="tp on" id="tp-maker">
+            <div class="filter-card table-filter-card">
+                <div class="f-group">
+                    <span class="f-label">Status</span>
+                    <select class="f-input" id="dd-status-maker" onchange="filterMakerTable()">
+                        <option value="">All Status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="f-group">
+                    <span class="f-label">Attachment</span>
+                    <select class="f-input" id="dd-attach-maker" onchange="filterMakerTable()">
+                        <option value="">All</option>
+                        <option value="yes">Uploaded</option>
+                        <option value="no">No File</option>
+                    </select>
+                </div>
+                <div class="f-group grow">
+                    <span class="f-label">Account Name</span>
+                    <select class="f-input" id="dd-account-maker" onchange="filterMakerTable()">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+                <button class="btn btn-soft reset-filter" onclick="resetMakerFilters()">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
+
+            <div class="t-card">
+                <div class="t-header">
+                    <div>
+                        <div class="t-title"><i class="fa-solid fa-layer-group"></i> Maker Entries</div>
+                        <div class="t-subtitle">Attachment and maker approval overview</div>
+                    </div>
+                </div>
+                <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+                <div class="t-wrap">
+                    <table class="dt dt-maker">
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-remark" />
+                            <col class="col-status" />
+
+
+
+
+                            <col class="col-attachment" />
+                            <col class="col-delete" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Remark</th>
+                                <th>Status</th>
+                                <th>Attachment</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="makerBody"></tbody>
+                    </table>
+                </div>
+                <!-- PAGINATION -->
+                <div class="dt-pagination" id="pg-maker">
+                    <div class="dt-pg-info">Showing <b id="maker-from">0</b>–<b id="maker-to">0</b> of <b id="maker-total">0</b></div>
+                    <div class="dt-per-page">
+                        Rows per page
+                        <select onchange="changePerPage('maker', this.value)">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="dt-pg-btns" id="pg-btns-maker"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- /tp-maker -->
+        <!-- ══════════════════════════════════════════
+         TAB: CHECKER
+    ══════════════════════════════════════════ -->
+        <div class="tp" id="tp-checker">
+            <div class="filter-card table-filter-card">
+                <div class="f-group">
+                    <span class="f-label">Status</span>
+                    <select class="f-input" id="dd-status-checker" onchange="filterCheckerTable()">
+                        <option value="">All Status</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+                <div class="f-group">
+                    <span class="f-label">Attachment</span>
+                    <select class="f-input" id="dd-attach-checker" onchange="filterCheckerTable()">
+                        <option value="">All</option>
+                        <option value="yes">Uploaded</option>
+                        <option value="no">No File</option>
+                    </select>
+                </div>
+                <div class="f-group grow">
+                    <span class="f-label">Account Name</span>
+                    <select class="f-input" id="dd-account-checker" onchange="filterCheckerTable()">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+                <button class="btn btn-soft reset-filter" onclick="resetCheckerFilters()">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
+
+            <div class="t-card">
+                <div class="t-header">
+                    <div>
+                        <div class="t-title"><i class="fa-solid fa-user-check"></i> Checker Entries</div>
+                        <div class="t-subtitle">Verification status and attachment visibility</div>
+                    </div>
+                </div>
+                <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+                <div class="t-wrap">
+                    <table class="dt dt-checker">
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-remark" />
+                            <col class="col-status" />
+                            <col class="col-attachment" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Remark</th>
+                                <th>Status</th>
+                                <th>Attachment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkerBody"></tbody>
+                    </table>
+                </div>
+                <!-- PAGINATION -->
+                <div class="dt-pagination" id="pg-checker">
+
+                    <div class="dt-pg-info">
+                        Showing
+                        <b id="checker-from">0</b>–
+                        <b id="checker-to">0</b>
+                        of
+                        <b id="checker-total">0</b>
+                    </div>
+
+                    <div class="dt-per-page">
+
+                        Rows per page
+
+                        <select onchange="changePerPage('checker', this.value)">
+
+                            <option value="10" selected>10</option>
+
+                            <option value="20">20</option>
+
+                            <option value="50">50</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="dt-pg-btns" id="pg-btns-checker"></div>
+
+                </div>
+            </div>
+        </div>
+        @*
+   <!-- /tp-checker -->
+    <!-- ══════════════════════════════════════════
+         TAB: INVOICE PAYMENT
+    ══════════════════════════════════════════ -->
+    <div class="tp" id="tp-invoice">
+        <div class="t-card">
+            <div class="t-header">
+                <div>
+                    <div class="t-title"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Payment</div>
+                    <div class="t-subtitle">Checker approval mapped with payment state</div>
+                </div>
+            </div>
+            <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+            <div class="t-wrap">
+                <table class="dt dt-invoice">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-status" />
+                        <col class="col-status" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Account Name</th>
+                            <th>Voucher No</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Checker Status</th>
+                            <th>Payment Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoiceBody"></tbody>
+                </table>
+            </div> *@
+
+
+        <!-- ══════════════════════════════════════════
+     TAB: INVOICE PAYMENT
+══════════════════════════════════════════ -->
+        <div class="tp" id="tp-invoice">
+            <div class="t-card">
+
+                <div class="t-header">
+                    <div>
+                        <div class="t-title">
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                            Invoice Payment
+                        </div>
+
+                        <div class="t-subtitle">
+                            Checker approval mapped with payment state
+                        </div>
+                    </div>
+                </div>
+
+                <div class="top-scroll">
+                    <div class="top-scroll-inner"></div>
+                </div>
+
+                <div class="t-wrap">
+
+                    <table class="dt dt-invoice">
+
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-status" />
+                            <col class="col-status" />
+
+                            <!-- NEW -->
+                            <col class="col-action" />
+                        </colgroup>
+
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Checker Status</th>
+                                <th>Payment Status</th>
+
+                                <!-- NEW -->
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="invoiceBody"></tbody>
+
+                    </table>
+                </div>
+
+            
+                <!-- PAGINATION -->
+                <div class="dt-pagination" id="pg-invoice">
+
+                    <div class="dt-pg-info">
+
+                        Showing
+                        <b id="invoice-from">0</b>–
+                        <b id="invoice-to">0</b>
+                        of
+                        <b id="invoice-total">0</b>
+
+                    </div>
+
+                    <div class="dt-per-page">
+
+                        Rows per page
+
+                        <select onchange="changePerPage('invoice', this.value)">
+
+                            <option value="10" selected>10</option>
+
+                            <option value="20">20</option>
+
+                            <option value="50">50</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="dt-pg-btns" id="pg-btns-invoice"></div>
+
+                </div>
+            </div>
+        </div>
+
+     
+        <!-- /tp-invoice -->
+        <!-- ══════════════════════════════════════════
+         TAB: PAYMENT CHECKER
+    ══════════════════════════════════════════ -->
+        <div class="tp" id="tp-paymentchecker">
+            <div class="t-card">
+                <div class="t-header">
+                    <div>
+                        <div class="t-title"><i class="fa-solid fa-circle-check"></i> Payment Checker</div>
+                        <div class="t-subtitle">Paid invoices ready for payment validation</div>
+                    </div>
+                </div>
+                <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+                <div class="t-wrap">
+                    <table class="dt dt-paymentchecker">
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-date" />
+                            <col class="col-status" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Payment Date</th>
+                                <th>Payment Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentCheckerBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="dt-pagination" id="pg-paymentchecker">
+
+                    <div class="dt-pg-info">
+
+                        Showing
+                        <b id="paymentchecker-from">0</b>–
+                        <b id="paymentchecker-to">0</b>
+                        of
+                        <b id="paymentchecker-total">0</b>
+
+                    </div>
+
+                    <div class="dt-per-page">
+
+                        Rows per page
+
+                        <select onchange="changePerPage('paymentchecker', this.value)">
+
+                            <option value="10" selected>10</option>
+
+                            <option value="20">20</option>
+
+                            <option value="50">50</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="dt-pg-btns" id="pg-btns-paymentchecker"></div>
+
+                </div>
+            </div>
+        </div>
+        <!-- /tp-paymentchecker -->
+        <!-- SCROLL BUTTONS -->
+        <div id="scroll-btns">
+            <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Scroll to Top" type="button">
+                <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Scroll to Bottom" type="button">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+        </div>
+        <!-- ═══════════════════════════════════
+     CONFIRMATION MODAL
+═══════════════════════════════════ -->
+        <div class="confirm-overlay" id="confirmOverlay">
+            <div class="confirm-box" id="confirmBox">
+
+                <div class="confirm-header">
+                    <div class="confirm-icon" id="confirmIcon">
+                        <i id="confirmIconSymbol" class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+                        <div class="confirm-subtitle" id="confirmSubtitle">Please review before proceeding</div>
+                    </div>
+                </div>
+
+                <div class="confirm-body">
+                    <div class="confirm-warning" id="confirmWarning">
+                        <i id="confirmWarnIcon" class="fa-solid fa-triangle-exclamation"></i>
+                        <div id="confirmWarningText">Are you sure?</div>
+                    </div>
+                    <div class="confirm-meta" id="confirmMeta">
+                        <div class="confirm-meta-row">
+                            <span>Voucher No</span>
+                            <span id="meta-vch">—</span>
+                        </div>
+                        <div class="confirm-meta-row">
+                            <span>Account Name</span>
+                            <span id="meta-account">—</span>
+                        </div>
+                        <div class="confirm-meta-row">
+                            <span>Amount</span>
+                            <span id="meta-amount">—</span>
+                        </div>
+                        <div class="confirm-meta-row">
+                            <span>Checker Remark</span>
+                            <span id="meta-remark">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="confirm-footer">
+                    <button class="confirm-cancel" id="confirmCancel">
+                        <i class="fa-solid fa-xmark"></i> Cancel
+                    </button>
+                    <button class="confirm-proceed" id="confirmProceed">
+                        <i class="fa-solid fa-check"></i> Confirm
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /body -->
+</div><!-- /admin-dashboard-shell -->
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+
+    /* ══════════════════════════════════════════
+    PAGINATION STATE
+    ══════════════════════════════════════════ */
+    var pgState = {
+    maker:          { page: 1, perPage: 10, data: [] },
+    checker:        { page: 1, perPage: 10, data: [] },
+    invoice:        { page: 1, perPage: 10, data: [] },
+    paymentchecker: { page: 1, perPage: 10, data: [] }
+    };
+
+    /* ══════════════════════════════════════════
+    PAGINATION HELPERS
+    ══════════════════════════════════════════ */
+    function renderPagination(tab) {
+    var s     = pgState[tab];
+    var total = s.data.length;
+    var pages = Math.ceil(total / s.perPage);
+    var start = (s.page - 1) * s.perPage;
+    var end   = Math.min(start + s.perPage, total);
+
+    $('#' + tab + '-from').text(total ? start + 1 : 0);
+    $('#' + tab + '-to').text(end);
+    $('#' + tab + '-total').text(total);
+
+    var btnContainer = $('#pg-btns-' + tab);
+    btnContainer.empty();
+
+    if (pages <= 1) return;
+
+    // Prev
+    btnContainer.append(
+    '<button class="dt-pg-btn"' + (s.page === 1 ? ' disabled' : '') +
+    ' onclick="goPage(\'' + tab + '\',' + (s.page - 1) + ')">' +
+    '<i class="fa-solid fa-chevron-left fa-xs"></i></button>'
+    );
+
+    // Page numbers with ellipsis
+    var pageNums = buildPageNums(s.page, pages);
+    pageNums.forEach(function(p) {
+    if (p === '...') {
+    btnContainer.append('<span class="dt-pg-dots">…</span>');
+    } else {
+    btnContainer.append(
+    '<button class="dt-pg-btn' + (p === s.page ? ' active' : '') +
+    '" onclick="goPage(\'' + tab + '\',' + p + ')">' + p + '</button>'
+    );
+    }
+    });
+
+    // Next
+    btnContainer.append(
+    '<button class="dt-pg-btn"' + (s.page === pages ? ' disabled' : '') +
+    ' onclick="goPage(\'' + tab + '\',' + (s.page + 1) + ')">' +
+    '<i class="fa-solid fa-chevron-right fa-xs"></i></button>'
+    );
+    }
+
+    function buildPageNums(current, total) {
+    if (total <= 7) {
+    var arr = [];
+    for (var i = 1; i <= total; i++) arr.push(i);
+    return arr;
+    }
+    var pages = [1];
+    if (current > 3) pages.push('...');
+    var lo = Math.max(2, current - 1);
+    var hi = Math.min(total - 1, current + 1);
+    for (var j = lo; j <= hi; j++) pages.push(j);
+    if (current < total - 2) pages.push('...');
+    pages.push(total);
+    return pages;
+    }
+
+    function goPage(tab, page) {
+    pgState[tab].page = page;
+    renderTabBody(tab);
+    renderPagination(tab);
+    }
+
+    function changePerPage(tab, val) {
+    pgState[tab].perPage = parseInt(val);
+    pgState[tab].page    = 1;
+    renderTabBody(tab);
+    renderPagination(tab);
+    }
+
+    /* ══════════════════════════════════════════
+    INIT
+    ══════════════════════════════════════════ */
+    $(document).ready(function () {
+    loadSummary();
+    loadMaker();
+    loadChecker();
+    loadInvoicePayment();
+    loadPaymentChecker();
+    });
+    $("#confirmCancel").on("click", function () {
+    closeConfirm();
+    });
+
+    function loadAllData() {
+    loadSummary();
+    loadMaker();
+    loadChecker();
+    loadInvoicePayment();
+    loadPaymentChecker();
+    }
+
+    function getFilters() {
+    return {
+    accountName: $('#accountName').val(),
+    fromDate:    $('#fromDate').val(),
+    toDate:      $('#toDate').val()
+    };
+    }
+
+    /* ══════════════════════════════════════════
+    SUMMARY KPIs
+    ══════════════════════════════════════════ */
+    function loadSummary() {
+    $.get('/Admin/GetSummary', getFilters(), function (res) {
+    $('#totalBills').text(res.totalBills);
+    $('#pendingMaker').text(res.pendingMaker);
+    $('#approvedChecker').text(res.approvedChecker);
+    $('#totalPaid').text(res.totalPaid);
+    });
+    }
+
+    /* ══════════════════════════════════════════
+    MAKER
+    ══════════════════════════════════════════ */
+    let makerDataCache = [];
+
+    function loadMaker() {
+    $.get('/Admin/GetMakerActivity', getFilters(), function (data) {
+    makerDataCache = data;
+    populateMakerAccounts(data);
+    renderMakerRows(data);
+    });
+    }
+
+    function populateMakerAccounts(data) {
+    const sel     = document.getElementById('dd-account-maker');
+    const current = sel.value;
+    sel.innerHTML  = '<option value="">All Accounts</option>';
+    [...new Set(data.map(x => x.accountName))].sort().forEach(n => {
+    const o = document.createElement('option');
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+    });
+    sel.value = current;
+    }
+
+    function filterMakerTable() {
+    const st = document.getElementById('dd-status-maker').value;
+    const at = document.getElementById('dd-attach-maker').value;
+    const ac = document.getElementById('dd-account-maker').value;
+    renderMakerRows(makerDataCache.filter(x => {
+    if (st && x.makerStatus  !== st) return false;
+    if (at === 'yes' && !x.attachmentPath) return false;
+    if (at === 'no'  &&  x.attachmentPath) return false;
+    if (ac && x.accountName  !== ac) return false;
+    return true;
+    }));
+    }
+
+    function resetMakerFilters() {
+    document.getElementById('dd-status-maker').value  = '';
+    document.getElementById('dd-attach-maker').value  = '';
+    document.getElementById('dd-account-maker').value = '';
+    renderMakerRows(makerDataCache);
+    }
+    function renderMakerRows(data)
+    {
+    pgState.maker.data = data;
+
+    renderTabBody('maker');
+
+    renderPagination('maker');
+    }
+    function renderTabBody(tab)
+    {
+    let s = pgState[tab];
+
+    let start = (s.page - 1) * s.perPage;
+
+    let end = start + s.perPage;
+
+    let rowsData = s.data.slice(start, end);
+
+    let rows = '';
+
+    if(tab === 'maker')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    <td class="td-remark" title="${safeAttr(x.makerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.makerRemark ?? '-')}</span></td>
+
+    <td class="td-status">${statusBadge(x.makerStatus ?? '-')}</td>
+
+    <td class="td-attachment">${attachmentLink(x.attachmentPath)}</td>
+
+    <td class="td-action-cell">${deleteAttachmentButton(x)}</td>
+
+    </tr>
+    `;
+    });
+
+    $('#makerBody').html(rows || emptyRow(8));
+    }
+
+    if(tab === 'checker')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    <td class="td-remark" title="${safeAttr(x.checkerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.checkerRemark ?? '-')}</span></td>
+
+    <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+
+    <td class="td-attachment">${attachmentLink(x.attachmentPath)}</td>
+
+    </tr>
+    `;
+    });
+
+    $('#checkerBody').html(rows || emptyRow(7));
+    }
+
+    // if(tab === 'invoice')
+    // {
+    // rowsData.forEach(x => {
+
+    // rows += `
+    // <tr>
+
+    // <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    // <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    // <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    // <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    // <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+
+    // <td class="td-status">${statusBadge(x.paymentStatus ?? '-')}</td>
+
+    // </tr>
+    // `;
+    // });
+
+    // $('#invoiceBody').html(rows || emptyRow(7));
+    // }
+    if(tab === 'invoice')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account"
+    title="${safeAttr(x.accountName)}">
+
+    <span class="cell-text">
+    ${safeText(x.accountName)}
+    </span>
+
+    </td>
+
+    <td class="td-voucher">
+
+    <span class="cell-text">
+    ${safeText(x.vchNumber)}
+    </span>
+
+    </td>
+
+    <td class="td-date">
+
+    <span class="cell-text">
+    ${safeText(x.voucherDate)}
+    </span>
+
+    </td>
+
+    <td class="td-amount">
+
+    <span class="cell-text">
+    ₹${safeText(x.billAmount)}
+    </span>
+
+    </td>
+
+    <td class="td-status">
+    ${statusBadge(x.checkerStatus ?? '-')}
+    </td>
+
+    <td class="td-status">
+    ${statusBadge(x.paymentStatus ?? '-')}
+    </td>
+
+    <td style="text-align:center;">
+
+    ${x.paymentStatus === 'Paid'
+    ? `
+    <span class="status-badge sb-approved">
+    <i class="fa-solid fa-check"></i>
+    Paid
+    </span>
+    `
+    : `
+    <button class="btn-mark-paid"
+    type="button"
+
+    onclick="openMarkPaidModal(
+    '${x.vchNumber}',
+    '${x.accountName}',
+    '${x.billAmount}'
+    )">
+
+    <i class="fa-solid fa-circle-dollar-to-slot"></i>
+
+    Mark Paid
+
+    </button>
+    `}
+
+    </td>
+
+    </tr>
+    `;
+    });
+
+    $('#invoiceBody').html(rows || emptyRow(7));
+    }
+
+    if(tab === 'paymentchecker')
+    {
+    rowsData.forEach(x => {
+
+    rows += `
+    <tr>
+
+    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+
+    <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
+
+    <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
+
+    <td class="td-date"><span class="cell-text">${safeText(x.paymentDate ?? '-')}</span></td>
+
+    <td class="td-status">${statusBadge(x.paymentStatus ?? '-')}</td>
+
+    </tr>
+    `;
+    });
+
+    $('#paymentCheckerBody').html(rows || emptyRow(6));
+    }
+    }
+
+    function safeText(value) {
+    if (value === null || value === undefined || value === '') return '-';
+
+    return $('<div>').text(value).html();
+    }
+
+    function safeAttr(value) {
+    return safeText(value).replace(/"/g, '&quot;');
+    }
+
+    function statusBadge(status) {
+    const value = safeText(status);
+    const normalized = String(status || '').toLowerCase();
+    let cls = 'sb-neutral';
+    let icon = 'fa-minus';
+
+    if (normalized.includes('approved') || normalized === 'paid') {
+    cls = 'sb-approved';
+    icon = 'fa-check';
+    } else if (normalized.includes('pending') || normalized.includes('unpaid')) {
+    cls = 'sb-pending';
+    icon = 'fa-clock';
+    } else if (normalized.includes('reject')) {
+    cls = 'sb-rejected';
+    icon = 'fa-xmark';
+    }
+
+    return `<span class="status-badge ${cls}"><i class="fa-solid ${icon}"></i>${value}</span>`;
+    }
+
+    function attachmentLink(path) {
+    if (!path) return '<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>';
+
+    return `
+    <a class="attach-view" target="_blank" href="${path}">
+    <i class="fa-solid fa-eye"></i>
+    View
+    </a>`;
+    }
+
+    function deleteAttachmentButton(x) {
+    if (!x.attachmentPath) return '<span class="action-placeholder">-</span>';
+
+    return `
+    <button class="table-action attach-del"
+    onclick="deleteAttachment('${x.vchNumber}')"
+    title="Delete attachment"
+    aria-label="Delete attachment"
+    type="button">
+    <i class="fa-solid fa-trash-can"></i>
+    </button>`;
+    }
+
+    function emptyRow(colspan) {
+    return `<tr><td colspan="${colspan}" class="empty-row">No records found.</td></tr>`;
+    }
+
+    /* ══════════════════════════════════════════
+    CHECKER
+    ══════════════════════════════════════════ */
+    let checkerDataCache = [];
+
+    function loadChecker()
+    {
+    $.get('/Admin/GetCheckerActivity', getFilters(), function (data)
+    {
+    checkerDataCache = data;
+
+    populateCheckerAccounts(data);
+
+    renderCheckerRows(data);
+    });
+    }
+
+    function populateCheckerAccounts(data)
+    {
+    const sel = document.getElementById('dd-account-checker');
+
+    const current = sel.value;
+
+    sel.innerHTML = '<option value="">All Accounts</option>';
+
+    [...new Set(data.map(x => x.accountName))]
+    .sort()
+    .forEach(n => {
+
+    const o = document.createElement('option');
+
+    o.value = n;
+
+    o.textContent = n;
+
+    sel.appendChild(o);
+    });
+
+    sel.value = current;
+    }
+
+    function filterCheckerTable()
+    {
+    const st = document.getElementById('dd-status-checker').value;
+
+    const at = document.getElementById('dd-attach-checker').value;
+
+    const ac = document.getElementById('dd-account-checker').value;
+
+    renderCheckerRows(
+    checkerDataCache.filter(x => {
+
+    if (st && x.checkerStatus !== st) return false;
+
+    if (at === 'yes' && !x.attachmentPath) return false;
+
+    if (at === 'no' && x.attachmentPath) return false;
+
+    if (ac && x.accountName !== ac) return false;
+
+    return true;
+    })
+    );
+    }
+
+    function resetCheckerFilters()
+    {
+    document.getElementById('dd-status-checker').value = '';
+
+    document.getElementById('dd-attach-checker').value = '';
+
+    document.getElementById('dd-account-checker').value = '';
+
+    renderCheckerRows(checkerDataCache);
+    }
+
+    function renderCheckerRows(data)
+    {
+    pgState.checker.data = data;
+
+    renderTabBody('checker');
+
+    renderPagination('checker');
+    }
+
+    /* ══════════════════════════════════════════
+    INVOICE PAYMENT
+    ══════════════════════════════════════════ */
+    function loadInvoicePayment()
+    {
+    $.get('/Admin/GetInvoicePaymentActivity', getFilters(), function (data)
+    {
+    renderInvoiceRows(data);
+    });
+    }
+
+    function renderInvoiceRows(data)
+    {
+    pgState.invoice.data = data;
+
+    renderTabBody('invoice');
+
+    renderPagination('invoice');
+    }
+
+    /* ══════════════════════════════════════════
+    PAYMENT CHECKER
+    ══════════════════════════════════════════ */
+    function loadPaymentChecker()
+    {
+    $.get('/Admin/GetPaymentCheckerActivity', getFilters(), function (data)
+    {
+    renderPaymentCheckerRows(data);
+    });
+    }
+
+    function renderPaymentCheckerRows(data)
+    {
+    pgState.paymentchecker.data = data;
+
+    renderTabBody('paymentchecker');
+
+    renderPagination('paymentchecker');
+    }
+    /* ══════════════════════════════════════════
+    DELETE ATTACHMENT
+    ══════════════════════════════════════════ */
+
+    let deleteVoucher = null;
+
+    function deleteAttachment(vchNumber)
+    {
+    deleteVoucher = vchNumber;
+
+    $("#confirmTitle").text("Delete Attachment");
+
+    $("#confirmSubtitle").text(
+    "Permanent attachment removal"
+    );
+
+    $("#confirmWarningText").html(
+    "Are you sure you want to <strong>delete this attachment</strong>? This action cannot be undone."
+    );
+
+    $("#meta-vch").text(vchNumber);
+
+    $("#meta-account").text("Attachment Record");
+
+    $("#meta-amount").text("—");
+
+    $("#meta-remark").text(
+    "File will be permanently removed from system"
+    );
+
+    $("#confirmProceed")
+    .html('<i class="fa-solid fa-trash"></i> Delete');
+
+    $("#confirmProceed")
+    .css({
+    "background":
+    "linear-gradient(135deg,#dc2626,#ef4444)"
+    });
+
+    $("#confirmOverlay")
+    .addClass("show");
+
+    $("#confirmProceed")
+    .off("click")
+    .on("click", function () {
+
+    confirmDeleteAttachment();
+
+    });
+    }
+
+    function confirmDeleteAttachment()
+    {
+    $.ajax({
+
+    url: '/Admin/DeleteAttachment',
+
+    type: 'POST',
+
+    contentType: 'application/json',
+
+    data: JSON.stringify({
+    vchNumber: deleteVoucher
+    }),
+
+    success: function ()
+    {
+    closeConfirm();
+
+    loadMaker();
+
+    loadChecker();
+
+    loadInvoicePayment();
+
+    loadPaymentChecker();
+
+    loadSummary();
+    }
+    });
+    }
+
+    function openMarkPaidModal(vch, account, amount)
+    {
+    $("#confirmTitle").text("Mark Invoice as Paid");
+
+    $("#confirmSubtitle").text(
+    "Confirm payment completion"
+    );
+
+    $("#confirmWarningText").html(
+    "You are about to <strong>mark this invoice as paid</strong>."
+    );
+
+    $("#meta-vch").text(vch);
+
+    $("#meta-account").text(account);
+
+    $("#meta-amount").text("₹" + amount);
+
+    $("#meta-remark").text(
+    "Advance payment approved by Admin"
+    );
+
+    $("#confirmProceed")
+    .html('<i class="fa-solid fa-check"></i> Mark Paid');
+
+    $("#confirmOverlay")
+    .addClass("show");
+
+    $("#confirmProceed")
+    .off("click")
+    .on("click", function () {
+
+    markInvoicePaid(vch);
+
+    });
+    }
+
+    function markInvoicePaid(vch)
+    {
+    $.ajax({
+
+    url: '/InvoicePayment/MarkAsPaid',
+
+    type: 'POST',
+
+    contentType: 'application/json',
+
+    data: JSON.stringify({
+    vchNumber: vch
+    }),
+
+    success: function ()
+    {
+    closeConfirm();
+
+    loadInvoicePayment();
+
+    loadPaymentChecker();
+
+    loadSummary();
+    }
+    });
+    }
+
+    function closeConfirm()
+    {
+    $("#confirmOverlay")
+    .removeClass("show");
+    }
+    /* ══════════════════════════════════════════
+    TAB SWITCHER
+    ══════════════════════════════════════════ */
+    function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
+    btn.classList.add('on');
+    document.getElementById('tp-' + tab).classList.add('on');
+    }
+
+    /* ══════════════════════════════════════════
+    PRODUCT MODAL
+    ══════════════════════════════════════════ */
+    const modal      = document.getElementById('productModal');
+    const modalImage = document.getElementById('modalImage');
+
+    document.querySelectorAll('.clickable-product').forEach(product => {
+    product.addEventListener('click', () => {
+    modal.style.display = 'flex';
+    modalImage.src = product.src;
+    });
+    });
+
+    document.querySelector('.close-modal').addEventListener('click', () => {
+    modal.style.display = 'none';
+    });
+
+    modal.addEventListener('click', e => {
+    if (e.target === modal) modal.style.display = 'none';
+    });
+
+    /* ══════════════════════════════════════════
+    SCROLL BUTTONS — show after 200px
+    ══════════════════════════════════════════ */
+    window.addEventListener('scroll', function () {
+    const btns = document.getElementById('scroll-btns');
+    btns.classList.toggle('visible', window.scrollY > 200);
+    });
+
+    /* ══════════════════════════════════════════
+    TOP SCROLL SYNC (mirrors horizontal scroll
+    bar above each table)
+    ══════════════════════════════════════════ */
+    (function () {
+    const wraps  = document.querySelectorAll('.t-wrap');
+    const tops   = document.querySelectorAll('.top-scroll');
+    const inners = document.querySelectorAll('.top-scroll-inner');
+
+    wraps.forEach((wrap, i) => {
+    const top   = tops[i];
+    const inner = inners[i];
+    const table = wrap.querySelector('table');
+    if (!top || !inner || !table) return;
+
+    let lockTop = false, lockWrap = false;
+
+    top.addEventListener('scroll', function () {
+    if (lockWrap) return;
+    lockTop = true;
+    wrap.scrollLeft = top.scrollLeft;
+    lockTop = false;
+    });
+
+    wrap.addEventListener('scroll', function () {
+    if (lockTop) return;
+    lockWrap = true;
+    top.scrollLeft = wrap.scrollLeft;
+    lockWrap = false;
+    });
+
+    function syncWidth() {
+    requestAnimationFrame(() => {
+    inner.style.width = table.scrollWidth + 'px';
+    });
+    }
+
+    syncWidth();
+    window.addEventListener('resize', syncWidth);
+    new MutationObserver(syncWidth).observe(wrap, { childList: true, subtree: true });
+    });
+    })();
+
+    function exportCurrentTab() {
+    var activeTab = $(".tp.on").attr("id");
+
+    var tab = activeTab ? activeTab.replace("tp-", "") : null;
+    if (!tab) { alert("No active tab found"); return; }
+
+    var data = pgState[tab] ? pgState[tab].data : null;
+    if (!data || !data.length) { alert("No data to export"); return; }
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = tab + "_export_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+
+    if (tab === "maker") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Maker Remark","Maker Status","Attachment"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName    || "",
+    x.vchNumber      || "",
+    x.voucherDate    || "",
+    x.billAmount     || "",
+    x.makerRemark    || "",
+    x.makerStatus    || "",
+    x.attachmentPath ? "Yes" : "No"
+    ]);
+    });
+    // Totals
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    rows.push([]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"","",""]);
+    }
+
+    else if (tab === "checker") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Checker Remark","Checker Status","Attachment"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName    || "",
+    x.vchNumber      || "",
+    x.voucherDate    || "",
+    x.billAmount     || "",
+    x.checkerRemark  || "",
+    x.checkerStatus  || "",
+    x.attachmentPath ? "Yes" : "No"
+    ]);
+    });
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    rows.push([]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"","",""]);
+    }
+
+    else if (tab === "invoice") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Checker Status","Payment Status"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName   || "",
+    x.vchNumber     || "",
+    x.voucherDate   || "",
+    x.billAmount    || "",
+    x.checkerStatus || "",
+    x.paymentStatus || ""
+    ]);
+    });
+    var totalAmt    = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    var paidCount   = data.filter(function(x){ return (x.paymentStatus||"").toLowerCase()==="paid"; }).length;
+    var unpaidCount = data.length - paidCount;
+    rows.push([]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"",""]);
+    rows.push(["","","Paid","" + paidCount,"Unpaid","" + unpaidCount]);
+    }
+
+    else if (tab === "paymentchecker") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Payment Date","Payment Status"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName   || "",
+    x.vchNumber     || "",
+    x.voucherDate   || "",
+    x.billAmount    || "",
+    x.paymentDate   || "",
+    x.paymentStatus || ""
+    ]);
+    });
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    rows.push([]);
+    rows.push(["","","Total Paid Amount","₹" + totalAmt.toLocaleString("en-IN"),"",""]);
+    }
+
+    downloadCSV(rows, filename);
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
+
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    }
+</script>

@@ -1,0 +1,1041 @@
+﻿@* ============================================
+   FILE: Views/TicketsWeb/MyTickets.cshtml
+   View 3: User View All Tickets (With Attachments)
+   ============================================ *@
+
+@{
+    ViewData["Title"] = "My Tickets";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .my-tickets-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #0b2c4d 0%, #1a5276 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-light {
+        background: white;
+        color: #0b2c4d;
+    }
+
+        .btn-light:hover {
+            background: #f0f0f0;
+        }
+
+    .btn-primary {
+        background: #0b2c4d;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .summary-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+
+        .summary-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .summary-card.active {
+            border-color: #0b2c4d;
+            background: #f8f7ff;
+        }
+
+        .summary-card .icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .summary-card .count {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .summary-card .label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+    .filters-bar {
+        background: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .filter-item label {
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .filter-item select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            min-width: 140px;
+        }
+
+    .tickets-table-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .tickets-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .tickets-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #eee;
+            font-size: 13px;
+        }
+
+        .tickets-table td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+
+        .tickets-table tr:hover {
+            background: #f8f9fa;
+        }
+
+    .ticket-id-link {
+        color: #0b2c4d;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+        .ticket-id-link:hover {
+            text-decoration: underline;
+        }
+
+    .ticket-title-cell {
+        max-width: 250px;
+    }
+
+    .ticket-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .ticket-project {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .status-open {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .status-assign {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .status-inprogress {
+        background: #e8f5e9;
+        color: #388e3c;
+    }
+
+    .status-onhold {
+        background: #fce4ec;
+        color: #c2185b;
+    }
+
+    .status-close {
+        background: #f5f5f5;
+        color: #757575;
+    }
+
+    .priority-low {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .priority-medium {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .priority-high {
+        background: #ffe5d0;
+        color: #c35a00;
+    }
+
+    .priority-critical {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .attachment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #0b2c4d;
+        font-size: 13px;
+    }
+
+    .action-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+    }
+
+        .action-btn:hover {
+            background: #38546E;
+            color: white;
+            border-color: #38546E;
+        }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        max-width: 700px;
+        width: 90%;
+        max-height: 85vh;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #999;
+    }
+
+    .modal-body {
+        padding: 20px;
+        max-height: 65vh;
+        overflow-y: auto;
+    }
+
+    /* Attachments Section */
+    .attachments-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+        .attachments-section h4 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .attachment-item-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .attachment-item-info i {
+            font-size: 20px;
+            color: #667eea;
+        }
+
+    .attachment-item-name {
+        font-size: 14px;
+        color: #333;
+    }
+
+    .attachment-item-meta {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .attachment-item-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+        .attachment-item-actions a,
+        .attachment-item-actions button {
+            color: #0b2c4d;
+            text-decoration: none;
+            font-size: 14px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+            .attachment-item-actions a:hover,
+            .attachment-item-actions button:hover {
+                text-decoration: underline;
+            }
+
+            .attachment-item-actions button.delete-btn {
+                color: #dc3545;
+            }
+
+    /* Add Attachment in Modal */
+    .add-attachment-section {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+        .add-attachment-section input[type="file"] {
+            margin-right: 10px;
+        }
+
+    /* Timeline Section */
+    .timeline-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .timeline-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+
+    .timeline-action {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .timeline-meta {
+        font-size: 12px;
+        color: #999;
+        margin-top: 4px;
+    }
+
+    .loading {
+        text-align: center;
+        padding: 40px;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0b2c4d;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .alert {
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        display: none;
+    }
+
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+</style>
+
+<div class="my-tickets-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1>🎫 My Tickets</h1>
+            <p>Track all your support requests</p>
+        </div>
+        <a href="/TicketsWeb/RaiseTicket" class="btn btn-light">
+            ➕ Raise New Ticket
+        </a>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="alertSuccess" class="alert alert-success"></div>
+    <div id="alertError" class="alert alert-danger"></div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card active" onclick="filterByStatus('')">
+            <div class="icon">📋</div>
+            <div class="count" id="totalCount">0</div>
+            <div class="label">Total</div>
+        </div>
+        <div class="summary-card" onclick="filterByStatus('Open')">
+            <div class="icon">🔵</div>
+            <div class="count" id="openCount">0</div>
+            <div class="label">Open</div>
+        </div>
+        <div class="summary-card" onclick="filterByStatus('Assign')">
+            <div class="icon">🟠</div>
+            <div class="count" id="assignCount">0</div>
+            <div class="label">Assigned</div>
+        </div>
+        <div class="summary-card" onclick="filterByStatus('InProgress')">
+            <div class="icon">🟢</div>
+            <div class="count" id="inProgressCount">0</div>
+            <div class="label">In Progress</div>
+        </div>
+        <div class="summary-card" onclick="filterByStatus('OnHold')">
+            <div class="icon">🔴</div>
+            <div class="count" id="onHoldCount">0</div>
+            <div class="label">On Hold</div>
+        </div>
+        <div class="summary-card" onclick="filterByStatus('Close')">
+            <div class="icon">✅</div>
+            <div class="count" id="closeCount">0</div>
+            <div class="label">Closed</div>
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="filters-bar">
+        <div class="filter-item">
+            <label>Project:</label>
+            <select id="filterProject" onchange="loadTickets()">
+                <option value="">All Projects</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label>Month:</label>
+            <select id="filterMonth" onchange="loadTickets()">
+                <option value="">All Months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label>Year:</label>
+            <select id="filterYear" onchange="loadTickets()">
+                <option value="">All Years</option>
+            </select>
+        </div>
+        <div class="filter-item" style="margin-left: auto;">
+            <button class="action-btn" onclick="clearFilters()">Clear Filters</button>
+        </div>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="tickets-table-container">
+        <table class="tickets-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Ticket Details</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Assigned To</th>
+                    <th>Attachments</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="ticketsTableBody">
+                <tr>
+                    <td colspan="8">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading...</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Ticket Details Modal -->
+<div id="detailsModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📄 Ticket Details - #<span id="modalTicketId"></span></h2>
+            <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = '/api/Tickets';
+    const userId = sessionStorage.getItem("userId") || @ViewBag.UserId;
+    let allTickets = [];
+    let currentStatus = '';
+    let currentTicketId = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProjects();
+        initYearFilter();
+        loadTickets();
+        loadSummary();
+    });
+
+    function initYearFilter() {
+        const yearSelect = document.getElementById('filterYear');
+        const currentYear = new Date().getFullYear();
+        for (let y = currentYear; y >= currentYear - 3; y--) {
+            const option = document.createElement('option');
+            option.value = y;
+            option.textContent = y;
+            yearSelect.appendChild(option);
+        }
+    }
+
+    async function loadProjects() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/GetAllProjects`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ includeInactive: false })
+            });
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const select = document.getElementById('filterProject');
+                result.data.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.projectId;
+                    option.textContent = project.projectName;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }
+
+    async function loadTickets() {
+        const tbody = document.getElementById('ticketsTableBody');
+        tbody.innerHTML = '<tr><td colspan="8"><div class="loading"><div class="loading-spinner"></div></div></td></tr>';
+
+        try {
+            const filters = {
+                userId: parseInt(userId),
+                status: currentStatus || null,
+                projectId: document.getElementById('filterProject').value || null,
+                month: document.getElementById('filterMonth').value || null,
+                year: document.getElementById('filterYear').value || null
+            };
+
+            const response = await fetch(`${API_BASE_URL}/GetMyTickets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filters)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                allTickets = result.data || [];
+
+                // Load attachment counts
+                for (let ticket of allTickets) {
+                    try {
+                        const attResponse = await fetch(`${API_BASE_URL}/GetAttachmentsByTicketId`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ticketId: ticket.ticketId })
+                        });
+                        const attResult = await attResponse.json();
+                        ticket.attachmentCount = attResult.success && attResult.data ? attResult.data.length : 0;
+                    } catch {
+                        ticket.attachmentCount = 0;
+                    }
+                }
+
+                renderTickets();
+            }
+        } catch (error) {
+            console.error('Error loading tickets:', error);
+            tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h3>Error loading tickets</h3></div></td></tr>';
+        }
+    }
+
+    async function loadSummary() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/GetMyTickets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: parseInt(userId) })
+            });
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const tickets = result.data;
+                document.getElementById('totalCount').textContent = tickets.length;
+                document.getElementById('openCount').textContent = tickets.filter(t => t.status === 'Open').length;
+                document.getElementById('assignCount').textContent = tickets.filter(t => t.status === 'Assign').length;
+                document.getElementById('inProgressCount').textContent = tickets.filter(t => t.status === 'InProgress').length;
+                document.getElementById('onHoldCount').textContent = tickets.filter(t => t.status === 'OnHold').length;
+                document.getElementById('closeCount').textContent = tickets.filter(t => t.status === 'Close').length;
+            }
+        } catch (error) {
+            console.error('Error loading summary:', error);
+        }
+    }
+
+    function renderTickets() {
+        const tbody = document.getElementById('ticketsTableBody');
+
+        if (allTickets.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <h3>📭 No tickets found</h3>
+                            <p>You haven't raised any tickets yet</p>
+                            <a href="/TicketsWeb/RaiseTicket" class="btn btn-primary" style="margin-top: 15px;">
+                                ➕ Raise Your First Ticket
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = allTickets.map(ticket => `
+            <tr>
+                <td>
+                    <span class="ticket-id-link" onclick="viewTicketDetails(${ticket.ticketId})">
+                        #${ticket.ticketId}
+                    </span>
+                </td>
+                <td class="ticket-title-cell">
+                    <div class="ticket-title">${escapeHtml(ticket.title)}</div>
+                    <div class="ticket-project">📁 ${ticket.projectName}</div>
+                </td>
+                <td>
+                    <span class="badge priority-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
+                </td>
+                <td>
+                    <span class="badge status-${ticket.status.toLowerCase()}">${formatStatus(ticket.status)}</span>
+                </td>
+                <td>${ticket.assigneeName || '<span style="color:#999">Not assigned</span>'}</td>
+                <td>
+                    ${ticket.attachmentCount > 0 ? `
+                        <span class="attachment-badge">
+                            <i class="fas fa-paperclip"></i> ${ticket.attachmentCount}
+                        </span>
+                    ` : '-'}
+                </td>
+                <td>${formatDate(ticket.createdOn)}</td>
+                <td>
+                    <button class="action-btn" onclick="viewTicketDetails(${ticket.ticketId})">
+                        📄 View
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function filterByStatus(status) {
+        currentStatus = status;
+        document.querySelectorAll('.summary-card').forEach(card => card.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        loadTickets();
+    }
+
+    function clearFilters() {
+        document.getElementById('filterProject').value = '';
+        document.getElementById('filterMonth').value = '';
+        document.getElementById('filterYear').value = '';
+        currentStatus = '';
+        document.querySelectorAll('.summary-card').forEach((card, i) => {
+            card.classList.toggle('active', i === 0);
+        });
+        loadTickets();
+    }
+
+    // View Ticket Details with Attachments
+    async function viewTicketDetails(ticketId) {
+        currentTicketId = ticketId;
+        document.getElementById('modalTicketId').textContent = ticketId;
+        document.getElementById('modalBody').innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+        document.getElementById('detailsModal').style.display = 'flex';
+
+        try {
+            // Get ticket details
+            const ticketResponse = await fetch(`${API_BASE_URL}/GetTicketById`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticketId: ticketId })
+            });
+            const ticketResult = await ticketResponse.json();
+
+            // Get attachments
+            const attResponse = await fetch(`${API_BASE_URL}/GetAttachmentsByTicketId`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticketId: ticketId })
+            });
+            const attResult = await attResponse.json();
+
+            // Get timeline
+            const timelineResponse = await fetch(`${API_BASE_URL}/GetTicketTimeline`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticketId: ticketId })
+            });
+            const timelineResult = await timelineResponse.json();
+
+            if (ticketResult.success && ticketResult.data) {
+                const ticket = ticketResult.data;
+                const attachments = attResult.success ? attResult.data || [] : [];
+                const timeline = timelineResult.success ? timelineResult.data || [] : [];
+
+                let html = `
+                    <div>
+                        <h3 style="margin: 0 0 15px 0; color: #333;">${escapeHtml(ticket.title)}</h3>
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                            <span class="badge priority-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
+                            <span class="badge status-${ticket.status.toLowerCase()}">${formatStatus(ticket.status)}</span>
+                        </div>
+                        <p style="color: #666; margin-bottom: 20px;">${escapeHtml(ticket.description) || 'No description'}</p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                            <div><strong>Project:</strong> ${ticket.projectName}</div>
+                            <div><strong>Assignee:</strong> ${ticket.assigneeName || 'Not assigned'}</div>
+                            <div><strong>Created:</strong> ${formatDateTime(ticket.createdOn)}</div>
+                            <div><strong>Updated:</strong> ${ticket.updatedOn ? formatDateTime(ticket.updatedOn) : 'N/A'}</div>
+                        </div>
+                `;
+
+                // Attachments Section
+                html += `
+                    <div class="attachments-section">
+                        <h4>📎 Attachments (${attachments.length})</h4>
+                `;
+
+                if (attachments.length > 0) {
+                    html += attachments.map(att => `
+                        <div class="attachment-item">
+                            <div class="attachment-item-info">
+                                <i class="fas ${getFileIcon(att.fileName)}"></i>
+                                <div>
+                                    <div class="attachment-item-name">${escapeHtml(att.fileName)}</div>
+                                    <div class="attachment-item-meta">${att.userName} • ${formatDate(att.createdOn)}</div>
+                                </div>
+                            </div>
+                            <div class="attachment-item-actions">
+                                <a href="${API_BASE_URL}/DownloadAttachment/${att.attachmentId}" target="_blank">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                                ${att.userId == userId ? `
+                                    <button class="delete-btn" onclick="deleteAttachment(${att.attachmentId})">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    html += '<p style="color: #999; font-size: 14px;">No attachments</p>';
+                }
+
+                // Add new attachment (only for non-closed tickets)
+                if (ticket.status !== 'Close') {
+                    html += `
+                        <div class="add-attachment-section">
+                            <strong>Add New Attachment:</strong>
+                            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                                <input type="file" id="newAttachmentFile" />
+                                <button class="btn btn-primary btn-sm" onclick="uploadNewAttachment()">
+                                    <i class="fas fa-upload"></i> Upload
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+
+                // Timeline Section
+                if (timeline.length > 0) {
+                    html += `
+                        <div class="timeline-section">
+                            <h4>📜 Activity Timeline</h4>
+                            ${timeline.slice(0, 10).map(item => `
+                                <div class="timeline-item">
+                                    <div class="timeline-action">${item.action}</div>
+                                    <div class="timeline-meta">${item.userName} • ${formatDateTime(item.createdOn)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+                document.getElementById('modalBody').innerHTML = html;
+            }
+        } catch (error) {
+            document.getElementById('modalBody').innerHTML = '<p style="color: red;">Error loading ticket details</p>';
+        }
+    }
+
+    function closeDetailsModal() {
+        document.getElementById('detailsModal').style.display = 'none';
+        currentTicketId = null;
+    }
+
+    // Upload New Attachment
+    async function uploadNewAttachment() {
+        const fileInput = document.getElementById('newAttachmentFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Please select a file');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('ticketId', currentTicketId);
+        formData.append('userId', userId);
+        formData.append('file', file);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/UploadAttachment`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('success', 'Attachment uploaded successfully!');
+                viewTicketDetails(currentTicketId); // Refresh modal
+                loadTickets(); // Refresh table
+            } else {
+                showAlert('error', result.message || 'Failed to upload');
+            }
+        } catch (error) {
+            showAlert('error', 'Error uploading file');
+        }
+    }
+
+    // Delete Attachment
+    async function deleteAttachment(attachmentId) {
+        if (!confirm('Are you sure you want to delete this attachment?')) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/DeleteAttachment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    attachmentId: attachmentId,
+                    userId: parseInt(userId)
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('success', 'Attachment deleted successfully!');
+                viewTicketDetails(currentTicketId); // Refresh modal
+                loadTickets(); // Refresh table
+            } else {
+                showAlert('error', result.message || 'Failed to delete');
+            }
+        } catch (error) {
+            showAlert('error', 'Error deleting attachment');
+        }
+    }
+
+    function showAlert(type, message) {
+        const alertEl = document.getElementById(type === 'success' ? 'alertSuccess' : 'alertError');
+        alertEl.textContent = message;
+        alertEl.style.display = 'block';
+        setTimeout(() => alertEl.style.display = 'none', 4000);
+    }
+
+    function formatStatus(status) {
+        const map = { 'Assign': 'Assigned', 'InProgress': 'In Progress', 'OnHold': 'On Hold', 'Close': 'Closed' };
+        return map[status] || status;
+    }
+
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDateTime(dateString) {
+        return new Date(dateString).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+            'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word',
+            'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel',
+            'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'png': 'fa-file-image', 'gif': 'fa-file-image',
+            'zip': 'fa-file-archive', 'rar': 'fa-file-archive', 'txt': 'fa-file-alt'
+        };
+        return icons[ext] || 'fa-file';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Close modal on outside click
+    document.getElementById('detailsModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDetailsModal();
+    });
+</script>
