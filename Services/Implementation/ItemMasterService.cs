@@ -88,6 +88,15 @@ namespace JSAPNEW.Services.Implementation
             return IsGroupCode112(itemGroupCode) ? "" : utype ?? "";
         }
 
+        private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupName = (itemGroupName ?? "").Trim();
+
+            return groupName.Equals("PACKAGING MATERIAL", StringComparison.OrdinalIgnoreCase)
+                && groupCode == "105";
+        }
+
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
         {
             if (!_hanaSettings.TryGetValue(company, out var settings))
@@ -754,6 +763,9 @@ namespace JSAPNEW.Services.Implementation
 
             try
             {
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand("imc.jsInsertInitData", conn)
                 {
@@ -920,6 +932,9 @@ namespace JSAPNEW.Services.Implementation
 
             try
             {
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand("imc.jsUpdateInitData", conn)
                 {
@@ -1196,6 +1211,9 @@ namespace JSAPNEW.Services.Implementation
 
             try
             {
+                if (IsPackagingMaterialGroup(model.ItemGroupCode, model.itemGroupName))
+                    model.IsLitre = "N";
+
                 using (var conn = new SqlConnection(_configuration.GetConnectionString("DefaultConnection")))
                 using (var cmd = new SqlCommand("[imc].[jsInsertFullItemData]", conn))
                 {
@@ -1456,6 +1474,9 @@ namespace JSAPNEW.Services.Implementation
                 var itemList = group.ToList();
                 var first = itemList.First();
                 int company = first.Company;
+
+                if (IsPackagingMaterialGroup(first.ItemGroupCode, first.itemGroupName))
+                    first.IsLitre = "N";
 
                 // ── Per-InitId gate: blocks a second concurrent POST for the same item,
                 //    regardless of entry point (approval flow, manual /Items endpoint, SFTP
