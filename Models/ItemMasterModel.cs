@@ -39,6 +39,11 @@ namespace JSAPNEW.Models
     {
         public int TAXRATE { get; set; }
     }
+    public class UTypeModel
+    {
+        public string Value { get; set; }
+        public string Label { get; set; }
+    }
     public class RecieveSKUmodel
     {
         public string SKU { get; set; }
