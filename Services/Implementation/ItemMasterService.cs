@@ -37,6 +37,35 @@ namespace JSAPNEW.Services.Implementation
         // item to SAP. Keyed by InitId, not FlowId, because that is the unit SAP receives.
         private static readonly ConcurrentDictionary<int, SemaphoreSlim> _sapPostLocks = new();
 
+        private static bool IsGroupCode112(object? itemGroupCode)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            return groupCode == "112";
+        }
+
+        private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
+        {
+            return IsGroupCode112(itemGroupCode)
+                ? ""
+                : (object?)utype ?? DBNull.Value;
+        }
+
+        private static string GetUTypeSapValue(object? itemGroupCode, string? utype)
+        {
+            return IsGroupCode112(itemGroupCode)
+                ? ""
+                : utype ?? "";
+        }
+
+        private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupName = (itemGroupName ?? "").Trim();
+
+            return groupName.Equals("PACKAGING MATERIAL", StringComparison.OrdinalIgnoreCase)
+                && groupCode == "105";
+        }
+
 
 
         private readonly INotificationService _notificationService;
@@ -742,6 +771,9 @@ namespace JSAPNEW.Services.Implementation
                     CommandType = CommandType.StoredProcedure
                 };
 
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 cmd.Parameters.AddWithValue("@userId", request.UserId);
                 cmd.Parameters.AddWithValue("@company", request.Company);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -763,7 +795,10 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
 
-                //cmd.Parameters.AddWithValue("@utype", (object?)request.Utype ?? DBNull.Value);
+                cmd.Parameters.AddWithValue(
+                    "@utype",
+                    GetUTypeDbValue(request.ItemGroupCode, request.Utype)
+                );
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -909,6 +944,9 @@ namespace JSAPNEW.Services.Implementation
                     CommandType = CommandType.StoredProcedure
                 };
 
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 cmd.Parameters.AddWithValue("@id", request.Id);
                 cmd.Parameters.AddWithValue("@company", (object?)request.Company ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -929,7 +967,10 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
-                // cmd.Parameters.AddWithValue("@utype",(object ?)request.Utype ?? DBNull.Value);
+                cmd.Parameters.AddWithValue(
+                    "@utype",
+                    GetUTypeDbValue(request.ItemGroupCode, request.Utype)
+                );
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -1239,7 +1280,10 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@series", (object?)model.Series ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstRelevant", (object?)model.GstRelevant ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstTaxCtg", (object?)model.GstTaxCtg ?? DBNull.Value);
-                    //cmd.Parameters.AddWithValue("@utype", (object?)model.Utype ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue(
+                        "@utype",
+                        GetUTypeDbValue(model.ItemGroupCode, model.Utype)
+                    );
 
                     await conn.OpenAsync();
                     var reader = await cmd.ExecuteReaderAsync();
@@ -1652,15 +1696,7 @@ namespace JSAPNEW.Services.Implementation
                     _ => 0
                 };
 
-                // ── U_TYPE: Premium vs Commodity ──
-                string isLitre = (first.IsLitre ?? "").Trim();
-                string variety = (first.Variety?.Trim() ?? "");
-                bool isPremium =
-                    (isLitre.Equals("N", StringComparison.OrdinalIgnoreCase)
-                        && new[] { "CANOLA", "OLIVE", "GROUNDNUT" }.Contains(variety, StringComparer.OrdinalIgnoreCase))
-                    || (isLitre.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                        && new[] { "EXTRA VIRGIN", "POMACE", "EXTRA LIGHT" }.Contains(variety, StringComparer.OrdinalIgnoreCase));
-                string uType = isPremium ? "PREMIUM" : "COMMODITY";
+                string uType = GetUTypeSapValue(first.ItemGroupCode, first.Utype);
 
                 // ── Series: mapped by (company, groupCode) — differs across companies ──
                 int? seriesFromGroup = (company, gc) switch

@@ -1,5 +1,4 @@
-﻿
-@{
+﻿@{
     ViewData["Title"] = "Payment Checker";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -16,231 +15,231 @@
 
 <!-- PREMIUM CONTENT -->
 <div class="admin-dashboard-shell payment-checker-shell">
-<nav class="premium-nav">
-    <div class="nav-glass">
-        <div class="nav-left-section">
-            <div class="brand-logo-wrap">
-                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+    <nav class="premium-nav">
+        <div class="nav-glass">
+            <div class="nav-left-section">
+                <div class="brand-logo-wrap">
+                    <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+                </div>
+                <div class="brand-content">
+                    <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                    <div class="brand-title">Payment Checker Desk</div>
+                    <div class="brand-subtitle">Paid invoices • Payment visibility • Voucher drilldown</div>
+                </div>
             </div>
-            <div class="brand-content">
-                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
-                <div class="brand-title">Payment Checker Desk</div>
-                <div class="brand-subtitle">Paid invoices • Payment visibility • Voucher drilldown</div>
-            </div>
-        </div>
 
-        <div class="product-slider" aria-label="Product showcase">
-            <div class="product-track">
-                <img src="@Url.Content("~/images/canola.jpg")" class="product-img" alt="Canola oil" />
-                <img src="@Url.Content("~/images/js3.png")" class="product-img" alt="Juice product" />
-                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img" alt="Pomace oil" />
-                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" alt="Desi ghee" />
+            <div class="product-slider" aria-label="Product showcase">
+                <div class="product-track">
+                    <img src="@Url.Content("~/images/canola.jpg")" class="product-img" alt="Canola oil" />
+                    <img src="@Url.Content("~/images/js3.png")" class="product-img" alt="Juice product" />
+                    <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img" alt="Pomace oil" />
+                    <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" alt="Desi ghee" />
                     <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
+                </div>
+            </div>
+
+            <div class="module-box payment-checker">
+                <span class="module-dot"></span>
+                <i class="fa-solid fa-money-check-dollar"></i>
+                <span>Payment Checker</span>
             </div>
         </div>
+    </nav>
 
-        <div class="module-box payment-checker">
-            <span class="module-dot"></span>
-            <i class="fa-solid fa-money-check-dollar"></i>
-            <span>Payment Checker</span>
-        </div>
-    </div>
-</nav>
-
-<div class="body admin-dashboard-body">
+    <div class="body admin-dashboard-body">
 
 
 
-    <!-- =====================================================
+        <!-- =====================================================
          KPI CARDS
     ====================================================== -->
 
-    <div class="kpi-grid">
+        <div class="kpi-grid">
 
-        <!-- TOTAL -->
+            <!-- TOTAL -->
 
-        <div class="kpi-card k-blue">
+            <div class="kpi-card k-blue">
 
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardTotalCount">
-                        —
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardTotalCount">
+                            —
+                        </div>
+                        <div class="kpi-label">
+                            Paid Invoices
+                        </div>
                     </div>
-                    <div class="kpi-label">
-                        Paid Invoices
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-file-invoice"></i>
                     </div>
                 </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-file-invoice"></i>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                                  stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-receipt fa-xs"></i> Cleared</div>
                 </div>
+
             </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
-                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-receipt fa-xs"></i> Cleared</div>
+
+
+            <!-- AMOUNT -->
+
+            <div class="kpi-card k-green">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardTotalAmount">
+                            —
+                        </div>
+                        <div class="kpi-label">
+                            Paid Amount
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                                  stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-circle-check fa-xs"></i> Settled</div>
+                </div>
+
+            </div>
+
+
+            <!-- DATE -->
+
+            <div class="kpi-card k-purple">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardLatestDate">
+                            —
+                        </div>
+                        <div class="kpi-label">
+                            Latest Payment Date
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                                  stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-clock-rotate-left fa-xs"></i> Recent</div>
+                </div>
+
+            </div>
+
+
+            <!-- ACCOUNT -->
+
+            <div class="kpi-card k-amber">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardUniqueAccounts">
+                            —
+                        </div>
+                        <div class="kpi-label">
+                            Unique Accounts
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-building"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                                  stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-users fa-xs"></i> Vendors</div>
+                </div>
+
             </div>
 
         </div>
 
 
-        <!-- AMOUNT -->
 
-        <div class="kpi-card k-green">
-
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardTotalAmount">
-                        —
-                    </div>
-                    <div class="kpi-label">
-                        Paid Amount
-                    </div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-indian-rupee-sign"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
-                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-circle-check fa-xs"></i> Settled</div>
-            </div>
-
-        </div>
-
-
-        <!-- DATE -->
-
-        <div class="kpi-card k-purple">
-
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardLatestDate">
-                        —
-                    </div>
-                    <div class="kpi-label">
-                        Latest Payment Date
-                    </div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-calendar-days"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
-                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-clock-rotate-left fa-xs"></i> Recent</div>
-            </div>
-
-        </div>
-
-
-        <!-- ACCOUNT -->
-
-        <div class="kpi-card k-amber">
-
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardUniqueAccounts">
-                        —
-                    </div>
-                    <div class="kpi-label">
-                        Unique Accounts
-                    </div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-building"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
-                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-users fa-xs"></i> Vendors</div>
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <!-- =====================================================
+        <!-- =====================================================
          FILTER CARD
     ====================================================== -->
 
-    <div class="filter-card payment-checker-filter-card">
+        <div class="filter-card payment-checker-filter-card">
 
-        <!-- FROM DATE -->
+            <!-- FROM DATE -->
 
-        <div class="f-group">
+            <div class="f-group">
 
-            <span class="f-label">
-                From Date
-            </span>
+                <span class="f-label">
+                    From Date
+                </span>
 
-            <input type="date"
-                   id="fromDate"
-                   class="f-input" />
+                <input type="date"
+                       id="fromDate"
+                       class="f-input" />
 
-        </div>
-
-
-        <!-- TO DATE -->
-
-        <div class="f-group">
-
-            <span class="f-label">
-                To Date
-            </span>
-
-            <input type="date"
-                   id="toDate"
-                   class="f-input" />
-
-        </div>
+            </div>
 
 
-        <!-- ACCOUNT -->
+            <!-- TO DATE -->
 
-        <div class="f-group grow autocomplete-group">
+            <div class="f-group">
 
-            <span class="f-label">
-                Account Name
-            </span>
+                <span class="f-label">
+                    To Date
+                </span>
 
-            <input type="text"
-                   id="accountName"
-                   class="f-input"
-                   placeholder="Search account..."
-                   autocomplete="off" />
+                <input type="date"
+                       id="toDate"
+                       class="f-input" />
 
-            <div id="suggestionBox" class="suggestion-box"></div>
-
-        </div>
+            </div>
 
 
-        <!-- SEARCH -->
-        <button type="button"
-                id="searchBtn"
-                class="btn btn-dark admin-search-btn search-payment-btn">
+            <!-- ACCOUNT -->
 
-            <i class="fa-solid fa-magnifying-glass"></i>
+            <div class="f-group grow autocomplete-group">
 
-            Search
+                <span class="f-label">
+                    Account Name
+                </span>
 
-        </button>
+                <input type="text"
+                       id="accountName"
+                       class="f-input"
+                       placeholder="Search account..."
+                       autocomplete="off" />
+
+                <div id="suggestionBox" class="suggestion-box"></div>
+
+            </div>
+
+
+            <!-- SEARCH -->
+            <button type="button"
+                    id="searchBtn"
+                    class="btn btn-dark admin-search-btn search-payment-btn">
+
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                Search
+
+            </button>
             <button class="btn btn-export"
                     onclick="exportToExcel()">
 
@@ -250,151 +249,151 @@
 
             </button>
 
-    </div>
+        </div>
+
     
 
-
-    <!-- =====================================================
+        <!-- =====================================================
          TABLE CARD
     ====================================================== -->
 
-    <div class="t-card payment-checker-table-card">
+        <div class="t-card payment-checker-table-card">
 
-        <!-- HEADER -->
+            <!-- HEADER -->
 
-        <div class="t-header">
+            <div class="t-header">
 
-            <span class="t-title">
+                <span class="t-title">
 
-                <i class="fa-solid fa-money-check-dollar"></i>
+                    <i class="fa-solid fa-money-check-dollar"></i>
 
-                Paid Invoices
+                    Paid Invoices
 
-            </span>
+                </span>
 
-            <span class="t-count"
-                  id="recordBadge">
+                <span class="t-count"
+                      id="recordBadge">
 
-            </span>
+                </span>
 
-        </div>
-
-
-        <!-- TABLE SLIDE HINT -->
-
-        <div class="table-slide-hint">
-
-            <i class="fa-solid fa-arrows-left-right"></i>
-
-            Slide horizontally to inspect all columns
-
-        </div>
+            </div>
 
 
-        <!-- TOP SCROLL -->
+            <!-- TABLE SLIDE HINT -->
 
-        <div class="top-scroll"
-             id="topScroll">
+            <div class="table-slide-hint">
 
-            <div class="top-scroll-inner"
-                 id="topScrollInner">
+                <i class="fa-solid fa-arrows-left-right"></i>
+
+                Slide horizontally to inspect all columns
+
+            </div>
+
+
+            <!-- TOP SCROLL -->
+
+            <div class="top-scroll"
+                 id="topScroll">
+
+                <div class="top-scroll-inner"
+                     id="topScrollInner">
+                </div>
+
+            </div>
+
+
+            <!-- TABLE -->
+
+            <div class="t-wrap"
+                 id="tableWrap">
+
+                <table class="dt payment-checker-table"
+                       id="mainTable">
+
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-supplier" />
+                        <col class="col-date" />
+                        <col class="col-date" />
+                        <col class="col-date" />
+                        <col class="col-attachment" />
+                        <col class="col-checker-status" />
+                        <col class="col-payment-status" />
+                        <col class="col-checker-remark" />
+                    </colgroup>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Account</th>
+                            <th>Voucher</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Supplier Ref</th>
+                            <th>Ref Date</th>
+                            <th>Due Date</th>
+                            <th>Payment Date</th>
+                            <th>Attachment</th>
+
+                            <th>Checker Status</th>
+                            <th>Payment Status</th>
+
+                            <th>Checker Remark</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="paymentCheckerTable">
+
+                        <tr>
+
+                            <td colspan="12"
+                                class="empty-row">
+
+                                Select date range and click Search
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
             </div>
 
         </div>
 
 
-        <!-- TABLE -->
 
-        <div class="t-wrap"
-             id="tableWrap">
-
-            <table class="dt payment-checker-table"
-                   id="mainTable">
-
-                <colgroup>
-                    <col class="col-account" />
-                    <col class="col-voucher" />
-                    <col class="col-date" />
-                    <col class="col-amount" />
-                    <col class="col-supplier" />
-                    <col class="col-date" />
-                    <col class="col-date" />
-                    <col class="col-date" />
-                    <col class="col-attachment" />
-                    <col class="col-checker-status" />
-                    <col class="col-payment-status" />
-                    <col class="col-checker-remark" />
-                </colgroup>
-
-                <thead>
-
-                    <tr>
-
-                        <th>Account</th>
-                        <th>Voucher</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Supplier Ref</th>
-                        <th>Ref Date</th>
-                        <th>Due Date</th>
-                        <th>Payment Date</th>
-                        <th>Attachment</th>
-                     
-                        <th>Checker Status</th>
-                        <th>Payment Status</th>
-                   
-                       <th>Checker Remark</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody id="paymentCheckerTable">
-
-                    <tr>
-
-                        <td colspan="12"
-                            class="empty-row">
-
-                            Select date range and click Search
-
-                        </td>
-
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-
-
-    <!-- =====================================================
+        <!-- =====================================================
          PDF VIEWER
     ====================================================== -->
 
-    <div id="pdfContainer"
-         class="pdf-modal">
+        <div id="pdfContainer"
+             class="pdf-modal">
 
-        <div class="pdf-box">
+            <div class="pdf-box">
 
-            <button onclick="closePdf()"
-                    class="pdf-close">
+                <button onclick="closePdf()"
+                        class="pdf-close">
 
-                ×
+                    ×
 
-            </button>
+                </button>
 
-            <iframe id="pdfFrame"></iframe>
+                <iframe id="pdfFrame"></iframe>
+
+            </div>
 
         </div>
 
     </div>
-
-</div>
 </div><!-- /.payment-checker-shell -->
 
 
@@ -403,6 +402,7 @@
 
 <script>
 
+    let _paymentCheckerCache = [];
     // -----------------------------------------------
     // LOAD DATA
     // -----------------------------------------------
@@ -412,6 +412,7 @@
     let fromDate = $("#fromDate").val();
     let toDate = $("#toDate").val();
     let accountName = $("#accountName").val().trim() || null;
+    let _paymentCheckerCache = [];
 
     if (!fromDate || !toDate) {
     alert("Please select both dates");
@@ -442,6 +443,7 @@
 
     renderTable(data || []);
 
+    
     setTimeout(syncTopScroll, 300);
 
     }).fail(function () {
@@ -480,8 +482,10 @@
     // -----------------------------------------------
 
     function renderTable(data) {
+    _paymentCheckerCache = data || [];
 
     if (!data || data.length === 0) {
+    _paymentCheckerCache = data || [];
 
     $("#paymentCheckerTable").html(`
     <tr>
@@ -561,7 +565,7 @@
     <td class="td-status">
     <span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>
     </td>
-   
+
     <td class="td-remark" title="${safeAttr(item.checkerRemark || "-")}"><span class="cell-text clamp-text">${safeText(item.checkerRemark || "-")}</span></td>
 
     </tr>`;
@@ -645,161 +649,71 @@
     // LOAD DETAILS
     // -----------------------------------------------
     function loadDetails(vchNumber, serialNumber) {
-
     const existing = document.getElementById("details-" + vchNumber);
-
-    if (existing) {
-    existing.remove();
-    return;
-    }
-
-    document.querySelectorAll("[id^='details-']")
-    .forEach(el => el.remove());
-
+    if (existing) { existing.remove(); return; }
+    document.querySelectorAll("[id^='details-']").forEach(el => el.remove());
     const row = document.getElementById("row-" + vchNumber);
-
     if (!row) return;
 
     row.insertAdjacentHTML("afterend", `
-
     <tr id="details-${vchNumber}" class="detail-row">
-
     <td colspan="12">
-
     <div class="detail-inner">
-
-    <i class="fa-solid fa-spinner fa-spin"
-    style="color:#9CA3AF"></i>
-
+    <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
     Loading items...
-
     </div>
-
     </td>
-
-    </tr>
-
-    `);
+    </tr>`);
 
     fetch("/PaymentChecker/GetInvoiceItems?vchNumber=" + vchNumber)
-
-    .then(r => {
-
-    if (!r.ok) throw new Error();
-
-    return r.json();
-
-    })
-
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
     .then(data => {
-
-    const rows = data.map(item => `
-
-    <div class="detail-card">
-
-    <div class="detail-top">
-
-    <div class="detail-product">
-    ${item.productName ?? "-"}
-    </div>
-
-    <div class="detail-amount">
-    ₹${item.itemValue ?? 0}
-    </div>
-
-    </div>
-
-    <div class="detail-grid">
-
-    <div class="detail-item">
-    <span>Quantity</span>
-    <strong>${item.quantity ?? 0}</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>Warehouse</span>
-    <strong>${item.warehouseName ?? "-"}</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>Tax %</span>
-    <strong>${item.tax ?? 0}</strong>
-    </div>
-
-    <div class="detail-item">
-    <span>Tax Name</span>
-    <strong>${item.taxName ?? "-"}</strong>
-    </div>
-
- 
-    <div class="detail-item">
-    <span>HSN/SAC</span>
-    <strong>${item.hsnsacid ?? "-"}</strong>
-    </div>
-
-
-
-
-
-    <div class="detail-item">
-    <span>UOM</span>
-    <strong>${item.uom ?? "-"}</strong>
-    </div>
-
-    </div>
-
-    </div>
-
-    `).join("");
+    const bodyRows = data.map((item, idx) => `
+    <tr class="erp-item-row">
+    <td class="erp-sno">${item.serialNumber ?? idx + 1}</td>
+    <td class="erp-product">${item.productName ?? "-"}</td>
+    <td class="erp-hsn">${item.hsnsacid ?? "-"}</td>
+    <td class="erp-qty">${item.quantity ?? 0}</td>
+    <td class="erp-rate">₹${item.itemValue ?? 0}</td>
+    <td class="erp-tax">${item.tax ?? 0}%</td>
+    <td class="erp-taxname">${item.taxName ?? "-"}</td>
+    <td class="erp-warehouse">${item.warehouseName ?? "-"}</td>
+    <td class="erp-uom">${item.uom ?? "-"}</td>
+    </tr>`).join("");
 
     const el = document.getElementById("details-" + vchNumber);
-
     if (el) {
-
     el.outerHTML = `
-
-    <tr id="details-${vchNumber}"
-    class="detail-row">
-
-    <td colspan="12">
-
-    <div class="detail-container">
-
-    ${rows}
-
-    </div>
-
-    </td>
-
+    <tr id="details-${vchNumber}" class="detail-row">
+    <td colspan="12" class="erp-detail-cell">
+    <div class="erp-detail-wrap">
+    <table class="erp-detail-table">
+    <thead>
+    <tr>
+    <th>S.No</th>
+    <th>Product Name</th>
+    <th>HSN/SAC</th>
+    <th>Qty</th>
+    <th>Item Value</th>
+    <th>Tax %</th>
+    <th>Tax Name</th>
+    <th>Warehouse</th>
+    <th>UOM</th>
     </tr>
-
-    `;
-    }
-
-    })
-
-    .catch(() => {
-
-    const el = document.getElementById("details-" + vchNumber);
-
-    if (el) {
-
-    el.innerHTML = `
-
-    <td colspan="12"
-    class="empty-row"
-    style="color:#EF4444">
-
-    Error loading items ❌
-
+    </thead>
+    <tbody>${bodyRows}</tbody>
+    </table>
+    </div>
     </td>
-
-    `;
+    </tr>`;
     }
-
+    })
+    .catch(() => {
+    const el = document.getElementById("details-" + vchNumber);
+    if (el) el.innerHTML = `<td colspan="12" class="empty-row" style="color:#EF4444">Error loading items ❌</td>`;
     });
-
     }
+
 
 
     // -----------------------------------------------
@@ -932,61 +846,81 @@
     }
 
     window.onload = syncTopScroll;
-    function exportToExcel()
-    {
-    const rows = document.querySelectorAll("#paymentCheckerTable tr");
+    function exportToExcel() {
 
-    if (!rows.length)
-    {
-    alert("No data to export");
-    return;
+    var seenVch = new Set();
+    var data = (_paymentCheckerCache || []).filter(function(item) {
+    if (seenVch.has(item.vchNumber)) return false;
+    seenVch.add(item.vchNumber);
+    return true;
+    });
+
+    if (!data.length) { alert("No data to export"); return; }
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "payment-checker_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
+    "Account Name","Voucher No","Voucher Date","Bill Amount",
+    "Supplier Ref","Ref Date","Due Date","Payment Date",
+    "Checker Status","Payment Status","Checker Remark"
+    ]);
+
+    data.forEach(function(item) {
+    rows.push([
+    item.accountName   || "",
+    item.vchNumber     || "",
+    formatDate(item.voucherDate)      || "",
+    item.billAmount    || "",
+    item.supplierRef   || "",
+    formatDate(item.supplierRefDate)  || "",
+    formatDate(item.dueDate)          || "",
+    formatDate(item.paymentDate)      || "",
+    "Approved",
+    "Paid",
+    item.checkerRemark || ""
+    ]);
+    });
+
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    var accounts = new Set(data.map(function(x){ return x.accountName; })).size;
+
+    rows.push([]);
+    rows.push(["TOTALS","","","₹" + totalAmt.toLocaleString("en-IN"),"","","","","","",""]);
+    rows.push(["Unique Accounts","" + accounts,"Total Invoices","" + data.length,"","","","","","",""]);
+
+    downloadCSV(rows, filename);
     }
 
-    let csv = "";
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
 
-    rows.forEach(row =>
-    {
-    const cols = row.querySelectorAll("td");
-
-    let rowData = [];
-
-    cols.forEach((col, i) =>
-    {
-    if(i === 7) return;
-
-    let text = col.innerText
-    .replace(/\n/g, " ")
-    .trim();
-
-    text = '"' + text.replace(/"/g, '""') + '"';
-
-    rowData.push(text);
-    });
-
-    csv += rowData.join(",") + "\n";
-    });
-
-    const blob = new Blob(
-    [csv],
-    {
-    type: "text/csv;charset=utf-8;"
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-
-    a.href = url;
-
-    a.download = "invoice_payment_export.csv";
-
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
     document.body.appendChild(a);
-
     a.click();
-
     document.body.removeChild(a);
-
     URL.revokeObjectURL(url);
     }
-
 </script>

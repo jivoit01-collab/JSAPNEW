@@ -308,7 +308,7 @@ namespace JSAPNEW.Models
         public string? PackingType { get; set; }
         public string? FaType { get; set; }
         public string? Uom { get; set; }
-       // public string? Utype { get; set; }
+        public string? Utype { get; set; }
         public string? SalesUom { get; set; }
         public string? InvUom { get; set; }
         public string? PurchaseUom { get; set; }
@@ -378,7 +378,7 @@ namespace JSAPNEW.Models
         public string? PackingType { get; set; }
         public string? FaType { get; set; }
         public string? Uom { get; set; }
-        //public string? Utype { get; set; }
+        public string? Utype { get; set; }
         public string? SalesUom { get; set; }
         public string? InvUom { get; set; }
         public string? PurchaseUom { get; set; }
@@ -711,6 +711,7 @@ namespace JSAPNEW.Models
         public decimal BoxSize { get; set; }
         public decimal UnitSize { get; set; }
         public string UomGroup { get; set; }
+        public string? Utype { get; set; }
         // SAPData
         public long? FranName { get; set; }
         public string PrchseItem { get; set; }
@@ -744,7 +745,6 @@ namespace JSAPNEW.Models
 
         public string? SellItem { get; set; }
         public string? PrcrmntMtd { get; set; }
-        //public string? Utype { get; set; }
 
     }
     public class UOMgroupModel
@@ -780,7 +780,6 @@ namespace JSAPNEW.Models
         public string Action { get; set; }
         public int Company { get; set; }
         public string Uom { get; set; }
-        //public string Utype { get; set; }
         public string SalesUom { get; set; }
         public string InvUom { get; set; }
         public string PurchaseUom { get; set; }
@@ -789,6 +788,7 @@ namespace JSAPNEW.Models
         public decimal? UnitSize { get; set; }
         public string UomGroup { get; set; }
         public int SAPId { get; set; }
+        public string? Utype { get; set; }
         public int FranName { get; set; }
         public string PrchseItem { get; set; }
         public string InvItem { get; set; }

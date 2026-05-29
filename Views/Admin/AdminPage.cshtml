@@ -1,5 +1,5 @@
-﻿ @{
-   ViewData["Title"] = "Admin Dashboard";
+﻿@{
+    ViewData["Title"] = "Admin Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
@@ -75,38 +75,6 @@
         </div>
 
     </div>
-
-</nav> *@
-<div class="admin-dashboard-shell">
-<nav class="premium-nav">
-    <div class="nav-glass">
-        <div class="nav-left-section">
-            <div class="brand-logo-wrap">
-                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
-            </div>
-            <div class="brand-content">
-                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
-                <div class="brand-title">Wellness Finance Operations</div>
-                <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
-            </div>
-        </div>
-
-        <div class="product-slider" aria-label="Product showcase">
-            <div class="product-track">
-                <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
-                <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img clickable-product" alt="Pomace oil" />
-                <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img clickable-product" alt="Groundnut oil" />
-                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
-                <img src="@Url.Content("~/images/download.jpg")" class="product-img clickable-product" alt="Wellness product" />
-            </div>
-        </div>
-
-        <div class="module-box">
-            <span class="module-dot"></span>
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>Admin Dashboard</span>
-        </div>
-    </div>
 </nav>
 <div class="body admin-dashboard-body">
 
@@ -116,20 +84,60 @@
         <img id="modalImage" class="modal-product-image" />
     </div>
 
-    <!-- FILTER -->
-    <div class="filter-card dashboard-filter-card">
-        <div class="f-group">
-            <span class="f-label">From Date</span>
-            <input type="date" class="f-input" id="fromDate" />
+</nav> *@
+<div class="admin-dashboard-shell">
+    <nav class="premium-nav">
+        <div class="nav-glass">
+            <div class="nav-left-section">
+                <div class="brand-logo-wrap">
+                    <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+                </div>
+                <div class="brand-content">
+                    <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                    <div class="brand-title">Wellness Finance Operations</div>
+                    <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
+                </div>
+            </div>
+
+            <div class="product-slider" aria-label="Product showcase">
+                <div class="product-track">
+                    <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                    <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img clickable-product" alt="Pomace oil" />
+                    <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img clickable-product" alt="Groundnut oil" />
+                    <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                    <img src="@Url.Content("~/images/download.jpg")" class="product-img clickable-product" alt="Wellness product" />
+                </div>
+            </div>
+
+            <div class="module-box">
+                <span class="module-dot"></span>
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Admin Dashboard</span>
+            </div>
         </div>
-        <div class="f-group">
-            <span class="f-label">To Date</span>
-            <input type="date" class="f-input" id="toDate" />
+    </nav>
+    <div class="body admin-dashboard-body">
+
+        <!-- PRODUCT MODAL -->
+        <div class="product-modal" id="productModal">
+            <span class="close-modal">&times;</span>
+            <img id="modalImage" class="modal-product-image" />
         </div>
-        <div class="f-group grow">
-            <span class="f-label">Account Name</span>
-            <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
-        </div>
+
+        <!-- FILTER -->
+        <div class="filter-card dashboard-filter-card">
+            <div class="f-group">
+                <span class="f-label">From Date</span>
+                <input type="date" class="f-input" id="fromDate" />
+            </div>
+            <div class="f-group">
+                <span class="f-label">To Date</span>
+                <input type="date" class="f-input" id="toDate" />
+            </div>
+            <div class="f-group grow">
+                <span class="f-label">Account Name</span>
+                <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
+            </div>
             <div class="admin-filter-actions">
 
                 <button class="btn btn-dark admin-search-btn"
@@ -139,6 +147,149 @@
 
                     Search
 
+                </button>
+
+                <button class="btn btn-export"
+                        onclick="exportCurrentTab()">
+
+                    <i class="fa-solid fa-file-excel"></i>
+
+                    Export
+
+                </button>
+
+            </div>
+        </div>
+
+        <!-- =========================================================
+         KPI GRID — REDESIGNED
+    ========================================================= -->
+        <div class="kpi-grid">
+
+            <div class="kpi-card k-blue">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="totalBills">0</div>
+                        <div class="kpi-label">Total Bills</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,22 12,14 24,18 36,8 48,16 60,6 72,12 80,8"
+                                  stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-arrow-trend-up fa-xs"></i> All Entries</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-amber">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="pendingMaker">0</div>
+                        <div class="kpi-label">Pending Maker</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,10 12,18 24,12 36,20 48,10 60,16 72,8 80,14"
+                                  stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-green">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="approvedChecker">0</div>
+                        <div class="kpi-label">Approved Checker</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,18 12,10 24,16 36,6 48,14 60,4 72,10 80,6"
+                                  stroke="#10B981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Verified</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-purple">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="totalPaid">0</div>
+                        <div class="kpi-label">Total Paid</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,12 24,18 36,8 48,18 60,10 72,14 80,8"
+                                  stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-wallet fa-xs"></i> Cleared</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TABS -->
+        <div class="tab-bar">
+            <button class="tab-btn on" onclick="switchTab('maker',this)" type="button">
+                <i class="fa-solid fa-pen-to-square"></i> Maker Activity
+            </button>
+            <button class="tab-btn" onclick="switchTab('checker',this)" type="button">
+                <i class="fa-solid fa-clipboard-check"></i> Checker Activity
+            </button>
+            <button class="tab-btn" onclick="switchTab('invoice',this)" type="button">
+                <i class="fa-solid fa-money-check-dollar"></i> Invoice Payment
+            </button>
+            <button class="tab-btn" onclick="switchTab('paymentchecker',this)" type="button">
+                <i class="fa-solid fa-circle-check"></i> Payment Checker
+            </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════
+         TAB: MAKER
+    ══════════════════════════════════════════ -->
+        <div class="tp on" id="tp-maker">
+            <div class="filter-card table-filter-card">
+                <div class="f-group">
+                    <span class="f-label">Status</span>
+                    <select class="f-input" id="dd-status-maker" onchange="filterMakerTable()">
+                        <option value="">All Status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="f-group">
+                    <span class="f-label">Attachment</span>
+                    <select class="f-input" id="dd-attach-maker" onchange="filterMakerTable()">
+                        <option value="">All</option>
+                        <option value="yes">Uploaded</option>
+                        <option value="no">No File</option>
+                    </select>
+                </div>
+                <div class="f-group grow">
+                    <span class="f-label">Account Name</span>
+                    <select class="f-input" id="dd-account-maker" onchange="filterMakerTable()">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+                <button class="btn btn-soft reset-filter" onclick="resetMakerFilters()">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
                 </button>
 
                 <button class="btn btn-export"
@@ -175,154 +326,59 @@
                 </svg>
                 <div class="kpi-trend"><i class="fa-solid fa-arrow-trend-up fa-xs"></i> All Entries</div>
             </div>
-        </div>
 
-        <div class="kpi-card k-amber">
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val" id="pendingMaker">0</div>
-                    <div class="kpi-label">Pending Maker</div>
+            <div class="t-card">
+                <div class="t-header">
+                    <div>
+                        <div class="t-title"><i class="fa-solid fa-layer-group"></i> Maker Entries</div>
+                        <div class="t-subtitle">Attachment and maker approval overview</div>
+                    </div>
                 </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-clock"></i>
+                <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+                <div class="t-wrap">
+                    <table class="dt dt-maker">
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-remark" />
+                            <col class="col-status" />
+
+
+
+
+                            <col class="col-attachment" />
+                            <col class="col-delete" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Remark</th>
+                                <th>Status</th>
+                                <th>Attachment</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="makerBody"></tbody>
+                    </table>
                 </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,10 12,18 24,12 36,20 48,10 60,16 72,8 80,14"
-                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
-            </div>
-        </div>
-
-        <div class="kpi-card k-green">
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val" id="approvedChecker">0</div>
-                    <div class="kpi-label">Approved Checker</div>
+                <!-- PAGINATION -->
+                <div class="dt-pagination" id="pg-maker">
+                    <div class="dt-pg-info">Showing <b id="maker-from">0</b>–<b id="maker-to">0</b> of <b id="maker-total">0</b></div>
+                    <div class="dt-per-page">
+                        Rows per page
+                        <select onchange="changePerPage('maker', this.value)">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="dt-pg-btns" id="pg-btns-maker"></div>
                 </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,18 12,10 24,16 36,6 48,14 60,4 72,10 80,6"
-                              stroke="#10B981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Verified</div>
-            </div>
-        </div>
-
-        <div class="kpi-card k-purple">
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val" id="totalPaid">0</div>
-                    <div class="kpi-label">Total Paid</div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-indian-rupee-sign"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,20 12,12 24,18 36,8 48,18 60,10 72,14 80,8"
-                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-wallet fa-xs"></i> Cleared</div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- TABS -->
-    <div class="tab-bar">
-        <button class="tab-btn on" onclick="switchTab('maker',this)" type="button">
-            <i class="fa-solid fa-pen-to-square"></i> Maker Activity
-        </button>
-        <button class="tab-btn" onclick="switchTab('checker',this)" type="button">
-            <i class="fa-solid fa-clipboard-check"></i> Checker Activity
-        </button>
-        <button class="tab-btn" onclick="switchTab('invoice',this)" type="button">
-            <i class="fa-solid fa-money-check-dollar"></i> Invoice Payment
-        </button>
-        <button class="tab-btn" onclick="switchTab('paymentchecker',this)" type="button">
-            <i class="fa-solid fa-circle-check"></i> Payment Checker
-        </button>
-    </div>
-
-    <!-- ══════════════════════════════════════════
-         TAB: MAKER
-    ══════════════════════════════════════════ -->
-    <div class="tp on" id="tp-maker">
-        <div class="filter-card table-filter-card">
-            <div class="f-group">
-                <span class="f-label">Status</span>
-                <select class="f-input" id="dd-status-maker" onchange="filterMakerTable()">
-                    <option value="">All Status</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
-                </select>
-            </div>
-            <div class="f-group">
-                <span class="f-label">Attachment</span>
-                <select class="f-input" id="dd-attach-maker" onchange="filterMakerTable()">
-                    <option value="">All</option>
-                    <option value="yes">Uploaded</option>
-                    <option value="no">No File</option>
-                </select>
-            </div>
-            <div class="f-group grow">
-                <span class="f-label">Account Name</span>
-                <select class="f-input" id="dd-account-maker" onchange="filterMakerTable()">
-                    <option value="">All Accounts</option>
-                </select>
-            </div>
-            <button class="btn btn-soft reset-filter" onclick="resetMakerFilters()">
-                <i class="fa-solid fa-rotate-left"></i> Reset
-            </button>
-        </div>
-
-        <div class="t-card">
-            <div class="t-header">
-                <div>
-                    <div class="t-title"><i class="fa-solid fa-layer-group"></i> Maker Entries</div>
-                    <div class="t-subtitle">Attachment and maker approval overview</div>
-                </div>
-            </div>
-            <div class="top-scroll"><div class="top-scroll-inner"></div></div>
-            <div class="t-wrap">
-                <table class="dt dt-maker">
-                    <colgroup>
-                        <col class="col-account" />
-                        <col class="col-voucher" />
-                        <col class="col-date" />
-                        <col class="col-amount" />
-                        <col class="col-remark" />
-                        <col class="col-status" />
-
-
-
-
-                        <col class="col-attachment" />
-                        <col class="col-delete" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Account Name</th>
-                            <th>Voucher No</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Remark</th>
-                            <th>Status</th>
-                            <th>Attachment</th>
-                            <th>Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody id="makerBody"></tbody>
-                </table>
             </div>
             <!-- PAGINATION -->
             <div class="dt-pagination" id="pg-maker">
@@ -338,108 +394,107 @@
                 <div class="dt-pg-btns" id="pg-btns-maker"></div>
             </div>
         </div>
-    </div>
-       
-    <!-- /tp-maker -->
-    <!-- ══════════════════════════════════════════
+
+        <!-- /tp-maker -->
+        <!-- ══════════════════════════════════════════
          TAB: CHECKER
     ══════════════════════════════════════════ -->
-    <div class="tp" id="tp-checker">
-        <div class="filter-card table-filter-card">
-            <div class="f-group">
-                <span class="f-label">Status</span>
-                <select class="f-input" id="dd-status-checker" onchange="filterCheckerTable()">
-                    <option value="">All Status</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Pending">Pending</option>
-                </select>
-            </div>
-            <div class="f-group">
-                <span class="f-label">Attachment</span>
-                <select class="f-input" id="dd-attach-checker" onchange="filterCheckerTable()">
-                    <option value="">All</option>
-                    <option value="yes">Uploaded</option>
-                    <option value="no">No File</option>
-                </select>
-            </div>
-            <div class="f-group grow">
-                <span class="f-label">Account Name</span>
-                <select class="f-input" id="dd-account-checker" onchange="filterCheckerTable()">
-                    <option value="">All Accounts</option>
-                </select>
-            </div>
-            <button class="btn btn-soft reset-filter" onclick="resetCheckerFilters()">
-                <i class="fa-solid fa-rotate-left"></i> Reset
-            </button>
-        </div>
-
-        <div class="t-card">
-            <div class="t-header">
-                <div>
-                    <div class="t-title"><i class="fa-solid fa-user-check"></i> Checker Entries</div>
-                    <div class="t-subtitle">Verification status and attachment visibility</div>
-                </div>
-            </div>
-            <div class="top-scroll"><div class="top-scroll-inner"></div></div>
-            <div class="t-wrap">
-                <table class="dt dt-checker">
-                    <colgroup>
-                        <col class="col-account" />
-                        <col class="col-voucher" />
-                        <col class="col-date" />
-                        <col class="col-amount" />
-                        <col class="col-remark" />
-                        <col class="col-status" />
-                        <col class="col-attachment" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Account Name</th>
-                            <th>Voucher No</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Remark</th>
-                            <th>Status</th>
-                            <th>Attachment</th>
-                        </tr>
-                    </thead>
-                    <tbody id="checkerBody"></tbody>
-                </table>
-            </div>
-        <!-- PAGINATION -->
-            <div class="dt-pagination" id="pg-checker">
-
-                <div class="dt-pg-info">
-                    Showing
-                    <b id="checker-from">0</b>–
-                    <b id="checker-to">0</b>
-                    of
-                    <b id="checker-total">0</b>
-                </div>
-
-                <div class="dt-per-page">
-
-                    Rows per page
-
-                    <select onchange="changePerPage('checker', this.value)">
-
-                        <option value="10" selected>10</option>
-
-                        <option value="20">20</option>
-
-                        <option value="50">50</option>
-
+        <div class="tp" id="tp-checker">
+            <div class="filter-card table-filter-card">
+                <div class="f-group">
+                    <span class="f-label">Status</span>
+                    <select class="f-input" id="dd-status-checker" onchange="filterCheckerTable()">
+                        <option value="">All Status</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                        <option value="Pending">Pending</option>
                     </select>
+                </div>
+                <div class="f-group">
+                    <span class="f-label">Attachment</span>
+                    <select class="f-input" id="dd-attach-checker" onchange="filterCheckerTable()">
+                        <option value="">All</option>
+                        <option value="yes">Uploaded</option>
+                        <option value="no">No File</option>
+                    </select>
+                </div>
+                <div class="f-group grow">
+                    <span class="f-label">Account Name</span>
+                    <select class="f-input" id="dd-account-checker" onchange="filterCheckerTable()">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+                <button class="btn btn-soft reset-filter" onclick="resetCheckerFilters()">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
+
+            <div class="t-card">
+                <div class="t-header">
+                    <div>
+                        <div class="t-title"><i class="fa-solid fa-user-check"></i> Checker Entries</div>
+                        <div class="t-subtitle">Verification status and attachment visibility</div>
+                    </div>
+                </div>
+                <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+                <div class="t-wrap">
+                    <table class="dt dt-checker">
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-remark" />
+                            <col class="col-status" />
+                            <col class="col-attachment" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Remark</th>
+                                <th>Status</th>
+                                <th>Attachment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkerBody"></tbody>
+                    </table>
+                </div>
+                <!-- PAGINATION -->
+                <div class="dt-pagination" id="pg-checker">
+
+                    <div class="dt-pg-info">
+                        Showing
+                        <b id="checker-from">0</b>–
+                        <b id="checker-to">0</b>
+                        of
+                        <b id="checker-total">0</b>
+                    </div>
+
+                    <div class="dt-per-page">
+
+                        Rows per page
+
+                        <select onchange="changePerPage('checker', this.value)">
+
+                            <option value="10" selected>10</option>
+
+                            <option value="20">20</option>
+
+                            <option value="50">50</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="dt-pg-btns" id="pg-btns-checker"></div>
 
                 </div>
-
-                <div class="dt-pg-btns" id="pg-btns-checker"></div>
-
             </div>
-    </div>
-</div>
-   @*     
+        </div>
+        @*
    <!-- /tp-checker -->
     <!-- ══════════════════════════════════════════
          TAB: INVOICE PAYMENT
@@ -535,183 +590,183 @@
 
                     </table>
                 </div>
+
             
-     
-            <!-- PAGINATION -->
-            <div class="dt-pagination" id="pg-invoice">
+                <!-- PAGINATION -->
+                <div class="dt-pagination" id="pg-invoice">
 
-                <div class="dt-pg-info">
+                    <div class="dt-pg-info">
 
-                    Showing
-                    <b id="invoice-from">0</b>–
-                    <b id="invoice-to">0</b>
-                    of
-                    <b id="invoice-total">0</b>
+                        Showing
+                        <b id="invoice-from">0</b>–
+                        <b id="invoice-to">0</b>
+                        of
+                        <b id="invoice-total">0</b>
+
+                    </div>
+
+                    <div class="dt-per-page">
+
+                        Rows per page
+
+                        <select onchange="changePerPage('invoice', this.value)">
+
+                            <option value="10" selected>10</option>
+
+                            <option value="20">20</option>
+
+                            <option value="50">50</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="dt-pg-btns" id="pg-btns-invoice"></div>
 
                 </div>
-
-                <div class="dt-per-page">
-
-                    Rows per page
-
-                    <select onchange="changePerPage('invoice', this.value)">
-
-                        <option value="10" selected>10</option>
-
-                        <option value="20">20</option>
-
-                        <option value="50">50</option>
-
-                    </select>
-
-                </div>
-
-                <div class="dt-pg-btns" id="pg-btns-invoice"></div>
-
             </div>
-    </div>
-</div>
+        </div>
+
      
-        
-<!-- /tp-invoice -->
-    <!-- ══════════════════════════════════════════
+        <!-- /tp-invoice -->
+        <!-- ══════════════════════════════════════════
          TAB: PAYMENT CHECKER
     ══════════════════════════════════════════ -->
-    <div class="tp" id="tp-paymentchecker">
-        <div class="t-card">
-            <div class="t-header">
-                <div>
-                    <div class="t-title"><i class="fa-solid fa-circle-check"></i> Payment Checker</div>
-                    <div class="t-subtitle">Paid invoices ready for payment validation</div>
+        <div class="tp" id="tp-paymentchecker">
+            <div class="t-card">
+                <div class="t-header">
+                    <div>
+                        <div class="t-title"><i class="fa-solid fa-circle-check"></i> Payment Checker</div>
+                        <div class="t-subtitle">Paid invoices ready for payment validation</div>
+                    </div>
                 </div>
-            </div>
-            <div class="top-scroll"><div class="top-scroll-inner"></div></div>
-            <div class="t-wrap">
-                <table class="dt dt-paymentchecker">
-                    <colgroup>
-                        <col class="col-account" />
-                        <col class="col-voucher" />
-                        <col class="col-date" />
-                        <col class="col-amount" />
-                        <col class="col-date" />
-                        <col class="col-status" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Account Name</th>
-                            <th>Voucher No</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Payment Date</th>
-                            <th>Payment Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="paymentCheckerBody"></tbody>
-                </table>
-            </div>
-      
-            <div class="dt-pagination" id="pg-paymentchecker">
-
-                <div class="dt-pg-info">
-
-                    Showing
-                    <b id="paymentchecker-from">0</b>–
-                    <b id="paymentchecker-to">0</b>
-                    of
-                    <b id="paymentchecker-total">0</b>
-
+                <div class="top-scroll"><div class="top-scroll-inner"></div></div>
+                <div class="t-wrap">
+                    <table class="dt dt-paymentchecker">
+                        <colgroup>
+                            <col class="col-account" />
+                            <col class="col-voucher" />
+                            <col class="col-date" />
+                            <col class="col-amount" />
+                            <col class="col-date" />
+                            <col class="col-status" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Voucher No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Payment Date</th>
+                                <th>Payment Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentCheckerBody"></tbody>
+                    </table>
                 </div>
 
-                <div class="dt-per-page">
+                <div class="dt-pagination" id="pg-paymentchecker">
 
-                    Rows per page
+                    <div class="dt-pg-info">
 
-                    <select onchange="changePerPage('paymentchecker', this.value)">
+                        Showing
+                        <b id="paymentchecker-from">0</b>–
+                        <b id="paymentchecker-to">0</b>
+                        of
+                        <b id="paymentchecker-total">0</b>
 
-                        <option value="10" selected>10</option>
+                    </div>
 
-                        <option value="20">20</option>
+                    <div class="dt-per-page">
 
-                        <option value="50">50</option>
+                        Rows per page
 
-                    </select>
+                        <select onchange="changePerPage('paymentchecker', this.value)">
+
+                            <option value="10" selected>10</option>
+
+                            <option value="20">20</option>
+
+                            <option value="50">50</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="dt-pg-btns" id="pg-btns-paymentchecker"></div>
 
                 </div>
-
-                <div class="dt-pg-btns" id="pg-btns-paymentchecker"></div>
-
             </div>
-    </div>
-</div>
-      <!-- /tp-paymentchecker -->
-    <!-- SCROLL BUTTONS -->
-    <div id="scroll-btns">
-        <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Scroll to Top" type="button">
-            <i class="fa-solid fa-chevron-up"></i>
-        </button>
-        <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Scroll to Bottom" type="button">
-            <i class="fa-solid fa-chevron-down"></i>
-        </button>
-    </div>
-    <!-- ═══════════════════════════════════
+        </div>
+        <!-- /tp-paymentchecker -->
+        <!-- SCROLL BUTTONS -->
+        <div id="scroll-btns">
+            <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Scroll to Top" type="button">
+                <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Scroll to Bottom" type="button">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+        </div>
+        <!-- ═══════════════════════════════════
      CONFIRMATION MODAL
 ═══════════════════════════════════ -->
-    <div class="confirm-overlay" id="confirmOverlay">
-        <div class="confirm-box" id="confirmBox">
+        <div class="confirm-overlay" id="confirmOverlay">
+            <div class="confirm-box" id="confirmBox">
 
-            <div class="confirm-header">
-                <div class="confirm-icon" id="confirmIcon">
-                    <i id="confirmIconSymbol" class="fa-solid fa-circle-check"></i>
+                <div class="confirm-header">
+                    <div class="confirm-icon" id="confirmIcon">
+                        <i id="confirmIconSymbol" class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+                        <div class="confirm-subtitle" id="confirmSubtitle">Please review before proceeding</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="confirm-title" id="confirmTitle">Confirm Action</div>
-                    <div class="confirm-subtitle" id="confirmSubtitle">Please review before proceeding</div>
+
+                <div class="confirm-body">
+                    <div class="confirm-warning" id="confirmWarning">
+                        <i id="confirmWarnIcon" class="fa-solid fa-triangle-exclamation"></i>
+                        <div id="confirmWarningText">Are you sure?</div>
+                    </div>
+                    <div class="confirm-meta" id="confirmMeta">
+                        <div class="confirm-meta-row">
+                            <span>Voucher No</span>
+                            <span id="meta-vch">—</span>
+                        </div>
+                        <div class="confirm-meta-row">
+                            <span>Account Name</span>
+                            <span id="meta-account">—</span>
+                        </div>
+                        <div class="confirm-meta-row">
+                            <span>Amount</span>
+                            <span id="meta-amount">—</span>
+                        </div>
+                        <div class="confirm-meta-row">
+                            <span>Checker Remark</span>
+                            <span id="meta-remark">—</span>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="confirm-footer">
+                    <button class="confirm-cancel" id="confirmCancel">
+                        <i class="fa-solid fa-xmark"></i> Cancel
+                    </button>
+                    <button class="confirm-proceed" id="confirmProceed">
+                        <i class="fa-solid fa-check"></i> Confirm
+                    </button>
+                </div>
+
             </div>
-
-            <div class="confirm-body">
-                <div class="confirm-warning" id="confirmWarning">
-                    <i id="confirmWarnIcon" class="fa-solid fa-triangle-exclamation"></i>
-                    <div id="confirmWarningText">Are you sure?</div>
-                </div>
-                <div class="confirm-meta" id="confirmMeta">
-                    <div class="confirm-meta-row">
-                        <span>Voucher No</span>
-                        <span id="meta-vch">—</span>
-                    </div>
-                    <div class="confirm-meta-row">
-                        <span>Account Name</span>
-                        <span id="meta-account">—</span>
-                    </div>
-                    <div class="confirm-meta-row">
-                        <span>Amount</span>
-                        <span id="meta-amount">—</span>
-                    </div>
-                    <div class="confirm-meta-row">
-                        <span>Checker Remark</span>
-                        <span id="meta-remark">—</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="confirm-footer">
-                <button class="confirm-cancel" id="confirmCancel">
-                    <i class="fa-solid fa-xmark"></i> Cancel
-                </button>
-                <button class="confirm-proceed" id="confirmProceed">
-                    <i class="fa-solid fa-check"></i> Confirm
-                </button>
-            </div>
-
         </div>
-    </div>
 
-</div><!-- /body -->
+    </div><!-- /body -->
 </div><!-- /admin-dashboard-shell -->
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
-    
+
     /* ══════════════════════════════════════════
     PAGINATION STATE
     ══════════════════════════════════════════ */
@@ -827,7 +882,7 @@
     toDate:      $('#toDate').val()
     };
     }
-    
+
     /* ══════════════════════════════════════════
     SUMMARY KPIs
     ══════════════════════════════════════════ */
@@ -1511,84 +1566,124 @@
     });
     })();
 
-    function exportCurrentTab()
-    {
-    const activeTab = $(".tp.on").attr("id");
+    function exportCurrentTab() {
+    var activeTab = $(".tp.on").attr("id");
 
-    let tableId = "";
+    var tab = activeTab ? activeTab.replace("tp-", "") : null;
+    if (!tab) { alert("No active tab found"); return; }
 
-    if(activeTab === "tp-maker")
-    {
-    tableId = "#makerBody";
-    }
+    var data = pgState[tab] ? pgState[tab].data : null;
+    if (!data || !data.length) { alert("No data to export"); return; }
 
-    else if(activeTab === "tp-checker")
-    {
-    tableId = "#checkerBody";
-    }
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = tab + "_export_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
 
-    else if(activeTab === "tp-invoice")
-    {
-    tableId = "#invoiceBody";
-    }
+    var rows = [];
 
-    else if(activeTab === "tp-paymentchecker")
-    {
-    tableId = "#paymentCheckerBody";
-    }
-
-    const rows = document.querySelectorAll(tableId + " tr");
-
-    if (!rows.length)
-    {
-    alert("No data to export");
-    return;
-    }
-
-    let csv = "";
-
-    rows.forEach(row =>
-    {
-    const cols = row.querySelectorAll("td");
-
-    let rowData = [];
-
-    cols.forEach(col =>
-    {
-    let text = col.innerText
-    .replace(/\n/g, " ")
-    .trim();
-
-    text = '"' + text.replace(/"/g, '""') + '"';
-
-    rowData.push(text);
+    if (tab === "maker") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Maker Remark","Maker Status","Attachment"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName    || "",
+    x.vchNumber      || "",
+    x.voucherDate    || "",
+    x.billAmount     || "",
+    x.makerRemark    || "",
+    x.makerStatus    || "",
+    x.attachmentPath ? "Yes" : "No"
+    ]);
     });
+    // Totals
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    rows.push([]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"","",""]);
+    }
 
-    csv += rowData.join(",") + "\n";
+    else if (tab === "checker") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Checker Remark","Checker Status","Attachment"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName    || "",
+    x.vchNumber      || "",
+    x.voucherDate    || "",
+    x.billAmount     || "",
+    x.checkerRemark  || "",
+    x.checkerStatus  || "",
+    x.attachmentPath ? "Yes" : "No"
+    ]);
     });
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    rows.push([]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"","",""]);
+    }
 
-    const blob = new Blob(
-    [csv],
-    {
-    type: "text/csv;charset=utf-8;"
+    else if (tab === "invoice") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Checker Status","Payment Status"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName   || "",
+    x.vchNumber     || "",
+    x.voucherDate   || "",
+    x.billAmount    || "",
+    x.checkerStatus || "",
+    x.paymentStatus || ""
+    ]);
     });
+    var totalAmt    = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    var paidCount   = data.filter(function(x){ return (x.paymentStatus||"").toLowerCase()==="paid"; }).length;
+    var unpaidCount = data.length - paidCount;
+    rows.push([]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"",""]);
+    rows.push(["","","Paid","" + paidCount,"Unpaid","" + unpaidCount]);
+    }
 
-    const url = URL.createObjectURL(blob);
+    else if (tab === "paymentchecker") {
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Payment Date","Payment Status"]);
+    data.forEach(function(x) {
+    rows.push([
+    x.accountName   || "",
+    x.vchNumber     || "",
+    x.voucherDate   || "",
+    x.billAmount    || "",
+    x.paymentDate   || "",
+    x.paymentStatus || ""
+    ]);
+    });
+    var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    rows.push([]);
+    rows.push(["","","Total Paid Amount","₹" + totalAmt.toLocaleString("en-IN"),"",""]);
+    }
 
-    const a = document.createElement("a");
+    downloadCSV(rows, filename);
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
 
-    a.href = url;
-
-    a.download = activeTab.replace("tp-","") + "_export.csv";
-
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
     document.body.appendChild(a);
-
     a.click();
-
     document.body.removeChild(a);
-
     URL.revokeObjectURL(url);
     }
-
 </script>
-
