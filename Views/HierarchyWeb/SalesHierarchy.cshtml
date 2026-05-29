@@ -279,6 +279,7 @@
             <option value="0">Inactive</option>
         </select>
         <button class="filter-clear" onclick="clearFilters()">✕ Clear</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="unassignedOnlyBtn" onclick="toggleUnassignedOnly()">Unassigned</button>
         <span class="filter-badge" id="filterBadge" style="display:none">0</span>
     </div>
 
@@ -347,12 +348,16 @@
                         <th class="col-state" data-col="state" onclick="sortBy('state')">State <span class="sort-icon">↕</span></th>
                         <th class="col-groupName" data-col="groupName" onclick="sortBy('groupName')">Group <span class="sort-icon">↕</span></th>
                         <th class="col-designation" data-col="designation" onclick="sortBy('designation')">Designation <span class="sort-icon">↕</span></th>
+                        <th class="col-qualification" data-col="qualification" onclick="sortBy('qualification')">Qualification <span class="sort-icon">sort</span></th>
+                        <th class="col-gender" data-col="gender" onclick="sortBy('gender')">Gender <span class="sort-icon">sort</span></th>
+                        <th class="col-sikhNonSikh" data-col="sikhNonSikh" onclick="sortBy('sikhNonSikh')">Sikh/Non-Sikh <span class="sort-icon">sort</span></th>
+                        <th class="col-area" data-col="area" onclick="sortBy('area')">Area <span class="sort-icon">sort</span></th>
                         <th class="col-isActive" data-col="isActive">Status</th>
                         <th style="width:90px; text-align:center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr class="loading-row"><td colspan="11"><span class="spinner"></span>Loading sales data…</td></tr>
+                    <tr class="loading-row"><td colspan="15"><span class="spinner"></span>Loading sales data…</td></tr>
                 </tbody>
             </table>
         </div>
@@ -403,6 +408,31 @@
                     <select id="edit_designation">
                         <option value="">— Select Designation —</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Qualification</label>
+                    <input type="text" id="edit_qualification" placeholder="B.Com, MBA, B.Tech" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select id="edit_gender">
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sikh/Non-Sikh</label>
+                    <select id="edit_sikhNonSikh">
+                        <option value="">Select</option>
+                        <option value="S">Sikh</option>
+                        <option value="N-S">Non-Sikh</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Area</label>
+                    <input type="text" id="edit_area" placeholder="Area" autocomplete="off" />
                 </div>
                 <div class="form-group">
                     <label>Status</label>
@@ -495,7 +525,7 @@
                         <span style="font-size:11px;color:var(--muted)">H1 Name</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="background:#bfdbfe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H1</span>
+                        <span style="background:#bfdbfe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H1 EmpCode</span>
                         <span style="font-size:11px;color:var(--muted)">H1 Code</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
@@ -503,7 +533,7 @@
                         <span style="font-size:11px;color:var(--muted)">H2 Name</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="background:#ddd6fe;color:#7c3aed;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H2</span>
+                        <span style="background:#ddd6fe;color:#7c3aed;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H2 EmpCode</span>
                         <span style="font-size:11px;color:var(--muted)">H2 Code</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
@@ -511,7 +541,7 @@
                         <span style="font-size:11px;color:var(--muted)">H3 Name</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="background:#fbcfe8;color:#be185d;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H3</span>
+                        <span style="background:#fbcfe8;color:#be185d;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H3 EmpCode</span>
                         <span style="font-size:11px;color:var(--muted)">H3 Code</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
@@ -519,11 +549,11 @@
                         <span style="font-size:11px;color:var(--muted)">H4 Name</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="background:#fdba74;color:#c2410c;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H4</span>
+                        <span style="background:#fdba74;color:#c2410c;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H4 EmpCode</span>
                         <span style="font-size:11px;color:var(--muted)">H4 Code</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">Emp Code</span>
+                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">JWPL</span>
                         <span style="font-size:11px;color:var(--muted)">Employee Code</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
@@ -821,6 +851,10 @@ function mapSalesRow(row) {
         department: row.department ?? row.Department ?? '',
         mobile: row.mobile ?? row.Mobile ?? '',
         email: row.email ?? row.Email ?? '',
+        qualification: row.qualification ?? row.Qualification ?? row.qulaification ?? row.Qulaification ?? '',
+        gender: row.gender ?? row.Gender ?? '',
+        sikhNonSikh: row.sikhNonSikh ?? row.SikhNonSikh ?? row.sikh_no_sikh ?? '',
+        area: row.area ?? row.Area ?? '',
         dateOfJoining: row.dateOfJoining ?? row.DateOfJoining ?? null,
         isActive: row.isActive ?? row.IsActive ?? false,
         createdOn: row.createdOn ?? row.CreatedOn ?? null,
@@ -853,6 +887,7 @@ let editRowId  = null;
 let shiftRowId = null;
 let pendingRows = [];  // parsed Excel rows pending upload
 let hierarchyOptions = { h1: [], h2: [], h3: [], h4: [], employees: [] };
+let unassignedOnly = false;
 
 const COLUMNS = [
     { key: 'h1Name',      label: 'H1',          visible: true,  defaultVisible: true  },
@@ -863,6 +898,10 @@ const COLUMNS = [
     { key: 'state',       label: 'State',       visible: true,  defaultVisible: true  },
     { key: 'groupName',   label: 'Group',       visible: true,  defaultVisible: true  },
     { key: 'designation', label: 'Designation', visible: true,  defaultVisible: true  },
+    { key: 'qualification', label: 'Qualification', visible: false, defaultVisible: false },
+    { key: 'gender',      label: 'Gender',      visible: false, defaultVisible: false },
+    { key: 'sikhNonSikh', label: 'Sikh/Non-Sikh', visible: false, defaultVisible: false },
+    { key: 'area',        label: 'Area',        visible: false, defaultVisible: false },
     { key: 'isActive',    label: 'Status',      visible: true,  defaultVisible: true  }
 ];
 
@@ -918,7 +957,7 @@ async function loadData(skipIfSeeded = false) {
         populateFilterDropdowns();
     } catch(e) {
         showToast('Error loading data: ' + e.message, 'error');
-        document.getElementById('tableBody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--danger)">Failed to load data. Please refresh.</td></tr>';
+        document.getElementById('tableBody').innerHTML = '<tr><td colspan="15" style="text-align:center;padding:30px;color:var(--danger)">Failed to load data. Please refresh.</td></tr>';
     }
 }
 
@@ -1257,6 +1296,7 @@ function applyFilters() {
 
     let active = 0;
     filtered = allRows.filter(r => {
+        if (unassignedOnly && !isUnassignedSalesRow(r)) return false;
         if (h1 && (r.h1Name || r.h1Code || '') !== h1) return false;
         if (h2 && (r.h2Name || r.h2Code || '') !== h2) return false;
         if (h3 && (r.h3Name || r.h3Code || '') !== h3) return false;
@@ -1269,7 +1309,7 @@ function applyFilters() {
             if (r.isActive !== want) return false;
         }
         if (search) {
-            const hay = [r.h1Name,r.h2Name,r.h3Name,r.h4Name,r.empCode,r.empName,r.state,r.groupName,r.designation,r.mobile].join(' ').toLowerCase();
+            const hay = [r.h1Name,r.h2Name,r.h3Name,r.h4Name,r.empCode,r.empName,r.state,r.groupName,r.designation,r.qualification,r.gender,r.sikhNonSikh,r.area,r.mobile].join(' ').toLowerCase();
             if (!hay.includes(search)) return false;
         }
         return true;
@@ -1284,11 +1324,13 @@ function applyFilters() {
 
     // Count active filters
     [h1,h2,h3,h4,state,group,desig,status,search].forEach(v => { if(v) active++; });
+    if (unassignedOnly) active++;
     const badge = document.getElementById('filterBadge');
     if (active > 0) { badge.textContent = active; badge.style.display = ''; }
     else badge.style.display = 'none';
 
     document.getElementById('statFiltered').textContent = filtered.length;
+    updateUnassignedOnlyButton();
     currentPage = 1;
     renderPage();
 }
@@ -1297,7 +1339,26 @@ function clearFilters() {
     document.getElementById('searchInput').value = '';
     ['filterH1','filterH2','filterH3','filterH4','filterState','filterGroup','filterDesig','filterStatus']
         .forEach(id => document.getElementById(id).value = '');
+    unassignedOnly = false;
     applyFilters();
+}
+
+function isUnassignedSalesRow(r) {
+    return !(r.h1Code || r.h1Name || r.h2Code || r.h2Name || r.h3Code || r.h3Name || r.h4Code || r.h4Name);
+}
+
+function toggleUnassignedOnly() {
+    unassignedOnly = !unassignedOnly;
+    applyFilters();
+}
+
+function updateUnassignedOnlyButton() {
+    const btn = document.getElementById('unassignedOnlyBtn');
+    if (!btn) return;
+    const count = allRows.filter(isUnassignedSalesRow).length;
+    btn.classList.toggle('btn-primary', unassignedOnly);
+    btn.classList.toggle('btn-ghost', !unassignedOnly);
+    btn.textContent = unassignedOnly ? `All Employees (${count} unassigned)` : `Unassigned (${count})`;
 }
 
 function sortBy(key) {
@@ -1330,7 +1391,7 @@ function renderPage() {
     const tbody = document.getElementById('tableBody');
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted)">No records found. Adjust filters or upload data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:40px;color:var(--muted)">No records found. Adjust filters or upload data.</td></tr>';
         renderPagination();
         return;
     }
@@ -1347,6 +1408,10 @@ function renderPage() {
             ${colCell('state',      r, esc(r.state||'—'))}
             ${colCell('groupName',  r, esc(r.groupName||'—'))}
             ${colCell('designation',r, esc(r.designation||'—'))}
+            ${colCell('qualification', r, esc(r.qualification||'—'))}
+            ${colCell('gender',     r, esc(r.gender||'—'))}
+            ${colCell('sikhNonSikh',r, esc(formatSikhDisplay(r.sikhNonSikh)||'—'))}
+            ${colCell('area',       r, esc(r.area||'—'))}
             ${colCell('isActive',   r, `<span class="badge ${r.isActive?'badge-active':'badge-inactive'}">${r.isActive?'Active':'Inactive'}</span>`)}
             <td style="text-align:center;white-space:nowrap">
                 <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditModal(${r.salesHierarchyId})" title="Edit">✏️</button>
@@ -1421,7 +1486,7 @@ function paginationRange(current, total) {
 }
 
 function showTableLoading() {
-    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="11"><span class="spinner"></span>Loading sales data…</td></tr>';
+    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="15"><span class="spinner"></span>Loading sales data…</td></tr>';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1434,6 +1499,10 @@ function openEditModal(id) {
     document.getElementById('editEmpLabel').textContent = `${row.empName || '—'} (${row.empCode || 'no code'})`;
     document.getElementById('edit_empCode').value    = row.empCode    || '';
     document.getElementById('edit_empName').value    = row.empName    || '';
+    document.getElementById('edit_qualification').value = row.qualification || '';
+    document.getElementById('edit_gender').value = row.gender || '';
+    document.getElementById('edit_sikhNonSikh').value = normalizeSikhCode(row.sikhNonSikh);
+    document.getElementById('edit_area').value = row.area || '';
 
     setSelectVal('edit_state',       row.state);
     setSelectVal('edit_groupName',   row.groupName);
@@ -1474,6 +1543,10 @@ async function saveEdit() {
         state:       document.getElementById('edit_state').value,
         groupName:   document.getElementById('edit_groupName').value,
         designation: document.getElementById('edit_designation').value,
+        qualification: document.getElementById('edit_qualification').value.trim(),
+        gender:      document.getElementById('edit_gender').value,
+        sikhNonSikh: document.getElementById('edit_sikhNonSikh').value,
+        area:        document.getElementById('edit_area').value.trim(),
         isActive:    document.getElementById('edit_isActive').value === '1'
     };
 
@@ -1481,9 +1554,10 @@ async function saveEdit() {
         const res  = await fetchPost(API.updateRow, payload);
         if (res.success) {
             showToast('Row updated successfully', 'success');
+            const savedRowId = editRowId;
             closeEditModal();
             // Update in-place
-            const idx = allRows.findIndex(r => r.salesHierarchyId === editRowId);
+            const idx = allRows.findIndex(r => r.salesHierarchyId === savedRowId);
             if (idx >= 0) Object.assign(allRows[idx], payload);
             applyFilters();
             loadStats();
@@ -1724,19 +1798,19 @@ function parseExcelFile(file) {
 
                 const parsedRow = {
                     rowNumber:   i,
-                    h1Code:      g(colMap.h1code),
-                    h1Name:      g(colMap.h1name),
-                    h2Code:      g(colMap.h2code),
-                    h2Name:      g(colMap.h2name),
-                    h3Code:      g(colMap.h3code),
-                    h3Name:      g(colMap.h3name),
-                    h4Code:      g(colMap.h4code),
-                    h4Name:      g(colMap.h4name),
-                    empCode:     g(colMap.empcode),
-                    empName:     g(colMap.empname),
-                    state:       g(colMap.state),
-                    groupName:   g(colMap.group),
-                    designation: g(colMap.designation)
+                    h1Code:      normalizeEmployeeCode(g(colMap.h1code)),
+                    h1Name:      toTitleName(g(colMap.h1name)),
+                    h2Code:      normalizeEmployeeCode(g(colMap.h2code)),
+                    h2Name:      toTitleName(g(colMap.h2name)),
+                    h3Code:      normalizeEmployeeCode(g(colMap.h3code)),
+                    h3Name:      toTitleName(g(colMap.h3name)),
+                    h4Code:      normalizeEmployeeCode(g(colMap.h4code)),
+                    h4Name:      toTitleName(g(colMap.h4name)),
+                    empCode:     normalizeEmployeeCode(g(colMap.empcode)),
+                    empName:     toTitleName(g(colMap.empname)),
+                    state:       normalizeUploadText(g(colMap.state), true),
+                    groupName:   normalizeUploadText(g(colMap.group), true),
+                    designation: normalizeUploadText(g(colMap.designation), true)
                 };
 
                 normalizeHierarchyPair(parsedRow, 'h1Code', 'h1Name');
@@ -1824,15 +1898,15 @@ function mapColumns(headers) {
     };
 
     return {
-        h1code:      findAlias('ech1', 'h1code', 'h1employeecode'),
-        h2code:      findAlias('ech2', 'h2code', 'h2employeecode'),
-        h3code:      findAlias('ech3', 'h3code', 'h3employeecode'),
-        h4code:      findAlias('ech4', 'h4code', 'h4employeecode'),
+        h1code:      findAlias('ech1', 'h1code', 'h1empcode', 'h1employeecode'),
+        h2code:      findAlias('ech2', 'h2code', 'h2empcode', 'h2employeecode'),
+        h3code:      findAlias('ech3', 'h3code', 'h3empcode', 'h3employeecode'),
+        h4code:      findAlias('ech4', 'h4code', 'h4empcode', 'h4employeecode'),
         h1name:      findAlias('h1', 'h1name', 'hod', 'head', 'headofdepartment', 'departmenthead'),
         h2name:      findAlias('h2', 'h2name', 'subhod', 'sub hod', 'subhead', 'sub head', 'subheadofdepartment'),
         h3name:      findAlias('h3', 'h3name'),
         h4name:      findAlias('h4', 'h4name'),
-        empcode:     findAlias('empcode', 'empco', 'employeecode', 'employeeid', 'empid', 'ec', 'ecode', 'staffcode', 'staffid', 'sapcode', 'sapid', 'workercode', 'workerid'),
+        empcode:     findAlias('jwpl', 'empcode', 'empco', 'employeecode', 'employeeid', 'empid', 'ec', 'ecode', 'staffcode', 'staffid', 'sapcode', 'sapid', 'workercode', 'workerid'),
         empname:     findAlias('name', 'empname', 'employeename'),
         state:       findAlias('state'),
         group:       findAlias('group', 'groupname', 'da'),
@@ -2104,12 +2178,48 @@ function looksLikeEmployeeCode(value) {
     return /^[a-z]{2,}\d{2,}$/i.test(String(value || '').trim());
 }
 
+function normalizeEmployeeCode(value) {
+    const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!raw) return '';
+    const prefixed = raw.match(/^([A-Z]+)(\d+)$/);
+    if (prefixed) return `${prefixed[1]}${prefixed[2].padStart(4, '0')}`;
+    if (/^\d+$/.test(raw)) return `JWPL${raw.padStart(4, '0')}`;
+    return raw;
+}
+
+function toTitleName(value) {
+    return String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .replace(/\b([a-z])/g, ch => ch.toUpperCase());
+}
+
+function normalizeUploadText(value, upper = false) {
+    const cleaned = String(value || '').trim().replace(/\s+/g, ' ');
+    return upper ? cleaned.toUpperCase() : cleaned;
+}
+
+function normalizeSikhCode(value) {
+    const v = String(value || '').trim().toLowerCase().replace(/[\s_/-]+/g, '');
+    if (v === 's' || v === 'sikh') return 'S';
+    if (v === 'ns' || v === 'nonsikh' || v === 'notsikh') return 'N-S';
+    return value || '';
+}
+
+function formatSikhDisplay(value) {
+    const v = String(value || '').trim().toLowerCase().replace(/[\s_/-]+/g, '');
+    if (v === 's' || v === 'sikh') return 'Sikh';
+    if (v === 'ns' || v === 'nonsikh' || v === 'notsikh') return 'Non-Sikh';
+    return value || '';
+}
+
 function normalizeHierarchyPair(row, codeKey, nameKey) {
     const codeVal = String(row[codeKey] || '').trim();
     const nameVal = String(row[nameKey] || '').trim();
 
     if (!codeVal && looksLikeEmployeeCode(nameVal)) {
-        row[codeKey] = nameVal;
+        row[codeKey] = normalizeEmployeeCode(nameVal);
         row[nameKey] = '';
     }
 }

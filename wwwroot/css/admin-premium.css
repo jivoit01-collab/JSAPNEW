@@ -16,18 +16,13 @@
 }
 
 body {
-    background:
-        radial-gradient(circle at 8% 0%, rgba(59, 130, 246, .10), transparent 28%),
-        radial-gradient(circle at 92% 12%, rgba(245, 158, 11, .10), transparent 24%),
-        linear-gradient(135deg, var(--admin-bg), var(--admin-bg-soft));
+    background: radial-gradient(circle at 8% 0%, rgba(59, 130, 246, .10), transparent 28%), radial-gradient(circle at 92% 12%, rgba(245, 158, 11, .10), transparent 24%), linear-gradient(135deg, var(--admin-bg), var(--admin-bg-soft));
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: var(--admin-text);
 }
 
 .main-body {
-    background:
-        radial-gradient(circle at top left, rgba(59, 130, 246, .08), transparent 30%),
-        linear-gradient(135deg, var(--admin-bg), var(--admin-bg-soft));
+    background: radial-gradient(circle at top left, rgba(59, 130, 246, .08), transparent 30%), linear-gradient(135deg, var(--admin-bg), var(--admin-bg-soft));
 }
 
 .admin-dashboard-shell {
@@ -55,30 +50,26 @@ body {
     margin-bottom: 22px;
     border-radius: 24px;
     overflow: hidden;
-    background:
-        linear-gradient(125deg, rgba(219, 234, 254, .96), rgba(240, 249, 255, .92) 36%, rgba(254, 249, 195, .92)),
-        linear-gradient(135deg, #dbeafe, #fef3c7);
+    background: linear-gradient(125deg, rgba(219, 234, 254, .96), rgba(240, 249, 255, .92) 36%, rgba(254, 249, 195, .92)), linear-gradient(135deg, #dbeafe, #fef3c7);
     border: 1px solid rgba(255, 255, 255, .72);
     box-shadow: var(--admin-shadow);
     backdrop-filter: blur(18px);
     transition: transform .3s ease, box-shadow .3s ease;
 }
 
-.admin-dashboard-shell .premium-nav:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 24px 60px rgba(15, 43, 91, .12);
-}
+    .admin-dashboard-shell .premium-nav:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 60px rgba(15, 43, 91, .12);
+    }
 
-.admin-dashboard-shell .premium-nav::before {
-    content: "";
-    position: absolute;
-    inset: 1px;
-    border-radius: inherit;
-    background:
-        linear-gradient(90deg, rgba(255, 255, 255, .38), rgba(255, 255, 255, .06)),
-        radial-gradient(circle at 78% 20%, rgba(255, 255, 255, .72), transparent 32%);
-    pointer-events: none;
-}
+    .admin-dashboard-shell .premium-nav::before {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: inherit;
+        background: linear-gradient(90deg, rgba(255, 255, 255, .38), rgba(255, 255, 255, .06)), radial-gradient(circle at 78% 20%, rgba(255, 255, 255, .72), transparent 32%);
+        pointer-events: none;
+    }
 
 .admin-dashboard-shell .nav-glass {
     position: relative;
@@ -184,11 +175,11 @@ body {
     transition: transform .3s ease, box-shadow .3s ease, background .3s ease;
 }
 
-.admin-dashboard-shell .product-img:hover {
-    transform: translateY(-4px) scale(1.06);
-    background: #fff;
-    box-shadow: 0 16px 34px rgba(59, 130, 246, .16);
-}
+    .admin-dashboard-shell .product-img:hover {
+        transform: translateY(-4px) scale(1.06);
+        background: #fff;
+        box-shadow: 0 16px 34px rgba(59, 130, 246, .16);
+    }
 
 .admin-dashboard-shell .module-box {
     height: 48px;
@@ -208,11 +199,11 @@ body {
     transition: transform .3s ease, box-shadow .3s ease, background .3s ease;
 }
 
-.admin-dashboard-shell .module-box:hover {
-    transform: translateY(-3px);
-    background: #fff;
-    box-shadow: 0 18px 38px rgba(15, 43, 91, .13);
-}
+    .admin-dashboard-shell .module-box:hover {
+        transform: translateY(-3px);
+        background: #fff;
+        box-shadow: 0 18px 38px rgba(15, 43, 91, .13);
+    }
 
 .admin-dashboard-shell .module-dot {
     width: 9px;
@@ -251,9 +242,9 @@ body {
     min-width: 0;
 }
 
-.admin-dashboard-shell .f-group.grow {
-    min-width: 0;
-}
+    .admin-dashboard-shell .f-group.grow {
+        min-width: 0;
+    }
 
 .admin-dashboard-shell .f-label {
     color: var(--admin-muted);
@@ -319,12 +310,12 @@ body {
     box-shadow: 0 12px 24px rgba(15, 43, 91, .22);
 }
 
-.admin-dashboard-shell .btn-dark:hover,
-.admin-dashboard-shell .btn-dark:focus {
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 18px 34px rgba(15, 43, 91, .30);
-}
+    .admin-dashboard-shell .btn-dark:hover,
+    .admin-dashboard-shell .btn-dark:focus {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 18px 34px rgba(15, 43, 91, .30);
+    }
 
 .admin-dashboard-shell .btn-soft {
     color: #475569;
@@ -332,12 +323,12 @@ body {
     border: 1px solid rgba(148, 163, 184, .22);
 }
 
-.admin-dashboard-shell .btn-soft:hover {
-    color: var(--admin-primary);
-    background: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(15, 43, 91, .09);
-}
+    .admin-dashboard-shell .btn-soft:hover {
+        color: var(--admin-primary);
+        background: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(15, 43, 91, .09);
+    }
 
 /* KPI cards */
 .admin-dashboard-shell .kpi-grid {
@@ -361,30 +352,38 @@ body {
     animation: adminFadeUp .5s ease both;
 }
 
-.admin-dashboard-shell .kpi-card:nth-child(2) { animation-delay: .05s; }
-.admin-dashboard-shell .kpi-card:nth-child(3) { animation-delay: .1s; }
-.admin-dashboard-shell .kpi-card:nth-child(4) { animation-delay: .15s; }
+    .admin-dashboard-shell .kpi-card:nth-child(2) {
+        animation-delay: .05s;
+    }
 
-.admin-dashboard-shell .kpi-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    height: 5px;
-    background: var(--card-color, var(--admin-blue));
-}
+    .admin-dashboard-shell .kpi-card:nth-child(3) {
+        animation-delay: .1s;
+    }
 
-.admin-dashboard-shell .kpi-card::after {
-    content: "";
-    position: absolute;
-    right: -58px;
-    top: -62px;
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    background: rgba(59, 130, 246, .10);
-    pointer-events: none;
-}
+    .admin-dashboard-shell .kpi-card:nth-child(4) {
+        animation-delay: .15s;
+    }
+
+    .admin-dashboard-shell .kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 5px;
+        background: var(--card-color, var(--admin-blue));
+    }
+
+    .admin-dashboard-shell .kpi-card::after {
+        content: "";
+        position: absolute;
+        right: -58px;
+        top: -62px;
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: rgba(59, 130, 246, .10);
+        pointer-events: none;
+    }
 
 .admin-dashboard-shell .k-amber::after {
     background: rgba(245, 158, 11, .12);
@@ -404,10 +403,21 @@ body {
     box-shadow: 0 24px 48px rgba(15, 43, 91, .14);
 }
 
-.admin-dashboard-shell .k-blue { --card-color: var(--admin-blue); }
-.admin-dashboard-shell .k-amber { --card-color: var(--admin-orange); }
-.admin-dashboard-shell .k-green { --card-color: var(--admin-green); }
-.admin-dashboard-shell .k-purple { --card-color: var(--admin-purple); }
+.admin-dashboard-shell .k-blue {
+    --card-color: var(--admin-blue);
+}
+
+.admin-dashboard-shell .k-amber {
+    --card-color: var(--admin-orange);
+}
+
+.admin-dashboard-shell .k-green {
+    --card-color: var(--admin-green);
+}
+
+.admin-dashboard-shell .k-purple {
+    --card-color: var(--admin-purple);
+}
 
 .admin-dashboard-shell .kpi-top {
     position: relative;
@@ -534,25 +544,25 @@ body {
     transition: transform .3s ease, box-shadow .3s ease, background .3s ease, color .3s ease;
 }
 
-.admin-dashboard-shell .tab-btn:hover {
-    color: var(--admin-blue);
-    background: rgba(239, 246, 255, .88);
-}
+    .admin-dashboard-shell .tab-btn:hover {
+        color: var(--admin-blue);
+        background: rgba(239, 246, 255, .88);
+    }
 
-.admin-dashboard-shell .tab-btn.on {
-    color: #fff;
-    background: linear-gradient(135deg, var(--admin-primary), #17376f);
-    box-shadow: 0 12px 24px rgba(15, 43, 91, .22);
-}
+    .admin-dashboard-shell .tab-btn.on {
+        color: #fff;
+        background: linear-gradient(135deg, var(--admin-primary), #17376f);
+        box-shadow: 0 12px 24px rgba(15, 43, 91, .22);
+    }
 
 .admin-dashboard-shell .tp {
     display: none;
 }
 
-.admin-dashboard-shell .tp.on {
-    display: block;
-    animation: adminFadeUp .32s ease both;
-}
+    .admin-dashboard-shell .tp.on {
+        display: block;
+        animation: adminFadeUp .32s ease both;
+    }
 
 /* Tables */
 .admin-dashboard-shell .t-card {
@@ -583,9 +593,9 @@ body {
     font-weight: 850;
 }
 
-.admin-dashboard-shell .t-title i {
-    color: var(--admin-blue);
-}
+    .admin-dashboard-shell .t-title i {
+        color: var(--admin-blue);
+    }
 
 .admin-dashboard-shell .t-subtitle {
     margin-top: 4px;
@@ -604,23 +614,23 @@ body {
     scrollbar-color: #93c5fd rgba(226, 232, 240, .72);
 }
 
-.admin-dashboard-shell .top-scroll::-webkit-scrollbar,
-.admin-dashboard-shell .t-wrap::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
+    .admin-dashboard-shell .top-scroll::-webkit-scrollbar,
+    .admin-dashboard-shell .t-wrap::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
 
-.admin-dashboard-shell .top-scroll::-webkit-scrollbar-track,
-.admin-dashboard-shell .t-wrap::-webkit-scrollbar-track {
-    background: rgba(226, 232, 240, .72);
-    border-radius: 999px;
-}
+    .admin-dashboard-shell .top-scroll::-webkit-scrollbar-track,
+    .admin-dashboard-shell .t-wrap::-webkit-scrollbar-track {
+        background: rgba(226, 232, 240, .72);
+        border-radius: 999px;
+    }
 
-.admin-dashboard-shell .top-scroll::-webkit-scrollbar-thumb,
-.admin-dashboard-shell .t-wrap::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: linear-gradient(135deg, #93c5fd, #a78bfa);
-}
+    .admin-dashboard-shell .top-scroll::-webkit-scrollbar-thumb,
+    .admin-dashboard-shell .t-wrap::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: linear-gradient(135deg, #93c5fd, #a78bfa);
+    }
 
 .admin-dashboard-shell .top-scroll-inner {
     height: 1px;
@@ -653,33 +663,93 @@ body {
     min-width: 940px;
 }
 
-.admin-dashboard-shell .dt-maker .col-account { width: 20%; }
-.admin-dashboard-shell .dt-maker .col-voucher { width: 9%; }
-.admin-dashboard-shell .dt-maker .col-date { width: 10%; }
-.admin-dashboard-shell .dt-maker .col-amount { width: 11%; }
-.admin-dashboard-shell .dt-maker .col-remark { width: 14%; }
-.admin-dashboard-shell .dt-maker .col-status { width: 11%; }
-.admin-dashboard-shell .dt-maker .col-attachment { width: 9%; }
-.admin-dashboard-shell .dt-maker .col-delete { width: 6%; }
+.admin-dashboard-shell .dt-maker .col-account {
+    width: 20%;
+}
 
-.admin-dashboard-shell .dt-checker .col-account { width: 22%; }
-.admin-dashboard-shell .dt-checker .col-voucher { width: 9%; }
-.admin-dashboard-shell .dt-checker .col-date { width: 10%; }
-.admin-dashboard-shell .dt-checker .col-amount { width: 11%; }
-.admin-dashboard-shell .dt-checker .col-remark { width: 27%; }
-.admin-dashboard-shell .dt-checker .col-status { width: 11%; }
-.admin-dashboard-shell .dt-checker .col-attachment { width: 10%; }
+.admin-dashboard-shell .dt-maker .col-voucher {
+    width: 9%;
+}
+
+.admin-dashboard-shell .dt-maker .col-date {
+    width: 10%;
+}
+
+.admin-dashboard-shell .dt-maker .col-amount {
+    width: 11%;
+}
+
+.admin-dashboard-shell .dt-maker .col-remark {
+    width: 14%;
+}
+
+.admin-dashboard-shell .dt-maker .col-status {
+    width: 11%;
+}
+
+.admin-dashboard-shell .dt-maker .col-attachment {
+    width: 9%;
+}
+
+.admin-dashboard-shell .dt-maker .col-delete {
+    width: 6%;
+}
+
+.admin-dashboard-shell .dt-checker .col-account {
+    width: 22%;
+}
+
+.admin-dashboard-shell .dt-checker .col-voucher {
+    width: 9%;
+}
+
+.admin-dashboard-shell .dt-checker .col-date {
+    width: 10%;
+}
+
+.admin-dashboard-shell .dt-checker .col-amount {
+    width: 11%;
+}
+
+.admin-dashboard-shell .dt-checker .col-remark {
+    width: 27%;
+}
+
+.admin-dashboard-shell .dt-checker .col-status {
+    width: 11%;
+}
+
+.admin-dashboard-shell .dt-checker .col-attachment {
+    width: 10%;
+}
 
 .admin-dashboard-shell .dt-invoice .col-account,
-.admin-dashboard-shell .dt-paymentchecker .col-account { width: 28%; }
+.admin-dashboard-shell .dt-paymentchecker .col-account {
+    width: 28%;
+}
+
 .admin-dashboard-shell .dt-invoice .col-voucher,
-.admin-dashboard-shell .dt-paymentchecker .col-voucher { width: 12%; }
+.admin-dashboard-shell .dt-paymentchecker .col-voucher {
+    width: 12%;
+}
+
 .admin-dashboard-shell .dt-invoice .col-date,
-.admin-dashboard-shell .dt-paymentchecker .col-date { width: 12%; }
+.admin-dashboard-shell .dt-paymentchecker .col-date {
+    width: 12%;
+}
+
 .admin-dashboard-shell .dt-invoice .col-amount,
-.admin-dashboard-shell .dt-paymentchecker .col-amount { width: 16%; }
-.admin-dashboard-shell .dt-invoice .col-status { width: 16%; }
-.admin-dashboard-shell .dt-paymentchecker .col-status { width: 20%; }
+.admin-dashboard-shell .dt-paymentchecker .col-amount {
+    width: 16%;
+}
+
+.admin-dashboard-shell .dt-invoice .col-status {
+    width: 16%;
+}
+
+.admin-dashboard-shell .dt-paymentchecker .col-status {
+    width: 20%;
+}
 
 .admin-dashboard-shell table.dt thead th {
     position: sticky;
@@ -713,13 +783,13 @@ body {
     transition: background .3s ease, transform .3s ease;
 }
 
-.admin-dashboard-shell table.dt tbody tr:nth-child(even) {
-    background: rgba(248, 250, 252, .48);
-}
+    .admin-dashboard-shell table.dt tbody tr:nth-child(even) {
+        background: rgba(248, 250, 252, .48);
+    }
 
-.admin-dashboard-shell table.dt tbody tr:hover {
-    background: rgba(239, 246, 255, .82);
-}
+    .admin-dashboard-shell table.dt tbody tr:hover {
+        background: rgba(239, 246, 255, .82);
+    }
 
 .admin-dashboard-shell table.dt tbody td {
     height: 58px;
@@ -824,10 +894,10 @@ body {
     text-overflow: ellipsis;
 }
 
-.admin-dashboard-shell .status-badge i {
-    flex: 0 0 auto;
-    font-size: 10px;
-}
+    .admin-dashboard-shell .status-badge i {
+        flex: 0 0 auto;
+        font-size: 10px;
+    }
 
 .admin-dashboard-shell .sb-approved {
     color: #166534;
@@ -871,11 +941,11 @@ body {
     text-decoration: none;
 }
 
-.admin-dashboard-shell .attach-view i,
-.admin-dashboard-shell .muted-pill i {
-    flex: 0 0 auto;
-    font-size: 11px;
-}
+    .admin-dashboard-shell .attach-view i,
+    .admin-dashboard-shell .muted-pill i {
+        flex: 0 0 auto;
+        font-size: 11px;
+    }
 
 .admin-dashboard-shell .attach-view {
     color: #fff;
@@ -884,12 +954,12 @@ body {
     transition: transform .3s ease, box-shadow .3s ease;
 }
 
-.admin-dashboard-shell .attach-view:hover {
-    color: #fff;
-    text-decoration: none;
-    transform: translateY(-2px);
-    box-shadow: 0 16px 28px rgba(59, 130, 246, .28);
-}
+    .admin-dashboard-shell .attach-view:hover {
+        color: #fff;
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 16px 28px rgba(59, 130, 246, .28);
+    }
 
 .admin-dashboard-shell .muted-pill {
     color: #94a3b8;
@@ -913,11 +983,11 @@ body {
     box-shadow: 0 10px 18px rgba(239, 68, 68, .18);
 }
 
-.admin-dashboard-shell .attach-del:hover {
-    color: #fff;
-    transform: translateY(-3px) scale(1.04);
-    box-shadow: 0 16px 28px rgba(239, 68, 68, .28);
-}
+    .admin-dashboard-shell .attach-del:hover {
+        color: #fff;
+        transform: translateY(-3px) scale(1.04);
+        box-shadow: 0 16px 28px rgba(239, 68, 68, .28);
+    }
 
 .admin-dashboard-shell .action-placeholder {
     color: #cbd5e1;
@@ -949,15 +1019,15 @@ body {
     gap: 8px;
 }
 
-.admin-dashboard-shell .dt-per-page select {
-    height: 34px;
-    padding: 0 10px;
-    border: 1px solid rgba(148, 163, 184, .28);
-    border-radius: 10px;
-    background: #fff;
-    color: #334155;
-    font-weight: 800;
-}
+    .admin-dashboard-shell .dt-per-page select {
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 10px;
+        background: #fff;
+        color: #334155;
+        font-weight: 800;
+    }
 
 .admin-dashboard-shell .dt-pg-btns {
     display: flex;
@@ -978,23 +1048,23 @@ body {
     transition: transform .25s ease, background .25s ease, color .25s ease, box-shadow .25s ease;
 }
 
-.admin-dashboard-shell .dt-pg-btn:hover:not(:disabled) {
-    color: #fff;
-    background: var(--admin-blue);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 18px rgba(59, 130, 246, .22);
-}
+    .admin-dashboard-shell .dt-pg-btn:hover:not(:disabled) {
+        color: #fff;
+        background: var(--admin-blue);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 18px rgba(59, 130, 246, .22);
+    }
 
-.admin-dashboard-shell .dt-pg-btn.active {
-    color: #fff;
-    background: linear-gradient(135deg, var(--admin-primary), var(--admin-blue));
-    box-shadow: 0 10px 18px rgba(15, 43, 91, .22);
-}
+    .admin-dashboard-shell .dt-pg-btn.active {
+        color: #fff;
+        background: linear-gradient(135deg, var(--admin-primary), var(--admin-blue));
+        box-shadow: 0 10px 18px rgba(15, 43, 91, .22);
+    }
 
-.admin-dashboard-shell .dt-pg-btn:disabled {
-    cursor: not-allowed;
-    opacity: .46;
-}
+    .admin-dashboard-shell .dt-pg-btn:disabled {
+        cursor: not-allowed;
+        opacity: .46;
+    }
 
 .admin-dashboard-shell .dt-pg-dots {
     color: #94a3b8;
@@ -1054,9 +1124,9 @@ body {
     backdrop-filter: blur(12px);
 }
 
-.confirm-overlay.show {
-    display: flex;
-}
+    .confirm-overlay.show {
+        display: flex;
+    }
 
 .confirm-box {
     width: min(100%, 520px);
@@ -1133,9 +1203,9 @@ body {
     font-weight: 750;
 }
 
-.confirm-meta-row span:first-child {
-    color: #64748b;
-}
+    .confirm-meta-row span:first-child {
+        color: #64748b;
+    }
 
 .confirm-footer {
     display: flex;
@@ -1172,10 +1242,10 @@ body {
     box-shadow: 0 12px 24px rgba(15, 43, 91, .2);
 }
 
-.confirm-cancel:hover,
-.confirm-proceed:hover {
-    transform: translateY(-2px);
-}
+    .confirm-cancel:hover,
+    .confirm-proceed:hover {
+        transform: translateY(-2px);
+    }
 
 /* Floating scroll buttons */
 #scroll-btns {
@@ -1192,11 +1262,11 @@ body {
     transition: opacity .3s ease, transform .3s ease;
 }
 
-#scroll-btns.visible {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
+    #scroll-btns.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+    }
 
 .scroll-btn {
     width: 42px;
@@ -1212,11 +1282,11 @@ body {
     transition: transform .25s ease, box-shadow .25s ease, background .25s ease;
 }
 
-.scroll-btn:hover {
-    transform: translateY(-3px);
-    background: var(--admin-blue);
-    box-shadow: 0 18px 34px rgba(59, 130, 246, .26);
-}
+    .scroll-btn:hover {
+        transform: translateY(-3px);
+        background: var(--admin-blue);
+        box-shadow: 0 18px 34px rgba(59, 130, 246, .26);
+    }
 
 /* Checker dashboard */
 .checker-dashboard-shell .module-box.checker {
@@ -1225,10 +1295,10 @@ body {
     border-color: rgba(255, 255, 255, .86);
 }
 
-.checker-dashboard-shell .module-box.checker i,
-.checker-dashboard-shell .module-box.checker span {
-    color: var(--admin-primary);
-}
+    .checker-dashboard-shell .module-box.checker i,
+    .checker-dashboard-shell .module-box.checker span {
+        color: var(--admin-primary);
+    }
 
 .checker-dashboard-shell .checker-filter-card {
     grid-template-columns: minmax(140px, .72fr) minmax(140px, .72fr) minmax(230px, 1.35fr) minmax(150px, .8fr) auto auto;
@@ -1253,10 +1323,10 @@ body {
     font-weight: 700;
 }
 
-.checker-dashboard-shell .suggest-item:hover {
-    background: rgba(239, 246, 255, .92);
-    color: var(--admin-blue);
-}
+    .checker-dashboard-shell .suggest-item:hover {
+        background: rgba(239, 246, 255, .92);
+        color: var(--admin-blue);
+    }
 
 .checker-dashboard-shell .btn-export {
     color: #fff;
@@ -1264,11 +1334,11 @@ body {
     box-shadow: 0 12px 24px rgba(34, 197, 94, .20);
 }
 
-.checker-dashboard-shell .btn-export:hover {
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 18px 34px rgba(34, 197, 94, .28);
-}
+    .checker-dashboard-shell .btn-export:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 18px 34px rgba(34, 197, 94, .28);
+    }
 
 .checker-dashboard-shell .table-slide-hint {
     display: flex;
@@ -1282,9 +1352,9 @@ body {
     font-weight: 750;
 }
 
-.checker-dashboard-shell .table-slide-hint i {
-    color: var(--admin-blue);
-}
+    .checker-dashboard-shell .table-slide-hint i {
+        color: var(--admin-blue);
+    }
 
 .checker-dashboard-shell .checker-table-card .t-wrap {
     width: 100%;
@@ -1303,70 +1373,99 @@ body {
     border-spacing: 0;
 }
 
-.checker-dashboard-shell .checker-workflow-table .col-account { width: 240px; }
-.checker-dashboard-shell .checker-workflow-table .col-voucher { width: 120px; }
-.checker-dashboard-shell .checker-workflow-table .col-date { width: 120px; }
-.checker-dashboard-shell .checker-workflow-table .col-amount { width: 130px; }
-.checker-dashboard-shell .checker-workflow-table .col-supplier { width: 200px; }
-.checker-dashboard-shell .checker-workflow-table .col-attachment { width: 120px; }
-.checker-dashboard-shell .checker-workflow-table .col-maker-remark { width: 260px; }
-.checker-dashboard-shell .checker-workflow-table .col-status { width: 125px; }
-.checker-dashboard-shell .checker-workflow-table .col-checker-remark { width: 230px; }
-.checker-dashboard-shell .checker-workflow-table .col-action { width: 220px; }
+    .checker-dashboard-shell .checker-workflow-table .col-account {
+        width: 240px;
+    }
 
-.checker-dashboard-shell .checker-table-card table.dt th:first-child,
-.checker-dashboard-shell .checker-table-card table.dt td:first-child,
-.checker-dashboard-shell .checker-table-card table.dt thead th:first-child {
-    position: static;
-    left: auto;
-    z-index: auto;
-}
+    .checker-dashboard-shell .checker-workflow-table .col-voucher {
+        width: 120px;
+    }
 
-.checker-dashboard-shell .checker-table-card table.dt thead th,
-.checker-dashboard-shell .checker-table-card table.dt thead th:first-child {
-    padding: 15px 16px;
-    color: #64748b;
-    background: rgba(248, 250, 252, .96);
-    border-bottom: 1px solid rgba(226, 232, 240, .88);
-    font-size: 11px;
-    font-weight: 900;
-    text-align: left;
-    text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+    .checker-dashboard-shell .checker-workflow-table .col-date {
+        width: 120px;
+    }
 
-.checker-dashboard-shell .checker-workflow-table th:nth-child(7),
-.checker-dashboard-shell .checker-workflow-table th:nth-child(9),
-.checker-dashboard-shell .checker-workflow-table th:nth-child(11) {
-    text-align: center;
-}
+    .checker-dashboard-shell .checker-workflow-table .col-amount {
+        width: 130px;
+    }
 
-.checker-dashboard-shell .checker-table-card table.dt tbody td {
-    height: 64px;
-    padding: 14px 16px;
-    color: #334155;
-    border-bottom: 1px solid rgba(226, 232, 240, .58);
-    font-size: 13px;
-    font-weight: 650;
-    line-height: 1.35;
-    vertical-align: middle;
-    overflow: hidden;
-    text-overflow: clip;
-    white-space: normal;
-}
+    .checker-dashboard-shell .checker-workflow-table .col-supplier {
+        width: 200px;
+    }
 
-.checker-dashboard-shell .checker-table-card table.dt tbody tr:hover,
-.checker-dashboard-shell .checker-table-card table.dt tbody tr:hover td:first-child {
-    background: rgba(239, 246, 255, .82);
-}
+    .checker-dashboard-shell .checker-workflow-table .col-attachment {
+        width: 120px;
+    }
 
-.checker-dashboard-shell .checker-table-card table.dt tbody tr.row-selected td {
-    background: rgba(239, 246, 255, .92) !important;
-    border-left: 0;
-    box-shadow: inset 3px 0 0 var(--admin-blue);
-}
+    .checker-dashboard-shell .checker-workflow-table .col-maker-remark {
+        width: 260px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-status {
+        width: 125px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-checker-remark {
+        width: 230px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-action {
+        width: 220px;
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt th:first-child,
+    .checker-dashboard-shell .checker-table-card table.dt td:first-child,
+    .checker-dashboard-shell .checker-table-card table.dt thead th:first-child {
+        position: static;
+        left: auto;
+        z-index: auto;
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt thead th,
+    .checker-dashboard-shell .checker-table-card table.dt thead th:first-child {
+        padding: 15px 16px;
+        color: #64748b;
+        background: rgba(248, 250, 252, .96);
+        border-bottom: 1px solid rgba(226, 232, 240, .88);
+        font-size: 11px;
+        font-weight: 900;
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table th:nth-child(7),
+    .checker-dashboard-shell .checker-workflow-table th:nth-child(9),
+    .checker-dashboard-shell .checker-workflow-table th:nth-child(11) {
+        text-align: center;
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt tbody td {
+        height: 64px;
+        padding: 14px 16px;
+        color: #334155;
+        border-bottom: 1px solid rgba(226, 232, 240, .58);
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 1.35;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: clip;
+        white-space: normal;
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt tbody tr:hover,
+    .checker-dashboard-shell .checker-table-card table.dt tbody tr:hover td:first-child {
+        background: rgba(239, 246, 255, .82);
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt tbody tr.row-selected td {
+        background: rgba(239, 246, 255, .92) !important;
+        border-left: 0;
+        box-shadow: inset 3px 0 0 var(--admin-blue);
+    }
 
 .checker-dashboard-shell .account-drill-link {
     display: inline-flex;
@@ -1378,16 +1477,16 @@ body {
     text-decoration: none;
 }
 
-.checker-dashboard-shell .account-drill-link:hover {
-    color: var(--admin-primary);
-    text-decoration: none;
-}
+    .checker-dashboard-shell .account-drill-link:hover {
+        color: var(--admin-primary);
+        text-decoration: none;
+    }
 
-.checker-dashboard-shell .account-drill-link i {
-    flex: 0 0 auto;
-    color: #94a3b8;
-    font-size: 10px;
-}
+    .checker-dashboard-shell .account-drill-link i {
+        flex: 0 0 auto;
+        color: #94a3b8;
+        font-size: 10px;
+    }
 
 .checker-dashboard-shell .td-supplier,
 .checker-dashboard-shell .td-remark {
@@ -1441,11 +1540,11 @@ body {
     transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
 }
 
-.checker-dashboard-shell .checker-remark-input:focus {
-    border-color: var(--admin-blue);
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, .13);
-}
+    .checker-dashboard-shell .checker-remark-input:focus {
+        border-color: var(--admin-blue);
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, .13);
+    }
 
 .checker-dashboard-shell .action-cell {
     display: flex;
@@ -1482,17 +1581,17 @@ body {
     box-shadow: 0 10px 18px rgba(239, 68, 68, .18);
 }
 
-.checker-dashboard-shell .btn-approve:hover,
-.checker-dashboard-shell .btn-reject:hover {
-    transform: translateY(-2px);
-}
+    .checker-dashboard-shell .btn-approve:hover,
+    .checker-dashboard-shell .btn-reject:hover {
+        transform: translateY(-2px);
+    }
 
-.checker-dashboard-shell .btn-approve:disabled,
-.checker-dashboard-shell .btn-reject:disabled {
-    cursor: wait;
-    opacity: .68;
-    transform: none;
-}
+    .checker-dashboard-shell .btn-approve:disabled,
+    .checker-dashboard-shell .btn-reject:disabled {
+        cursor: wait;
+        opacity: .68;
+        transform: none;
+    }
 
 .checker-dashboard-shell .detail-row td {
     padding: 0 !important;
@@ -1561,10 +1660,10 @@ body {
     border-color: rgba(255, 255, 255, .86);
 }
 
-.invoice-payment-shell .module-box.invoice i,
-.invoice-payment-shell .module-box.invoice span {
-    color: var(--admin-primary);
-}
+    .invoice-payment-shell .module-box.invoice i,
+    .invoice-payment-shell .module-box.invoice span {
+        color: var(--admin-primary);
+    }
 
 .invoice-payment-shell .invoice-filter-card {
     grid-template-columns: minmax(140px, .72fr) minmax(140px, .72fr) minmax(260px, 1.45fr) auto;
@@ -1605,9 +1704,9 @@ body {
     font-weight: 700;
 }
 
-.invoice-payment-shell .table-slide-hint i {
-    color: var(--admin-blue);
-}
+    .invoice-payment-shell .table-slide-hint i {
+        color: var(--admin-blue);
+    }
 
 .invoice-payment-shell .invoice-table-card .t-wrap {
     width: 100%;
@@ -1626,59 +1725,88 @@ body {
     border-spacing: 0;
 }
 
-.invoice-payment-shell .invoice-payment-table .col-account { width: 235px; }
-.invoice-payment-shell .invoice-payment-table .col-voucher { width: 116px; }
-.invoice-payment-shell .invoice-payment-table .col-date { width: 114px; }
-.invoice-payment-shell .invoice-payment-table .col-amount { width: 130px; }
-.invoice-payment-shell .invoice-payment-table .col-supplier { width: 190px; }
-.invoice-payment-shell .invoice-payment-table .col-attachment { width: 118px; }
-.invoice-payment-shell .invoice-payment-table .col-checker-status { width: 132px; }
-.invoice-payment-shell .invoice-payment-table .col-payment-status { width: 132px; }
-.invoice-payment-shell .invoice-payment-table .col-maker-remark { width: 255px; }
-.invoice-payment-shell .invoice-payment-table .col-checker-remark { width: 255px; }
+    .invoice-payment-shell .invoice-payment-table .col-account {
+        width: 235px;
+    }
 
-.invoice-payment-shell .invoice-table-card table.dt thead th {
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    padding: 15px 16px;
-    color: #64748b;
-    background: rgba(248, 250, 252, .96);
-    border-bottom: 1px solid rgba(226, 232, 240, .88);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .02em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    vertical-align: middle;
-}
+    .invoice-payment-shell .invoice-payment-table .col-voucher {
+        width: 116px;
+    }
 
-.invoice-payment-shell .invoice-payment-table th:nth-child(8),
-.invoice-payment-shell .invoice-payment-table th:nth-child(9),
-.invoice-payment-shell .invoice-payment-table th:nth-child(10) {
-    text-align: center;
-}
+    .invoice-payment-shell .invoice-payment-table .col-date {
+        width: 114px;
+    }
 
-.invoice-payment-shell .invoice-table-card table.dt tbody td {
-    height: 64px;
-    padding: 14px 16px;
-    color: #334155;
-    border-bottom: 1px solid rgba(226, 232, 240, .58);
-    background: rgba(255, 255, 255, .74);
-    font-size: 12px;
-    font-weight: 700;
-    vertical-align: middle;
-    overflow: hidden;
-    transition: background .25s ease, color .25s ease;
-}
+    .invoice-payment-shell .invoice-payment-table .col-amount {
+        width: 130px;
+    }
 
-.invoice-payment-shell .invoice-table-card table.dt tbody tr:nth-child(even) td {
-    background: rgba(248, 250, 252, .64);
-}
+    .invoice-payment-shell .invoice-payment-table .col-supplier {
+        width: 190px;
+    }
 
-.invoice-payment-shell .invoice-table-card table.dt tbody tr:hover td {
-    background: rgba(239, 246, 255, .82);
-}
+    .invoice-payment-shell .invoice-payment-table .col-attachment {
+        width: 118px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-checker-status {
+        width: 132px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-payment-status {
+        width: 132px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-maker-remark {
+        width: 255px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-checker-remark {
+        width: 255px;
+    }
+
+    .invoice-payment-shell .invoice-table-card table.dt thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        padding: 15px 16px;
+        color: #64748b;
+        background: rgba(248, 250, 252, .96);
+        border-bottom: 1px solid rgba(226, 232, 240, .88);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .invoice-payment-shell .invoice-payment-table th:nth-child(8),
+    .invoice-payment-shell .invoice-payment-table th:nth-child(9),
+    .invoice-payment-shell .invoice-payment-table th:nth-child(10) {
+        text-align: center;
+    }
+
+    .invoice-payment-shell .invoice-table-card table.dt tbody td {
+        height: 64px;
+        padding: 14px 16px;
+        color: #334155;
+        border-bottom: 1px solid rgba(226, 232, 240, .58);
+        background: rgba(255, 255, 255, .74);
+        font-size: 12px;
+        font-weight: 700;
+        vertical-align: middle;
+        overflow: hidden;
+        transition: background .25s ease, color .25s ease;
+    }
+
+    .invoice-payment-shell .invoice-table-card table.dt tbody tr:nth-child(even) td {
+        background: rgba(248, 250, 252, .64);
+    }
+
+    .invoice-payment-shell .invoice-table-card table.dt tbody tr:hover td {
+        background: rgba(239, 246, 255, .82);
+    }
 
 .invoice-payment-shell .td-account,
 .invoice-payment-shell .td-supplier,
@@ -1731,10 +1859,10 @@ body {
     border-color: rgba(255, 255, 255, .86);
 }
 
-.maker-dashboard-shell .module-box.maker i,
-.maker-dashboard-shell .module-box.maker span {
-    color: var(--admin-primary);
-}
+    .maker-dashboard-shell .module-box.maker i,
+    .maker-dashboard-shell .module-box.maker span {
+        color: var(--admin-primary);
+    }
 
 .maker-dashboard-shell .maker-filter-card {
     grid-template-columns: minmax(132px, .68fr) minmax(132px, .68fr) minmax(230px, 1.25fr) minmax(145px, .8fr) minmax(145px, .8fr) auto auto;
@@ -1759,10 +1887,10 @@ body {
     font-weight: 700;
 }
 
-.maker-dashboard-shell .suggest-item:hover {
-    background: rgba(239, 246, 255, .92);
-    color: var(--admin-blue);
-}
+    .maker-dashboard-shell .suggest-item:hover {
+        background: rgba(239, 246, 255, .92);
+        color: var(--admin-blue);
+    }
 
 .maker-dashboard-shell .btn-export {
     color: #fff;
@@ -1770,11 +1898,11 @@ body {
     box-shadow: 0 12px 24px rgba(34, 197, 94, .20);
 }
 
-.maker-dashboard-shell .btn-export:hover {
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 18px 34px rgba(34, 197, 94, .28);
-}
+    .maker-dashboard-shell .btn-export:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 18px 34px rgba(34, 197, 94, .28);
+    }
 
 .maker-dashboard-shell .product-modal {
     background: rgba(15, 23, 42, .68);
@@ -1811,9 +1939,9 @@ body {
     font-weight: 700;
 }
 
-.maker-dashboard-shell .table-slide-hint i {
-    color: var(--admin-blue);
-}
+    .maker-dashboard-shell .table-slide-hint i {
+        color: var(--admin-blue);
+    }
 
 .maker-dashboard-shell .maker-table-card .t-wrap {
     width: 100%;
@@ -1832,73 +1960,111 @@ body {
     border-spacing: 0;
 }
 
-.maker-dashboard-shell .maker-workflow-table .col-account { width: 240px; }
-.maker-dashboard-shell .maker-workflow-table .col-voucher { width: 112px; }
-.maker-dashboard-shell .maker-workflow-table .col-date { width: 112px; }
-.maker-dashboard-shell .maker-workflow-table .col-amount { width: 125px; }
-.maker-dashboard-shell .maker-workflow-table .col-supplier { width: 180px; }
-.maker-dashboard-shell .maker-workflow-table .col-attachment { width: 210px; }
-.maker-dashboard-shell .maker-workflow-table .col-maker-remark { width: 230px; }
-.maker-dashboard-shell .maker-workflow-table .col-status { width: 125px; }
-.maker-dashboard-shell .maker-workflow-table .col-action { width: 135px; }
-.maker-dashboard-shell .maker-workflow-table .col-qty { width: 105px; }
-.maker-dashboard-shell .maker-workflow-table .col-value { width: 125px; }
-.maker-dashboard-shell .maker-workflow-table .col-items { width: 105px; }
-.maker-dashboard-shell .maker-workflow-table .col-payment-status { width: 125px; }
+    .maker-dashboard-shell .maker-workflow-table .col-account {
+        width: 240px;
+    }
 
-.maker-dashboard-shell .maker-table-card table.dt th:first-child,
-.maker-dashboard-shell .maker-table-card table.dt td:first-child,
-.maker-dashboard-shell .maker-table-card table.dt thead th:first-child {
-    position: static;
-    left: auto;
-    z-index: auto;
-}
+    .maker-dashboard-shell .maker-workflow-table .col-voucher {
+        width: 112px;
+    }
 
-.maker-dashboard-shell .maker-table-card table.dt thead th,
-.maker-dashboard-shell .maker-table-card table.dt thead th:first-child {
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    padding: 15px 16px;
-    color: #64748b;
-    background: rgba(248, 250, 252, .96);
-    border-bottom: 1px solid rgba(226, 232, 240, .88);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .02em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    vertical-align: middle;
-}
+    .maker-dashboard-shell .maker-workflow-table .col-date {
+        width: 112px;
+    }
 
-.maker-dashboard-shell .maker-workflow-table th:nth-child(8),
-.maker-dashboard-shell .maker-workflow-table th:nth-child(10),
-.maker-dashboard-shell .maker-workflow-table th:nth-child(11),
-.maker-dashboard-shell .maker-workflow-table th:nth-child(15) {
-    text-align: center;
-}
+    .maker-dashboard-shell .maker-workflow-table .col-amount {
+        width: 125px;
+    }
 
-.maker-dashboard-shell .maker-table-card table.dt tbody td {
-    height: 66px;
-    padding: 14px 16px;
-    color: #334155;
-    border-bottom: 1px solid rgba(226, 232, 240, .58);
-    background: rgba(255, 255, 255, .74);
-    font-size: 12px;
-    font-weight: 700;
-    vertical-align: middle;
-    overflow: hidden;
-    transition: background .25s ease, color .25s ease;
-}
+    .maker-dashboard-shell .maker-workflow-table .col-supplier {
+        width: 180px;
+    }
 
-.maker-dashboard-shell .maker-table-card table.dt tbody tr:nth-child(even) td {
-    background: rgba(248, 250, 252, .64);
-}
+    .maker-dashboard-shell .maker-workflow-table .col-attachment {
+        width: 210px;
+    }
 
-.maker-dashboard-shell .maker-table-card table.dt tbody tr:hover td,
-.maker-dashboard-shell .maker-table-card table.dt tbody tr:hover td:first-child {
-    background: rgba(239, 246, 255, .82);
-}
+    .maker-dashboard-shell .maker-workflow-table .col-maker-remark {
+        width: 230px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-status {
+        width: 125px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-action {
+        width: 135px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-qty {
+        width: 105px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-value {
+        width: 125px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-items {
+        width: 105px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-payment-status {
+        width: 125px;
+    }
+
+    .maker-dashboard-shell .maker-table-card table.dt th:first-child,
+    .maker-dashboard-shell .maker-table-card table.dt td:first-child,
+    .maker-dashboard-shell .maker-table-card table.dt thead th:first-child {
+        position: static;
+        left: auto;
+        z-index: auto;
+    }
+
+    .maker-dashboard-shell .maker-table-card table.dt thead th,
+    .maker-dashboard-shell .maker-table-card table.dt thead th:first-child {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        padding: 15px 16px;
+        color: #64748b;
+        background: rgba(248, 250, 252, .96);
+        border-bottom: 1px solid rgba(226, 232, 240, .88);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table th:nth-child(8),
+    .maker-dashboard-shell .maker-workflow-table th:nth-child(10),
+    .maker-dashboard-shell .maker-workflow-table th:nth-child(11),
+    .maker-dashboard-shell .maker-workflow-table th:nth-child(15) {
+        text-align: center;
+    }
+
+    .maker-dashboard-shell .maker-table-card table.dt tbody td {
+        height: 66px;
+        padding: 14px 16px;
+        color: #334155;
+        border-bottom: 1px solid rgba(226, 232, 240, .58);
+        background: rgba(255, 255, 255, .74);
+        font-size: 12px;
+        font-weight: 700;
+        vertical-align: middle;
+        overflow: hidden;
+        transition: background .25s ease, color .25s ease;
+    }
+
+    .maker-dashboard-shell .maker-table-card table.dt tbody tr:nth-child(even) td {
+        background: rgba(248, 250, 252, .64);
+    }
+
+    .maker-dashboard-shell .maker-table-card table.dt tbody tr:hover td,
+    .maker-dashboard-shell .maker-table-card table.dt tbody tr:hover td:first-child {
+        background: rgba(239, 246, 255, .82);
+    }
 
 .maker-dashboard-shell .td-account,
 .maker-dashboard-shell .td-supplier,
@@ -1979,12 +2145,12 @@ body {
     transition: transform .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease;
 }
 
-.maker-dashboard-shell .upload-zone:hover {
-    transform: translateY(-2px);
-    border-color: rgba(59, 130, 246, .72);
-    background: #fff;
-    box-shadow: 0 16px 28px rgba(59, 130, 246, .16);
-}
+    .maker-dashboard-shell .upload-zone:hover {
+        transform: translateY(-2px);
+        border-color: rgba(59, 130, 246, .72);
+        background: #fff;
+        box-shadow: 0 16px 28px rgba(59, 130, 246, .16);
+    }
 
 .maker-dashboard-shell .reupload-zone {
     color: #92400e;
@@ -2012,11 +2178,11 @@ body {
     transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
 }
 
-.maker-dashboard-shell .maker-remark-input:focus {
-    border-color: var(--admin-blue);
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, .13);
-}
+    .maker-dashboard-shell .maker-remark-input:focus {
+        border-color: var(--admin-blue);
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, .13);
+    }
 
 .maker-dashboard-shell .submitBtn {
     min-width: 104px;
@@ -2032,10 +2198,10 @@ body {
     box-shadow: 0 10px 18px rgba(59, 130, 246, .18);
 }
 
-.maker-dashboard-shell .submitBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 16px 28px rgba(59, 130, 246, .24);
-}
+    .maker-dashboard-shell .submitBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 28px rgba(59, 130, 246, .24);
+    }
 
 /* Payment checker dashboard */
 .payment-checker-shell .module-box.payment-checker {
@@ -2044,10 +2210,10 @@ body {
     border-color: rgba(255, 255, 255, .86);
 }
 
-.payment-checker-shell .module-box.payment-checker i,
-.payment-checker-shell .module-box.payment-checker span {
-    color: var(--admin-primary);
-}
+    .payment-checker-shell .module-box.payment-checker i,
+    .payment-checker-shell .module-box.payment-checker span {
+        color: var(--admin-primary);
+    }
 
 .payment-checker-shell .payment-checker-filter-card {
     grid-template-columns: minmax(140px, .72fr) minmax(140px, .72fr) minmax(260px, 1.45fr) auto;
@@ -2072,10 +2238,10 @@ body {
     font-weight: 700;
 }
 
-.payment-checker-shell .suggest-item:hover {
-    background: rgba(239, 246, 255, .92);
-    color: var(--admin-blue);
-}
+    .payment-checker-shell .suggest-item:hover {
+        background: rgba(239, 246, 255, .92);
+        color: var(--admin-blue);
+    }
 
 .payment-checker-shell .table-slide-hint {
     display: flex;
@@ -2089,9 +2255,9 @@ body {
     font-weight: 700;
 }
 
-.payment-checker-shell .table-slide-hint i {
-    color: var(--admin-blue);
-}
+    .payment-checker-shell .table-slide-hint i {
+        color: var(--admin-blue);
+    }
 
 .payment-checker-shell .payment-checker-table-card .t-wrap {
     width: 100%;
@@ -2110,58 +2276,84 @@ body {
     border-spacing: 0;
 }
 
-.payment-checker-shell .payment-checker-table .col-account { width: 235px; }
-.payment-checker-shell .payment-checker-table .col-voucher { width: 112px; }
-.payment-checker-shell .payment-checker-table .col-date { width: 114px; }
-.payment-checker-shell .payment-checker-table .col-amount { width: 128px; }
-.payment-checker-shell .payment-checker-table .col-supplier { width: 190px; }
-.payment-checker-shell .payment-checker-table .col-attachment { width: 118px; }
-.payment-checker-shell .payment-checker-table .col-checker-status { width: 132px; }
-.payment-checker-shell .payment-checker-table .col-payment-status { width: 132px; }
-.payment-checker-shell .payment-checker-table .col-checker-remark { width: 275px; }
+    .payment-checker-shell .payment-checker-table .col-account {
+        width: 235px;
+    }
 
-.payment-checker-shell .payment-checker-table-card table.dt thead th {
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    padding: 15px 16px;
-    color: #64748b;
-    background: rgba(248, 250, 252, .96);
-    border-bottom: 1px solid rgba(226, 232, 240, .88);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .02em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    vertical-align: middle;
-}
+    .payment-checker-shell .payment-checker-table .col-voucher {
+        width: 112px;
+    }
 
-.payment-checker-shell .payment-checker-table th:nth-child(9),
-.payment-checker-shell .payment-checker-table th:nth-child(10),
-.payment-checker-shell .payment-checker-table th:nth-child(11) {
-    text-align: center;
-}
+    .payment-checker-shell .payment-checker-table .col-date {
+        width: 114px;
+    }
 
-.payment-checker-shell .payment-checker-table-card table.dt tbody td {
-    height: 64px;
-    padding: 14px 16px;
-    color: #334155;
-    border-bottom: 1px solid rgba(226, 232, 240, .58);
-    background: rgba(255, 255, 255, .74);
-    font-size: 12px;
-    font-weight: 700;
-    vertical-align: middle;
-    overflow: hidden;
-    transition: background .25s ease, color .25s ease;
-}
+    .payment-checker-shell .payment-checker-table .col-amount {
+        width: 128px;
+    }
 
-.payment-checker-shell .payment-checker-table-card table.dt tbody tr:nth-child(even) td {
-    background: rgba(248, 250, 252, .64);
-}
+    .payment-checker-shell .payment-checker-table .col-supplier {
+        width: 190px;
+    }
 
-.payment-checker-shell .payment-checker-table-card table.dt tbody tr:hover td {
-    background: rgba(239, 246, 255, .82);
-}
+    .payment-checker-shell .payment-checker-table .col-attachment {
+        width: 118px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-checker-status {
+        width: 132px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-payment-status {
+        width: 132px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-checker-remark {
+        width: 275px;
+    }
+
+    .payment-checker-shell .payment-checker-table-card table.dt thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        padding: 15px 16px;
+        color: #64748b;
+        background: rgba(248, 250, 252, .96);
+        border-bottom: 1px solid rgba(226, 232, 240, .88);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .payment-checker-shell .payment-checker-table th:nth-child(9),
+    .payment-checker-shell .payment-checker-table th:nth-child(10),
+    .payment-checker-shell .payment-checker-table th:nth-child(11) {
+        text-align: center;
+    }
+
+    .payment-checker-shell .payment-checker-table-card table.dt tbody td {
+        height: 64px;
+        padding: 14px 16px;
+        color: #334155;
+        border-bottom: 1px solid rgba(226, 232, 240, .58);
+        background: rgba(255, 255, 255, .74);
+        font-size: 12px;
+        font-weight: 700;
+        vertical-align: middle;
+        overflow: hidden;
+        transition: background .25s ease, color .25s ease;
+    }
+
+    .payment-checker-shell .payment-checker-table-card table.dt tbody tr:nth-child(even) td {
+        background: rgba(248, 250, 252, .64);
+    }
+
+    .payment-checker-shell .payment-checker-table-card table.dt tbody tr:hover td {
+        background: rgba(239, 246, 255, .82);
+    }
 
 .payment-checker-shell .td-account,
 .payment-checker-shell .td-supplier,
@@ -2217,16 +2409,16 @@ body {
     text-decoration: none;
 }
 
-.payment-checker-shell .account-drill-link:hover {
-    color: var(--admin-primary);
-    text-decoration: none;
-}
+    .payment-checker-shell .account-drill-link:hover {
+        color: var(--admin-primary);
+        text-decoration: none;
+    }
 
-.payment-checker-shell .account-drill-link i {
-    flex: 0 0 auto;
-    color: #94a3b8;
-    font-size: 10px;
-}
+    .payment-checker-shell .account-drill-link i {
+        flex: 0 0 auto;
+        color: #94a3b8;
+        font-size: 10px;
+    }
 
 .payment-checker-shell .detail-row td {
     padding: 0 !important;
@@ -2292,6 +2484,7 @@ body {
         opacity: 0;
         transform: translateY(12px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -2303,6 +2496,7 @@ body {
         opacity: 0;
         transform: scale(.96);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
@@ -2345,100 +2539,100 @@ body {
         padding: 12px;
     }
 
-    .admin-dashboard-shell .premium-nav {
-        min-height: 0;
-        border-radius: 20px;
-    }
+        .admin-dashboard-shell .premium-nav {
+            min-height: 0;
+            border-radius: 20px;
+        }
 
-    .admin-dashboard-shell .nav-glass {
-        padding: 12px;
-        border-radius: 18px;
-    }
+        .admin-dashboard-shell .nav-glass {
+            padding: 12px;
+            border-radius: 18px;
+        }
 
-    .admin-dashboard-shell .nav-left-section {
-        align-items: flex-start;
-    }
+        .admin-dashboard-shell .nav-left-section {
+            align-items: flex-start;
+        }
 
-    .admin-dashboard-shell .brand-logo-wrap {
-        width: 50px;
-        height: 50px;
-        border-radius: 16px;
-    }
+        .admin-dashboard-shell .brand-logo-wrap {
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+        }
 
-    .admin-dashboard-shell .brand-logo {
-        width: 36px;
-        height: 36px;
-    }
+        .admin-dashboard-shell .brand-logo {
+            width: 36px;
+            height: 36px;
+        }
 
-    .admin-dashboard-shell .product-track {
-        grid-template-columns: repeat(5, minmax(48px, 1fr));
-        overflow-x: auto;
-        padding-bottom: 4px;
-    }
+        .admin-dashboard-shell .product-track {
+            grid-template-columns: repeat(5, minmax(48px, 1fr));
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
 
-    .admin-dashboard-shell .product-img {
-        width: 62px;
-        height: 62px;
-    }
+        .admin-dashboard-shell .product-img {
+            width: 62px;
+            height: 62px;
+        }
 
-    .admin-dashboard-shell .dashboard-filter-card,
-    .admin-dashboard-shell .table-filter-card,
-    .checker-dashboard-shell .checker-filter-card,
-    .invoice-payment-shell .invoice-filter-card,
-    .maker-dashboard-shell .maker-filter-card,
-    .payment-checker-shell .payment-checker-filter-card,
-    .admin-dashboard-shell .kpi-grid {
-        grid-template-columns: 1fr;
-    }
+        .admin-dashboard-shell .dashboard-filter-card,
+        .admin-dashboard-shell .table-filter-card,
+        .checker-dashboard-shell .checker-filter-card,
+        .invoice-payment-shell .invoice-filter-card,
+        .maker-dashboard-shell .maker-filter-card,
+        .payment-checker-shell .payment-checker-filter-card,
+        .admin-dashboard-shell .kpi-grid {
+            grid-template-columns: 1fr;
+        }
 
-    .admin-dashboard-shell .filter-card {
-        padding: 14px;
-        border-radius: 18px;
-    }
+        .admin-dashboard-shell .filter-card {
+            padding: 14px;
+            border-radius: 18px;
+        }
 
-    .admin-dashboard-shell .kpi-card {
-        min-height: 142px;
-    }
+        .admin-dashboard-shell .kpi-card {
+            min-height: 142px;
+        }
 
-    .admin-dashboard-shell .tab-bar {
-        justify-content: flex-start;
-    }
+        .admin-dashboard-shell .tab-bar {
+            justify-content: flex-start;
+        }
 
-    .admin-dashboard-shell .tab-btn {
-        flex: 0 0 auto;
-    }
+        .admin-dashboard-shell .tab-btn {
+            flex: 0 0 auto;
+        }
 
-    .admin-dashboard-shell .t-header {
-        padding: 16px;
-    }
+        .admin-dashboard-shell .t-header {
+            padding: 16px;
+        }
 
-    .admin-dashboard-shell .t-wrap {
-        max-height: none;
-    }
+        .admin-dashboard-shell .t-wrap {
+            max-height: none;
+        }
 
-    .admin-dashboard-shell table.dt thead th {
-        padding: 13px 14px;
-        font-size: 10px;
-    }
+        .admin-dashboard-shell table.dt thead th {
+            padding: 13px 14px;
+            font-size: 10px;
+        }
 
-    .admin-dashboard-shell table.dt tbody td {
-        height: 54px;
-        padding: 12px 14px;
-        font-size: 12px;
-    }
+        .admin-dashboard-shell table.dt tbody td {
+            height: 54px;
+            padding: 12px 14px;
+            font-size: 12px;
+        }
 
-    .admin-dashboard-shell .dt-maker {
-        min-width: 1080px;
-    }
+        .admin-dashboard-shell .dt-maker {
+            min-width: 1080px;
+        }
 
-    .admin-dashboard-shell .dt-checker {
-        min-width: 1020px;
-    }
+        .admin-dashboard-shell .dt-checker {
+            min-width: 1020px;
+        }
 
-    .admin-dashboard-shell .dt-invoice,
-    .admin-dashboard-shell .dt-paymentchecker {
-        min-width: 860px;
-    }
+        .admin-dashboard-shell .dt-invoice,
+        .admin-dashboard-shell .dt-paymentchecker {
+            min-width: 860px;
+        }
 
     .checker-dashboard-shell .checker-workflow-table {
         min-width: 1580px;
@@ -2455,16 +2649,45 @@ body {
         font-size: 12px;
     }
 
-    .checker-dashboard-shell .checker-workflow-table .col-account { width: 210px; }
-    .checker-dashboard-shell .checker-workflow-table .col-voucher { width: 105px; }
-    .checker-dashboard-shell .checker-workflow-table .col-date { width: 108px; }
-    .checker-dashboard-shell .checker-workflow-table .col-amount { width: 118px; }
-    .checker-dashboard-shell .checker-workflow-table .col-supplier { width: 170px; }
-    .checker-dashboard-shell .checker-workflow-table .col-attachment { width: 110px; }
-    .checker-dashboard-shell .checker-workflow-table .col-maker-remark { width: 220px; }
-    .checker-dashboard-shell .checker-workflow-table .col-status { width: 116px; }
-    .checker-dashboard-shell .checker-workflow-table .col-checker-remark { width: 190px; }
-    .checker-dashboard-shell .checker-workflow-table .col-action { width: 210px; }
+    .checker-dashboard-shell .checker-workflow-table .col-account {
+        width: 210px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-voucher {
+        width: 105px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-date {
+        width: 108px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-amount {
+        width: 118px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-supplier {
+        width: 170px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-attachment {
+        width: 110px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-maker-remark {
+        width: 220px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-status {
+        width: 116px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-checker-remark {
+        width: 190px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-action {
+        width: 210px;
+    }
 
     .invoice-payment-shell .invoice-payment-table {
         min-width: 1560px;
@@ -2481,16 +2704,45 @@ body {
         font-size: 12px;
     }
 
-    .invoice-payment-shell .invoice-payment-table .col-account { width: 205px; }
-    .invoice-payment-shell .invoice-payment-table .col-voucher { width: 104px; }
-    .invoice-payment-shell .invoice-payment-table .col-date { width: 104px; }
-    .invoice-payment-shell .invoice-payment-table .col-amount { width: 118px; }
-    .invoice-payment-shell .invoice-payment-table .col-supplier { width: 165px; }
-    .invoice-payment-shell .invoice-payment-table .col-attachment { width: 108px; }
-    .invoice-payment-shell .invoice-payment-table .col-checker-status { width: 120px; }
-    .invoice-payment-shell .invoice-payment-table .col-payment-status { width: 120px; }
-    .invoice-payment-shell .invoice-payment-table .col-maker-remark { width: 210px; }
-    .invoice-payment-shell .invoice-payment-table .col-checker-remark { width: 210px; }
+    .invoice-payment-shell .invoice-payment-table .col-account {
+        width: 205px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-voucher {
+        width: 104px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-date {
+        width: 104px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-amount {
+        width: 118px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-supplier {
+        width: 165px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-attachment {
+        width: 108px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-checker-status {
+        width: 120px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-payment-status {
+        width: 120px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-maker-remark {
+        width: 210px;
+    }
+
+    .invoice-payment-shell .invoice-payment-table .col-checker-remark {
+        width: 210px;
+    }
 
     .maker-dashboard-shell .maker-workflow-table {
         min-width: 1940px;
@@ -2507,19 +2759,57 @@ body {
         font-size: 12px;
     }
 
-    .maker-dashboard-shell .maker-workflow-table .col-account { width: 210px; }
-    .maker-dashboard-shell .maker-workflow-table .col-voucher { width: 104px; }
-    .maker-dashboard-shell .maker-workflow-table .col-date { width: 104px; }
-    .maker-dashboard-shell .maker-workflow-table .col-amount { width: 116px; }
-    .maker-dashboard-shell .maker-workflow-table .col-supplier { width: 160px; }
-    .maker-dashboard-shell .maker-workflow-table .col-attachment { width: 190px; }
-    .maker-dashboard-shell .maker-workflow-table .col-maker-remark { width: 190px; }
-    .maker-dashboard-shell .maker-workflow-table .col-status { width: 116px; }
-    .maker-dashboard-shell .maker-workflow-table .col-action { width: 126px; }
-    .maker-dashboard-shell .maker-workflow-table .col-qty { width: 92px; }
-    .maker-dashboard-shell .maker-workflow-table .col-value { width: 112px; }
-    .maker-dashboard-shell .maker-workflow-table .col-items { width: 92px; }
-    .maker-dashboard-shell .maker-workflow-table .col-payment-status { width: 116px; }
+    .maker-dashboard-shell .maker-workflow-table .col-account {
+        width: 210px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-voucher {
+        width: 104px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-date {
+        width: 104px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-amount {
+        width: 116px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-supplier {
+        width: 160px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-attachment {
+        width: 190px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-maker-remark {
+        width: 190px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-status {
+        width: 116px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-action {
+        width: 126px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-qty {
+        width: 92px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-value {
+        width: 112px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-items {
+        width: 92px;
+    }
+
+    .maker-dashboard-shell .maker-workflow-table .col-payment-status {
+        width: 116px;
+    }
 
     .maker-dashboard-shell .upload-zone {
         width: 96px;
@@ -2540,15 +2830,41 @@ body {
         font-size: 12px;
     }
 
-    .payment-checker-shell .payment-checker-table .col-account { width: 205px; }
-    .payment-checker-shell .payment-checker-table .col-voucher { width: 104px; }
-    .payment-checker-shell .payment-checker-table .col-date { width: 104px; }
-    .payment-checker-shell .payment-checker-table .col-amount { width: 118px; }
-    .payment-checker-shell .payment-checker-table .col-supplier { width: 165px; }
-    .payment-checker-shell .payment-checker-table .col-attachment { width: 108px; }
-    .payment-checker-shell .payment-checker-table .col-checker-status { width: 120px; }
-    .payment-checker-shell .payment-checker-table .col-payment-status { width: 120px; }
-    .payment-checker-shell .payment-checker-table .col-checker-remark { width: 220px; }
+    .payment-checker-shell .payment-checker-table .col-account {
+        width: 205px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-voucher {
+        width: 104px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-date {
+        width: 104px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-amount {
+        width: 118px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-supplier {
+        width: 165px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-attachment {
+        width: 108px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-checker-status {
+        width: 120px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-payment-status {
+        width: 120px;
+    }
+
+    .payment-checker-shell .payment-checker-table .col-checker-remark {
+        width: 220px;
+    }
 
     .admin-dashboard-shell .dt-pagination {
         align-items: stretch;
@@ -2589,6 +2905,7 @@ body {
         transition: none !important;
     }
 }
+
 .admin-dashboard-shell .btn-mark-paid {
     display: inline-flex;
     align-items: center;
@@ -2621,6 +2938,7 @@ body {
 .admin-dashboard-shell .dt-invoice .col-action {
     width: 12%;
 }
+
 .admin-filter-actions {
     display: flex;
     align-items: center;
