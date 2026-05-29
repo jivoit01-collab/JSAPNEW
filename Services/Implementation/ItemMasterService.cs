@@ -437,6 +437,15 @@ namespace JSAPNEW.Services.Implementation
                     for (int i = 0; i < 3; i++)
                     {
                         pendingItems = await GetPendingItemApiInsertionsAsync(request.itemId);
+
+
+                        Console.WriteLine($"Attempt: {i + 1}");
+                        Console.WriteLine($"Pending Null: {pendingItems == null}");
+
+                        if (pendingItems != null)
+                        {
+                            Console.WriteLine($"Pending Count: {pendingItems.Count}");
+                        }
                         if (pendingItems != null && pendingItems.Count > 0)
                             break;
                         await Task.Delay(1000);
@@ -1587,7 +1596,7 @@ namespace JSAPNEW.Services.Implementation
                         "F" => "bis_FIFO",
                         "A" => "bis_MovingAverage",
                         "S" => "bis_Standard",
-                        "B" or "SNB" => "bis_SNB",
+                        "B" or "SNB" => "bis_FIFO",
                         _ => null
                     };
                 }
@@ -1596,18 +1605,18 @@ namespace JSAPNEW.Services.Implementation
                 {
                     manageBatch = "tYES";
                     issueMethod = "M";
-                    costMethodFromDb = "bis_SNB";
+                   //ostMethodFromDb = "bis_SNB";
                 }
 
                 if (manageBatch == "tYES")
                     issueMethod = "M";
 
-                // ── CostAccountingMethod: company 3 prefers saved SAP data; others use batch rule ──
-                string costMethod = costMethodFromDb
-                    ?? (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
-
-                // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
-                string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
+                    // ── CostAccountingMethod: company 3 prefers saved SAP data; others use batch rule ──
+                    //string costMethod = costMethodFromDb
+                    //    ?? (manageBatch == "tYES" ? "bis_FIFO" : "bis_FIFO");
+                    string costMethod = costMethodFromDb ?? "bis_FIFO";
+                    // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
+                    string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
 
                 // ── SalesItem / PurchaseItem / InventoryItem ──
                 string salesItem, purchaseItem, inventoryItem;
@@ -1839,10 +1848,10 @@ namespace JSAPNEW.Services.Implementation
                                     tree.U_FA_Type = null;
                                     tree.U_Packing_Type = null;
                                     tree.WTLiable = "tNO";
-                                    // Recalculate CostAccountingMethod for MART (not BEV's always-FIFO rule)
-                                    tree.CostAccountingMethod = tree.ManageBatchNumbers == "tYES" ? "bis_SNB" : "bis_FIFO";
-
-                                    var martHandler = new HttpClientHandler
+                                        // Recalculate CostAccountingMethod for MART (not BEV's always-FIFO rule)
+                                        //ree.CostAccountingMethod = tree.ManageBatchNumbers == "tYES" ? "bis_SNB" : "bis_SNB";
+                                        tree.CostAccountingMethod = "bis_FIFO";
+                                        var martHandler = new HttpClientHandler
                                     {
                                         ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
                                     };

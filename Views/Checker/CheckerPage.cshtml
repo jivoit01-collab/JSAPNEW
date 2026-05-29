@@ -183,11 +183,12 @@
         </div>
 
         <div class="table-slide-hint">
-            <i class="fa-solid fa-arrows-left-right"></i>
-            Slide horizontally to inspect all columns
+            <span aria-hidden="true">&larr;</span>
+            <span>Slide horizontally to inspect all columns</span>
+            <span aria-hidden="true">&rarr;</span>
         </div>
 
-        <!-- TOP SCROLLBAR -->
+        <!-- TOP HORIZONTAL SCROLLBAR -->
         <div class="top-scroll" id="topScroll">
             <div class="top-scroll-inner" id="topScrollInner"></div>
         </div>
@@ -742,18 +743,22 @@
     .then(r => { if (!r.ok) throw new Error(); return r.json(); })
     .then(data => {
     clearTimeout(timeout);
-    const bodyRows = data.map((item, idx) => `
+    const items = Array.isArray(data) ? data : [];
+    const bodyRows = items.length ? items.map((item, idx) => `
     <tr class="erp-item-row">
-    <td class="erp-sno">${item.serialNumber ?? idx + 1}</td>
-    <td class="erp-product">${item.productName ?? "-"}</td>
-    <td class="erp-hsn">${item.hsnsacid ?? "-"}</td>
-    <td class="erp-qty">${item.quantity ?? 0}</td>
-    <td class="erp-rate">₹${item.purchaseRate ?? 0}</td>
-    <td class="erp-disc">${item.discountPercent ?? 0}%</td>
-    <td class="erp-margin">${item.margin ?? 0}%</td>
-    <td class="erp-mrp">₹${item.mrp ?? "-"}</td>
-    <td class="erp-amount">₹${item.amount ?? 0}</td>
-    </tr>`).join("");
+    <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
+    <td class="erp-product" title="${safeAttr(item.productName ?? "-")}">${safeText(item.productName ?? "-")}</td>
+    <td class="erp-hsn">${safeText(item.hsnsacid ?? "-")}</td>
+    <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
+    <td class="erp-rate">&#8377;${safeText(item.purchaseRate ?? 0)}</td>
+    <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
+    <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
+    <td class="erp-mrp">&#8377;${safeText(item.mrp ?? "-")}</td>
+    <td class="erp-amount">&#8377;${safeText(item.amount ?? 0)}</td>
+    </tr>`).join("") : `
+    <tr class="erp-item-row">
+    <td colspan="9" class="erp-empty">No items found.</td>
+    </tr>`;
 
     const el = document.getElementById("details-" + vchNumber);
     if (el) {
@@ -762,17 +767,28 @@
     <td colspan="11" class="erp-detail-cell">
     <div class="erp-detail-wrap">
     <table class="erp-detail-table">
+    <colgroup>
+    <col class="erp-col-sno" />
+    <col class="erp-col-product" />
+    <col class="erp-col-hsn" />
+    <col class="erp-col-qty" />
+    <col class="erp-col-rate" />
+    <col class="erp-col-disc" />
+    <col class="erp-col-margin" />
+    <col class="erp-col-mrp" />
+    <col class="erp-col-amount" />
+    </colgroup>
     <thead>
     <tr>
-    <th>S.No</th>
-    <th>Product Name</th>
-    <th>HSN/SAC</th>
-    <th>Qty</th>
-    <th>Pur. Rate</th>
-    <th>Disc %</th>
-    <th>Margin %</th>
-    <th>MRP</th>
-    <th>Amount</th>
+    <th class="erp-sno">S.No</th>
+    <th class="erp-product">Product Name</th>
+    <th class="erp-hsn">HSN/SAC</th>
+    <th class="erp-qty">Qty</th>
+    <th class="erp-rate">Pur. Rate</th>
+    <th class="erp-disc">Disc %</th>
+    <th class="erp-margin">Margin %</th>
+    <th class="erp-mrp">MRP</th>
+    <th class="erp-amount">Amount</th>
     </tr>
     </thead>
     <tbody>${bodyRows}</tbody>
@@ -835,16 +851,24 @@
     top.scrollLeft = wrap.scrollLeft;
     lockWrap = false;
     });
+    syncTopScroll();
+    window.addEventListener("resize", syncTopScroll);
     }
 
     function syncTopScroll() {
     requestAnimationFrame(function () {
     const table = document.getElementById("checkerDt");
+    const wrap = document.getElementById("tableWrap");
+    const top = document.getElementById("topScroll");
     const inner = document.getElementById("topScrollInner");
-    if (!table || !inner) return;
-    inner.style.width = table.offsetWidth + "px";
+    if (!table || !wrap || !top || !inner) return;
+    const scrollWidth = Math.max(wrap.scrollWidth, table.scrollWidth, table.offsetWidth, wrap.clientWidth);
+    inner.style.width = scrollWidth + "px";
+    inner.style.minWidth = scrollWidth + "px";
+    top.scrollLeft = wrap.scrollLeft;
     });
     }
+    window._syncTopScroll = syncTopScroll;
 
     /* ═══════════════════════════════════════
     TOAST
