@@ -20,15 +20,13 @@ namespace JSAPNEW.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly IBPmasterService _BPService;
-        private readonly IItemMasterService _itemMasterService;
         private readonly ILogger<BPmasterController> _BPlogger;
 
-        public BPmasterController(IConfiguration configuration, IBPmasterService bpService, ILogger<BPmasterController> logger, IItemMasterService itemMasterService)
+        public BPmasterController(IConfiguration configuration, IBPmasterService bpService, ILogger<BPmasterController> logger)
         {
             _configuration = configuration;
             _BPService = bpService;
             _BPlogger = logger;
-            _itemMasterService = itemMasterService;
         }
 
         [HttpPost("InsertBPmasterData")]
@@ -594,11 +592,11 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetBPCounts")]
-        public async Task<IActionResult> GetBPCounts(string month, int userId)
+        public async Task<IActionResult> GetBPCounts(string month, int userId, int companyId = 0)
         {
             try
             {
-                var result = await _BPService.GetBPCountsAsync(month, userId);
+                var result = await _BPService.GetBPCountsAsync(month, userId, companyId);
                 return Ok(result);
             }
             catch (SqlException ex)
@@ -706,12 +704,10 @@ namespace JSAPNEW.Controllers
             try
             {
                 var bpPending = await _BPService.GetPendingBpAsync(userId, companyId, month);
-                var itemPending = await _itemMasterService.GetPendingItemsAsync(userId, companyId);
 
                 var result = new
                 {
-                    BpPending = bpPending,
-                    ItemPending = itemPending
+                    BpPending = bpPending
                 };
 
                 return Ok(new { Success = true, Data = result });
@@ -734,11 +730,9 @@ namespace JSAPNEW.Controllers
             try
             {
                 var ApprovedBP = await _BPService.GetApprovedBPsAsync(userId, companyId, month);
-                var ApprovedItem = await _itemMasterService.GetApprovedItemsAsync(userId, companyId);
                 var result = new
                 {
-                    BPApproved = ApprovedBP,
-                    ItemApproved = ApprovedItem
+                    BPApproved = ApprovedBP
                 };
                 return Ok(new { Success = true, Data = result });
             }
@@ -760,11 +754,9 @@ namespace JSAPNEW.Controllers
             try
             {
                 var RejectedBP = await _BPService.GetRejectedBpAsync(userId, companyId, month);
-                var RejectedItem = await _itemMasterService.GetRejectedItemsAsync(userId, companyId);
                 var result = new
                 {
-                    BPRejected = RejectedBP,
-                    ItemRejected = RejectedItem
+                    BPRejected = RejectedBP
                 };
                 return Ok(new { Success = true, Data = result });
             }
@@ -786,11 +778,9 @@ namespace JSAPNEW.Controllers
             try
             {
                 var TotalBP = await _BPService.GetMergeBpModelAsync(userId, companyId, month);
-                var TotalItem = await _itemMasterService.GetAllItemsAsync(userId, companyId);
                 var result = new
                 {
-                    BPTotal = TotalBP,
-                    ItemTotal = TotalItem
+                    BPTotal = TotalBP
                 };
                 return Ok(new { Success = true, Data = result });
             }

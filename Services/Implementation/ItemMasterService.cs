@@ -37,24 +37,13 @@ namespace JSAPNEW.Services.Implementation
         // item to SAP. Keyed by InitId, not FlowId, because that is the unit SAP receives.
         private static readonly ConcurrentDictionary<int, SemaphoreSlim> _sapPostLocks = new();
 
-        private static bool IsGroupCode112(object? itemGroupCode)
-        {
-            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
-            return groupCode == "112";
-        }
-
         private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
         {
-            return IsGroupCode112(itemGroupCode)
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+
+            return groupCode == "112"
                 ? ""
                 : (object?)utype ?? DBNull.Value;
-        }
-
-        private static string GetUTypeSapValue(object? itemGroupCode, string? utype)
-        {
-            return IsGroupCode112(itemGroupCode)
-                ? ""
-                : utype ?? "";
         }
 
         private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
@@ -1696,8 +1685,6 @@ namespace JSAPNEW.Services.Implementation
                     _ => 0
                 };
 
-                string uType = GetUTypeSapValue(first.ItemGroupCode, first.Utype);
-
                 // ── Series: mapped by (company, groupCode) — differs across companies ──
                 int? seriesFromGroup = (company, gc) switch
                 {
@@ -1775,7 +1762,7 @@ namespace JSAPNEW.Services.Implementation
                     GSTRelevnt = "tYES",
                     GSTTaxCategory = "gtc_Regular",
                     GLMethod = "glm_WH",
-                    U_TYPE = uType
+                    U_TYPE = first.Utype ?? ""
                 };
                 // U_Packing_Type exists in OIL(1) and BEV(2), NOT in MART(3)
                 if (company == 1 || company == 2)

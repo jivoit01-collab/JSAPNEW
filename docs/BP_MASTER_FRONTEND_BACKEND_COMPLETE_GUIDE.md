@@ -1241,8 +1241,8 @@ Response:
 | API | Method | Purpose |
 |---|---|---|
 | `/GetBPInsights?userId=70&companyId=1&month=05-2026` | `GET` | Pending/approved/rejected counts for approver |
-| `/GetBPInsightsByCreator?userId=107&companyId=1&month=05-2026` | `GET` | Counts by creator |
-| `/GetBPCounts?month=05-2026&userId=70` | `GET` | BP count summary |
+| `/GetBPInsightsByCreator?userId=76&companyId=1&month=05-2026` | `GET` | Legacy frontend alias; returns BP approver dashboard counts in the current backend |
+| `/GetBPCounts?month=05-2026&userId=76&companyId=1` | `GET` | BP count summary for the approver and company |
 
 Example:
 
@@ -1262,13 +1262,67 @@ Example:
 
 ### Combined Approval APIs
 
+These endpoints are BP-only. They must not return IMC/item data. Older backend builds mixed `ItemPending`, `ItemApproved`, `ItemRejected`, and `ItemTotal` into these responses; that behavior is retired.
+
 | API | Method | Purpose |
 |---|---|---|
 | `/GetTotalBPData` | `GET` | Combined pending/approved/rejected BP list |
-| `/GetAllBpPendingApproval` | `GET` | BP + Item pending approval data |
-| `/GetAllBpApprovedApproval` | `GET` | BP + Item approved data |
-| `/GetAllBpRejectedApproval` | `GET` | BP + Item rejected data |
-| `/GetAllBpTotalApproval` | `GET` | BP + Item total approval data |
+| `/GetAllBpPendingApproval` | `GET` | BP-only pending approval data |
+| `/GetAllBpApprovedApproval` | `GET` | BP-only approved data |
+| `/GetAllBpRejectedApproval` | `GET` | BP-only rejected data |
+| `/GetAllBpTotalApproval` | `GET` | BP-only total approval data |
+
+Example:
+
+```text
+GET /api/BPmaster/GetAllBpTotalApproval?userId=76&companyId=1&month=05-2026
+```
+
+Expected shape:
+
+```json
+{
+  "success": true,
+  "data": {
+    "bpTotal": [
+      {
+        "flowId": 1154,
+        "code": 1191,
+        "companyId": 1,
+        "type": "C",
+        "companyName": "jyoti customer",
+        "status": "pending"
+      }
+    ]
+  }
+}
+```
+
+`bpTotal` is empty only when one of these is true:
+
+- the API process has not been restarted after deploying the latest BP controller/service changes
+- the query is using the wrong `userId`, `companyId`, or `month`
+- the approver is not mapped in `dbo.jsUserStage` for the BP template stage
+- the selected month has no BP flow rows
+
+For test database `jsap_test`, user `76`, company `1`, month `05-2026`, verification should show BP rows:
+
+```sql
+EXEC BP.jsGetBPCounts @userId = 76, @companyId = 1, @month = '05-2026';
+EXEC BP.jsGetBPInsights @userId = 76, @companyId = 1, @month = '05-2026';
+EXEC BP.jsGetPendingBP @userId = 76, @companyId = 1, @month = '05-2026';
+EXEC BP.jsGetApprovedBP @userId = 76, @companyId = 1, @month = '05-2026';
+```
+
+Month values accepted by the backend and SQL fix:
+
+| Input | Meaning |
+|---|---|
+| `05-2026` | May 2026 |
+| `05` | May of the current server year |
+| `2026-05` | May 2026 |
+
+Do not send a blank query key such as `month=05&=05-2026`; ASP.NET ignores the second value because it has no key.
 
 ### Lookup APIs
 
