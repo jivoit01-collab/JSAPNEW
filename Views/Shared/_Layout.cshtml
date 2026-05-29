@@ -46,8 +46,8 @@
 
     <style>
             /* ============================================
-                                                                       ROOT VARIABLES
-                                                                       ============================================ */
+                                                                                               ROOT VARIABLES
+                                                                                               ============================================ */
             :root {
                 --primary-color: #0b2c4d;
                 --primary-light: #1c3f5d;
@@ -58,8 +58,8 @@
             }
 
             /* ============================================
-                                                                       COMPANY DROPDOWN STYLING
-                                                                       ============================================ */
+                                                                                               COMPANY DROPDOWN STYLING
+                                                                                               ============================================ */
             #companyDropdown {
                 color: var(--primary-color);
                 appearance: none;
@@ -96,8 +96,8 @@
             }
 
             /* ============================================
-                                                                       BASE STYLES
-                                                                       ============================================ */
+                                                                                               BASE STYLES
+                                                                                               ============================================ */
             * {
                 margin: 0;
                 padding: 0;
@@ -111,8 +111,8 @@
             }
 
             /* ============================================
-                                                                       HEADER STYLING
-                                                                       ============================================ */
+                                                                                               HEADER STYLING
+                                                                                               ============================================ */
             .header {
                 position: fixed;
                 top: 0;
@@ -163,8 +163,8 @@
                 }
 
             /* ============================================
-                                                                       HAMBURGER MENU BUTTON
-                                                                       ============================================ */
+                                                                                               HAMBURGER MENU BUTTON
+                                                                                               ============================================ */
             .hamburger-btn {
                 background: none;
                 border: none;
@@ -199,8 +199,8 @@
                 }
 
             /* ============================================
-                                                                       SIDEBAR STYLING - FIXED VERSION
-                                                                       ============================================ */
+                                                                                               SIDEBAR STYLING - FIXED VERSION
+                                                                                               ============================================ */
             .sidebar {
                 position: fixed;
                 top: var(--header-height);
@@ -235,8 +235,8 @@
             }
 
             /* ============================================
-                                                                       MENU ITEM STYLING - ENLARGED
-                                                                       ============================================ */
+                                                                                               MENU ITEM STYLING - ENLARGED
+                                                                                               ============================================ */
             .sidebar .menu-item {
                 padding: 16px 20px;
                 cursor: pointer;
@@ -300,8 +300,8 @@
             }
 
             /* ============================================
-                                                                       SUBMENU STYLING - ENLARGED
-                                                                       ============================================ */
+                                                                                               SUBMENU STYLING - ENLARGED
+                                                                                               ============================================ */
             .submenu {
                 display: none;
                 background-color: rgba(0, 0, 0, 0.2);
@@ -355,8 +355,8 @@
             }
 
             /* ============================================
-                                                                       COLLAPSED SIDEBAR STYLES
-                                                                       ============================================ */
+                                                                                               COLLAPSED SIDEBAR STYLES
+                                                                                               ============================================ */
             .sidebar.collapsed .menu-text,
             .sidebar.collapsed .arrow,
             .sidebar.collapsed .submenu,
@@ -381,8 +381,8 @@
                 }
 
             /* ============================================
-                                                                       SIDEBAR USER SECTION
-                                                                       ============================================ */
+                                                                                               SIDEBAR USER SECTION
+                                                                                               ============================================ */
             .sidebar-user {
                 margin-top: auto;
                 padding: 20px;
@@ -536,8 +536,8 @@
             }
 
             /* ============================================
-                                                                       MAIN CONTENT AREA
-                                                                       ============================================ */
+                                                                                               MAIN CONTENT AREA
+                                                                                               ============================================ */
             .main-body {
                 margin-left: var(--sidebar-width);
                 margin-top: var(--header-height);
@@ -551,8 +551,8 @@
                 }
 
             /* ============================================
-                                                                       CARDS AND INFO SECTIONS
-                                                                       ============================================ */
+                                                                                               CARDS AND INFO SECTIONS
+                                                                                               ============================================ */
             .info-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -587,8 +587,8 @@
                 }
 
             /* ============================================
-                                                                       FOOTER
-                                                                       ============================================ */
+                                                                                               FOOTER
+                                                                                               ============================================ */
             footer {
                 background-color: var(--primary-color);
                 color: white;
@@ -603,8 +603,8 @@
             }
 
             /* ============================================
-                                                                       BOOTSTRAP OVERRIDES
-                                                                       ============================================ */
+                                                                                               BOOTSTRAP OVERRIDES
+                                                                                               ============================================ */
             .card {
                 border-radius: 10px;
                 box-shadow: 0 2px 8px rgba(11, 44, 77, 0.08);
@@ -634,8 +634,8 @@
                 }
 
             /* ============================================
-                                                                       LOADING STATES
-                                                                       ============================================ */
+                                                                                               LOADING STATES
+                                                                                               ============================================ */
             .menu-loading {
                 text-align: center;
                 padding: 30px 20px;
@@ -668,8 +668,8 @@
             }
 
             /* ============================================
-                                                                       PERMISSION DENIED OVERLAY
-                                                                       ============================================ */
+                                                                                               PERMISSION DENIED OVERLAY
+                                                                                               ============================================ */
             .permission-denied-overlay {
                 display: none;
                 position: fixed;
@@ -772,8 +772,8 @@
                 }
 
             /* ============================================
-                                                                       SCROLLBAR STYLING
-                                                                       ============================================ */
+                                                                                               SCROLLBAR STYLING
+                                                                                               ============================================ */
             .sidebar::-webkit-scrollbar {
                 width: 6px;
             }
@@ -792,8 +792,8 @@
                 }
 
             /* ============================================
-                                                                       RESPONSIVE DESIGN
-                                                                       ============================================ */
+                                                                                               RESPONSIVE DESIGN
+                                                                                               ============================================ */
             @@media (max-width: 1024px) {
                 .sidebar {
                     transform: translateX(-100%);
@@ -847,10 +847,23 @@
 
             @@media (max-width: 768px) {
 
-        @@media (max-width: 768px) {
+                .bill-ui table {
+                    font-size: 12px;
+                }
 
-            .bill-ui table {
-                font-size: 12px;
+                .bill-ui .btn {
+                    font-size: 12px;
+                    padding: 4px 6px;
+                }
+
+                .bill-ui input,
+                .bill-ui select {
+                    font-size: 12px;
+                }
+
+                .bill-ui iframe {
+                    height: 70vh !important;
+                }
             }
 
             .global-settings-modal {
@@ -1734,38 +1747,38 @@
         let userPermissions = [];
 
         function checkPagePermission() {
-        const currentPath = window.location.pathname.toLowerCase();
+            const currentPath = window.location.pathname.toLowerCase();
 
-        // Skip permission check for dashboard page
-        if (currentPath.includes('/dashboard')) {
-        return true;
-        }
+            // Skip permission check for dashboard page
+            if (currentPath.includes('/dashboard')) {
+                return true;
+            }
 
-        // Check if user has permission to access current page
-        for (const apiModuleName in menuConfig) {
-        const config = menuConfig[apiModuleName];
+            // Check if user has permission to access current page
+            for (const apiModuleName in menuConfig) {
+                const config = menuConfig[apiModuleName];
 
-        for (const permType in config.permissions) {
-        const permConfig = config.permissions[permType];
-        const permissionLinks = permConfig.links || [{ url: permConfig.url }];
+                for (const permType in config.permissions) {
+                    const permConfig = config.permissions[permType];
+                    const permissionLinks = permConfig.links || [{ url: permConfig.url }];
 
-        for (const link of permissionLinks) {
-        const permUrl = link.url.toLowerCase();
+                    for (const link of permissionLinks) {
+                        const permUrl = link.url.toLowerCase();
 
-        if (currentPath.includes(permUrl) || permUrl.includes(currentPath)) {
-        // Check if user has this permission
-        const hasPermission = userPermissions.some(p =>
-        p.moduleName === apiModuleName && p.permissionType === permType
-        );
+                        if (currentPath.includes(permUrl) || permUrl.includes(currentPath)) {
+                            // Check if user has this permission
+                            const hasPermission = userPermissions.some(p =>
+                                p.moduleName === apiModuleName && p.permissionType === permType
+                            );
 
-        return hasPermission;
-        }
-        }
-        }
-        }
+                            return hasPermission;
+                        }
+                    }
+                 }
+            }
 
-        // If page not found in config, allow access (for safety)
-        return true;
+            // If page not found in config, allow access (for safety)
+            return true;
         }
 
         function showPermissionDenied(companyName) {
