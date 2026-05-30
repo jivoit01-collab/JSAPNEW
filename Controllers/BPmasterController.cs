@@ -275,7 +275,7 @@ namespace JSAPNEW.Controllers
                     return NotFound(new { Success = false, Message = "No approved BPs found." });
                 }
 
-                return Ok(new { Success = true, Data = result });
+                return Ok(new { Success = true, Data = ToBpListResponse(result) });
             }
             catch (SqlException ex)
             {
@@ -295,7 +295,7 @@ namespace JSAPNEW.Controllers
             try
             {
                 var result = await _BPService.GetPendingBpAsync(userId, companyId, month);
-                return Ok(new { Success = true, Data = result });
+                return Ok(new { Success = true, Data = ToBpListResponse(result) });
             }
             catch (SqlException ex)
             {
@@ -315,7 +315,7 @@ namespace JSAPNEW.Controllers
             try
             {
                 var result = await _BPService.GetRejectedBpAsync(userId, companyId, month);
-                return Ok(new { Success = true, Data = result });
+                return Ok(new { Success = true, Data = ToBpListResponse(result) });
             }
             catch (Exception ex)
             {
@@ -453,6 +453,42 @@ namespace JSAPNEW.Controllers
                 message,
                 data
             });
+        }
+
+        private static List<BpListResponseModel> ToBpListResponse<T>(IEnumerable<T> rows)
+            where T : BpListModel
+        {
+            return rows.Select(row => new BpListResponseModel
+            {
+                Workflow = new BpWorkflowModel
+                {
+                    FlowId = row.flowId,
+                    Status = row.status ?? string.Empty,
+                    CurrentStage = row.CurrentStage,
+                    TotalStage = row.TotalStage,
+                    CurrentStageId = row.CurrentStageId,
+                    CurrentStageName = row.CurrentStageName ?? string.Empty,
+                    IsFinalStage = row.IsFinalStage,
+                    ApiStatusTag = row.ApiStatusTag ?? string.Empty,
+                    SapStatus = row.SapStatus ?? string.Empty,
+                    ApiMessage = row.ApiMessage ?? string.Empty,
+                    SapCardCode = row.SapCardCode ?? string.Empty,
+                    SapAttachmentEntry = row.SapAttachmentEntry,
+                    PayloadHash = row.PayloadHash ?? string.Empty,
+                    LastAttemptOn = row.LastAttemptOn,
+                    LastAttemptBy = row.LastAttemptBy,
+                    RetryCount = row.RetryCount,
+                    CanRetrySap = row.CanRetrySap,
+                    CreatedOn = row.CreatedOn
+                },
+                Master = row.Master,
+                TaxDetails = row.TaxDetails,
+                BillingAddresses = row.BillingAddresses,
+                ShippingAddresses = row.ShippingAddresses,
+                BankDetails = row.BankDetails,
+                ContactPersons = row.ContactPersons,
+                Attachments = row.Attachments
+            }).ToList();
         }
 
         private IActionResult BpFailure(string message, string errorCode, int statusCode = 400, BpSapErrorInfo? sapError = null)
@@ -682,7 +718,7 @@ namespace JSAPNEW.Controllers
                 {
                     return NotFound($"No MergeBP data found:{userId}");
                 }
-                return Ok(new { Success = true, Data = result });
+                return Ok(new { Success = true, Data = ToBpListResponse(result) });
             }
             catch (SqlException sqlEx)
             {
@@ -707,7 +743,7 @@ namespace JSAPNEW.Controllers
 
                 var result = new
                 {
-                    BpPending = bpPending
+                    BpPending = ToBpListResponse(bpPending)
                 };
 
                 return Ok(new { Success = true, Data = result });
@@ -732,7 +768,7 @@ namespace JSAPNEW.Controllers
                 var ApprovedBP = await _BPService.GetApprovedBPsAsync(userId, companyId, month);
                 var result = new
                 {
-                    BPApproved = ApprovedBP
+                    BPApproved = ToBpListResponse(ApprovedBP)
                 };
                 return Ok(new { Success = true, Data = result });
             }
@@ -756,7 +792,7 @@ namespace JSAPNEW.Controllers
                 var RejectedBP = await _BPService.GetRejectedBpAsync(userId, companyId, month);
                 var result = new
                 {
-                    BPRejected = RejectedBP
+                    BPRejected = ToBpListResponse(RejectedBP)
                 };
                 return Ok(new { Success = true, Data = result });
             }
@@ -780,7 +816,7 @@ namespace JSAPNEW.Controllers
                 var TotalBP = await _BPService.GetMergeBpModelAsync(userId, companyId, month);
                 var result = new
                 {
-                    BPTotal = TotalBP
+                    BPTotal = ToBpListResponse(TotalBP)
                 };
                 return Ok(new { Success = true, Data = result });
             }

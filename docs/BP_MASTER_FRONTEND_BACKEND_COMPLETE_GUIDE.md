@@ -1024,20 +1024,26 @@ Response example:
   "success": true,
   "data": [
     {
-      "flowId": 1154,
-      "code": 1191,
-      "companyId": 1,
-      "type": "C",
-      "companyName": "jyoti customer",
-      "isStaff": true,
-      "status": "pending",
-      "currentStage": 1,
-      "totalStage": 1,
-      "currentStageName": "BP Test Single Approval - C1",
-      "isFinalStage": true,
-      "apiStatusTag": null,
-      "sapStatus": "SAP Not Started",
-      "canRetrySap": false,
+      "workflow": {
+        "flowId": 1154,
+        "status": "pending",
+        "currentStage": 1,
+        "totalStage": 1,
+        "currentStageId": 1259,
+        "currentStageName": "BP Test Single Approval - C1",
+        "isFinalStage": true,
+        "apiStatusTag": "",
+        "sapStatus": "SAP Not Started",
+        "apiMessage": "",
+        "sapCardCode": "",
+        "sapAttachmentEntry": null,
+        "payloadHash": "",
+        "lastAttemptOn": null,
+        "lastAttemptBy": null,
+        "retryCount": 0,
+        "canRetrySap": false,
+        "createdOn": "2026-05-26T11:06:48"
+      },
       "master": {
         "code": 1191,
         "type": "C",
@@ -1115,8 +1121,8 @@ Notes:
 
 - User sees only records assigned to their current stage.
 - Final-stage failed SAP records return `canRetrySap = true`.
-- Pending, approved, rejected, total approval, and total BP list APIs include the full nested detail blocks: `master`, `taxDetails`, `billingAddresses`, `shippingAddresses`, `bankDetails`, `contactPersons`, and `attachments`.
-- The old flat row fields remain for list rendering compatibility.
+- Pending, approved, rejected, total approval, and total BP list APIs return the clean frontend contract: `workflow`, `master`, `taxDetails`, `billingAddresses`, `shippingAddresses`, `bankDetails`, `contactPersons`, and `attachments`.
+- Duplicate top-level business fields such as `companyName`, `firstName`, `mobileNumber`, and `currency` are not sent by these list APIs because they already exist in `master` and child blocks.
 
 ### Get Approved BP
 

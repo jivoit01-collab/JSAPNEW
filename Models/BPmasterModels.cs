@@ -61,6 +61,40 @@ namespace JSAPNEW.Models
         public List<BP_Attachment> Attachments { get; set; } = new();
     }
 
+    public class BpWorkflowModel
+    {
+        public int FlowId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int CurrentStage { get; set; }
+        public int TotalStage { get; set; }
+        public int CurrentStageId { get; set; }
+        public string CurrentStageName { get; set; } = string.Empty;
+        public bool IsFinalStage { get; set; }
+        public string ApiStatusTag { get; set; } = string.Empty;
+        public string SapStatus { get; set; } = string.Empty;
+        public string ApiMessage { get; set; } = string.Empty;
+        public string SapCardCode { get; set; } = string.Empty;
+        public int? SapAttachmentEntry { get; set; }
+        public string PayloadHash { get; set; } = string.Empty;
+        public DateTime? LastAttemptOn { get; set; }
+        public int? LastAttemptBy { get; set; }
+        public int RetryCount { get; set; }
+        public bool CanRetrySap { get; set; }
+        public DateTime? CreatedOn { get; set; }
+    }
+
+    public class BpListResponseModel
+    {
+        public BpWorkflowModel Workflow { get; set; } = new();
+        public BP_Master Master { get; set; } = new();
+        public BP_Tax TaxDetails { get; set; } = new();
+        public List<BP_Address> BillingAddresses { get; set; } = new();
+        public List<BP_Address> ShippingAddresses { get; set; } = new();
+        public List<BP_Bank> BankDetails { get; set; } = new();
+        public List<BP_Contact> ContactPersons { get; set; } = new();
+        public List<BP_Attachment> Attachments { get; set; } = new();
+    }
+
     public class MergeBpModel : BpListModel
     {
     }
