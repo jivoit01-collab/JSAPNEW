@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace JSAPNEW.Models
 {
     public class BPmasterModels
@@ -50,6 +52,13 @@ namespace JSAPNEW.Models
         public int? LastAttemptBy { get; set; }
         public int RetryCount { get; set; }
         public bool CanRetrySap { get; set; }
+        public BP_Master Master { get; set; } = new();
+        public BP_Tax TaxDetails { get; set; } = new();
+        public List<BP_Address> BillingAddresses { get; set; } = new();
+        public List<BP_Address> ShippingAddresses { get; set; } = new();
+        public List<BP_Bank> BankDetails { get; set; } = new();
+        public List<BP_Contact> ContactPersons { get; set; } = new();
+        public List<BP_Attachment> Attachments { get; set; } = new();
     }
 
     public class MergeBpModel : BpListModel
@@ -300,6 +309,9 @@ namespace JSAPNEW.Models
         public string PanNumber { get; set; } = string.Empty;
         public string FssaiLicense { get; set; } = string.Empty;
         public string Msme { get; set; } = string.Empty;
+        public string MsmeType { get; set; } = string.Empty;
+        [JsonPropertyName("enterpriseType")]
+        public string MsmeBType { get; set; } = string.Empty;
         public string Gstin { get; set; } = string.Empty;
     }
 
@@ -319,7 +331,9 @@ namespace JSAPNEW.Models
     public class BP_Bank
     {
         public string BankName { get; set; } = string.Empty;
+        [JsonPropertyName("branch")]
         public string BranchName { get; set; } = string.Empty;
+        [JsonPropertyName("accountNo")]
         public string AccountNumber { get; set; } = string.Empty;
         public string IfscCode { get; set; } = string.Empty;
         public string SwiftCode { get; set; } = string.Empty;

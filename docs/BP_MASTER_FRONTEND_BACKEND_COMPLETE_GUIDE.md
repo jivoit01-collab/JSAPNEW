@@ -1024,19 +1024,88 @@ Response example:
   "success": true,
   "data": [
     {
-      "flowId": 1115,
-      "code": 1234,
+      "flowId": 1154,
+      "code": 1191,
       "companyId": 1,
       "type": "C",
-      "companyName": "North India Distributor",
-      "isStaff": false,
+      "companyName": "jyoti customer",
+      "isStaff": true,
+      "status": "pending",
       "currentStage": 1,
-      "totalStage": 3,
-      "currentStageName": "Manager Approval",
-      "isFinalStage": false,
+      "totalStage": 1,
+      "currentStageName": "BP Test Single Approval - C1",
+      "isFinalStage": true,
       "apiStatusTag": null,
       "sapStatus": "SAP Not Started",
-      "canRetrySap": false
+      "canRetrySap": false,
+      "master": {
+        "code": 1191,
+        "type": "C",
+        "isStaff": true,
+        "name": "jyoti customer",
+        "foreignName": "",
+        "typeOfBusiness": "Individual",
+        "industry": "Construction",
+        "firstName": "jyoti",
+        "lastName": "bishnoi",
+        "designation": "",
+        "mobileNumber": "8571695323",
+        "emailAddress": "jyoti@gmail.com",
+        "alternateEmail": "jyoti@gmail.com",
+        "currency": "INR",
+        "remarks": "",
+        "companyByUser": "JIVO_OIL_HANADB",
+        "company": 1,
+        "flowId": 1154
+      },
+      "taxDetails": {
+        "tan": "",
+        "panNumber": "ABCDE1234F",
+        "fssaiLicense": "",
+        "msme": "",
+        "msmeType": "",
+        "enterpriseType": "",
+        "gstin": "07ABCDE1234F1Z5"
+      },
+      "billingAddresses": [
+        {
+          "addressType": "B",
+          "street": "xyz123",
+          "blockArea": "tilak nagar",
+          "state": "DELHI",
+          "city": "delhi",
+          "pinCode": "110064",
+          "country": "India",
+          "gstin": "07ABCDE1234F1Z5",
+          "addressName": "jyoti customer"
+        }
+      ],
+      "shippingAddresses": [
+        {
+          "addressType": "S",
+          "street": "xyz123",
+          "blockArea": "tilak nagar",
+          "state": "DELHI",
+          "city": "delhi",
+          "pinCode": "110064",
+          "country": "India",
+          "gstin": "07ABCDE1234F1Z5",
+          "addressName": "jyoti customer"
+        }
+      ],
+      "bankDetails": [],
+      "contactPersons": [
+        {
+          "firstName": "jyoti",
+          "lastName": "bishnoi",
+          "designation": "",
+          "emailAddress": "jyoti@gmail.com",
+          "alternateEmail": "jyoti@gmail.com",
+          "mobileNumber": "8571695323",
+          "alternateContact": ""
+        }
+      ],
+      "attachments": []
     }
   ]
 }
@@ -1046,6 +1115,8 @@ Notes:
 
 - User sees only records assigned to their current stage.
 - Final-stage failed SAP records return `canRetrySap = true`.
+- Pending, approved, rejected, total approval, and total BP list APIs include the full nested detail blocks: `master`, `taxDetails`, `billingAddresses`, `shippingAddresses`, `bankDetails`, `contactPersons`, and `attachments`.
+- The old flat row fields remain for list rendering compatibility.
 
 ### Get Approved BP
 

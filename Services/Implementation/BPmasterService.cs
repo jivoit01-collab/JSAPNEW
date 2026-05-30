@@ -734,6 +734,142 @@ namespace JSAPNEW.Services.Implementation
                 || type.Contains("Ship", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static BP_Master BuildListMaster(BpListModel item)
+        {
+            return new BP_Master
+            {
+                Code = item.Code,
+                Type = item.Type ?? string.Empty,
+                IsStaff = item.IsStaff,
+                Name = item.CompanyName ?? string.Empty,
+                ForeignName = item.ForeignName ?? string.Empty,
+                TypeOfBusiness = item.TypeOfBusiness ?? string.Empty,
+                Industry = item.Industry ?? string.Empty,
+                FirstName = item.FirstName ?? string.Empty,
+                LastName = item.LastName ?? string.Empty,
+                Designation = item.Designation ?? string.Empty,
+                MobileNumber = item.MobileNumber ?? string.Empty,
+                EmailAddress = item.EmailAddress ?? string.Empty,
+                AlternateEmail = item.AlternateEmail ?? string.Empty,
+                Currency = string.IsNullOrWhiteSpace(item.Currency) ? "INR" : item.Currency,
+                Remarks = item.Remarks ?? string.Empty,
+                company = item.CompanyId,
+                flowId = item.flowId
+            };
+        }
+
+        private async Task EnrichBpListDetailsAsync<T>(SqlConnection connection, IReadOnlyCollection<T> rows)
+            where T : BpListModel
+        {
+            if (rows == null || rows.Count == 0)
+                return;
+
+            var codes = rows.Select(r => r.Code).Where(code => code > 0).Distinct().ToArray();
+            if (codes.Length == 0)
+                return;
+
+            var masterRows = (await connection.QueryAsync<BpMasterDetailRow>(
+                @"SELECT
+                    code,
+                    companyByUser
+                  FROM BP.jsMaster
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToDictionary(row => row.Code);
+
+            var taxRows = (await connection.QueryAsync<BpTaxDetailRow>(
+                @"SELECT
+                    code,
+                    buyerTANNo AS tan,
+                    panNo AS panNumber,
+                    fssaiNo AS fssaiLicense,
+                    msmeNo AS msme,
+                    msmeType,
+                    msmeBType,
+                    gstin
+                  FROM BP.jsTaxDetails
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToDictionary(row => row.Code);
+
+            var addressRows = (await connection.QueryAsync<BpAddressDetailRow>(
+                @"SELECT
+                    code,
+                    addressType,
+                    addressLine1 AS street,
+                    addressLine2 AS blockArea,
+                    stateID AS state,
+                    cityID AS city,
+                    pincode AS pinCode,
+                    countryID AS country,
+                    gstNo AS gstin,
+                    addressName
+                  FROM BP.jsMasterAddress
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var bankRows = (await connection.QueryAsync<BpBankDetailRow>(
+                @"SELECT
+                    code,
+                    name AS bankName,
+                    branch AS branchName,
+                    accountNo AS accountNumber,
+                    ifscCode,
+                    swiftCode,
+                    accountType
+                  FROM BP.jsBankDetails
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var contactRows = (await connection.QueryAsync<BpContactDetailRow>(
+                @"SELECT
+                    code,
+                    firstName,
+                    lastName,
+                    designation,
+                    emailAddress,
+                    alternateEmail,
+                    mobileNumber,
+                    alternateContact
+                  FROM BP.jsContactPersons
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var attachmentRows = (await connection.QueryAsync<BpAttachmentDetailRow>(
+                @"SELECT
+                    code,
+                    fileName,
+                    filePath,
+                    fileSize,
+                    contentType,
+                    fileType
+                  FROM BP.jsAttachments
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var addressesByCode = addressRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Address>().ToList());
+            var banksByCode = bankRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Bank>().ToList());
+            var contactsByCode = contactRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Contact>().ToList());
+            var attachmentsByCode = attachmentRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Attachment>().ToList());
+
+            foreach (var row in rows)
+            {
+                row.Master = BuildListMaster(row);
+                if (masterRows.TryGetValue(row.Code, out var master))
+                    row.Master.CompanyByUser = master.CompanyByUser ?? string.Empty;
+
+                row.TaxDetails = taxRows.TryGetValue(row.Code, out var tax) ? tax : new BP_Tax();
+
+                var addresses = addressesByCode.TryGetValue(row.Code, out var bpAddresses)
+                    ? bpAddresses
+                    : new List<BP_Address>();
+
+                row.BillingAddresses = addresses.Where(IsBillTo).ToList();
+                row.ShippingAddresses = addresses.Where(IsShipTo).ToList();
+                row.BankDetails = banksByCode.TryGetValue(row.Code, out var banks) ? banks : new List<BP_Bank>();
+                row.ContactPersons = contactsByCode.TryGetValue(row.Code, out var contacts) ? contacts : new List<BP_Contact>();
+                row.Attachments = attachmentsByCode.TryGetValue(row.Code, out var attachments) ? attachments : new List<BP_Attachment>();
+            }
+        }
+
         public async Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model)
         {
             var response = new BPMasterResponse();
@@ -1158,12 +1294,16 @@ namespace JSAPNEW.Services.Implementation
                 parameters.Add("@companyId", companyId);
                 parameters.Add("@month", normalizedMonth);
 
-                var result = await connection.QueryAsync<ApprovedBpModel>(
+                var result = (await connection.QueryAsync<ApprovedBpModel>(
                     "[BP].[jsGetApprovedBP]",
                     parameters,
                     commandType: CommandType.StoredProcedure
-                );
+                )).ToList();
 
+                foreach (var row in result)
+                    row.status = "approved";
+
+                await EnrichBpListDetailsAsync(connection, result);
                 return result;
             }
         }
@@ -1178,12 +1318,16 @@ namespace JSAPNEW.Services.Implementation
             parameters.Add("@companyId", companyId);
             parameters.Add("@month", normalizedMonth);
 
-            var result = await connection.QueryAsync<PendingBpModel>(
+            var result = (await connection.QueryAsync<PendingBpModel>(
                 "[BP].[jsGetPendingBP]",
                 parameters,
                 commandType: CommandType.StoredProcedure
-            );
+            )).ToList();
 
+            foreach (var row in result)
+                row.status = "pending";
+
+            await EnrichBpListDetailsAsync(connection, result);
             return result;
         }
         public async Task<IEnumerable<RejectedBPModel>> GetRejectedBpAsync(int userId, int companyId, string month = null)
@@ -1197,12 +1341,16 @@ namespace JSAPNEW.Services.Implementation
             parameters.Add("@companyId", companyId);
             parameters.Add("@month", normalizedMonth);
 
-            var result = await connection.QueryAsync<RejectedBPModel>(
+            var result = (await connection.QueryAsync<RejectedBPModel>(
                 "[BP].[jsGetRejectedBP]",
                 parameters,
                 commandType: CommandType.StoredProcedure
-            );
+            )).ToList();
 
+            foreach (var row in result)
+                row.status = "rejected";
+
+            await EnrichBpListDetailsAsync(connection, result);
             return result;
         }
         public async Task<SingleBPDataModel> GetSingleBPDataAsync(int bpCode, IUrlHelper urlHelper)
@@ -2133,6 +2281,8 @@ ORDER BY id DESC;";
                     Items.status = "rejected";
                     allBP.Add(Items);
                 }
+
+                await EnrichBpListDetailsAsync(connection, allBP);
                 return allBP;
             }
         }
@@ -2360,6 +2510,37 @@ ORDER BY id DESC;";
             public int? MatchedTemplateApprovalId { get; set; }
             public int? MatchedApproverUserId { get; set; }
             public int? MatchedApproverStatus { get; set; }
+        }
+
+        private sealed class BpMasterDetailRow
+        {
+            public int Code { get; set; }
+            public string CompanyByUser { get; set; } = string.Empty;
+        }
+
+        private sealed class BpTaxDetailRow : BP_Tax
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpAddressDetailRow : BP_Address
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpBankDetailRow : BP_Bank
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpContactDetailRow : BP_Contact
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpAttachmentDetailRow : BP_Attachment
+        {
+            public int Code { get; set; }
         }
     }
 }
