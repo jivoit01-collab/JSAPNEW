@@ -952,6 +952,9 @@ namespace JSAPNEW.Services.Implementation
                     response.Message = "BP Master inserted successfully.";
                     response.GeneratedCode = (int)(outCode.Value ?? 0);
                 }
+
+                if (response.GeneratedCode > 0)
+                    await EnsureInitialPendingFlowStatusAsync(response.GeneratedCode, model.UserId);
             }
             catch (Exception ex)
             {
@@ -982,6 +985,72 @@ namespace JSAPNEW.Services.Implementation
             }
 
             return "BP Master insert failed.";
+        }
+
+        private async Task EnsureInitialPendingFlowStatusAsync(int bpCode, int creatorUserId)
+        {
+            const string sql = @"
+;WITH FlowRows AS
+(
+    SELECT
+        f.id AS FlowId,
+        f.currentStageId AS StageId,
+        f.templateId AS TemplateId
+    FROM BP.jsFlow AS f
+    WHERE f.bpCode = @BpCode
+      AND f.status = 'P'
+),
+ApproverRows AS
+(
+    SELECT DISTINCT
+        fr.FlowId,
+        fr.StageId,
+        fr.TemplateId,
+        COALESCE(us.userId, @CreatorUserId) AS UserId
+    FROM FlowRows AS fr
+    LEFT JOIN dbo.jsUserStage AS us
+        ON us.stageId = fr.StageId
+       AND ISNULL(us.status, 1) = 1
+)
+INSERT INTO BP.jsFlowStatus
+(
+    flowId,
+    status,
+    stageId,
+    templateId,
+    userId,
+    createdOn,
+    description
+)
+SELECT
+    ar.FlowId,
+    'P',
+    ar.StageId,
+    ar.TemplateId,
+    ar.UserId,
+    GETDATE(),
+    'Pending'
+FROM ApproverRows AS ar
+WHERE ar.UserId IS NOT NULL
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM BP.jsFlowStatus AS fs
+      WHERE fs.flowId = ar.FlowId
+        AND fs.status = 'P'
+        AND fs.stageId = ar.StageId
+        AND fs.templateId = ar.TemplateId
+        AND fs.userId = ar.UserId
+  );";
+
+            using var connection = new SqlConnection(_connectionString);
+            var inserted = await connection.ExecuteAsync(sql, new { BpCode = bpCode, CreatorUserId = creatorUserId });
+
+            _logger.LogInformation(
+                "BP initial pending flow-status rows ensured. BpCode={BpCode}, CreatorUserId={CreatorUserId}, RowsInserted={RowsInserted}",
+                bpCode,
+                creatorUserId,
+                inserted);
         }
 
         private DataTable ToAddressDataTable(List<BPMasterAddress> list)

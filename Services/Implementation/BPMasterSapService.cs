@@ -66,6 +66,7 @@ namespace JSAPNEW.Services.Implementation
                     Success = false,
                     Message = accountResolution.Message,
                     ErrorCode = accountResolution.ErrorCode,
+                    SapError = BpSapErrorMapper.BuildFieldErrorInfo(null, accountResolution.Message, "DebPayAcct", accountResolution.AccountCode),
                     CardCode = string.Empty,
                     CardType = cardType
                 };
@@ -88,7 +89,7 @@ namespace JSAPNEW.Services.Implementation
             if (!accountValidation.IsValid)
             {
                 _logger.LogWarning(
-                    "BP control account pre-validation failed; continuing to SAP Service Layer so SAP returns the authoritative error. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, BpType={BpType}, AccountCode={AccountCode}, ErrorCode={ErrorCode}, Message={Message}",
+                    "BP control account pre-validation failed. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, BpType={BpType}, AccountCode={AccountCode}, ErrorCode={ErrorCode}, Message={Message}",
                     request.FlowId,
                     request.BpCode,
                     request.Company,
@@ -96,6 +97,17 @@ namespace JSAPNEW.Services.Implementation
                     accountResolution.AccountCode,
                     accountValidation.ErrorCode,
                     accountValidation.Message);
+
+                var controlAccountMessage = BuildControlAccountClientMessage(accountValidation);
+                return new BpSapPostResult
+                {
+                    Success = false,
+                    Message = controlAccountMessage,
+                    ErrorCode = accountValidation.ErrorCode,
+                    SapError = BpSapErrorMapper.BuildFieldErrorInfo(null, controlAccountMessage, "DebPayAcct", accountValidation.AccountCode),
+                    CardCode = string.Empty,
+                    CardType = cardType
+                };
             }
 
             var bankValidation = await ValidateVendorBankDetailsAsync(request.Company, request.BpData, cardType, cancellationToken);
@@ -114,11 +126,8 @@ namespace JSAPNEW.Services.Implementation
                     Success = false,
                     Message = bankValidation.Message,
                     ErrorCode = bankValidation.ErrorCode,
-                    SapError = bankValidation.SapError ?? new BpSapErrorInfo
-                    {
-                        code = null,
-                        message = bankValidation.Message
-                    },
+                    SapError = bankValidation.SapError
+                        ?? BpSapErrorMapper.BuildResponseInfo(null, bankValidation.Message, bankValidation.RawResponse),
                     CardCode = string.Empty,
                     CardType = cardType,
                     RawResponse = bankValidation.RawResponse
@@ -160,6 +169,7 @@ namespace JSAPNEW.Services.Implementation
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 var sapError = MapSapError(errorBody);
+                var clientError = BuildSapClientFailureInfo(sapError, payload);
 
                 _logger.LogWarning(
                     "SAP BP POST FAILED FlowId={FlowId} BpCode={BpCode} HttpStatus={HttpStatus} SapCode={SapCode} SapMessage={SapMessage} CandidateCardCode={CandidateCardCode} PayloadHash={PayloadHash} RawResponse={RawResponse}",
@@ -175,9 +185,9 @@ namespace JSAPNEW.Services.Implementation
                 return new BpSapPostResult
                 {
                     Success = false,
-                    Message = sapError.Message,
+                    Message = clientError.message,
                     ErrorCode = sapError.ErrorCode,
-                    SapError = sapError.ToResponseInfo(),
+                    SapError = clientError,
                     CardCode = string.Empty,
                     AttachmentEntry = attachmentEntry,
                     Payload = payload,
@@ -196,11 +206,7 @@ namespace JSAPNEW.Services.Implementation
                     Success = false,
                     Message = "SAP BP creation response did not include confirmed CardCode.",
                     ErrorCode = "SAP_MISSING_CONFIRMED_CARD_CODE",
-                    SapError = new BpSapErrorInfo
-                    {
-                        code = null,
-                        message = "SAP BP creation response did not include confirmed CardCode."
-                    },
+                    SapError = BpSapErrorMapper.BuildResponseInfo(null, "SAP BP creation response did not include confirmed CardCode."),
                     CardCode = string.Empty,
                     AttachmentEntry = attachmentEntry,
                     Payload = payload,
@@ -484,6 +490,76 @@ LIMIT 1";
             return result;
         }
 
+        private static string BuildControlAccountClientMessage(BpControlAccountValidationResult validation)
+        {
+            var value = string.IsNullOrWhiteSpace(validation.AccountCode) ? "(empty)" : validation.AccountCode;
+
+            return validation.ErrorCode switch
+            {
+                "CONTROL_ACCOUNT_NOT_FOUND_IN_SAP" =>
+                    $"Invalid Control Account. Value '{value}' does not exist or is not active in SAP.",
+                "CONTROL_ACCOUNT_NOT_POSTABLE" =>
+                    $"Invalid Control Account. Value '{value}' is not postable in SAP.",
+                "INVALID_VENDOR_CONTROL_ACCOUNT" =>
+                    $"Invalid Control Account. Value '{value}' is not a valid liability/payables account in SAP.",
+                "INVALID_CUSTOMER_CONTROL_ACCOUNT" =>
+                    $"Invalid Control Account. Value '{value}' is not a valid receivables account in SAP.",
+                _ =>
+                    $"Invalid Control Account. Value '{value}' failed SAP validation."
+            };
+        }
+
+        private static BpSapErrorInfo BuildSapClientFailureInfo(BpSapError sapError, JObject payload)
+        {
+            if (!IsGenericSapInternalError(sapError.Message))
+                return sapError.ToResponseInfo();
+
+            return InferGenericSapFieldError(sapError, payload);
+        }
+
+        private static bool IsGenericSapInternalError(string message)
+        {
+            return Regex.IsMatch(
+                message ?? string.Empty,
+                @"^Internal\s+error\s+\(-?\d+\)\s+occurred$",
+                RegexOptions.IgnoreCase);
+        }
+
+        private static BpSapErrorInfo InferGenericSapFieldError(BpSapError sapError, JObject payload)
+        {
+            var bank = payload["BPBankAccounts"]?.OfType<JObject>().FirstOrDefault();
+            var bankCode = bank?["BankCode"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(bankCode))
+            {
+                var message = $"Bank Code '{bankCode}' was rejected by SAP Bank Master.";
+                return BpSapErrorMapper.BuildFieldErrorInfo(sapError.SapCode, message, "BankCode", bankCode, sapError.RawResponse);
+            }
+
+            var account = payload["DebitorAccount"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(account))
+            {
+                var message = $"Invalid Control Account. Value '{account}' was rejected by SAP.";
+                return BpSapErrorMapper.BuildFieldErrorInfo(sapError.SapCode, message, "DebPayAcct", account, sapError.RawResponse);
+            }
+
+            var address = payload["BPAddresses"]?.OfType<JObject>().FirstOrDefault();
+            var state = address?["State"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(state))
+            {
+                var message = $"State '{state}' is not configured in SAP.";
+                return BpSapErrorMapper.BuildFieldErrorInfo(sapError.SapCode, message, "State", state, sapError.RawResponse);
+            }
+
+            var currency = payload["Currency"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(currency))
+            {
+                var message = $"Currency '{currency}' is not configured in SAP.";
+                return BpSapErrorMapper.BuildFieldErrorInfo(sapError.SapCode, message, "Currency", currency, sapError.RawResponse);
+            }
+
+            return sapError.ToResponseInfo();
+        }
+
         private async Task<BpBankValidationResult> ValidateVendorBankDetailsAsync(
             int companyId,
             SingleBPDataModel bp,
@@ -501,7 +577,9 @@ LIMIT 1";
             {
                 return BpBankValidationResult.Fail(
                     "At least one vendor bank account is required before SAP posting.",
-                    "VENDOR_BANK_ACCOUNT_REQUIRED");
+                    "VENDOR_BANK_ACCOUNT_REQUIRED",
+                    field: "BankCode",
+                    invalidValue: string.Empty);
             }
 
             var resolvedBanks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -511,24 +589,30 @@ LIMIT 1";
                 if (string.IsNullOrWhiteSpace(inputBank))
                 {
                     return BpBankValidationResult.Fail(
-                        "Vendor bank name/code is required before SAP posting.",
-                        "VENDOR_BANK_REQUIRED");
+                        "'(empty)' is not a valid value for field 'OCRB.BankCode'. Vendor bank name/code is required.",
+                        "VENDOR_BANK_REQUIRED",
+                        field: "BankCode",
+                        invalidValue: "(empty)");
                 }
 
                 var accountNumber = (bank.AccountNumber ?? string.Empty).Trim();
                 if (accountNumber.Length < 4 || accountNumber.Length > 30)
                 {
                     return BpBankValidationResult.Fail(
-                        "Vendor bank account number must be between 4 and 30 characters.",
-                        "INVALID_BANK_ACCOUNT_NUMBER");
+                        $"'{accountNumber}' is not a valid value for field 'OCRB.AccountNo'. Valid rule: bank account number must be between 4 and 30 characters.",
+                        "INVALID_BANK_ACCOUNT_NUMBER",
+                        field: "AccountNo",
+                        invalidValue: accountNumber);
                 }
 
                 var ifsc = (bank.IfscCode ?? string.Empty).Trim().ToUpperInvariant();
                 if (!Regex.IsMatch(ifsc, "^[A-Z]{4}0[A-Z0-9]{6}$"))
                 {
                     return BpBankValidationResult.Fail(
-                        "Vendor IFSC code is invalid.",
-                        "INVALID_IFSC_CODE");
+                        $"'{ifsc}' is not a valid value for field 'BPBankAccounts.BICSwiftCode'. Valid format: 11-character IFSC code such as HDFC0001234.",
+                        "INVALID_IFSC_CODE",
+                        field: "BICSwiftCode",
+                        invalidValue: ifsc);
                 }
 
                 BpSapBankRow? sapBank;
@@ -541,24 +625,30 @@ LIMIT 1";
                     var exactMessage = NormalizeSingleLine(ex.GetBaseException()?.Message ?? ex.Message);
                     _logger.LogWarning(
                         ex,
-                        "SAP bank master pre-validation failed; continuing to SAP Service Layer so SAP returns the authoritative error. Company={Company}, InputBank={InputBank}, SapLookupError={SapLookupError}",
+                        "SAP bank master pre-validation failed. Company={Company}, InputBank={InputBank}, SapLookupError={SapLookupError}",
                         companyId,
                         inputBank,
                         exactMessage);
 
-                    resolvedBanks[inputBank] = inputBank;
-                    continue;
+                    return BpBankValidationResult.Fail(
+                        $"Could not validate field 'OCRB.BankCode' for value '{inputBank}' against SAP bank master.",
+                        "BANK_VALIDATION_LOOKUP_FAILED",
+                        field: "BankCode",
+                        invalidValue: inputBank);
                 }
 
                 if (sapBank == null || string.IsNullOrWhiteSpace(sapBank.BankCode))
                 {
                     _logger.LogWarning(
-                        "SAP bank master pre-validation found no ODSC match; continuing to SAP Service Layer so SAP returns the authoritative error. Company={Company}, InputBank={InputBank}",
+                        "SAP bank master pre-validation found no ODSC match. Company={Company}, InputBank={InputBank}",
                         companyId,
                         inputBank);
 
-                    resolvedBanks[inputBank] = inputBank;
-                    continue;
+                    return BpBankValidationResult.Fail(
+                        $"'{inputBank}' is not a valid value for SAP field 'OCRB.BankCode'. The bank must exist in SAP ODSC.",
+                        "BANK_NOT_FOUND_IN_SAP",
+                        field: "BankCode",
+                        invalidValue: inputBank);
                 }
 
                 resolvedBanks[inputBank] = sapBank.BankCode.Trim().ToUpperInvariant();
@@ -1179,18 +1269,16 @@ LIMIT 1";
                 string message,
                 string errorCode,
                 string? sapMessage = null,
-                string? rawResponse = null)
+                string? rawResponse = null,
+                string? field = null,
+                string? invalidValue = null)
             {
                 return new BpBankValidationResult
                 {
                     IsValid = false,
                     Message = message,
                     ErrorCode = errorCode,
-                    SapError = new BpSapErrorInfo
-                    {
-                        code = null,
-                        message = sapMessage ?? message
-                    },
+                    SapError = BpSapErrorMapper.BuildFieldErrorInfo(null, sapMessage ?? message, field ?? string.Empty, invalidValue, rawResponse),
                     RawResponse = rawResponse ?? string.Empty
                 };
             }

@@ -484,7 +484,9 @@ Important columns:
 
 Inserted by: `BP.jsApproveBP` and `BP.jsRejectBP`.
 
-Used by: approval history, duplicate action prevention, approved/rejected lists.
+Used by: approval history, duplicate action prevention, pending/approved/rejected lists.
+
+New BP creation also writes an initial `P` row for the current stage approver. This keeps `BP.jsFlowStatus` complete for pending, approved, and rejected workflow tracking. Existing pending rows can be backfilled with `docs/implementation/bp-approval-flowstatus-fix.sql`.
 
 ### `BP.jsSAPData`
 
@@ -761,25 +763,46 @@ Failure response shape:
 ```json
 {
   "success": false,
-  "message": "Define account in \"Liabilities\" drawer [OCRD.DebPayAcct]",
-  "errorCode": "SAP_-5002",
-  "sapError": {
-    "code": -5002,
-    "message": "Define account in \"Liabilities\" drawer [OCRD.DebPayAcct]"
-  },
-  "data": null
+  "approvalStatus": "Blocked",
+  "sapStatus": "Failed: Invalid Control Account. Value '2110005' does not exist or is not active in SAP. (SAP Error Code: -5002)",
+  "message": "Invalid Control Account. Value '2110005' does not exist or is not active in SAP. (SAP Error Code: -5002)"
 }
 ```
 
-Frontend rule: display `sapError.message` when it exists; otherwise display `message`.
+Frontend rule: display the top-level `message` field as the main error. BP follows the compact IMC-style failure response and does not return `errorCode`, `field`, `value`, or a nested `sapError` object in API failures.
 
 Backend rules:
 
 - Do not replace SAP messages with generic text such as `SAP rejected the payload`.
 - Do not prefix SAP messages with additional text in API responses.
+- Do not dump the whole SAP payload to the frontend.
+- For generic SAP `Internal error (-5002) occurred`, return the single most likely failing field and invalid value.
 - Do not expose stack traces, connection strings, or raw SQL errors to the frontend.
 - Log the full SAP request payload, SAP HTTP status, raw SAP response body, `flowId`, `bpCode`, `sapCardCode`, and `payloadHash`.
-- `sapError` must be populated for every SAP Service Layer failure.
+- The exact SAP error must be copied into top-level `message`.
+- The top-level `sapStatus` must be `Failed: <same SAP message>`.
+
+Invalid dropdown/value example:
+
+```json
+{
+  "success": false,
+  "approvalStatus": "Blocked",
+  "sapStatus": "Failed: 'Premium' is not a valid value for property 'U_TYPE'. The valid values are: 'PREMIUM' - 'PREMIUM', 'COMMODITY' - 'COMMODITY' (SAP Error Code: -1004)",
+  "message": "'Premium' is not a valid value for property 'U_TYPE'. The valid values are: 'PREMIUM' - 'PREMIUM', 'COMMODITY' - 'COMMODITY' (SAP Error Code: -1004)"
+}
+```
+
+Focused BP example:
+
+```json
+{
+  "success": false,
+  "approvalStatus": "Blocked",
+  "sapStatus": "Failed: Bank Code 'HDFC BANK' was rejected by SAP Bank Master. (SAP Error Code: -5002)",
+  "message": "Bank Code 'HDFC BANK' was rejected by SAP Bank Master. (SAP Error Code: -5002)"
+}
+```
 
 Examples of SAP messages that should pass through unchanged:
 
@@ -1026,23 +1049,9 @@ Response example:
     {
       "workflow": {
         "flowId": 1154,
-        "status": "pending",
-        "currentStage": 1,
-        "totalStage": 1,
-        "currentStageId": 1259,
-        "currentStageName": "BP Test Single Approval - C1",
-        "isFinalStage": true,
-        "apiStatusTag": "",
         "sapStatus": "SAP Not Started",
         "apiMessage": "",
-        "sapCardCode": "",
-        "sapAttachmentEntry": null,
-        "payloadHash": "",
-        "lastAttemptOn": null,
-        "lastAttemptBy": null,
-        "retryCount": 0,
-        "canRetrySap": false,
-        "createdOn": "2026-05-26T11:06:48"
+        "sapCardCode": ""
       },
       "master": {
         "code": 1191,
@@ -1120,8 +1129,8 @@ Response example:
 Notes:
 
 - User sees only records assigned to their current stage.
-- Final-stage failed SAP records return `canRetrySap = true`.
 - Pending, approved, rejected, total approval, and total BP list APIs return the clean frontend contract: `workflow`, `master`, `taxDetails`, `billingAddresses`, `shippingAddresses`, `bankDetails`, `contactPersons`, and `attachments`.
+- The `workflow` block intentionally exposes only `flowId`, `sapStatus`, `apiMessage`, and `sapCardCode`; detailed approval-stage fields stay internal to workflow APIs.
 - Duplicate top-level business fields such as `companyName`, `firstName`, `mobileNumber`, and `currency` are not sent by these list APIs because they already exist in `master` and child blocks.
 
 ### Get Approved BP

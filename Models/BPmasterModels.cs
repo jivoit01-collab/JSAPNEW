@@ -64,23 +64,9 @@ namespace JSAPNEW.Models
     public class BpWorkflowModel
     {
         public int FlowId { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public int CurrentStage { get; set; }
-        public int TotalStage { get; set; }
-        public int CurrentStageId { get; set; }
-        public string CurrentStageName { get; set; } = string.Empty;
-        public bool IsFinalStage { get; set; }
-        public string ApiStatusTag { get; set; } = string.Empty;
         public string SapStatus { get; set; } = string.Empty;
         public string ApiMessage { get; set; } = string.Empty;
         public string SapCardCode { get; set; } = string.Empty;
-        public int? SapAttachmentEntry { get; set; }
-        public string PayloadHash { get; set; } = string.Empty;
-        public DateTime? LastAttemptOn { get; set; }
-        public int? LastAttemptBy { get; set; }
-        public int RetryCount { get; set; }
-        public bool CanRetrySap { get; set; }
-        public DateTime? CreatedOn { get; set; }
     }
 
     public class BpListResponseModel
@@ -433,14 +419,9 @@ namespace JSAPNEW.Models
 
     public class BpApprovalResponseData
     {
-        public int flowId { get; set; }
-        public int bpCode { get; set; }
-        public int bpCompany { get; set; }
         public string approvalStatus { get; set; } = string.Empty;
         public string sapStatus { get; set; } = string.Empty;
         public string sapCardCode { get; set; } = string.Empty;
-        public int? attachmentEntry { get; set; }
-        public string payloadHash { get; set; } = string.Empty;
     }
 
     public class BPGetCard

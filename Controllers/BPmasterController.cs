@@ -463,23 +463,9 @@ namespace JSAPNEW.Controllers
                 Workflow = new BpWorkflowModel
                 {
                     FlowId = row.flowId,
-                    Status = row.status ?? string.Empty,
-                    CurrentStage = row.CurrentStage,
-                    TotalStage = row.TotalStage,
-                    CurrentStageId = row.CurrentStageId,
-                    CurrentStageName = row.CurrentStageName ?? string.Empty,
-                    IsFinalStage = row.IsFinalStage,
-                    ApiStatusTag = row.ApiStatusTag ?? string.Empty,
                     SapStatus = row.SapStatus ?? string.Empty,
                     ApiMessage = row.ApiMessage ?? string.Empty,
-                    SapCardCode = row.SapCardCode ?? string.Empty,
-                    SapAttachmentEntry = row.SapAttachmentEntry,
-                    PayloadHash = row.PayloadHash ?? string.Empty,
-                    LastAttemptOn = row.LastAttemptOn,
-                    LastAttemptBy = row.LastAttemptBy,
-                    RetryCount = row.RetryCount,
-                    CanRetrySap = row.CanRetrySap,
-                    CreatedOn = row.CreatedOn
+                    SapCardCode = row.SapCardCode ?? string.Empty
                 },
                 Master = row.Master,
                 TaxDetails = row.TaxDetails,
@@ -493,47 +479,49 @@ namespace JSAPNEW.Controllers
 
         private IActionResult BpFailure(string message, string errorCode, int statusCode = 400, BpSapErrorInfo? sapError = null)
         {
-            var responseMessage = string.IsNullOrWhiteSpace(message) ? "BP workflow operation failed." : message;
-            var responseErrorCode = string.IsNullOrWhiteSpace(errorCode) ? "BP_ERROR" : errorCode;
-            var responseSapError = sapError ?? BuildSapErrorFallback(responseErrorCode, responseMessage);
+            var sapMessage = sapError == null || string.IsNullOrWhiteSpace(sapError.message)
+                ? string.Empty
+                : sapError.message;
+            var responseMessage = !string.IsNullOrWhiteSpace(sapMessage)
+                ? sapMessage
+                : string.IsNullOrWhiteSpace(message) ? "BP workflow operation failed." : message;
+            responseMessage = FormatClientFailureMessage(responseMessage, sapError);
+            var responseSapStatus = $"Failed: {responseMessage}";
 
-            var response = new
+            var response = new Dictionary<string, object?>
             {
-                success = false,
-                message = responseMessage,
-                errorCode = responseErrorCode,
-                sapError = responseSapError,
-                data = (object?)null
+                ["success"] = false,
+                ["approvalStatus"] = "Blocked",
+                ["sapStatus"] = responseSapStatus,
+                ["message"] = responseMessage
             };
 
             return statusCode == 400 ? BadRequest(response) : StatusCode(statusCode, response);
         }
 
-        private static BpSapErrorInfo? BuildSapErrorFallback(string errorCode, string message)
+        private static string FormatClientFailureMessage(string message, BpSapErrorInfo? sapError)
         {
-            if (!errorCode.StartsWith("SAP_", StringComparison.OrdinalIgnoreCase))
-                return null;
+            if (sapError?.code is not int sapCode)
+                return message;
 
-            var rawCode = errorCode["SAP_".Length..];
-            return new BpSapErrorInfo
-            {
-                code = int.TryParse(rawCode, out var parsedCode) ? parsedCode : null,
-                message = message
-            };
+            return MessageAlreadyContainsSapCode(message, sapCode)
+                ? message
+                : $"{message} (SAP Error Code: {sapCode})";
+        }
+
+        private static bool MessageAlreadyContainsSapCode(string message, int sapCode)
+        {
+            return message.Contains($"SAP Error Code: {sapCode}", StringComparison.OrdinalIgnoreCase)
+                || message.Contains($"({sapCode})", StringComparison.OrdinalIgnoreCase);
         }
 
         private static BpApprovalResponseData ToApprovalResponseData(ApproveOrRejectBpResponse result, int fallbackFlowId)
         {
             return new BpApprovalResponseData
             {
-                flowId = result.FlowId == 0 ? fallbackFlowId : result.FlowId,
-                bpCode = result.BPCode,
-                bpCompany = result.BPCompany,
                 approvalStatus = result.ApprovalStatus,
                 sapStatus = result.SapStatus,
-                sapCardCode = result.SapCardCode,
-                attachmentEntry = result.AttachmentEntry,
-                payloadHash = result.PayloadHash
+                sapCardCode = result.SapCardCode
             };
         }
 
