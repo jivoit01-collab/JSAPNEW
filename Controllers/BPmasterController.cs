@@ -31,7 +31,7 @@ namespace JSAPNEW.Controllers
 
         [HttpPost("InsertBPmasterData")]
         [Consumes("multipart/form-data")]
-        public async Task<ActionResult<BPMasterResponse>> InsertBPMaster()
+        public async Task<ActionResult<object>> InsertBPMaster()
         {
             try
             {
@@ -94,16 +94,18 @@ namespace JSAPNEW.Controllers
 
                 // Call service
                 var result = await _BPService.InsertBPMasterAsync(model);
-                return Ok(result);
+                return result.Success
+                    ? Ok(new { success = true, message = result.Message, generatedCode = result.GeneratedCode })
+                    : BadRequest(new { success = false, message = result.Message, generatedCode = result.GeneratedCode });
             }
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "Error saving BP Master data.");
-                return BadRequest(new BPMasterResponse
+                return BadRequest(new
                 {
-                    Success = false,
-                    Message = "BP Master insert failed.",
-                    GeneratedCode = 0
+                    success = false,
+                    message = "BP Master insert failed.",
+                    generatedCode = 0
                 });
             }
         }

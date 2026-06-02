@@ -585,7 +585,7 @@ LIMIT 1";
             var resolvedBanks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var bank in banks)
             {
-                var inputBank = (bank.BankName ?? string.Empty).Trim();
+                var inputBank = FirstText(bank.BankCode, bank.BankName).Trim();
                 if (string.IsNullOrWhiteSpace(inputBank))
                 {
                     return BpBankValidationResult.Fail(
@@ -652,6 +652,8 @@ LIMIT 1";
                 }
 
                 resolvedBanks[inputBank] = sapBank.BankCode.Trim().ToUpperInvariant();
+                if (!string.IsNullOrWhiteSpace(bank.BankCode))
+                    resolvedBanks[bank.BankCode.Trim()] = sapBank.BankCode.Trim().ToUpperInvariant();
                 if (!string.IsNullOrWhiteSpace(bank.BankName))
                     resolvedBanks[bank.BankName.Trim()] = sapBank.BankCode.Trim().ToUpperInvariant();
                 _logger.LogInformation(
@@ -910,7 +912,7 @@ LIMIT 1";
                 if (string.IsNullOrWhiteSpace(bank.AccountNumber))
                     continue;
 
-                var inputBank = (bank.BankName ?? string.Empty).Trim();
+                var inputBank = FirstText(bank.BankCode, bank.BankName).Trim();
                 if (string.IsNullOrWhiteSpace(inputBank))
                 {
                     warnings.Add($"Bank account {bank.AccountNumber} was skipped because bank name/code is missing.");

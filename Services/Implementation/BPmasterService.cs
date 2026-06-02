@@ -253,11 +253,6 @@ namespace JSAPNEW.Services.Implementation
             };
         }
 
-        private static string ResolveCompanyByUser(InsertBPMasterDataModel model)
-        {
-            return FirstText(model.CompanyByUser, model.Company);
-        }
-
         private static string ResolveCompanyName(InsertBPMasterDataModel model)
         {
             return FirstText(model.CompanyName, model.CardName);
@@ -474,7 +469,12 @@ namespace JSAPNEW.Services.Implementation
 
         private static string ResolveBankName(BPBankAccount? bank)
         {
-            return bank == null ? string.Empty : FirstText(bank.BankCode, bank.MgrBankCode, bank.BankName);
+            return bank == null ? string.Empty : FirstText(bank.BankName, bank.BankCode, bank.MgrBankCode);
+        }
+
+        private static string ResolveBankCode(BPBankAccount? bank)
+        {
+            return bank == null ? string.Empty : FirstText(bank.BankCode, bank.MgrBankCode);
         }
 
         private static string ResolveBankBranch(BPBankAccount? bank)
@@ -610,6 +610,9 @@ namespace JSAPNEW.Services.Implementation
 
             if (ResolveCompanyId(model) <= 0)
                 return "Company is required.";
+
+            if (model.UserId <= 0)
+                return "UserId is required.";
 
             if (string.IsNullOrWhiteSpace(ResolveCompanyName(model)))
                 return "Company name is required.";
@@ -764,6 +767,21 @@ namespace JSAPNEW.Services.Implementation
             return string.Empty;
         }
 
+        private async Task<bool> BpUserExistsAsync(int userId)
+        {
+            if (userId <= 0)
+                return false;
+
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = @"
+SELECT COUNT(1)
+FROM dbo.jsUser
+WHERE UserId = @UserId;";
+
+            var count = await connection.ExecuteScalarAsync<int>(sql, new { UserId = userId });
+            return count > 0;
+        }
+
         private static bool IsBillTo(BP_Address address)
         {
             var type = address.AddressType ?? string.Empty;
@@ -800,6 +818,10 @@ namespace JSAPNEW.Services.Implementation
                 MainGroup = item.MainGroup ?? string.Empty,
                 Chain = item.Chain ?? string.Empty,
                 CreditLimit = item.CreditLimit,
+                UserId = item.UserId,
+                CreateDate = item.CreateDate,
+                UpdationDate = item.UpdationDate,
+                Action = item.Action ?? string.Empty,
                 company = item.CompanyId,
                 flowId = item.flowId
             };
@@ -850,17 +872,9 @@ namespace JSAPNEW.Services.Implementation
                   WHERE code IN @Codes",
                 new { Codes = codes })).ToList();
 
+            var hasBankCode = await HasBpBankCodeColumnAsync(connection);
             var bankRows = (await connection.QueryAsync<BpBankDetailRow>(
-                @"SELECT
-                    code,
-                    name AS bankName,
-                    branch AS branchName,
-                    accountNo AS accountNumber,
-                    ifscCode,
-                    swiftCode,
-                    accountType
-                  FROM BP.jsBankDetails
-                  WHERE code IN @Codes",
+                BuildBpBankDetailSql(hasBankCode, "code IN @Codes"),
                 new { Codes = codes })).ToList();
 
             var contactRows = (await connection.QueryAsync<BpContactDetailRow>(
@@ -899,13 +913,20 @@ namespace JSAPNEW.Services.Implementation
                 row.Master = BuildListMaster(row);
                 if (masterRows.TryGetValue(row.Code, out var master))
                 {
-                    row.Master.CompanyByUser = master.CompanyByUser ?? string.Empty;
                     row.Master.MainGroup = master.MainGroup ?? string.Empty;
                     row.Master.Chain = master.Chain ?? string.Empty;
                     row.Master.CreditLimit = master.CreditLimit;
+                    row.Master.UserId = master.UserId;
+                    row.Master.CreateDate = master.CreateDate;
+                    row.Master.UpdationDate = master.UpdationDate;
+                    row.Master.Action = master.Action ?? string.Empty;
                     row.MainGroup = master.MainGroup ?? string.Empty;
                     row.Chain = master.Chain ?? string.Empty;
                     row.CreditLimit = master.CreditLimit;
+                    row.UserId = master.UserId;
+                    row.CreateDate = master.CreateDate;
+                    row.UpdationDate = master.UpdationDate;
+                    row.Action = master.Action ?? string.Empty;
                 }
 
                 row.TaxDetails = taxRows.TryGetValue(row.Code, out var tax) ? tax : new BP_Tax();
@@ -927,10 +948,13 @@ namespace JSAPNEW.Services.Implementation
             var select = new List<string>
             {
                 "code",
-                "companyByUser",
+                "userId",
                 columns.HasMainGroupID ? "mainGroupID AS MainGroup" : "CAST(NULL AS NVARCHAR(100)) AS MainGroup",
                 columns.HasChain ? "chain AS Chain" : "CAST(NULL AS NVARCHAR(100)) AS Chain",
-                columns.HasCreditLimit ? "creditLimit AS CreditLimit" : "CAST(0 AS DECIMAL(18,2)) AS CreditLimit"
+                columns.HasCreditLimit ? "creditLimit AS CreditLimit" : "CAST(0 AS DECIMAL(18,2)) AS CreditLimit",
+                columns.HasCreateDate ? "createDate AS CreateDate" : "CAST(NULL AS DATETIME) AS CreateDate",
+                columns.HasUpdationDate ? "updationDate AS UpdationDate" : "CAST(NULL AS DATETIME) AS UpdationDate",
+                columns.HasAction ? "action AS Action" : "CAST(NULL AS CHAR(1)) AS Action"
             };
 
             return $@"
@@ -946,14 +970,17 @@ namespace JSAPNEW.Services.Implementation
 SELECT name
 FROM sys.columns
 WHERE object_id = OBJECT_ID(N'BP.jsMaster')
-  AND name IN (N'mainGroupID', N'chain', N'creditLimit');";
+  AND name IN (N'mainGroupID', N'chain', N'creditLimit', N'createDate', N'updationDate', N'action');";
 
             var names = (await connection.QueryAsync<string>(sql)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return new BpMasterOptionalColumns
             {
                 HasMainGroupID = names.Contains("mainGroupID"),
                 HasChain = names.Contains("chain"),
-                HasCreditLimit = names.Contains("creditLimit")
+                HasCreditLimit = names.Contains("creditLimit"),
+                HasCreateDate = names.Contains("createDate"),
+                HasUpdationDate = names.Contains("updationDate"),
+                HasAction = names.Contains("action")
             };
         }
 
@@ -1009,6 +1036,134 @@ WHERE code = @Code;";
             await connection.ExecuteAsync(sql, parameters);
         }
 
+        private async Task SaveBpAuditFieldsAsync(
+            SqlConnection connection,
+            int bpCode,
+            int userId,
+            string action,
+            int? creatorUserId = null)
+        {
+            if (bpCode <= 0 || userId <= 0)
+                return;
+
+            var normalizedAction = string.Equals(action, "U", StringComparison.OrdinalIgnoreCase) ? "U" : "C";
+            var columns = await GetBpMasterOptionalColumnsAsync(connection);
+            var userIdToStore = normalizedAction == "U" && creatorUserId.GetValueOrDefault() > 0
+                ? creatorUserId.GetValueOrDefault()
+                : userId;
+            var utcNow = DateTime.UtcNow;
+
+            var setClauses = new List<string> { "userId = @UserId" };
+            var parameters = new DynamicParameters();
+            parameters.Add("@Code", bpCode);
+            parameters.Add("@UserId", userIdToStore);
+            parameters.Add("@Action", normalizedAction);
+            parameters.Add("@Now", utcNow);
+
+            if (columns.HasCreateDate)
+                setClauses.Add(normalizedAction == "U"
+                    ? "createDate = ISNULL(createDate, @Now)"
+                    : "createDate = @Now");
+
+            if (columns.HasUpdationDate)
+                setClauses.Add("updationDate = @Now");
+
+            if (columns.HasAction)
+                setClauses.Add("action = @Action");
+
+            var sql = $@"
+UPDATE BP.jsMaster
+SET {string.Join(", ", setClauses)}
+WHERE code = @Code;";
+
+            await connection.ExecuteAsync(sql, parameters);
+        }
+
+        private async Task<int?> GetBpCreatorUserIdAsync(SqlConnection connection, int bpCode)
+        {
+            if (bpCode <= 0)
+                return null;
+
+            const string sql = @"
+SELECT TOP 1 userId
+FROM BP.jsMaster
+WHERE code = @Code;";
+
+            return await connection.QueryFirstOrDefaultAsync<int?>(sql, new { Code = bpCode });
+        }
+
+        private async Task<bool> HasBpBankCodeColumnAsync(SqlConnection connection)
+        {
+            const string sql = @"
+SELECT COUNT(1)
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'BP.jsBankDetails')
+  AND name = N'BankCode';";
+
+            var count = await connection.ExecuteScalarAsync<int>(sql);
+            return count > 0;
+        }
+
+        private static string BuildBpBankDetailSql(bool hasBankCode, string whereClause)
+        {
+            return $@"
+SELECT
+    code,
+    {(hasBankCode ? "BankCode" : "CAST(NULL AS NVARCHAR(50)) AS BankCode")},
+    name AS bankName,
+    branch AS branchName,
+    accountNo AS accountNumber,
+    ifscCode,
+    swiftCode,
+    accountType
+FROM BP.jsBankDetails
+WHERE {whereClause}";
+        }
+
+        private async Task SaveBpBankCodeAsync(SqlConnection connection, int bpCode, BPBankAccount? primaryBank)
+        {
+            if (bpCode <= 0 || primaryBank == null)
+                return;
+
+            var bankCode = ResolveBankCode(primaryBank);
+            if (string.IsNullOrWhiteSpace(bankCode))
+                return;
+
+            if (!await HasBpBankCodeColumnAsync(connection))
+            {
+                _logger.LogWarning(
+                    "BP bank code was not saved because BP.jsBankDetails.BankCode is missing. Run the BP user/audit/bank migration. BpCode={BpCode}",
+                    bpCode);
+                return;
+            }
+
+            const string sql = @"
+UPDATE BP.jsBankDetails
+SET BankCode = @BankCode
+WHERE code = @Code
+  AND (NULLIF(@AccountNo, '') IS NULL OR accountNo = @AccountNo);";
+
+            await connection.ExecuteAsync(sql, new
+            {
+                Code = bpCode,
+                BankCode = bankCode.Trim(),
+                AccountNo = ResolveBankAccountNo(primaryBank)
+            });
+        }
+
+        private async Task ApplyBpBankCodesAsync(SingleBPDataModel result, SqlConnection connection, int bpCode)
+        {
+            if (bpCode <= 0 || !await HasBpBankCodeColumnAsync(connection))
+                return;
+
+            var rows = (await connection.QueryAsync<BpBankDetailRow>(
+                BuildBpBankDetailSql(hasBankCode: true, whereClause: "code = @Code"),
+                new { Code = bpCode })).ToList();
+
+            if (rows.Count > 0)
+                result.BankDetails = rows.Cast<BP_Bank>().ToList();
+        }
+
         private async Task ApplyBpManagerFieldsAsync(SingleBPDataModel result, SqlConnection connection, int bpCode)
         {
             if (result.Master == null || bpCode <= 0)
@@ -1020,10 +1175,13 @@ WHERE code = @Code;";
             if (masterFields == null)
                 return;
 
-            result.Master.CompanyByUser = FirstText(result.Master.CompanyByUser, masterFields.CompanyByUser);
             result.Master.MainGroup = masterFields.MainGroup ?? string.Empty;
             result.Master.Chain = masterFields.Chain ?? string.Empty;
             result.Master.CreditLimit = masterFields.CreditLimit;
+            result.Master.UserId = masterFields.UserId;
+            result.Master.CreateDate = masterFields.CreateDate;
+            result.Master.UpdationDate = masterFields.UpdationDate;
+            result.Master.Action = masterFields.Action ?? string.Empty;
         }
 
         public async Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model)
@@ -1034,6 +1192,14 @@ WHERE code = @Code;";
             {
                 response.Success = false;
                 response.Message = validationError;
+                response.GeneratedCode = 0;
+                return response;
+            }
+
+            if (!await BpUserExistsAsync(model.UserId))
+            {
+                response.Success = false;
+                response.Message = $"UserId {model.UserId} does not exist.";
                 response.GeneratedCode = 0;
                 return response;
             }
@@ -1064,8 +1230,6 @@ WHERE code = @Code;";
                     cmd.Parameters.AddWithValue("@currency", (object?)ResolveCurrency(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@remarks", (object?)model.Remarks ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
-                    cmd.Parameters.AddWithValue("@companyByUser", ResolveCompanyByUser(model));
-
                     cmd.Parameters.AddWithValue("@tan", (object?)model.Tan ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@panNo", ResolvePan(model));
                     cmd.Parameters.AddWithValue("@fssaiNo", (object?)ResolveFssai(model) ?? DBNull.Value);
@@ -1107,8 +1271,11 @@ WHERE code = @Code;";
                     response.Success = true;
                     response.Message = "BP Master inserted successfully.";
                     response.GeneratedCode = (int)(outCode.Value ?? 0);
+                    response.ErrorCode = null;
 
                     await SaveBpManagerFieldsAsync(conn, response.GeneratedCode, model);
+                    await SaveBpAuditFieldsAsync(conn, response.GeneratedCode, model.UserId, "C");
+                    await SaveBpBankCodeAsync(conn, response.GeneratedCode, primaryBank);
                 }
 
                 if (response.GeneratedCode > 0)
@@ -1122,9 +1289,10 @@ WHERE code = @Code;";
                     model.CompanyId,
                     model.UserId,
                     ResolveBpType(model));
-                    response.Success = false;
-                    response.Message = GetBpInsertFailureMessage(ex);
-                    response.GeneratedCode = 0;
+                response.Success = false;
+                response.Message = GetBpInsertFailureMessage(ex);
+                response.ErrorCode = null;
+                response.GeneratedCode = 0;
                 }
 
             return response;
@@ -1140,9 +1308,25 @@ WHERE code = @Code;";
 
                 if (businessError != null && !string.IsNullOrWhiteSpace(businessError.Message))
                     return businessError.Message;
+
+                var firstError = sqlException.Errors.Cast<SqlError>().FirstOrDefault();
+                if (firstError != null)
+                    return $"SQL Error {firstError.Number}: {firstError.Message}";
             }
 
-            return "BP Master insert failed.";
+            return ex.Message;
+        }
+
+        private static string? GetBpInsertFailureErrorCode(Exception ex)
+        {
+            if (ex is not SqlException sqlException)
+                return null;
+
+            var firstError = sqlException.Errors.Cast<SqlError>().FirstOrDefault();
+            if (firstError == null)
+                return null;
+
+            return $"SQL_{firstError.Number}";
         }
 
         private async Task EnsureInitialPendingFlowStatusAsync(int bpCode, int creatorUserId)
@@ -1624,6 +1808,7 @@ WHERE ar.UserId IS NOT NULL
                 }
 
                 await ApplyBpManagerFieldsAsync(result, connection, bpCode);
+                await ApplyBpBankCodesAsync(result, connection, bpCode);
                 return result;
             }
         }
@@ -2176,6 +2361,7 @@ WHERE f.id = @flowId;";
             };
 
             await ApplyBpManagerFieldsAsync(result, connection, bpCode);
+            await ApplyBpBankCodesAsync(result, connection, bpCode);
             return result;
         }
 
@@ -2540,6 +2726,12 @@ ORDER BY id DESC;";
                 return response;
             }
 
+            if (!await BpUserExistsAsync(model.UserId))
+            {
+                response.Message = $"UserId {model.UserId} does not exist.";
+                return response;
+            }
+
             try
             {
                 var companyId = ResolveCompanyId(model);
@@ -2567,7 +2759,7 @@ ORDER BY id DESC;";
                     cmd.Parameters.AddWithValue("@currency", (object?)ResolveCurrency(model) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@remarks", (object?)model.Remarks ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
-                    cmd.Parameters.AddWithValue("@companyByUser", ResolveCompanyByUser(model));
+                    cmd.Parameters.AddWithValue("@companyByUser", companyId.ToString(CultureInfo.InvariantCulture));
 
                     cmd.Parameters.AddWithValue("@tan", (object?)model.Tan ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@panNo", ResolvePan(model));
@@ -2604,9 +2796,12 @@ ORDER BY id DESC;";
                     attachParam.SqlDbType = SqlDbType.Structured;
 
                     await conn.OpenAsync();
+                    var creatorUserId = await GetBpCreatorUserIdAsync(conn, model.Code);
                     await cmd.ExecuteNonQueryAsync();
 
                     await SaveBpManagerFieldsAsync(conn, model.Code, model);
+                    await SaveBpAuditFieldsAsync(conn, model.Code, model.UserId, "U", creatorUserId);
+                    await SaveBpBankCodeAsync(conn, model.Code, primaryBank);
 
                     response.Success = true;
                     response.Message = "BP Master updated successfully.";
@@ -2760,10 +2955,13 @@ ORDER BY id DESC;";
         private sealed class BpMasterDetailRow
         {
             public int Code { get; set; }
-            public string CompanyByUser { get; set; } = string.Empty;
+            public int UserId { get; set; }
             public string MainGroup { get; set; } = string.Empty;
             public string Chain { get; set; } = string.Empty;
             public decimal CreditLimit { get; set; }
+            public DateTime? CreateDate { get; set; }
+            public DateTime? UpdationDate { get; set; }
+            public string Action { get; set; } = string.Empty;
         }
 
         private sealed class BpMasterOptionalColumns
@@ -2771,7 +2969,12 @@ ORDER BY id DESC;";
             public bool HasMainGroupID { get; set; }
             public bool HasChain { get; set; }
             public bool HasCreditLimit { get; set; }
-            public bool HasAny => HasMainGroupID || HasChain || HasCreditLimit;
+            public bool HasCreateDate { get; set; }
+            public bool HasUpdationDate { get; set; }
+            public bool HasAction { get; set; }
+            public bool HasManagerFields => HasMainGroupID || HasChain || HasCreditLimit;
+            public bool HasAuditFields => HasCreateDate || HasUpdationDate || HasAction;
+            public bool HasAny => HasManagerFields || HasAuditFields;
         }
 
         private sealed class BpTaxDetailRow : BP_Tax

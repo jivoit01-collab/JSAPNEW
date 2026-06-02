@@ -20,6 +20,7 @@ namespace JSAPNEW.Models
         public int Id { get; set; }
         public int Code { get; set; }
         public int CompanyId { get; set; }
+        public int UserId { get; set; }
         public string Type { get; set; } = string.Empty;
         public string CompanyName { get; set; } = string.Empty;
         public string PartyName { get; set; } = string.Empty;
@@ -39,6 +40,9 @@ namespace JSAPNEW.Models
         public decimal CreditLimit { get; set; }
         public bool IsStaff { get; set; }
         public DateTime? CreatedOn { get; set; }
+        public DateTime? CreateDate { get; set; }
+        public DateTime? UpdationDate { get; set; }
+        public string Action { get; set; } = string.Empty;
         public string status { get; set; } = string.Empty;
         public int CurrentStage { get; set; }
         public int TotalStage { get; set; }
@@ -153,7 +157,6 @@ namespace JSAPNEW.Models
         public string MgrCreditLimit { get; set; } = string.Empty;
         public bool IsStaff { get; set; }
         public int UserId { get; set; }
-        public string CompanyByUser { get; set; } = string.Empty;
         public bool SameAsBill { get; set; }
         public string BillAddressName { get; set; } = string.Empty;
         public string BillStreet { get; set; } = string.Empty;
@@ -234,6 +237,8 @@ namespace JSAPNEW.Models
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
         public int GeneratedCode { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ErrorCode { get; set; }
     }
 
     public class DistinctBankNameModel
@@ -331,7 +336,10 @@ namespace JSAPNEW.Models
         public string MainGroup { get; set; } = string.Empty;
         public string Chain { get; set; } = string.Empty;
         public decimal CreditLimit { get; set; }
-        public string CompanyByUser { get; set; } = string.Empty;
+        public int UserId { get; set; }
+        public DateTime? CreateDate { get; set; }
+        public DateTime? UpdationDate { get; set; }
+        public string Action { get; set; } = string.Empty;
         public int company { get; set; }
         public int flowId { get; set; }
     }
@@ -363,6 +371,7 @@ namespace JSAPNEW.Models
 
     public class BP_Bank
     {
+        public string BankCode { get; set; } = string.Empty;
         public string BankName { get; set; } = string.Empty;
         [JsonPropertyName("branch")]
         public string BranchName { get; set; } = string.Empty;
