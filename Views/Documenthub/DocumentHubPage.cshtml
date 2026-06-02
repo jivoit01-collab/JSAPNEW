@@ -1,0 +1,1249 @@
+@using JSAPNEW.Models
+@{
+    ViewData["Title"] = "Document Hub";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var permissions = ViewBag.DocumentHubPermissions as DocumentHubPermissionDto ?? new DocumentHubPermissionDto();
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="~/css/bill-verification.css" />
+
+<style>
+    .doc-hub {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #102033;
+    }
+
+    .doc-shell {
+        display: grid;
+        grid-template-columns: 290px minmax(0, 1fr) 300px;
+        gap: 18px;
+        min-height: calc(100vh - 115px);
+    }
+
+    .doc-sidebar,
+    .doc-main,
+    .doc-activity,
+    .hub-card,
+    .upload-dropzone {
+        background: #fff;
+        border: 1px solid #e5edf5;
+        box-shadow: 0 12px 34px rgba(11, 44, 77, .08);
+    }
+
+    .doc-sidebar {
+        border-radius: 8px;
+        padding: 16px;
+        position: sticky;
+        top: 82px;
+        height: calc(100vh - 110px);
+        overflow: auto;
+    }
+
+    .doc-main {
+        border-radius: 8px;
+        padding: 20px;
+        min-width: 0;
+    }
+
+    .doc-activity {
+        border-radius: 8px;
+        padding: 16px;
+        position: sticky;
+        top: 82px;
+        height: calc(100vh - 110px);
+        overflow: auto;
+    }
+
+    .hub-titlebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .hub-title h2 {
+        margin: 0;
+        color: #0b2c4d;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: 0;
+    }
+
+    .hub-title p {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .hub-tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-top: 1px solid #edf2f7;
+        border-bottom: 1px solid #edf2f7;
+        padding: 14px 0;
+        margin-bottom: 18px;
+    }
+
+    .breadcrumb-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .breadcrumb-row a {
+        color: #0b2c4d;
+        cursor: pointer;
+    }
+
+    .search-box {
+        position: relative;
+        min-width: 260px;
+        flex: 1;
+        max-width: 430px;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+
+    .search-box input {
+        width: 100%;
+        border: 1px solid #dbe5ee;
+        border-radius: 6px;
+        padding: 10px 12px 10px 36px;
+        font-size: 14px;
+    }
+
+    .hub-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .hub-btn {
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+    }
+
+    .sidebar-section {
+        margin-bottom: 18px;
+    }
+
+    .section-label {
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        margin: 10px 4px;
+    }
+
+    .tree-item {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        border-radius: 6px;
+        padding: 9px 8px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .tree-item:hover,
+    .tree-item.active {
+        background: #eef6ff;
+        color: #0b2c4d;
+    }
+
+    .tree-item.active {
+        box-shadow: inset 4px 0 0 #0b2c4d;
+    }
+
+    .tree-item .count {
+        margin-left: auto;
+        background: #e2e8f0;
+        color: #475569;
+        border-radius: 999px;
+        min-width: 24px;
+        text-align: center;
+        padding: 2px 7px;
+        font-size: 11px;
+    }
+
+    .dept-children {
+        margin-left: 19px;
+        border-left: 1px dashed #cbd5e1;
+        padding-left: 8px;
+        display: none;
+    }
+
+    .dept-children.open {
+        display: block;
+    }
+
+    .stats-grid,
+    .folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .hub-card {
+        border-radius: 8px;
+        padding: 14px;
+    }
+
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #fff;
+        border: 0;
+        overflow: hidden;
+        position: relative;
+        transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, .16);
+    }
+
+    .stat-card::after {
+        content: "";
+        position: absolute;
+        right: -30px;
+        top: -34px;
+        width: 98px;
+        height: 98px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.14);
+    }
+
+    .stat-files {
+        background: linear-gradient(135deg, #2563eb, #60a5fa);
+    }
+
+    .stat-folders {
+        background: linear-gradient(135deg, #059669, #34d399);
+    }
+
+    .stat-recent {
+        background: linear-gradient(135deg, #ea580c, #fb923c);
+    }
+
+    .stat-favorites {
+        background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    }
+
+    .stat-icon,
+    .folder-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eaf3ff;
+        color: #0b2c4d;
+        flex: 0 0 auto;
+    }
+
+    .stat-card .stat-icon {
+        background: rgba(255,255,255,.2);
+        color: #fff;
+    }
+
+    .stat-value {
+        color: #fff;
+        font-size: 20px;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .stat-label {
+        color: rgba(255,255,255,.84);
+        font-size: 12px;
+        font-weight: 700;
+        margin-top: 4px;
+    }
+
+    .folder-card {
+        cursor: pointer;
+        transition: transform .16s ease, box-shadow .16s ease;
+    }
+
+    .folder-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 36px rgba(11, 44, 77, .13);
+    }
+
+    .folder-card-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .folder-name {
+        color: #0f172a;
+        font-weight: 800;
+        font-size: 14px;
+        word-break: break-word;
+    }
+
+    .folder-meta {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .folder-submeta {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-top: 2px;
+    }
+
+    .folder-menu {
+        margin-left: auto;
+        color: #64748b;
+    }
+
+    .file-panel {
+        border: 1px solid #e5edf5;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .file-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 13px 15px;
+        border-bottom: 1px solid #edf2f7;
+    }
+
+    .file-panel-head h5 {
+        margin: 0;
+        color: #0b2c4d;
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+    .table-responsive {
+        margin: 0;
+    }
+
+    .doc-table {
+        margin: 0;
+        min-width: 880px;
+    }
+
+    .doc-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        border-top: 0;
+        white-space: nowrap;
+    }
+
+    .doc-table td {
+        color: #334155;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .doc-table tbody tr {
+        transition: background .15s ease;
+    }
+
+    .doc-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .doc-table tbody tr .action-row {
+        opacity: .72;
+        transition: opacity .15s ease;
+    }
+
+    .doc-table tbody tr:hover .action-row {
+        opacity: 1;
+    }
+
+    .file-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 260px;
+    }
+
+    .file-type {
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #475569;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .version-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 3px 8px;
+        margin-top: 4px;
+    }
+
+    .confidential-badge {
+        color: #b45309;
+        background: #fff7ed;
+        border-radius: 999px;
+        padding: 3px 7px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .action-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid #dbe5ee;
+        background: #fff;
+        color: #0b2c4d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .icon-btn:hover {
+        background: #eef6ff;
+    }
+
+    .upload-dropzone {
+        border-style: dashed;
+        border-radius: 8px;
+        padding: 22px;
+        text-align: center;
+        color: #64748b;
+        cursor: pointer;
+        margin-bottom: 12px;
+    }
+
+    .upload-dropzone.dragging {
+        background: #eef6ff;
+        border-color: #0b2c4d;
+        color: #0b2c4d;
+    }
+
+    .upload-progress {
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #e2e8f0;
+        display: none;
+        margin-top: 12px;
+    }
+
+    .upload-progress-bar {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #2563eb, #22c55e);
+        transition: width .2s ease;
+    }
+
+    .empty-state {
+        padding: 36px 28px;
+        text-align: center;
+        color: #94a3b8;
+        font-weight: 700;
+    }
+
+    .empty-illustration {
+        width: 104px;
+        height: 104px;
+        border-radius: 28px;
+        margin: 0 auto 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #eef6ff, #ecfdf5);
+        color: #0b2c4d;
+        font-size: 42px;
+    }
+
+    .activity-title {
+        color: #0b2c4d;
+        font-size: 15px;
+        font-weight: 800;
+        margin: 0 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 18px;
+    }
+
+    .timeline::before {
+        content: "";
+        position: absolute;
+        left: 7px;
+        top: 4px;
+        bottom: 4px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding: 0 0 16px 14px;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        left: -16px;
+        top: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #2563eb;
+        box-shadow: 0 0 0 4px #eff6ff;
+    }
+
+    .timeline-action {
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .timeline-detail {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+    .timeline-meta {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-top: 4px;
+    }
+
+    .viewer-frame {
+        width: 100%;
+        height: 72vh;
+        border: 0;
+        background: #0f172a;
+    }
+
+    .image-preview {
+        max-width: 100%;
+        max-height: 72vh;
+        display: block;
+        margin: 0 auto;
+    }
+
+    @@media (max-width: 992px) {
+        .doc-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .doc-sidebar,
+        .doc-activity {
+            position: static;
+            height: auto;
+        }
+
+        .hub-titlebar,
+        .hub-tools {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .search-box {
+            max-width: none;
+            min-width: 0;
+        }
+    }
+</style>
+
+<div class="doc-hub">
+    <div class="hub-titlebar">
+        <div class="hub-title">
+            <h2>Document Hub</h2>
+            <p>Department documents, SOPs, templates, audit files, vendor formats, and reference material.</p>
+        </div>
+        <div class="hub-actions">
+            @if (permissions.CanManageFolders)
+            {
+                <button class="btn btn-outline-primary hub-btn" id="newFolderBtn"><i class="fa-solid fa-folder-plus"></i> New Folder</button>
+            }
+            @if (permissions.CanUpload)
+            {
+                <button class="btn btn-primary hub-btn" id="uploadBtn"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+            }
+        </div>
+    </div>
+
+    <div class="doc-shell">
+        <aside class="doc-sidebar">
+            <div class="sidebar-section">
+                <div class="section-label">Folder Tree</div>
+                <button class="tree-item active" data-filter="" data-folder=""><i class="fa-solid fa-layer-group"></i><span>All Documents</span><span class="count" id="allCount">0</span></button>
+                <button class="tree-item" data-filter="recent" data-folder=""><i class="fa-solid fa-clock-rotate-left"></i><span>Recent</span><span class="count" id="recentCount">0</span></button>
+                <button class="tree-item" data-filter="favorites" data-folder=""><i class="fa-solid fa-star"></i><span>Favorites</span><span class="count" id="favoriteCount">0</span></button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="section-label">Departments</div>
+                <div id="departmentTree"></div>
+            </div>
+        </aside>
+
+        <main class="doc-main">
+            <div class="hub-tools">
+                <div class="breadcrumb-row" id="breadcrumb"></div>
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" id="hubSearch" placeholder="Search documents, file types, folders..." autocomplete="off" />
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="hub-card stat-card stat-files"><span class="stat-icon"><i class="fa-solid fa-file-lines"></i></span><div><div class="stat-value" id="statFiles">0</div><div class="stat-label">Files</div></div></div>
+                <div class="hub-card stat-card stat-folders"><span class="stat-icon"><i class="fa-solid fa-folder-tree"></i></span><div><div class="stat-value" id="statFolders">0</div><div class="stat-label">Folders</div></div></div>
+                <div class="hub-card stat-card stat-recent"><span class="stat-icon"><i class="fa-solid fa-clock"></i></span><div><div class="stat-value" id="statRecent">0</div><div class="stat-label">Recent</div></div></div>
+                <div class="hub-card stat-card stat-favorites"><span class="stat-icon"><i class="fa-solid fa-star"></i></span><div><div class="stat-value" id="statFavorites">0</div><div class="stat-label">Favorites</div></div></div>
+            </div>
+
+            <div class="folder-grid" id="folderCards"></div>
+
+            <section class="file-panel">
+                <div class="file-panel-head">
+                    <h5><i class="fa-solid fa-table-list"></i> Files</h5>
+                    <button class="btn btn-sm btn-outline-secondary hub-btn" id="activityBtn"><i class="fa-solid fa-clock-rotate-left"></i> Activity Log</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table doc-table">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Type</th>
+                                <th>Uploaded By</th>
+                                <th>Uploaded Date</th>
+                                <th>Size</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileRows"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <aside class="doc-activity">
+            <h5 class="activity-title"><i class="fa-solid fa-wave-square"></i> Activity Timeline</h5>
+            <div id="activityTimeline" class="timeline"></div>
+        </aside>
+    </div>
+</div>
+
+<div class="modal fade" id="folderModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="folderModalTitle">Folder</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="folderIdInput" />
+                <div class="form-group">
+                    <label>Folder Name</label>
+                    <input type="text" id="folderNameInput" class="form-control" maxlength="200" />
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <select id="folderDepartmentInput" class="form-control">
+                        <option value="">Current Location</option>
+                        <option>Invoice Department</option>
+                        <option>Payment Department</option>
+                        <option>Accounts</option>
+                        <option>Audit</option>
+                        <option>Shared Documents</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-dismiss="modal">Cancel</button><button class="btn btn-primary" id="saveFolderBtn">Save</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Upload Documents</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button></div>
+            <div class="modal-body">
+                <div class="upload-dropzone" id="dropzone">
+                    <i class="fa-solid fa-cloud-arrow-up fa-2x mb-2"></i>
+                    <div><strong>Drop files here</strong> or click to browse</div>
+                    <small>PDF, DOCX, XLSX, PPTX, PNG, JPG, CSV</small>
+                    <input type="file" id="fileInput" multiple hidden accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.csv" />
+                    <div class="upload-progress" id="uploadProgress"><div class="upload-progress-bar" id="uploadProgressBar"></div></div>
+                </div>
+                <div id="selectedFiles" class="mb-3"></div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label>When same file exists</label>
+                        <select id="conflictAction" class="form-control">
+                            <option value="newversion">Create New Version</option>
+                            <option value="replace">Replace Existing</option>
+                            <option value="ask">Ask Before Upload</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="isConfidentialInput">
+                            <label class="custom-control-label" for="isConfidentialInput">Mark as confidential</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-dismiss="modal">Cancel</button><button class="btn btn-primary" id="startUploadBtn">Upload</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="accessModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Confirm access</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button></div>
+            <div class="modal-body">
+                <p class="text-muted">This file is marked confidential. Confirm your username or enter your 4 digit PIN.</p>
+                <input type="hidden" id="accessFileId" />
+                <input type="hidden" id="accessMode" />
+                <div class="form-group"><label>Username confirmation</label><input class="form-control" id="accessUsername" autocomplete="off" /></div>
+                <div class="form-group"><label>4 digit PIN</label><input class="form-control" id="accessPin" maxlength="4" inputmode="numeric" autocomplete="off" /></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-dismiss="modal">Cancel</button><button class="btn btn-primary" id="confirmAccessBtn">Confirm</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="viewerModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="viewerTitle">Preview</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button></div>
+            <div class="modal-body" id="viewerBody"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="listModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="listTitle">Details</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button></div>
+            <div class="modal-body" id="listBody"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const hubState = {
+        folderId: null,
+        filter: "",
+        search: "",
+        allFolders: [],
+        currentFolders: [],
+        currentFiles: [],
+        selectedFiles: [],
+        permissions: {
+            canUpload: @(permissions.CanUpload.ToString().ToLowerInvariant()),
+            canDelete: @(permissions.CanDelete.ToString().ToLowerInvariant()),
+            canManageFolders: @(permissions.CanManageFolders.ToString().ToLowerInvariant())
+        }
+    };
+
+    $(document).ready(function () {
+        loadHub();
+
+        $("#hubSearch").on("input", debounce(function () {
+            hubState.search = this.value;
+            loadHub();
+        }, 250));
+
+        $(document).on("click", ".tree-item", function () {
+            if ($(this).hasClass("dept-toggle")) return;
+            $(".tree-item").removeClass("active");
+            $(this).addClass("active");
+            hubState.folderId = parseNullableInt($(this).data("folder"));
+            hubState.filter = ($(this).data("filter") || "").toString();
+            loadHub();
+        });
+
+        $(document).on("click", ".dept-toggle", function () {
+            const target = $(this).data("target");
+            $("#" + target).toggleClass("open");
+            $(this).find(".fa-chevron-right").toggleClass("fa-rotate-90");
+        });
+
+        $("#newFolderBtn").on("click", function () {
+            openFolderModal("create");
+        });
+
+        $("#uploadBtn").on("click", function () {
+            hubState.selectedFiles = [];
+            $("#fileInput").val("");
+            renderSelectedFiles();
+            $("#uploadModal").modal("show");
+        });
+
+        $("#saveFolderBtn").on("click", saveFolder);
+        $("#startUploadBtn").on("click", uploadFiles);
+        $("#confirmAccessBtn").on("click", confirmAccess);
+        $("#activityBtn").on("click", showActivityLog);
+
+        $("#dropzone").on("click", function () { $("#fileInput").trigger("click"); });
+        $("#fileInput").on("change", function () { setSelectedFiles(this.files); });
+
+        $("#dropzone")
+            .on("dragover", function (e) { e.preventDefault(); $(this).addClass("dragging"); })
+            .on("dragleave", function () { $(this).removeClass("dragging"); })
+            .on("drop", function (e) {
+                e.preventDefault();
+                $(this).removeClass("dragging");
+                setSelectedFiles(e.originalEvent.dataTransfer.files);
+            });
+    });
+
+    function loadHub() {
+        $.get("/DocumentHub/GetHub", { folderId: hubState.folderId, filter: hubState.filter, search: hubState.search })
+            .done(function (res) {
+                const data = res.data || {};
+                hubState.permissions = res.permissions || hubState.permissions;
+                hubState.currentFolders = data.folders || [];
+                hubState.currentFiles = data.files || [];
+                renderStats(data.stats || {});
+                renderBreadcrumb(data.breadcrumb || []);
+                renderFolderCards();
+                renderFiles();
+                loadFolderTree();
+                loadActivityTimeline();
+            })
+            .fail(function () {
+                $("#fileRows").html(`<tr><td colspan="6" class="empty-state">Unable to load Document Hub.</td></tr>`);
+            });
+    }
+
+    function loadFolderTree() {
+        $.get("/DocumentHub/GetFolders").done(function (folders) {
+            hubState.allFolders = folders || [];
+            renderDepartmentTree();
+        });
+    }
+
+    function renderStats(stats) {
+        $("#statFiles,#allCount").text(stats.totalFiles || 0);
+        $("#statFolders").text(stats.totalFolders || 0);
+        $("#statRecent,#recentCount").text(stats.recentFiles || 0);
+        $("#statFavorites,#favoriteCount").text(stats.favoriteFiles || 0);
+    }
+
+    function renderBreadcrumb(items) {
+        const html = (items || []).map((item, index) => {
+            const name = escapeHtml(item.folderName || "All Documents");
+            const separator = index === 0 ? "" : `<i class="fa-solid fa-chevron-right"></i>`;
+            return `${separator}<a data-folder="${item.folderId || ""}" onclick="goFolder(${item.folderId || "null"})">${name}</a>`;
+        }).join("");
+        $("#breadcrumb").html(html || `<a onclick="goFolder(null)">All Documents</a>`);
+    }
+
+    function renderDepartmentTree() {
+        const departments = ["Invoice Department", "Payment Department", "Accounts", "Audit", "Shared Documents"];
+        let html = "";
+        departments.forEach(function (dept, index) {
+            const folders = hubState.allFolders.filter(x => (x.department || x.folderName) === dept || x.folderName === dept);
+            const childId = "deptTree" + index;
+            const root = folders.find(x => !x.parentFolderId && x.folderName === dept) || folders[0];
+            html += `
+                <button class="tree-item dept-toggle" data-target="${childId}">
+                    <i class="fa-solid fa-chevron-right"></i><i class="${departmentIcon(dept)}"></i><span>${escapeHtml(dept)}</span><span class="count">${folders.length}</span>
+                </button>
+                <div class="dept-children" id="${childId}">
+                    ${root ? `<button class="tree-item ${hubState.folderId === root.folderId ? "active" : ""}" data-folder="${root.folderId}" data-filter=""><i class="fa-solid fa-folder"></i><span>${escapeHtml(root.folderName)}</span><span class="count">${root.itemCount || 0}</span></button>` : ""}
+                    ${folders.filter(f => f.folderId !== (root && root.folderId)).map(f => `<button class="tree-item ${hubState.folderId === f.folderId ? "active" : ""}" data-folder="${f.folderId}" data-filter=""><i class="fa-solid fa-folder"></i><span>${escapeHtml(f.folderName)}</span><span class="count">${f.itemCount || 0}</span></button>`).join("")}
+                </div>`;
+        });
+        $("#departmentTree").html(html);
+    }
+
+    function renderFolderCards() {
+        if (!hubState.currentFolders.length) {
+            $("#folderCards").empty();
+            return;
+        }
+
+        $("#folderCards").html(hubState.currentFolders.map(f => `
+            <div class="hub-card folder-card" onclick="goFolder(${f.folderId})">
+                <div class="folder-card-top">
+                    <span class="folder-icon"><i class="fa-solid fa-folder-open"></i></span>
+                    <div>
+                        <div class="folder-name">${escapeHtml(f.folderName)}</div>
+                        <div class="folder-meta">${f.fileCount || 0} files • ${f.childFolderCount || 0} folders</div>
+                        <div class="folder-submeta">Last updated ${formatRelative(f.lastUpdated || f.createdDate)}</div>
+                    </div>
+                    ${folderActions(f)}
+                </div>
+            </div>`).join(""));
+    }
+
+    function folderActions(folder) {
+        if (!hubState.permissions.canManageFolders && !hubState.permissions.canDelete) return "";
+        return `
+            <div class="dropdown folder-menu" onclick="event.stopPropagation()">
+                <button class="icon-btn" data-toggle="dropdown" title="Folder actions"><i class="fa-solid fa-ellipsis"></i></button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    ${hubState.permissions.canManageFolders ? `<button class="dropdown-item" onclick="openFolderModal('subfolder', ${folder.folderId})">Create Subfolder</button><button class="dropdown-item" onclick="openFolderModal('rename', ${folder.folderId}, '${escapeAttr(folder.folderName)}')">Rename</button>` : ""}
+                    ${hubState.permissions.canDelete ? `<button class="dropdown-item text-danger" onclick="deleteFolder(${folder.folderId})">Delete</button>` : ""}
+                </div>
+            </div>`;
+    }
+
+    function renderFiles() {
+        if (!hubState.folderId && !hubState.filter && !hubState.search) {
+            $("#fileRows").html(`<tr><td colspan="6" class="empty-state"><div class="empty-illustration"><i class="fa-solid fa-folder-open"></i></div><div>Select a folder to view documents</div><small>Use the folder cards or sidebar tree to browse SOPs, templates, GST files, audit files, and vendor formats.</small></td></tr>`);
+            return;
+        }
+
+        if (!hubState.currentFiles.length) {
+            $("#fileRows").html(`<tr><td colspan="6" class="empty-state"><div class="empty-illustration"><i class="fa-solid fa-magnifying-glass"></i></div><div>No files found</div><small>Create a folder, upload documents, or try another search.</small></td></tr>`);
+            return;
+        }
+
+        $("#fileRows").html(hubState.currentFiles.map(file => `
+            <tr>
+                <td>
+                    <div class="file-name-cell" style="cursor:pointer" onclick="openFile(${file.fileId}, 'view')">
+                        <i class="${fileIcon(file.fileType)}"></i>
+                        <div>
+                            <strong>${escapeHtml(file.fileName)}</strong>
+                            ${file.isConfidential ? `<span class="confidential-badge ml-2"><i class="fa-solid fa-lock"></i> Confidential</span>` : ""}
+                            <div><span class="version-badge">v${file.versionNumber || 1}</span></div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="file-type">${escapeHtml(file.fileType)}</span></td>
+                <td>${escapeHtml(file.uploadedBy || "-")}</td>
+                <td>${formatDate(file.uploadedDate)}</td>
+                <td>${formatSize(file.fileSize)}</td>
+                <td>
+                    <div class="action-row">
+                        <button class="icon-btn" title="View" onclick="openFile(${file.fileId}, 'view')"><i class="fa-solid fa-eye"></i></button>
+                        <button class="icon-btn" title="Download" onclick="openFile(${file.fileId}, 'download')"><i class="fa-solid fa-download"></i></button>
+                        ${hubState.permissions.canUpload ? `<button class="icon-btn" title="Rename" onclick="renameFile(${file.fileId}, '${escapeAttr(file.fileName)}')"><i class="fa-solid fa-pen"></i></button>` : ""}
+                        <button class="icon-btn" title="Versions" onclick="showVersions(${file.fileId})"><i class="fa-solid fa-code-branch"></i></button>
+                        ${hubState.permissions.canDelete ? `<button class="icon-btn" title="Delete" onclick="deleteFile(${file.fileId})"><i class="fa-solid fa-trash"></i></button>` : ""}
+                    </div>
+                </td>
+            </tr>`).join(""));
+    }
+
+    function goFolder(folderId) {
+        hubState.folderId = folderId;
+        hubState.filter = "";
+        $(".tree-item").removeClass("active");
+        loadHub();
+    }
+
+    function openFolderModal(mode, folderId, name) {
+        $("#folderIdInput").val(folderId || "");
+        $("#folderNameInput").val(name || "");
+        $("#folderDepartmentInput").val("");
+        $("#folderModalTitle").text(mode === "rename" ? "Rename Folder" : mode === "subfolder" ? "Create Subfolder" : "Create Folder");
+        $("#folderModal").data("mode", mode).modal("show");
+    }
+
+    function saveFolder() {
+        const mode = $("#folderModal").data("mode");
+        const folderId = parseNullableInt($("#folderIdInput").val());
+        const folderName = $("#folderNameInput").val().trim();
+        if (!folderName) return toast("Folder name is required.", "error");
+
+        if (mode === "rename") {
+            $.post("/DocumentHub/RenameFolder", { folderId, folderName }).done(afterMutation);
+            return;
+        }
+
+        const parentFolderId = mode === "subfolder" ? folderId : hubState.folderId;
+        const department = $("#folderDepartmentInput").val() || null;
+        $.ajax({
+            url: "/DocumentHub/CreateFolder",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ parentFolderId, folderName, department })
+        }).done(afterMutation);
+    }
+
+    function deleteFolder(folderId) {
+        if (!confirm("Delete this folder and its files?")) return;
+        $.post("/DocumentHub/DeleteFolder", { folderId }).done(afterMutation);
+    }
+
+    function setSelectedFiles(files) {
+        hubState.selectedFiles = Array.from(files || []);
+        renderSelectedFiles();
+    }
+
+    function renderSelectedFiles() {
+        $("#selectedFiles").html(hubState.selectedFiles.map(f => `<span class="badge badge-light border mr-1 mb-1">${escapeHtml(f.name)} (${formatSize(f.size)})</span>`).join(""));
+    }
+
+    function uploadFiles() {
+        if (!hubState.folderId) return toast("Select a department folder before uploading.", "error");
+        if (!hubState.selectedFiles.length) return toast("Select at least one file.", "error");
+
+        const formData = new FormData();
+        formData.append("folderId", hubState.folderId);
+        formData.append("isConfidential", $("#isConfidentialInput").is(":checked"));
+        formData.append("conflictAction", $("#conflictAction").val());
+        hubState.selectedFiles.forEach(f => formData.append("files", f));
+
+        $("#startUploadBtn").prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Uploading`);
+        $("#uploadProgress").show();
+        $("#uploadProgressBar").css("width", "8%");
+        $.ajax({
+            url: "/DocumentHub/Upload",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function () {
+                const xhr = $.ajaxSettings.xhr();
+                if (xhr.upload) {
+                    xhr.upload.addEventListener("progress", function (e) {
+                        if (e.lengthComputable) {
+                            const pct = Math.max(8, Math.round((e.loaded / e.total) * 100));
+                            $("#uploadProgressBar").css("width", pct + "%");
+                        }
+                    });
+                }
+                return xhr;
+            }
+        }).done(function (res) {
+            toast(res.message || "Upload complete.", res.success ? "success" : "error");
+            if (res.conflicts && res.conflicts.length) alert("Existing files:\n" + res.conflicts.join("\n"));
+            if (res.success) $("#uploadModal").modal("hide");
+            loadHub();
+        }).always(function () {
+            $("#startUploadBtn").prop("disabled", false).html("Upload");
+            setTimeout(function () {
+                $("#uploadProgress").hide();
+                $("#uploadProgressBar").css("width", "0");
+            }, 300);
+        });
+    }
+
+    function openFile(fileId, mode) {
+        $.get("/DocumentHub/FileAccessInfo", { fileId }).done(function (res) {
+            if (res.isConfidential && !res.accessGranted) {
+                $("#accessFileId").val(fileId);
+                $("#accessMode").val(mode);
+                $("#accessUsername,#accessPin").val("");
+                $("#accessModal").modal("show");
+                return;
+            }
+            launchFile(fileId, mode, res.file);
+        });
+    }
+
+    function confirmAccess() {
+        const fileId = $("#accessFileId").val();
+        const mode = $("#accessMode").val();
+        $.post("/DocumentHub/ConfirmAccess", {
+            fileId,
+            usernameConfirmation: $("#accessUsername").val(),
+            pin: $("#accessPin").val()
+        }).done(function (res) {
+            if (!res.success) return toast(res.message, "error");
+            $("#accessModal").modal("hide");
+            $.get("/DocumentHub/FileAccessInfo", { fileId }).done(info => launchFile(fileId, mode, info.file));
+        });
+    }
+
+    function launchFile(fileId, mode, file) {
+        if (mode === "download") {
+            window.location.href = `/DocumentHub/Download?fileId=${fileId}`;
+            return;
+        }
+
+        const type = (file.fileType || "").toUpperCase();
+        $("#viewerTitle").text(file.fileName);
+        if (type === "PDF") {
+            $("#viewerBody").html(`<iframe class="viewer-frame" src="/DocumentHub/Preview?fileId=${fileId}"></iframe>`);
+        } else if (["PNG", "JPG", "JPEG"].includes(type)) {
+            $("#viewerBody").html(`<img class="image-preview" src="/DocumentHub/Preview?fileId=${fileId}" alt="${escapeAttr(file.fileName)}" />`);
+        } else {
+            $("#viewerBody").html(`<div class="empty-state"><p>Preview is not available for Office files.</p><a class="btn btn-primary hub-btn" href="/DocumentHub/Download?fileId=${fileId}"><i class="fa-solid fa-file-arrow-down"></i> Open Original File</a></div>`);
+        }
+        $("#viewerModal").modal("show");
+    }
+
+    function renameFile(fileId, currentName) {
+        const fileName = prompt("New file name", currentName);
+        if (!fileName) return;
+        $.post("/DocumentHub/RenameFile", { fileId, fileName }).done(afterMutation);
+    }
+
+    function deleteFile(fileId) {
+        if (!confirm("Delete this file?")) return;
+        $.post("/DocumentHub/DeleteFile", { fileId }).done(afterMutation);
+    }
+
+    function showVersions(fileId) {
+        $.get("/DocumentHub/VersionHistory", { fileId }).done(function (res) {
+            const rows = (res.data || []).map(v => `<tr><td>v${v.versionNumber}</td><td>${escapeHtml(v.uploadedBy)}</td><td>${formatDate(v.uploadedDate)}</td><td>${formatSize(v.fileSize)}</td></tr>`).join("");
+            $("#listTitle").text("Version History");
+            $("#listBody").html(`<table class="table"><thead><tr><th>Version</th><th>Uploaded By</th><th>Date</th><th>Size</th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="empty-state">No versions found.</td></tr>`}</tbody></table>`);
+            $("#listModal").modal("show");
+        });
+    }
+
+    function showActivityLog() {
+        $.get("/DocumentHub/ActivityLog").done(function (res) {
+            const rows = (res.data || []).map(a => `<tr><td>${formatDate(a.activityDate)}</td><td>${escapeHtml(a.userName)}</td><td>${escapeHtml(a.action)}</td><td>${escapeHtml(a.details || "")}</td></tr>`).join("");
+            $("#listTitle").text("Activity Log");
+            $("#listBody").html(`<table class="table"><thead><tr><th>Date</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="empty-state">No activity found.</td></tr>`}</tbody></table>`);
+            $("#listModal").modal("show");
+        });
+    }
+
+    function afterMutation(res) {
+        toast(res.message || "Saved.", res.success ? "success" : "error");
+            if (res.success) $(".modal").modal("hide");
+        loadHub();
+    }
+
+    function loadActivityTimeline() {
+        $.get("/DocumentHub/ActivityLog").done(function (res) {
+            const items = (res.data || []).slice(0, 12);
+            if (!items.length) {
+                $("#activityTimeline").html(`<div class="empty-state">No activity yet.</div>`);
+                return;
+            }
+
+            $("#activityTimeline").html(items.map(item => `
+                <div class="timeline-item">
+                    <span class="timeline-dot"></span>
+                    <div class="timeline-action">${escapeHtml(item.action)}</div>
+                    <div class="timeline-detail">${escapeHtml(item.details || "")}</div>
+                    <div class="timeline-meta">${escapeHtml(item.userName)} • ${formatRelative(item.activityDate)}</div>
+                </div>`).join(""));
+        });
+    }
+
+    function fileIcon(type) {
+        type = (type || "").toUpperCase();
+        if (type === "PDF") return "fa-solid fa-file-pdf text-danger";
+        if (["PNG", "JPG", "JPEG"].includes(type)) return "fa-solid fa-file-image text-primary";
+        if (type === "XLSX" || type === "CSV") return "fa-solid fa-file-excel text-success";
+        if (type === "PPTX") return "fa-solid fa-file-powerpoint text-warning";
+        return "fa-solid fa-file-word text-info";
+    }
+
+    function formatSize(bytes) {
+        bytes = Number(bytes || 0);
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / 1048576).toFixed(1) + " MB";
+    }
+
+    function formatDate(value) {
+        if (!value) return "-";
+        const d = new Date(value);
+        return isNaN(d) ? value : d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function formatRelative(value) {
+        if (!value) return "-";
+        const d = new Date(value);
+        if (isNaN(d)) return value;
+        const seconds = Math.max(1, Math.round((Date.now() - d.getTime()) / 1000));
+        if (seconds < 60) return "just now";
+        const minutes = Math.round(seconds / 60);
+        if (minutes < 60) return minutes + " min ago";
+        const hours = Math.round(minutes / 60);
+        if (hours < 24) return hours + " hr ago";
+        const days = Math.round(hours / 24);
+        if (days < 8) return days + " days ago";
+        return d.toLocaleDateString("en-IN");
+    }
+
+    function departmentIcon(dept) {
+        if (dept === "Invoice Department") return "fa-solid fa-file-invoice";
+        if (dept === "Payment Department") return "fa-solid fa-money-check";
+        if (dept === "Accounts") return "fa-solid fa-calculator";
+        if (dept === "Audit") return "fa-solid fa-clipboard-check";
+        return "fa-solid fa-users";
+    }
+
+    function parseNullableInt(value) {
+        const parsed = parseInt(value, 10);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function escapeHtml(value) {
+        return $("<div>").text(value == null ? "" : value).html();
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    }
+
+    function debounce(fn, wait) {
+        let timer;
+        return function () {
+            clearTimeout(timer);
+            const args = arguments;
+            timer = setTimeout(() => fn.apply(this, args), wait);
+        };
+    }
+
+    function toast(message, type) {
+        const cls = type === "success" ? "alert-success" : "alert-danger";
+        const el = $(`<div class="alert ${cls}" style="position:fixed;right:22px;top:78px;z-index:2000;box-shadow:0 10px 26px rgba(0,0,0,.14)">${escapeHtml(message)}</div>`);
+        $("body").append(el);
+        setTimeout(() => el.fadeOut(200, () => el.remove()), 2600);
+    }
+</script>
