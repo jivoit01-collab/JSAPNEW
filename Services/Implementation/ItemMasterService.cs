@@ -40,10 +40,13 @@ namespace JSAPNEW.Services.Implementation
         private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
         {
             var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var value = (utype ?? "").Trim();
 
             return groupCode == "112"
                 ? ""
-                : (object?)utype ?? DBNull.Value;
+                : string.IsNullOrEmpty(value)
+                    ? DBNull.Value
+                    : value.ToUpperInvariant();
         }
 
         private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
@@ -114,6 +117,30 @@ namespace JSAPNEW.Services.Implementation
                 var query = $"CALL \"{settings.Schema}\".\"JsGetTaxRate\"()";
 
                 var result = await connection.QueryAsync<TaxRateModel>(query);
+                return result;
+            }
+        }
+
+        public async Task<IEnumerable<UTypeModel>> GetUTypeAsync(int company)
+        {
+            if (!_hanaSettings.TryGetValue(company, out var settings))
+                throw new ArgumentException($"Invalid company ID: {company}");
+
+            using (var connection = new HanaConnection(settings.ConnectionString))
+            {
+                var query = $@"
+                    SELECT
+                        T1.""FldValue"" AS ""Value"",
+                        T1.""Descr"" AS ""Label""
+                    FROM ""{settings.Schema}"".""CUFD"" T0
+                    INNER JOIN ""{settings.Schema}"".""UFD1"" T1
+                        ON T1.""TableID"" = T0.""TableID""
+                       AND T1.""FieldID"" = T0.""FieldID""
+                    WHERE T0.""TableID"" = 'OITM'
+                      AND T0.""AliasID"" = 'TYPE'
+                    ORDER BY T1.""IndexID""";
+
+                var result = await connection.QueryAsync<UTypeModel>(query);
                 return result;
             }
         }
