@@ -1,7 +1,8 @@
-﻿using Microsoft.Data.SqlClient;
-using System.Data;
-using JSAPNEW.Models;
+﻿using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.Data.SqlClient;
+using Org.BouncyCastle.Crypto;
+using System.Data;
 
 namespace JSAPNEW.Services.Implementation
 {
@@ -41,9 +42,14 @@ namespace JSAPNEW.Services.Implementation
                         while (reader.Read())
                         {
                             string paymentStatus = reader["PaymentStatus"]?.ToString();
-
-                            // Only Paid records
                             if (paymentStatus != "Paid") continue;
+
+                            bool isVerified =
+                                reader["IsPaymentVerified"] != DBNull.Value &&
+                                Convert.ToBoolean(reader["IsPaymentVerified"]);
+
+                            if (isVerified)
+                                continue;
 
                             data.Add(new BillDetailDto
                             {
@@ -120,6 +126,26 @@ namespace JSAPNEW.Services.Implementation
             }
 
             return items;
+        }
+        public void MarkVerified(int vchNumber)
+        {
+            string connStr = _config.GetConnectionString("FHConnection");
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                string query = @"
+        UPDATE AttachmentUpload
+        SET IsPaymentVerified = 1
+        WHERE VchNumber = @VchNumber";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@VchNumber", vchNumber);
+
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
         }
     }
 }

@@ -651,7 +651,7 @@ body {
 }
 
 .admin-dashboard-shell .dt-maker {
-    min-width: 1220px;
+    min-width: 980px;
 }
 
 .admin-dashboard-shell .dt-checker {
@@ -662,7 +662,7 @@ body {
 .admin-dashboard-shell .dt-paymentchecker {
     min-width: 940px;
 }
-
+/*
 .admin-dashboard-shell .dt-maker .col-account {
     width: 20%;
 }
@@ -680,7 +680,7 @@ body {
 }
 
 .admin-dashboard-shell .dt-maker .col-remark {
-    width: 14%;
+    width: 90px;
 }
 
 .admin-dashboard-shell .dt-maker .col-status {
@@ -693,34 +693,65 @@ body {
 
 .admin-dashboard-shell .dt-maker .col-delete {
     width: 6%;
+}*/
+.admin-dashboard-shell .dt-maker .col-account {
+    width: 260px;
+}
+
+.admin-dashboard-shell .dt-maker .col-voucher {
+    width: 90px;
+}
+
+.admin-dashboard-shell .dt-maker .col-date {
+    width: 120px;
+}
+
+.admin-dashboard-shell .dt-maker .col-amount {
+    width: 120px;
+}
+
+.admin-dashboard-shell .dt-maker .col-remark {
+    width: 60px;
+}
+
+.admin-dashboard-shell .dt-maker .col-status {
+    width: 120px;
+}
+
+.admin-dashboard-shell .dt-maker .col-attachment {
+    width: 120px;
+}
+
+.admin-dashboard-shell .dt-maker .col-delete {
+    width: 70px;
 }
 
 .admin-dashboard-shell .dt-checker .col-account {
-    width: 22%;
+    width: 260px;
 }
 
 .admin-dashboard-shell .dt-checker .col-voucher {
-    width: 9%;
+    width: 100px;
 }
 
 .admin-dashboard-shell .dt-checker .col-date {
-    width: 10%;
+    width: 120px;
 }
 
 .admin-dashboard-shell .dt-checker .col-amount {
-    width: 11%;
+    width: 140px;
 }
 
 .admin-dashboard-shell .dt-checker .col-remark {
-    width: 27%;
+    width: 60px;
 }
 
 .admin-dashboard-shell .dt-checker .col-status {
-    width: 11%;
+    width: 120px;
 }
 
 .admin-dashboard-shell .dt-checker .col-attachment {
-    width: 10%;
+    width: 120px;
 }
 
 .admin-dashboard-shell .dt-invoice .col-account,
@@ -840,12 +871,17 @@ body {
 .admin-dashboard-shell .td-date,
 .admin-dashboard-shell .td-remark {
     color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.admin-dashboard-shell .td-remark {
-    min-width: 0;
-    padding-right: 22px;
-}
+    .admin-dashboard-shell .td-remark,
+    .admin-dashboard-shell .col-remark {
+        min-width: 0;
+        padding-right: 22px;
+        text-align: center;
+    }
 
 .admin-dashboard-shell .td-status,
 .admin-dashboard-shell .td-attachment,
@@ -1343,17 +1379,58 @@ body {
 .checker-dashboard-shell .table-slide-hint {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
+    justify-content: center;
+    gap: 10px;
+    padding: 9px 18px 8px;
     color: #64748b;
     background: rgba(248, 250, 252, .72);
-    border-bottom: 1px solid rgba(226, 232, 240, .78);
+    border-bottom: 1px solid rgba(226, 232, 240, .58);
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 800;
 }
 
-    .checker-dashboard-shell .table-slide-hint i {
+    .checker-dashboard-shell .table-slide-hint i,
+    .checker-dashboard-shell .table-slide-hint span[aria-hidden="true"] {
         color: var(--admin-blue);
+    }
+
+    .checker-dashboard-shell .checker-table-card .top-scroll {
+        display: block;
+        width: 100%;
+        height: 20px;
+        min-height: 20px;
+        overflow-x: scroll !important;
+        overflow-y: hidden;
+        background: #f8fafc;
+        border-top: 1px solid rgba(226, 232, 240, .72);
+        border-bottom: 1px solid rgba(203, 213, 225, .86);
+        scrollbar-gutter: stable;
+        scrollbar-width: auto;
+    }
+
+    .checker-dashboard-shell .checker-table-card .top-scroll-inner {
+        width: 1800px;
+        min-width: 1800px;
+        height: 18px;
+    }
+
+    .checker-dashboard-shell .checker-table-card .top-scroll::-webkit-scrollbar {
+        height: 14px;
+    }
+
+    .checker-dashboard-shell .checker-table-card .top-scroll::-webkit-scrollbar-track {
+        background: #e5e7eb;
+        border-radius: 0;
+    }
+
+    .checker-dashboard-shell .checker-table-card .top-scroll::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border: 3px solid #e5e7eb;
+        border-radius: 999px;
+    }
+
+    .checker-dashboard-shell .checker-table-card .top-scroll::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
     }
 
 .checker-dashboard-shell .checker-table-card .t-wrap {
@@ -1366,12 +1443,14 @@ body {
 
 .checker-dashboard-shell .checker-table-card table.dt,
 .checker-dashboard-shell .checker-workflow-table {
-    width: 100%;
-    min-width: 1885px;
-    table-layout: fixed;
+    width: max-content;
+    min-width: 1500px;
+    table-layout: auto;
     border-collapse: separate;
     border-spacing: 0;
 }
+
+
 
     .checker-dashboard-shell .checker-workflow-table .col-account {
         width: 240px;
@@ -1398,7 +1477,7 @@ body {
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-maker-remark {
-        width: 260px;
+        width: 50px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-status {
@@ -1406,7 +1485,7 @@ body {
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-checker-remark {
-        width: 230px;
+        width: 50px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-action {
@@ -1419,6 +1498,8 @@ body {
         position: static;
         left: auto;
         z-index: auto;
+        min-width: 0;
+        max-width: none;
     }
 
     .checker-dashboard-shell .checker-table-card table.dt thead th,
@@ -1436,6 +1517,13 @@ body {
         text-overflow: ellipsis;
     }
 
+    .checker-dashboard-shell .checker-table-card table.dt thead th:first-child {
+        position: sticky;
+        top: 0;
+        left: auto;
+        z-index: 3;
+    }
+
     .checker-dashboard-shell .checker-workflow-table th:nth-child(7),
     .checker-dashboard-shell .checker-workflow-table th:nth-child(9),
     .checker-dashboard-shell .checker-workflow-table th:nth-child(11) {
@@ -1443,8 +1531,8 @@ body {
     }
 
     .checker-dashboard-shell .checker-table-card table.dt tbody td {
-        height: 64px;
-        padding: 14px 16px;
+        height: 48px;
+        padding: 8px 10px;
         color: #334155;
         border-bottom: 1px solid rgba(226, 232, 240, .58);
         font-size: 13px;
@@ -1593,35 +1681,18 @@ body {
         transform: none;
     }
 
-.checker-dashboard-shell .detail-row td {
-    padding: 0 !important;
-    background: rgba(248, 250, 252, .88);
-}
-
-.checker-dashboard-shell .detail-inner,
-.checker-dashboard-shell .detail-container {
-    padding: 18px;
-}
-
-.checker-dashboard-shell .detail-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 14px;
-}
-
-.checker-dashboard-shell .detail-card {
-    padding: 16px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, .86);
-    border: 1px solid rgba(226, 232, 240, .78);
-    box-shadow: 0 10px 24px rgba(15, 43, 91, .06);
+.checker-dashboard-shell .detail-inner {
+    padding: 6px !important;
+    width: 100%;
+    display: block;
+    overflow-x: auto;
 }
 
 .checker-dashboard-shell .detail-top {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 6px;
+    margin-bottom: 4px;
 }
 
 .checker-dashboard-shell .detail-product {
@@ -1637,20 +1708,20 @@ body {
 .checker-dashboard-shell .detail-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 4px;
 }
 
 .checker-dashboard-shell .detail-item span {
     display: block;
     color: #64748b;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
 }
 
 .checker-dashboard-shell .detail-item strong {
     color: #334155;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 /* Invoice payment dashboard */
@@ -2626,7 +2697,7 @@ body {
         }
 
         .admin-dashboard-shell .dt-checker {
-            min-width: 1020px;
+            min-width: 920px;
         }
 
         .admin-dashboard-shell .dt-invoice,
@@ -2647,46 +2718,58 @@ body {
         height: 58px;
         padding: 12px 14px;
         font-size: 12px;
+        overflow: visible;
     }
 
+    /*    .checker-dashboard-shell .checker-workflow-table .col-account { width: 210px; }
+    .checker-dashboard-shell .checker-workflow-table .col-voucher { width: 105px; }
+    .checker-dashboard-shell .checker-workflow-table .col-date { width: 108px; }
+    .checker-dashboard-shell .checker-workflow-table .col-amount { width: 118px; }
+    .checker-dashboard-shell .checker-workflow-table .col-supplier { width: 170px; }
+    .checker-dashboard-shell .checker-workflow-table .col-attachment { width: 110px; }
+    .checker-dashboard-shell .checker-workflow-table .col-maker-remark { width: 220px; }
+    .checker-dashboard-shell .checker-workflow-table .col-status { width: 116px; }
+    .checker-dashboard-shell .checker-workflow-table .col-checker-remark { width: 190px; }
+    .checker-dashboard-shell .checker-workflow-table .col-action { width: 210px; }
+*/
     .checker-dashboard-shell .checker-workflow-table .col-account {
-        width: 210px;
+        width: 200px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-voucher {
-        width: 105px;
+        width: 100px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-date {
-        width: 108px;
+        width: 100px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-amount {
-        width: 118px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-supplier {
-        width: 170px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-attachment {
         width: 110px;
     }
 
+    .checker-dashboard-shell .checker-workflow-table .col-supplier {
+        width: 160px;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table .col-attachment {
+        width: 100px;
+    }
+
     .checker-dashboard-shell .checker-workflow-table .col-maker-remark {
-        width: 220px;
+        width: 50px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-status {
-        width: 116px;
+        width: 100px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-checker-remark {
-        width: 190px;
+        width: 160px;
     }
 
     .checker-dashboard-shell .checker-workflow-table .col-action {
-        width: 210px;
+        width: 160px;
     }
 
     .invoice-payment-shell .invoice-payment-table {
@@ -2973,7 +3056,15 @@ body {
 
 /* checker + payment checker detail row */
 
-.checker-workflow-table .detail-row td,
+.checker-dashboard-shell .checker-workflow-table .detail-row > td {
+    padding: 0 !important;
+    background: #ffffff;
+    overflow: visible;
+    max-width: none;
+    height: auto;
+    line-height: 1;
+}
+
 .payment-checker-table .detail-row td {
     padding: 18px !important;
     background: rgba(10,15,25,.96);
@@ -2983,7 +3074,6 @@ body {
 
 /* detail container */
 
-.checker-workflow-table .detail-container,
 .payment-checker-table .detail-container {
     width: 100%;
     display: grid;
@@ -2994,7 +3084,6 @@ body {
 
 /* detail card */
 
-.checker-workflow-table .detail-card,
 .payment-checker-table .detail-card {
     min-width: 240px;
     max-width: 100%;
@@ -3003,7 +3092,6 @@ body {
 
 /* prevent expanded row from stretching table */
 
-.checker-workflow-table .detail-inner,
 .payment-checker-table .detail-inner {
     width: 100%;
     overflow-x: auto;
@@ -3033,248 +3121,307 @@ body {
     min-width: 140px !important;
 }
 /* ═══════════════════════════════════════════
-   ERP COMPACT INLINE ITEM TABLE
-   Used in: Checker + Payment Checker detail rows
+   Legacy duplicate ERP rules removed; active scoped table rules below.
 ═══════════════════════════════════════════ */
 
-.erp-detail-cell {
-    padding: 0 !important;
-    background: #F0F4FF !important;
-    border-left: 4px solid #3B82F6;
+/* =========================================
+   Checker expanded invoice detail table
+========================================= */
+
+.checker-dashboard-shell .erp-detail-cell {
+    padding: 4px !important;
+    background: #f3f6fb !important;
+    border-left: 2px solid #7aa7d9;
+    max-width: none;
+    overflow: visible;
+    height: auto !important;
 }
 
-.erp-detail-wrap {
+.checker-dashboard-shell .erp-detail-wrap {
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
-    padding: 10px 16px 12px 16px;
+    overflow-y: hidden;
+    border: 1px solid #a9b7c8;
+    border-radius: 2px;
+    background: #ffffff;
     scrollbar-width: thin;
     scrollbar-color: #93c5fd #e2e8f0;
 }
 
-    .erp-detail-wrap::-webkit-scrollbar {
-        height: 6px;
-    }
+.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar {
+    height: 8px;
+}
 
-    .erp-detail-wrap::-webkit-scrollbar-track {
-        background: #e2e8f0;
-        border-radius: 999px;
-    }
+.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-track {
+    background: #e2e8f0;
+}
 
-    .erp-detail-wrap::-webkit-scrollbar-thumb {
-        background: #93c5fd;
-        border-radius: 999px;
-    }
+.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-thumb {
+    background: #93c5fd;
+    border-radius: 999px;
+}
 
-.erp-detail-table {
-    width: 100%;
-    min-width: 700px;
+.checker-dashboard-shell .erp-detail-table {
+    width: max-content;
+    min-width: min(100%, 860px);
+    table-layout: auto;
     border-collapse: collapse;
-    font-size: 12px;
+    background: #ffffff;
     font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    line-height: 1;
 }
 
-    /* Header */
-    .erp-detail-table thead tr {
-        background: #1E3A5F;
-    }
-
-    .erp-detail-table thead th {
-        padding: 7px 12px;
-        color: #CBD5E1;
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        text-align: left;
-        white-space: nowrap;
-        border: none;
-    }
-
-        .erp-detail-table thead th:first-child {
-            border-radius: 6px 0 0 0;
-            width: 42px;
-            text-align: center;
-        }
-
-        .erp-detail-table thead th:last-child {
-            border-radius: 0 6px 0 0;
-            text-align: right;
-        }
-
-/* Body rows */
-.erp-item-row {
-    border-bottom: 1px solid #E2E8F0;
-    transition: background 0.12s;
+.checker-dashboard-shell .erp-detail-table col.erp-col-sno {
+    width: 44px;
 }
 
-    .erp-item-row:last-child {
-        border-bottom: none;
-    }
+.checker-dashboard-shell .erp-detail-table col.erp-col-product {
+    width: clamp(280px, 40vw, 520px);
+}
 
-    .erp-item-row:nth-child(even) {
-        background: rgba(239, 246, 255, 0.6);
-    }
+.checker-dashboard-shell .erp-detail-table col.erp-col-hsn {
+    width: 82px;
+}
 
-    .erp-item-row:hover {
-        background: #DBEAFE !important;
-    }
+.checker-dashboard-shell .erp-detail-table col.erp-col-qty {
+    width: 58px;
+}
 
-.erp-detail-table tbody td {
-    padding: 6px 12px;
-    color: #1E293B;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
+.checker-dashboard-shell .erp-detail-table col.erp-col-rate {
+    width: 88px;
+}
+
+.checker-dashboard-shell .erp-detail-table col.erp-col-disc,
+.checker-dashboard-shell .erp-detail-table col.erp-col-margin {
+    width: 68px;
+}
+
+.checker-dashboard-shell .erp-detail-table col.erp-col-mrp {
+    width: 78px;
+}
+
+.checker-dashboard-shell .erp-detail-table col.erp-col-amount {
+    width: 96px;
+}
+
+.checker-dashboard-shell .erp-detail-table th,
+.checker-dashboard-shell .erp-detail-table td {
+    box-sizing: border-box;
+    height: 24px !important;
+    min-height: 24px;
+    padding: 2px 5px !important;
+    border: 1px solid #b8c2cc;
     vertical-align: middle;
-    border: none;
+    white-space: nowrap;
+    line-height: 1;
 }
 
-/* Column-specific styles */
-.erp-sno {
+.checker-dashboard-shell .erp-detail-table thead th {
+    color: #1f2937 !important;
+    background: #e7edf5 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
     text-align: center;
-    color: #94A3B8 !important;
-    font-weight: 700 !important;
-    font-size: 11px !important;
-    width: 42px;
+    letter-spacing: 0;
 }
 
-.erp-product {
+.checker-dashboard-shell .erp-detail-table thead th.erp-product {
+    text-align: left;
+}
+
+.checker-dashboard-shell .erp-detail-table tbody tr:nth-child(even) td {
+    background: #f8fbff;
+}
+
+.checker-dashboard-shell .erp-detail-table tbody tr:hover td {
+    background: #eaf3ff;
+}
+
+.checker-dashboard-shell .erp-detail-table td {
+    color: #111827 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-align: center;
+}
+
+.checker-dashboard-shell .erp-detail-table .erp-sno {
+    text-align: center;
+    color: #64748b !important;
+}
+
+.checker-dashboard-shell .erp-detail-table .erp-product {
+    min-width: 280px;
+    max-width: 520px;
+    color: #0f2b5b !important;
     font-weight: 700 !important;
-    color: #0F2B5B !important;
-    min-width: 160px;
-    max-width: 240px;
+    text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.erp-hsn {
+.checker-dashboard-shell .erp-detail-table .erp-hsn {
     color: #475569 !important;
-    font-family: 'Courier New', monospace;
-    font-size: 11px !important;
+    font-family: Consolas, 'Courier New', monospace;
+    text-align: center;
 }
 
-.erp-qty {
-    text-align: right;
-    font-weight: 800 !important;
-    color: #1D4ED8 !important;
-}
-
-.erp-rate,
-.erp-amount,
-.erp-rate {
-    text-align: right;
-    font-weight: 800 !important;
-    color: #059669 !important;
-}
-
-.erp-disc,
-.erp-margin,
-.erp-tax {
-    text-align: right;
-    color: #92400E !important;
+.checker-dashboard-shell .erp-detail-table .erp-empty {
+    color: #64748b !important;
+    text-align: center;
     font-weight: 700 !important;
 }
 
-.erp-mrp {
-    text-align: right;
-    color: #6D28D9 !important;
-    font-weight: 700 !important;
+.checker-dashboard-shell .erp-detail-table .erp-qty,
+.checker-dashboard-shell .erp-detail-table .erp-rate,
+.checker-dashboard-shell .erp-detail-table .erp-disc,
+.checker-dashboard-shell .erp-detail-table .erp-margin,
+.checker-dashboard-shell .erp-detail-table .erp-mrp,
+.checker-dashboard-shell .erp-detail-table .erp-amount {
+    text-align: center;
 }
 
-.erp-taxname,
-.erp-warehouse,
-.erp-uom {
-    color: #64748B !important;
+.checker-dashboard-shell .erp-detail-table .erp-qty,
+.checker-dashboard-shell .erp-detail-table .erp-rate,
+.checker-dashboard-shell .erp-detail-table .erp-amount {
+    font-weight: 800 !important;
 }
-
-.erp-amount {
-    color: #0F172A !important;
-    font-weight: 900 !important;
-    font-size: 13px !important;
-}
-/* =========================================
-   ERP EXPANDED DETAIL TABLE FIX
-========================================= */
-
-.erp-detail-cell {
-    background: #ffffff !important;
-    padding: 14px !important;
-}
-
-.erp-detail-wrap {
+.admin-dashboard-shell .top-scroll {
+    display: block;
     width: 100%;
+    height: 20px;
     overflow-x: auto;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    background: #ffffff;
+    overflow-y: hidden;
+    background: #f8fafc;
+    border-top: 1px solid rgba(226,232,240,.72);
+    border-bottom: 1px solid rgba(203,213,225,.86);
+    scrollbar-gutter: stable;
 }
 
-.erp-detail-table {
+.admin-dashboard-shell .top-scroll-inner {
+    height: 18px;
+    min-width: 1800px;
+}
+
+.admin-dashboard-shell .top-scroll::-webkit-scrollbar {
+    height: 14px;
+}
+
+.admin-dashboard-shell .top-scroll::-webkit-scrollbar-track {
+    background: #e5e7eb;
+}
+
+.admin-dashboard-shell .top-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+}
+.verify-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    min-width: 900px;
-    border-collapse: collapse;
-    background: #ffffff;
+    height: 100%;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
 }
 
-    .erp-detail-table thead tr {
-        background: #f8fafc;
-    }
-
-    .erp-detail-table thead th {
-        padding: 12px 14px !important;
-        border: 1px solid #e5e7eb;
-        color: #475569 !important;
-        font-size: 11px !important;
-        font-weight: 800 !important;
-        text-transform: uppercase;
-        background: #f8fafc !important;
-        white-space: nowrap;
-    }
-
-    .erp-detail-table tbody tr {
-        background: #ffffff !important;
-    }
-
-        .erp-detail-table tbody tr:nth-child(even) {
-            background: #f9fafb !important;
-        }
-
-    .erp-detail-table tbody td {
-        padding: 12px 14px !important;
-        border: 1px solid #e5e7eb;
-        color: #111827 !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        background: #ffffff !important;
-        white-space: nowrap;
-    }
-
-    .erp-detail-table tbody tr:hover td {
-        background: #eff6ff !important;
-    }
-
-/* REMOVE DARK COLORS */
-.erp-item-row,
-.erp-item-row td,
-.erp-product,
-.erp-hsn,
-.erp-qty,
-.erp-rate,
-.erp-disc,
-.erp-margin,
-.erp-mrp,
-.erp-amount,
-.erp-sno {
-    background: #ffffff !important;
-    color: #111827 !important;
+.verify-box {
+    width: 700px;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,.25);
 }
 
-/* AMOUNT COLUMN */
-.erp-amount {
-    font-weight: 800 !important;
-    color: #0f172a !important;
+.verify-header {
+    background: #1e3a8a;
+    color: white;
+    padding: 18px 24px;
 }
 
-/* PRODUCT COLUMN */
-.erp-product {
-    font-weight: 700 !important;
+    .verify-header h3 {
+        margin: 0;
+        font-size: 22px;
+    }
+
+.verify-content {
+    padding: 24px;
+}
+
+.verify-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.verify-footer {
+    padding: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-cancel {
+    border: none;
+    background: #e5e7eb;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-verify {
+    border: none;
+    background: #16a34a;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.btn-review {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+    .btn-review:hover {
+        background: #1d4ed8;
+    }
+
+
+.verify-attachment-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    min-width: 150px;
+    color: #fff;
+    text-decoration: none;
+    background: linear-gradient(135deg,#2563eb,#3b82f6);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+    .verify-attachment-btn:hover {
+        color: #fff;
+        text-decoration: none;
+    }
+
+.verify-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid #e5e7eb;
 }
