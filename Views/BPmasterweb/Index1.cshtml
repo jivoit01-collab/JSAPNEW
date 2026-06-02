@@ -1,0 +1,4280 @@
+﻿@{
+    ViewData["Title"] = "BP Creation";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="~/css/site.css" />
+    <style>
+        
+    #staffExtraFields {
+            display: block;
+        }
+
+     #staffExtraField{
+            display: block;
+        }
+         .editable-id { 
+             border: 1px solid #ccc; 
+             padding: 4px; 
+             font-size: 14px; 
+         } */
+
+             .editable-id.error { 
+                 border-color: red; 
+                 background-color: #ffe5e5; 
+             } 
+
+
+        .hidden{display:none;}
+        .bp-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .bp-modal {
+            background: white;
+            max-width: 800px;
+            width: 90%;
+            margin: auto;
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .bp-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .bp-modal .close-btn {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .bp-table-wrapper {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+        }
+
+        #bp-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            #bp-table th, #bp-table td {
+                padding: 8px 12px;
+                border-bottom: 1px solid #ccc;
+                text-align: left;
+            }
+
+            #bp-table tbody tr:hover {
+                background-color: #f5f5f5;
+            }
+
+        .bp-search {
+            width: 100%;
+            padding: 6px 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+
+        /* Table */
+        .bp-table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        #bp-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            #bp-table th, #bp-table td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #f1f5f9;
+                font-size: 14px;
+            }
+
+            #bp-table th {
+                background-color: #f8fafc;
+                text-transform: uppercase;
+                font-weight: 600;
+                color: #4a5568;
+                position: sticky;
+                top: 0;
+                z-index: 1;
+            }
+
+            #bp-table tbody tr:hover {
+                background-color: #edf2f7;
+                cursor: pointer;
+            }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group.error input,
+        .form-group.error select {
+            border-color: #dc3545;
+        }
+
+        .required {
+            color: #dc3545;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .bp-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 250px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            z-index: 999;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        .bp-suggestion-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+            .bp-suggestion-item:hover {
+                background-color: #f2f2f2;
+            }
+
+            .bp-suggestion-item strong {
+                display: block;
+                font-weight: 600;
+                font-size: 15px;
+            }
+
+            .bp-suggestion-item small {
+                color: #666;
+                display: block;
+            }
+
+        .success-message {
+            color: green;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+
+        #addAddressBtn {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #f0f4f8;
+            color: #007bff;
+            border: 2px solid #007bff;
+            border-radius: 50px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+            #addAddressBtn svg {
+                width: 20px;
+                height: 20px;
+                margin-right: 8px;
+            }
+
+            #addAddressBtn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            #addAddressBtn:hover:not(:disabled) {
+                background-color: #e0e7ff;
+                transform: scale(1.05);
+            }
+
+        #addContactBtn {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #f0f4f8; /* Light color background */
+            color: #007bff;
+            border: 2px solid #007bff;
+            border-radius: 50px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+            #addContactBtn svg {
+                width: 24px;
+                height: 24px;
+                margin-right: 8px;
+            }
+
+            /* Hover effect to highlight the button */
+            #addContactBtn:hover {
+                background-color: #e0e7ff; /* Light blue background on hover */
+                transform: scale(1.05);
+            }
+
+            /* Focus effect for accessibility */
+            #addContactBtn:focus {
+                outline: none;
+                box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.5);
+            }
+
+            /* Adding a simple transition effect */
+            #addContactBtn:active {
+                transform: scale(0.98);
+            }
+            #addressTable{
+            width:100%;
+            }
+        .contact-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .contact-table th, .contact-table td {
+                padding: 12px;
+                border: 1px solid #ddd;
+            }
+
+            .contact-table th {
+                background-color: #f4f4f4;
+                font-weight: bold;
+                text-align: left;
+            }
+
+            .contact-table td {
+                text-align: left;
+            }
+
+            .contact-table input[type="text"],
+            .contact-table input[type="email"],
+            .contact-table input[type="tel"] {
+                width: 100%;
+                padding: 8px;
+                margin: 4px 0;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+            }
+
+        .edit-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+            .edit-btn:hover {
+                background-color: #c82333;
+            }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group.error input,
+        .form-group.error select {
+            border-color: #dc3545;
+        }
+
+        .required {
+            color: #dc3545;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="form-section">
+            <h2 class="section-title">Business Partner Master Data</h2>
+            <div class="form-grid">
+                <div class="form-group disabled-section">
+                    <label for="branch">Branch <span class="required">*</span></label>
+                    <select id="branch" required>
+                        <option value="1">Jivo Oil</option>
+                        <option value="2">Jivo Bevrages</option>
+                        <option value="3">Jivo Mart</option>
+                    </select>
+                    <div class="error-message" id="group-error">Please select a group</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Type <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="type" value="custa" required  />
+                            Customer
+                        </label>
+                        <label><input type="radio" name="type" value="venda" required /> Vendor</label>
+                    </div>
+                </div>
+
+                <div class="form-group disabled-section" id="staff-section">
+                    <label>Is this a staff member? <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="isStaff" value="Y" required />
+                            Yes
+                        </label>
+                        <label><input type="radio" name="isStaff" checked value="N" required /> No</label>
+                    </div>
+                </div>
+
+                <div class="form-group disabled-section" id="code-group">
+                    <label for="bp-code">Code <span class="required">*</span></label>
+                    <input type="text" id="bp-code" name="bp-code" class="code-field" readonly placeholder="Select type and staff status" />
+                </div>
+
+                <div class="form-group" id="staffCodeSection" style="display:none;">
+                    <label for="staffCode">Staff Code <span class="required">*</span></label>
+                    <div style="display: flex; gap: 5px;">
+                        <span class="form-control" style="width: 70px; text-align: center;">JWPL</span>
+                        <input id="staffCodeSuffix" class="form-control" maxlength="4" style="flex: 1; height:45px"/>
+                    </div>
+                </div>
+
+                <div class="form-group" id="bp-name-group" style="position: relative;">
+                    <label for="BPname">Name <span class="required">*</span></label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="text" id="BPname" name="BPname" autocomplete="off" />
+                        <button type="button" onclick="openBPFilter()" style="background: none; border: none; cursor: pointer;">
+                            🔍
+                        </button>
+                    </div>
+                    <div id="bpname-error" class="error-message" style="display: none;">Already exists, please write new.</div>
+
+                    <!-- Suggestion dropdown -->
+                    <div id="bp-suggestions" class="bp-suggestions" style="display: none;"></div>
+                </div>
+                <!-- BP Name Filter Modal -->
+                <div id="bp-modal" class="bp-modal-overlay">
+                    <div class="bp-modal">
+                        <div class="bp-modal-header">
+                            <h2>Select Business Partner</h2>
+                            <button class="close-btn" onclick="closeBPFilter()">&times;</button>
+                        </div>
+
+                        <input type="text" id="bp-search" placeholder="Search by name or address..." onkeyup="filterBPTable()" class="bp-search" />
+
+                        <div class="bp-table-wrapper">
+                            <table id="bp-table">
+                                <thead>
+                                    <tr>
+                                        <th>Card Code</th>
+                                        <th>Card Name</th>
+                                        <th>Address</th>
+                                        <th>State</th>
+                                        <th>GST No</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows will be populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group disabled-section">
+                    <label for="group">Group <span class="required">*</span></label>
+                    <select id="group" required>
+                        <option value="">Select Group</option>
+                    </select>
+                    <div class="error-message" id="group-error">Please select a group</div>
+                </div>
+
+                <div class="form-group disabled-section">
+                    <label for="main-group">Main Group <span class="required">*</span></label>
+                    <select id="main-group" required>
+                        <option value="">Select Main Group</option>
+                    </select>
+                    <div class="error-message" id="main-group-error">Please select a main group</div>
+                </div>
+
+                <div class="form-group disabled-section" id="chain-group">
+                    <label for="chain">Chain <span class="required">*</span></label>
+                    <select id="chain" required>
+                        <option value="">Select Chain</option>
+                    </select>
+                    <div class="error-message" id="chain-error">Please select a chain</div>
+                </div>
+
+                <div class="form-group disabled-section" id="msme-type-group">
+                    <label for="MSME">MSME Type</label>
+                    <select id="MSME">
+                        <option value="">Select MSME</option>                        
+                    </select>
+                    <div class="error-message" id="MSME-error">Please select MSME type</div>
+                </div>
+
+                <div class="form-group disabled-section hidden" id="msme-no-group">
+                    <label for="MSMEno">MSME No.</label>
+                    <input type="text" id="MSMEno" placeholder="Enter MSME Number" maxlength="25" />
+                    <div class="error-message" id="MSMEno-error">Invalid MSME number</div>
+                </div>
+
+                <div class="form-group disabled-section hidden" id="msme-btype-group">
+                    <label for="MSMEbtype">MSME Business Type</label>
+                    <input type="text" id="MSMEbtype" placeholder="Enter MSME Business Type" maxlength="50" />
+                    <div class="error-message" id="MSMEbtype-error">Invalid MSME business type</div>
+                </div>
+                <div id="staffExtraFields">
+                <div class="form-group disabled-section">
+                    <label for="fssai">FSSAI No.</label>
+                    <input type="text" id="fssai" placeholder="Enter FSSAI number" pattern="[0-9]{14}" maxlength="14" />
+                    <div class="error-message" id="fssai-error">FSSAI number must be exactly 14 digits</div>
+                </div>
+                </div>
+                <div id="staffExtraField">
+                <div class="form-group disabled-section" id="tan-group">
+                    <label for="tan">TAN<span class="required">*</span></label>
+                    <input type="text" id="tan" placeholder="Enter TAN" pattern="[A-Z]{4}[0-9]{5}[A-Z]{1}" maxlength="10" style="text-transform: uppercase;" required/>
+                    <div class="error-message" id="tan-error">TAN format: ABCD12345E</div>
+                </div>
+                </div>
+                <div class="form-group disabled-section" id="pan-group">
+                    <label for="pan">PAN</label>
+                    <input type="text" id="pan" placeholder="Enter PAN" pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}" maxlength="10" style="text-transform: uppercase;" />
+                    <div class="error-message" id="pan-error">PAN format: ABCDE1234F</div>
+                </div>
+                
+
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('general')">General</div>
+            <div class="tab" onclick="switchTab('contacts')"> Contact Persons </div>
+            <div class="tab" onclick="switchTab('addresses')">Addresses</div>
+            <div class="tab" onclick="switchTab('payment')">Payment Terms</div>
+            <div class="tab" onclick="switchTab('attachments')">Attachments</div>
+        </div>
+
+        <div class="general-table" id="general-tab">
+            <div class="form-section">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="SPname">Sales Employee Selection <span class="required">*</span></label>
+                        <select id="SPname" required>
+                            <option value="">Select Name</option>
+                            @if (ViewBag.SPname != null)
+                            {
+                                @foreach (var name in ViewBag.SPname)
+                                {
+                                    if (name.SlpName == "-No Sales Employee-")
+                                    {
+                                        <option value="@name.SlpCode" selected>@name.SlpName</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@name.SlpCode">@name.SlpName</option>
+                                    }
+                                }
+                            }
+                        </select>
+                        <div class="error-message" id="SPname-error">Please select a sales employee</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="" id="contacts-tab" style="display: none">
+            <form id="contactForm" class="contact-form" onsubmit="event.preventDefault();">
+                <div class="form-section">
+                    <!-- Add Contact Button -->
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                        <button id="addContactBtn" class="btn btn-primary" disabled onclick="addNewContactForm()">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                            </svg>
+                            Add New Contact
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <table class="table" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>FIRST NAME <span class="required">*</span></th>
+                                    <th>LAST NAME <span class="required">*</span></th>
+                                    <th>MOBILE NO. <span class="required">*</span></th>
+                                    <th>EMAIL <span class="required">*</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <input type="text" style="text-transform:uppercase" name="contactFirstName" placeholder="Enter First Name" required />
+                                        <div class="error-message" style="display: none; color: red; font-size: 12px; margin-top: 5px;"></div>
+                                    </td>
+                                    <td>
+                                        <input type="text" style="text-transform:uppercase" name="contactLastName" placeholder="Enter Last Name" required />
+                                        <div class="error-message" style="display: none; color: red; font-size: 12px; margin-top: 5px;"></div>
+                                    </td>
+                                    <td>
+                                        <input type="tel" maxlength="10" name="phone" placeholder="Enter Mobile No." required />
+                                        <div class="error-message" style="display: none; color: red; font-size: 12px; margin-top: 5px;"></div>
+                                    </td>
+                                    <td>
+                                        <input type="email" style="text-transform:uppercase" name="email" placeholder="Enter Email" required />
+                                        <div class="error-message" style="display: none; color: red; font-size: 12px; margin-top: 5px;"></div>
+                                    </td>
+                                    <td id="contact-id-cell" style="display: none;">
+                                        <input type="text" id="contactIdInput" readonly class="form-control" />
+                                        <div id="contact-id-error" class="error-message" style="display:none;"> Contact ID already exists. Please enter a unique one.</div>
+                                    </td>
+
+
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div><div id="contact-edit-actions" style="display: none; margin-top: 10px; text-align: right;">
+                        <button class="btn btn-success" onclick="saveEditedContact()">Save Changes</button>
+                        <button class="btn btn-secondary" onclick="cancelEditContact()">Cancel</button>
+                    </div>
+
+
+                    <!-- Display Table for Added Contacts -->
+                    <table class="contact-table-display contact-table" style="width:100%; margin-top:20px; display:none;">
+                        <thead>
+                            <tr>
+                                <th>First Name</th>
+                                <th>Last Name</th>
+                                <th>Mobile Number</th>
+                                <th>Email</th>
+                                <th>Contact ID</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Contact rows will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+
+        <div class="payment-content" id="payment-tab" style="display: none">
+            <div class="form-section">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="payment-terms">Payment Terms <span class="required">*</span></label>
+                        <select id="payment-terms" required>
+                            <option value="">Select Payment Terms</option>
+                        </select>
+                        <div class="error-message" id="payment-terms-error">Please select payment terms</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="price-list">Price List</label>
+                        <select id="price-list" required>
+                            <option value="">Select Price List</option>
+                        </select>
+                        <div class="error-message" id="price-list-error">Please select price list</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="credit-limit">Credit Limit</label>
+                        <input type="number" id="credit-limit" placeholder="Enter credit limit" readonly/>
+                        <div class="error-message" id="credit-limit-error">Please enter a valid credit limit</div>
+                    </div>
+                </div>
+
+                <h3 style="margin: 30px 0 20px 0; color: #2d3748; font-size: 16px">
+                    Bank Information
+                </h3>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="BankName">Bank Name <span class="required">*</span></label>
+                        <select id="BankName" required>
+                            <option value="">Select Bank Name</option>
+                        </select>
+                        <div class="error-message" id="bank-name-error">Please select bank name</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="account-name">Account Name</label>
+                        <input type="text" id="account-name" placeholder="Enter account name" maxlength="100" />
+                        <div class="error-message" id="account-name-error">Please enter account name</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="account-number">Account Number</label>
+                        <input type="text" id="account-number" placeholder="Enter account number" pattern="[0-9]{9,18}" maxlength="18" />
+                        <div class="error-message" id="account-number-error">Account number must be 9-18 digits</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="con-acc-number">Confirm Account Number</label>
+                        <input type="text" id="con-acc-number" placeholder="Confirm Account Number" pattern="[0-9]{9,18}" maxlength="18" />
+                        <div class="error-message" id="con-acc-number-error">Account number must be 9-18 digits.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ifsc-code">IFSC Code/Swift Code</label>
+                        <input type="text" id="ifsc-code" placeholder="Enter code" pattern="^[A-Z]{4}0[A-Z0-9]{6}$" maxlength="11" style="text-transform: uppercase;" />
+                        <div class="error-message" id="ifsc-code-error">IFSC code format: ABCD0123456</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="addresses-content" id="addresses-tab" style="display: none">
+            <div class="form-section">
+                <!-- Add Address Button -->
+                <div style="display: flex; justify-content: flex-end;">
+                    <button id="addAddressBtn" disabled onclick="addAddressEntry()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                        Add Address
+                    </button>
+                </div>
+
+                <h3 style="margin-bottom: 20px; color: #2d3748; font-size: 16px">
+                    Billing Address
+                </h3>
+
+                <div class="form-grid">
+                    
+
+                    <div class="form-group">
+                        <label for="billing-address1">Address Line 1 <span class="required">*</span></label>
+                        <input type="text" id="billing-address1" placeholder="Enter address line 1" required maxlength="200" />
+                        <div class="error-message" id="billing-address1-error">Address line 1 is required</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billing-address2">Address Line 2</label>
+                        <input type="text" id="billing-address2" placeholder="Enter address line 2" maxlength="200" />
+                        <div class="error-message" id="billing-address2-error">Invalid address line 2</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="billing-country">Country <span class="required">*</span></label>
+                        <select id="billing-country" required>
+                            <option value="">Select Country</option>
+                            <!-- Remove default India selection, populate from ViewBag.Country -->
+                            @{
+                                
+                                if (ViewBag.Country != null)
+                                {
+                                    foreach (var data in ViewBag.Country)
+                                    {
+                                        // <option value="@data.Code">@data.Name</option>
+             
+                                          var isSelected = data.Code.ToString().Trim().ToUpper() == "IN" ? "selected" : "";
+                                        @:<option value="@data.Code" @isSelected>@data.Name</option>
+                                    }
+                                }
+                            }
+
+
+                        </select>
+                        <div class="error-message" id="billing-country-error">Please select a country</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billing-state">State/Province <span class="required">*</span></label>
+                        <select id="billing-state" required disabled>
+                            <option value="">Select State</option>
+                        </select>
+                        <div class="error-message" id="billing-state-error">Please select a state</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="billing-city">City <span class="required">*</span></label>
+                        <input type="text" id="billing-city" placeholder="Enter city" required maxlength="50" />
+                        <div class="error-message" id="billing-city-error">City is required</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billing-zip">ZIP/Postal Code <span class="required">*</span></label>
+                        <input type="text" id="billing-zip" placeholder="Enter ZIP/postal code" required pattern="[0-9]{6}" maxlength="6" />
+                        <div class="error-message" id="billing-zip-error">ZIP code must be 6 digits</div>
+                    </div>
+
+                    <!-- GST Number Field -->
+                    <div id="billing-gst-field"class="form-group">
+                        <label for="billing-gst">GST Number</label>
+                        <input type="text" id="billing-gst" placeholder="Enter GST Number" maxlength="15" style="text-transform: uppercase;" />
+                        <div class="error-message" id="billing-gst-error" style="display: none;">Please enter a valid GST number</div>
+                    </div>
+                    <input type="hidden" id="billing-address-id" />
+                    <input type="text" id="billing-address-id-input" class="form-control" style="display:none;" />
+                    <div id="billing-address-id-error" class="error-message" style="color:red; display:none;"></div>
+
+                </div>
+
+                <!-- Same as Billing Checkbox -->
+                <div class="form-group" style="margin: 20px 0">
+                    <div style="padding: 0px 0">
+                        <input type="checkbox" id="same-as-billing" class="checkbox" style="margin-right: 8px" onchange="toggleShippingAddress()" />
+                        <label for="same-as-billing" style="margin: 0; font-weight: normal; cursor: pointer">Billing address same as shipping address</label>
+                    </div>
+                </div>
+
+                <!-- Shipping Address Section -->
+                <div id="shipping-address-section">
+                    <h3 style="margin-bottom: 20px; color: #2d3748; font-size: 16px">
+                        Shipping Address
+                    </h3>
+                    <div class="form-grid">
+                        
+                        <div class="form-group">
+                            <label for="shipping-address1">Address Line 1 <span class="required">*</span></label>
+                            <input type="text" id="shipping-address1" placeholder="Enter address line 1" required maxlength="200" />
+                            <div class="error-message" id="shipping-address1-error">Address line 1 is required</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shipping-address2">Address Line 2</label>
+                            <input type="text" id="shipping-address2" placeholder="Enter address line 2" maxlength="200" />
+                            <div class="error-message" id="shipping-address2-error">Invalid address line 2</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shipping-country">Country <span class="required">*</span></label>
+                            <select id="shipping-country" required>
+                                <option value="">Select Country</option>
+                                @{
+                                    if (ViewBag.Country != null)
+                                    {
+                                        foreach (var data in ViewBag.Country)
+                                        {
+                                            // <option value="@data.Code">@data.Name</option>
+                                          var isSelected = data.Code.ToString().Trim().ToUpper() == "IN" ? "selected" : "";
+                                          @:<option value="@data.Code" @isSelected>@data.Name</option>
+                                        }
+                                    }
+                                }
+                            </select>
+                            <div class="error-message" id="shipping-country-error">Please select a country</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shipping-state">State/Province <span class="required">*</span></label>
+                            <select id="shipping-state" required disabled>
+                                <option value="">Select State</option>
+                            </select>
+                            <div class="error-message" id="shipping-state-error">Please select a state</div>
+                        </div>
+
+
+                        <div class="form-group">
+                            <label for="shipping-city">City <span class="required">*</span></label>
+                            <input type="text" id="shipping-city" placeholder="Enter city" required maxlength="50" />
+                            <div class="error-message" id="shipping-city-error">City is required</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shipping-zip">ZIP/Postal Code <span class="required">*</span></label>
+                            <input type="text" id="shipping-zip" placeholder="Enter ZIP/postal code" required pattern="[0-9]{6}" maxlength="6" />
+                            <div class="error-message" id="shipping-zip-error">ZIP code must be 6 digits</div>
+                        </div>
+
+                        <!-- Shipping GST Number Field -->
+                        <div id="shipping-gst-field"class="form-group">
+                            <label for="shipping-gst">GST Number</label>
+                            <input type="text" id="shipping-gst" placeholder="Enter GST Number" maxlength="15" style="text-transform: uppercase;" />
+                            <div class="error-message" id="shipping-gst-error" style="display: none;">Please enter a valid GST number</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                <input type="hidden" id="shipping-address-id" />
+            <input type="text" id="shipping-address-id-input" class="form-control" style="display:none;" />
+            <div id="shipping-address-id-error" class="error-message" style="color:red; display:none;"></div>
+                <div id="address-edit-actions" style="display: none;">
+                    <button class="btn btn-success" onclick="saveEditedAddressFromInput()">Save Changes</button>
+                    <button clas="btn btn-secondary" onclick="cancelEditAddress()">Cancel</button>
+                </div>
+
+                <!-- Hidden Address ID Fields for Editing -->
+                @* <input type="hidden" id="billing-address-id" /> *@
+                @* <input type="hidden" id="shipping-address-id" /> *@
+
+                <!-- Address Table -->
+                <div class="contact-table">
+                    <table id="addressTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Billing Address</th>
+                                <th>Bill Address ID</th>
+                                <th>Shipping Address</th>
+                                <th>Ship Address ID</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+            </div>
+        </div>
+
+        <div class="attachments-content" id="attachments-tab" style="display: none">
+            <div class="form-section">
+                <h3 style="margin-bottom: 20px; color: #2d3748; font-size: 16px">
+                    Document Attachments
+                </h3>
+                <div>Uploading cancelled cheque is mandatory<span class="required">*</span></div>.
+                <div class="card">
+                    <div class="upload-box" onclick="triggerAttachmentsInput()">
+                        <p>Click to upload files (PDF, JPG, PNG, DOC)</p>
+                        <p class="sub">Max file size: 512KB per file</p>
+                        <input type="file" id="attachmentsInput" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" hidden onchange="handleAttachmentsChange(event)">
+                    </div>
+                    @* <p id="fileSizeError" style="color: red; display: none;">File size exceeds 512KB. Please select smaller files.</p> *@
+
+                    <!-- Upload Progress -->
+                    <div id="upload-progress" class="upload-progress" style="display: none;">
+                        <div id="upload-progress-bar" class="upload-progress-bar"></div>
+                    </div>
+
+                    <!-- Attachments List -->
+                    <div id="attachments-list"></div>
+
+                    <!-- Messages -->
+                    <p id="upload-error" class="error-msg"></p>
+                    <p id="upload-success" class="success-msg"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-success" onclick="addNew()">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                Submit
+            </button>
+
+            <button class="btn btn-danger" onclick="cancelForm()">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                </svg>
+                Cancel
+            </button>
+        </div>
+
+    </div>
+
+   <script>
+               // Script 1: Main Form Functions (Updated with GST Validation)
+        // Company ID from ViewBag
+        var companyId = @(ViewBag.CompanyId ?? 1);
+        let attachments = [];
+        let uploadedFiles = [];
+        let editingContactRowIndex = -1;
+        //for india gst field is shown, but not for other countries
+    function toggleGstField() {
+        const countrySelect = document.getElementById("billing-country");
+        const gstField = document.getElementById("gst-field");
+
+        if (countrySelect.value.toUpperCase() === "IN") {
+            gstField.style.display = "block";
+        } else {
+            gstField.style.display = "none";
+        }
+    }    
+
+        // Address Functions
+        function toggleShippingAddress() {
+            var checkbox = document.getElementById("same-as-billing");
+            var shippingSection = document.getElementById("shipping-address-section");
+
+            if (checkbox.checked) {
+                // Auto-fill shipping address with billing address values
+                document.getElementById("shipping-address1").value = document.getElementById("billing-address1").value;
+                document.getElementById("shipping-address2").value = document.getElementById("billing-address2").value;
+                document.getElementById("shipping-city").value = document.getElementById("billing-city").value;
+                document.getElementById("shipping-state").value = document.getElementById("billing-state").value;
+                document.getElementById("shipping-zip").value = document.getElementById("billing-zip").value;
+                document.getElementById("shipping-country").value = document.getElementById("billing-country").value;
+                document.getElementById("shipping-address-id").value = document.getElementById("billing-address-id").value;
+                document.getElementById("shipping-address-id-input").value = document.getElementById("billing-address-id-input").value;
+
+                // Hide error
+                document.getElementById("shipping-address-id-error").style.display = "none";
+
+                // Make ID field readonly
+                document.getElementById("shipping-address-id-input").readOnly = true;
+
+
+                // Copy GST number too
+                const billingGST = document.getElementById("billing-gst");
+                const shippingGST = document.getElementById("shipping-gst");
+                if (billingGST && shippingGST) {
+                    shippingGST.value = billingGST.value;
+                }
+
+                // Make shipping fields read-only
+                toggleShippingFieldsDisabled(true);
+                removeShippingValidation();
+                shippingSection.style.opacity = "0.7";
+
+                // Clear shipping GST validation since it's same as billing
+                clearGSTValidation('shipping');
+            } else {
+                // Clear and enable fields
+                clearShippingFields();
+                toggleShippingFieldsDisabled(false);
+                addShippingValidation();
+                shippingSection.style.opacity = "1";
+                document.getElementById("shipping-address-id").value = "";
+                document.getElementById("shipping-address-id-input").value = "";
+                document.getElementById("shipping-address-id-input").readOnly = false;
+                // Load states if country selected
+                var shippingCountry = document.getElementById("shipping-country").value;
+                if (shippingCountry) {
+                    loadStates('shipping');
+                }
+            }
+        }
+
+        function toggleShippingFieldsDisabled(disabled) {
+            const shippingFields = [
+                'shipping-address1', 'shipping-address2', 'shipping-city',
+                'shipping-state', 'shipping-country', 'shipping-zip', 'shipping-gst'
+            ];
+
+            shippingFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) {
+                    if (field.tagName === 'SELECT') {
+                        field.disabled = disabled;
+                    } else {
+                        field.readOnly = disabled;
+                    }
+                }
+            });
+        }
+
+        function clearShippingFields() {
+            const shippingFields = [
+                'shipping-address1', 'shipping-address2', 'shipping-city',
+                'shipping-state', 'shipping-country', 'shipping-zip', 'shipping-gst'
+            ];
+
+            shippingFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.value = '';
+            });
+
+            // Clear GST validation
+            clearGSTValidation('shipping');
+        }
+
+        function removeShippingValidation() {
+            const shippingFields = [
+                'shipping-address1', 'shipping-country', 'shipping-state',
+                'shipping-city', 'shipping-zip'
+            ];
+            shippingFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.removeAttribute('required');
+            });
+        }
+
+        function addShippingValidation() {
+            const shippingFields = [
+                'shipping-address1', 'shipping-country', 'shipping-state',
+                'shipping-city', 'shipping-zip'
+            ];
+            shippingFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.setAttribute('required', 'required');
+            });
+        }
+        async function checkAddressIdUnique(addressId) {
+            const response = await fetch(`/api/BPMaster/CheckAddressUid?addressUid=${encodeURIComponent(addressId)}`);
+            if (!response.ok) {
+                throw new Error("Server error while checking address ID");
+            }
+            const data = await response.json();
+            return data.exists === false; // true if ID is unique
+        }
+
+        function checkAndProcessAddressId(addressId, addressData, type) {
+            const input = document.getElementById(`${type}-address-id-input`);
+            const errorDiv = document.getElementById(`${type}-address-id-error`);
+            const hiddenField = document.getElementById(`${type}-address-id`);
+            // const existingIds = ["DL-SAHILCHAHHAR", "PB-CONTABC", "ADDR003"]; 🔹 Add test IDs here
+            // if (!addressId) {
+            //     alert(`${type.charAt(0).toUpperCase() + type.slice(1)} Address ID is missing.`);
+            //     return;
+            // }
+            if (!addressId || addressId === '-' || String(addressId).includes("undefined")) {
+                alert("Address ID could not be generated. Check state and name fields.");
+                return;
+            }
+            console.log("Checking address ID:", addressId);
+
+            fetch(`/api/BPmaster/CheckAddressUid?addressUid=${encodeURIComponent(addressId)}`)
+            .then(res => {
+                    if (!res.ok) throw new Error("Bad request");
+                    return res.json();
+                })
+       
+                .then(data => {
+                    const msg = (data.data?.message || "").toLowerCase();
+                    if (msg.includes("exists")) {
+                        input.value = addressId;
+                        input.style.display = "block";
+                        input.removeAttribute("readonly");
+                        input.classList.add("error");
+                        errorDiv.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} Address ID already exists. Please modify it.`;
+                        errorDiv.style.display = "block";
+
+                        if (!input.dataset.listenerAttached) {
+                            input.addEventListener("input", () => {
+                                const newId = input.value.trim();
+                                if (!newId) return;
+                                fetch(`/api/BPmaster/CheckAddressUid?addressUid=${encodeURIComponent(newId)}`)
+                                    .then(r => r.json())
+                                    .then(result => {
+                                        const newMsg = (result.data?.message || "").toLowerCase();
+
+                                        if (newMsg.includes("exists")) {
+                                            input.classList.add("error");
+                                            errorDiv.textContent = "Address ID already exists.";
+                                            errorDiv.style.display = "block";
+                                        } else if (newMsg.includes("not found")) {
+                                            input.classList.remove("error");
+                                            errorDiv.style.display = "none";
+                                            input.setAttribute("readonly", true);
+                                            input.style.display = "none";
+
+                                            hiddenField.value = newId;
+                                            // proceedToAddAddressRow(addressData, newId, type);
+                                            if (type === 'both' || type === 'shipping') {
+                                                // Billing already processed or same ID, proceed
+                                                addAddressRow(
+                                                addressData.billAddress,
+                                                addressData.billAddressId,
+                                                addressData.shipAddress,
+                                                addressData.shipAddressId
+                                                );
+                                                resetAddressForm();
+                                            }
+
+                                        }
+                                    });
+                            });
+
+                            input.dataset.listenerAttached = "true";
+                        }
+                    } else if (msg.includes("not found")) {
+                        input.value = addressId;
+                        input.setAttribute("readonly", true);
+                        input.style.display = "none";
+                        errorDiv.style.display = "none";
+
+                        hiddenField.value = addressId;
+                        if (type === 'both' || type === 'shipping') {
+                            // Billing already processed or same ID, proceed
+                            addAddressRow(
+                                addressData.billAddress,
+                                addressData.billAddressId,
+                                addressData.shipAddress,
+                                addressData.shipAddressId
+                            );
+                            resetAddressForm();
+                        }
+
+                        // proceedToAddAddressRow(addressData, addressId, type);
+                    } else {
+                        alert("Unexpected API response for address check.");
+                        console.warn(data);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error checking address ID:", err);
+                    alert("Something went wrong while checking address ID.");
+                    console.log("Checking address ID:", addressId);
+
+                });
+        }
+        function proceedToAddAddressRow(addressData, finalId, type) {
+            // You may want to handle the logic of saving or showing addressData in UI
+            // This is a placeholder where you continue with the next step after uniqueness is confirmed
+
+            console.log(`Address ${type} with ID ${finalId} is ready to be used.`);
+            console.log(addAddressRow(addressData, finalId, type));
+        }
+
+        // Address Entry Functions
+        function checkAddressForm() {
+            const requiredFields = ['billing-address1', 'billing-city', 'billing-state', 'billing-country', 'billing-zip'];
+            const allFilled = requiredFields.every(id => {
+                const el = document.getElementById(id);
+                return el && el.value.trim() !== '';
+            });
+            document.getElementById('addAddressBtn').disabled = !allFilled;
+        }
+
+        // function addAddressEntry() {
+        //     const billingData = {
+        //         line1: document.getElementById('billing-address1').value.trim(),
+        //         line2: document.getElementById('billing-address2').value.trim(),
+        //         city: document.getElementById('billing-city').value.trim(),
+        //         state: document.getElementById('billing-state').value.trim(),
+        //         country: document.getElementById('billing-country').value.trim(),
+        //         zip: document.getElementById('billing-zip').value.trim(),
+        //         gst: document.getElementById('billing-gst').value.trim()
+        //     };
+
+        //     const sameAsBilling = document.getElementById('same-as-billing').checked;
+        //     let shipAddress = sameAsBilling ? 'Same as Billing' : getShippingAddress();
+        //     const billAddress = formatAddressWithGST(billingData);
+
+        //     addAddressRow(billAddress, shipAddress);
+        //     resetAddressForm();
+        // }
+        function addAddressEntry() {
+            const billingData = {
+                line1: document.getElementById('billing-address1').value.trim(),
+                line2: document.getElementById('billing-address2').value.trim(),
+                city: document.getElementById('billing-city').value.trim(),
+                state: document.getElementById('billing-state').value.trim(),
+                country: document.getElementById('billing-country').value.trim(),
+                zip: document.getElementById('billing-zip').value.trim(),
+                gst: document.getElementById('billing-gst').value.trim()
+            };
+
+            const sameAsBilling = document.getElementById('same-as-billing').checked;
+            const billAddress = formatAddressWithGST(billingData);
+
+            const contactFirstName = document.querySelector("input[name='contactFirstName']").value.trim();
+            const contactLastName = document.querySelector("input[name='contactLastName']").value.trim();
+            const contactName = `${contactFirstName}${contactLastName}`;
+
+            const billAddressId = generateAddressId(billingData.state, contactName);
+            let shipAddressId = '';
+            let shipAddress = '';
+
+            if (sameAsBilling) {
+                shipAddress = 'Same as Billing';
+                shipAddressId = billAddressId;
+            } else {
+                const shippingData = {
+                    line1: document.getElementById('shipping-address1').value.trim(),
+                    line2: document.getElementById('shipping-address2').value.trim(),
+                    city: document.getElementById('shipping-city').value.trim(),
+                    state: document.getElementById('shipping-state').value.trim(),
+                    country: document.getElementById('shipping-country').value.trim(),
+                    zip: document.getElementById('shipping-zip').value.trim(),
+                };
+                shipAddress = formatAddressWithGST(shippingData);
+                shipAddressId = generateAddressId(shippingData.state, contactName);
+            }
+            // Store data for passing into check function
+            const billingInfo = {
+                data: billingData,
+                address: billAddress,
+                id: billAddressId
+            };
+
+            if (sameAsBilling) {
+                checkAndProcessAddressId(
+                    billAddressId,
+                    { billAddress, shipAddress: 'Same as Billing', type: 'billing' },
+                    'both' // use 'both' as a signal that same ID is used for both
+                );
+            } else {
+                const shippingData = {
+                    line1: document.getElementById('shipping-address1').value.trim(),
+                    line2: document.getElementById('shipping-address2').value.trim(),
+                    city: document.getElementById('shipping-city').value.trim(),
+                    state: document.getElementById('shipping-state').value.trim(),
+                    country: document.getElementById('shipping-country').value.trim(),
+                    zip: document.getElementById('shipping-zip').value.trim(),
+                    gst: document.getElementById('shipping-gst').value.trim()
+                };
+
+                const shipAddress = formatAddressWithGST(shippingData);
+                const shipAddressId = generateAddressId(shippingData.state, contactName);
+
+                checkAndProcessAddressId(
+                    billAddressId,
+                    { billAddress, billAddressId, shipAddress, shipAddressId, type: 'billing' },
+                    'billing'
+                );
+
+                checkAndProcessAddressId(
+                    shipAddressId,
+                    { billAddress, billAddressId, shipAddress, shipAddressId, type: 'shipping' },
+                    'shipping'
+                );
+            }
+
+            // addAddressRow(billAddress, billAddressId, shipAddress, shipAddressId);
+            // resetAddressForm();
+        }
+                let editingAddressRow = null;
+
+        function editAddress(button) {
+            const row = button.closest('tr');
+            if (!row) return;
+
+            editingAddressRow = row;
+
+            const billAddress = row.cells[0].textContent.trim();
+            const billAddressId = row.cells[1].textContent.trim();
+            const shipAddress = row.cells[2].textContent.trim();
+            const shipAddressId = row.cells[3].textContent.trim();
+
+            const billing = parseAddressString(billAddress);
+            const shipping = shipAddress === 'Same as Billing' ? billing : parseAddressString(shipAddress);
+
+            fillBillingFields(billing);
+            fillShippingFields(shipping);
+
+            document.getElementById("billing-address-id").value = billAddressId;
+            document.getElementById("shipping-address-id").value = shipAddressId;
+
+            // Always leave checkbox unchecked
+            const checkbox = document.getElementById("same-as-billing");
+            if (checkbox) {
+                checkbox.checked = false;
+                toggleShippingFields();
+            }
+
+            // Show Save / Cancel buttons
+            const actions = document.getElementById("address-edit-actions");
+            if (actions) actions.style.display = "block";
+        }
+
+        function saveEditedAddressFromInput() {
+            const contactFirstName = document.querySelector("input[name='contactFirstName']").value.trim();
+            const contactLastName = document.querySelector("input[name='contactLastName']").value.trim();
+            const fullName = `${contactFirstName}${contactLastName}`;
+            saveEditedAddress(fullName);
+                console.log("Full Name for Address ID:", fullName); // Check if it's undefined
+
+        }
+
+        function saveEditedAddress(fullName) {
+            if (!editingAddressRow) return;
+
+            const billing = getBillingAddress();
+            const billAddress = formatAddressWithGST(billing);
+                const billAddressId = generateAddressId(billing.state, fullName);
+
+                const sameAsBilling = document.getElementById("same-as-billing").checked;
+            let shipAddress = "Same as Billing";
+            let shipAddressId = billAddressId;
+
+            if (!sameAsBilling) {
+                const shipping = getShippingAddress();
+                shipAddress = formatAddressWithGST(shipping);
+                    shipAddressId = generateAddressId(shipping.state, fullName);
+                }
+
+            editingAddressRow.cells[0].textContent = billAddress;
+            editingAddressRow.cells[1].textContent = billAddressId;
+            editingAddressRow.cells[2].textContent = shipAddress;
+            editingAddressRow.cells[3].textContent = shipAddressId;
+
+            resetAddressForm();
+            document.getElementById("address-edit-actions").style.display = "none";
+            editingAddressRow = null;
+        }
+        function cancelEditAddress() {
+            resetAddressForm();
+            document.getElementById("address-edit-actions").style.display = "none";
+            editingAddressRow = null;
+        }
+
+                function parseAddressString(addressString) {
+            const parts = addressString.split(',').map(p => p.trim());
+
+            return {
+                line1: parts[0] || '',
+                line2: parts[1] || '',
+                city: parts[2] || '',
+                state: parts[3] || '',
+                country: parts[4] || '',
+                zip: parts[5] || '',
+                gst: parts[6] || ''
+            };
+        }
+            function getBillingAddress() {
+            return {
+                line1: document.getElementById('billing-address1').value.trim(),
+                line2: document.getElementById('billing-address2').value.trim(),
+                city: document.getElementById('billing-city').value.trim(),
+                state: document.getElementById('billing-state').value.trim(),
+                country: document.getElementById('billing-country').value.trim(),
+                zip: document.getElementById('billing-zip').value.trim(),
+                gst: document.getElementById('billing-gst').value.trim()
+            };
+        }
+
+        function getShippingAddress() {
+            return {
+                line1: document.getElementById('shipping-address1').value.trim(),
+                line2: document.getElementById('shipping-address2').value.trim(),
+                city: document.getElementById('shipping-city').value.trim(),
+                state: document.getElementById('shipping-state').value.trim(),
+                country: document.getElementById('shipping-country').value.trim(),
+                zip: document.getElementById('shipping-zip').value.trim(),
+                gst: document.getElementById('shipping-gst').value.trim()
+            };
+        }
+
+        function fillBillingFields(data) {
+            document.getElementById('billing-address1').value = data.line1 || '';
+            document.getElementById('billing-address2').value = data.line2 || '';
+            document.getElementById('billing-city').value = data.city || '';
+            document.getElementById('billing-state').value = data.state || '';
+            document.getElementById('billing-country').value = data.country || '';
+            document.getElementById('billing-zip').value = data.zip || '';
+            document.getElementById('billing-gst').value = data.gst || '';
+        }
+
+        function fillShippingFields(data) {
+            document.getElementById('shipping-address1').value = data.line1 || '';
+            document.getElementById('shipping-address2').value = data.line2 || '';
+            document.getElementById('shipping-city').value = data.city || '';
+            document.getElementById('shipping-state').value = data.state || '';
+            document.getElementById('shipping-country').value = data.country || '';
+            document.getElementById('shipping-zip').value = data.zip || '';
+            document.getElementById('shipping-gst').value = data.gst || '';
+        }
+            function toggleShippingFields() {
+            const sameAsBillingCheckbox = document.getElementById("same-as-billing");
+            const shippingSection = document.getElementById("shipping-section");
+
+            if (sameAsBillingCheckbox && shippingSection) {
+                if (sameAsBillingCheckbox.checked) {
+                    shippingSection.style.display = "none";
+                } else {
+                    shippingSection.style.display = "block";
+                }
+            }
+        }
+    document.addEventListener("DOMContentLoaded", function () {
+        toggleShippingFields();
+    });
+
+        // function getShippingAddress() {
+        //     const shippingData = {
+        //         line1: document.getElementById('shipping-address1').value.trim(),
+        //         line2: document.getElementById('shipping-address2').value.trim(),
+        //         city: document.getElementById('shipping-city').value.trim(),
+        //         state: document.getElementById('shipping-state').value.trim(),
+        //         country: document.getElementById('shipping-country').value.trim(),
+        //         zip: document.getElementById('shipping-zip').value.trim(),
+        //         gst: document.getElementById('shipping-gst').value.trim()
+        //     };
+        //     return formatAddressWithGST(shippingData);
+        // }
+
+        function formatAddress(data) {
+            return `${data.line1}${data.line2 ? ', ' + data.line2 : ''}, ${data.city}, ${data.state}, ${data.country} - ${data.zip}`;
+        }
+
+        function formatAddressWithGST(data) {
+            let address = `${data.line1}${data.line2 ? ', ' + data.line2 : ''}, ${data.city}, ${data.state}, ${data.country} - ${data.zip}`;
+            if (data.gst) {
+                address += ` (GST: ${data.gst})`;
+            }
+            return address;
+        }
+
+        function addAddressRow(billAddress, billAddressId, shipAddress, shipAddressId) {
+            const table = document.getElementById('addressTable');
+            const tbody = table.querySelector('tbody');
+            const newRow = document.createElement('tr');
+
+            newRow.innerHTML = `
+                <td>${billAddress}</td>
+                <td>${billAddressId}</td>
+                <td>${shipAddress}</td>
+                <td>${shipAddressId}</td>
+                <td>
+                    <button class="edit-btn"onclick="editAddress(this)">Edit</button>
+                    <button class="delete-btn"onclick="deleteAddress(this)">Delete</button>
+                </td>
+            `;
+
+            tbody.appendChild(newRow);
+            table.style.display = 'table';
+        }
+
+        function resetAddressForm() {
+            const allFields = [
+                'billing-address1', 'billing-address2', 'billing-city', 'billing-state', 'billing-country', 'billing-zip', 'billing-gst',
+                'shipping-address1', 'shipping-address2', 'shipping-city', 'shipping-state', 'shipping-country', 'shipping-zip', 'shipping-gst'
+            ];
+
+            allFields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            // Clear GST validations
+            clearGSTValidation('billing');
+            clearGSTValidation('shipping');
+
+            const checkbox = document.getElementById('same-as-billing');
+            if (checkbox) checkbox.checked = false;
+
+            toggleShippingFieldsDisabled(false);
+            document.getElementById('addAddressBtn').disabled = true;
+
+            // Reset state dropdowns
+            // Reset state dropdowns
+            const billingState = document.getElementById('billing-state');
+            const shippingState = document.getElementById('shipping-state');
+            if (billingState) {
+                billingState.innerHTML = '<option value="">Select State</option>';
+                billingState.disabled = true;
+            }
+            if (shippingState) {
+                shippingState.innerHTML = '<option value="">Select State</option>';
+                shippingState.disabled = true;
+            }
+        }
+
+        function deleteAddress(button) {
+            const row = button.closest('tr');
+            row.remove();
+
+            const table = document.getElementById('addressTable');
+            const tbody = table?.querySelector('tbody');
+            if (table && tbody && tbody.rows.length === 0) {
+                table.style.display = 'none';
+            }
+        }
+        function generateAddressId(state, contactName) {
+            const stateCode = state?.substring(0, 2).toUpperCase();
+            const cleanName = contactName?.replace(/\s+/g, '').toUpperCase();
+
+            return `${stateCode}-${cleanName}`;
+        }
+        function handleAddressIdGeneration(addressType) {
+            let state, contactName;
+
+            if (addressType === 'billing') {
+                state = document.getElementById("billing-state")?.value;
+                contactName = document.getElementById("billing-name")?.value;
+            } else if (addressType === 'shipping') {
+                state = document.getElementById("shipping-state")?.value;
+                contactName = document.getElementById("shipping-name")?.value;
+            }
+
+            if (!state || !contactName) return;
+
+            const proposedId = generateAddressId(state, contactName);
+
+            // If you have a uniqueness check:
+            checkAddressIdUnique(proposedId).then(isUnique => {
+                const idField = document.getElementById(`${addressType}-addressId`);
+                const row = document.getElementById(`${addressType}-addressId-row`);
+
+                idField.value = proposedId;
+
+                if (isUnique) {
+                    row.style.display = 'none';
+                } else {
+                    row.style.display = 'block';
+                    alert("Address ID already exists, please edit manually.");
+                }
+            }).catch(err => {
+                console.error("Address ID check failed", err);
+                alert("Error validating address ID");
+            });
+        }
+        handleAddressIdGeneration('billing');
+        handleAddressIdGeneration('shipping');
+
+        // async function generateAddressId(addressType) {
+        //     const state = document.getElementById(`${addressType}-state`).value;
+        //     const firstName = document.getElementById(`${addressType}-fname`).value.trim().toUpperCase();
+        //     const lastName = document.getElementById(`${addressType}-lname`).value.trim().toUpperCase();
+
+        //     if (!state || !firstName || !lastName) return;
+
+        //     let proposedId = `${state}-${firstName}${lastName}`.replace(/\s+/g, '');
+
+        //     try {
+        //         const isUnique = await checkAddressIdUnique(proposedId);
+        //         const addressIdInput = document.getElementById(`${addressType}-addressId-row`);
+
+        //         if (isUnique) {
+        //             document.getElementById(`${addressType}-addressId`).value = proposedId;
+        //             addressIdInput.style.display = 'none';
+        //         } else {
+        //             document.getElementById(`${addressType}-addressId`).value = proposedId;
+        //             addressIdInput.style.display = 'block'; Show field for user to edit
+        //             alert("Address ID already exists, please enter a new one.");
+        //         }
+        //     } catch (err) {
+        //         console.error("Error checking address ID:", err);
+        //         alert("Something went wrong while checking address ID.");
+        //     }
+        // }
+
+
+
+        // GST Validation Functions
+        function setupGSTValidation() {
+            const billingGST = document.getElementById('billing-gst');
+            const shippingGST = document.getElementById('shipping-gst');
+
+            if (billingGST) {
+                billingGST.addEventListener('input', function() {
+                    validateGSTNumber('billing');
+                });
+
+                billingGST.addEventListener('blur', function() {
+                    validateGSTNumber('billing');
+                });
+            }
+
+            if (shippingGST) {
+                shippingGST.addEventListener('input', function() {
+                    validateGSTNumber('shipping');
+                });
+
+                shippingGST.addEventListener('blur', function() {
+                    validateGSTNumber('shipping');
+                });
+            }
+        }
+
+        function validateGSTNumber(addressType) {
+            const gstField = document.getElementById(addressType + '-gst');
+            const stateSelect = document.getElementById(addressType + '-state');
+            const gstError = document.getElementById(addressType + '-gst-error');
+
+            if (!gstField || !stateSelect || !gstError) return;
+
+            const gstNumber = gstField.value.trim().toUpperCase();
+            const stateCode = stateSelect.value;
+
+            // Reset previous state
+            clearGSTValidation(addressType);
+
+            // If GST field is empty, no validation needed
+            if (!gstNumber) {
+                return;
+            }
+
+            // Basic GST format validation (15 characters)
+            if (gstNumber.length !== 15) {
+                showGSTError(addressType, 'GST number must be exactly 15 characters');
+                return;
+            }
+
+            // Basic GST pattern validation
+            const gstPattern = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/;
+            if (!gstPattern.test(gstNumber)) {
+                showGSTError(addressType, 'Invalid GST number format');
+                return;
+            }
+
+            // If state is not selected, ask user to select state first
+            if (!stateCode) {
+                showGSTError(addressType, 'Please select state first to validate GST number');
+                return;
+            }
+
+            // Validate GST with state code
+            validateGSTWithState(addressType, gstNumber, stateCode);
+        }
+
+        function validateGSTWithState(addressType, gstNumber, stateCode) {
+            const gstError = document.getElementById(addressType + '-gst-error');
+            const gstField = document.getElementById(addressType + '-gst');
+
+            // Show loading state
+            if (gstError) {
+                gstError.textContent = 'Validating GST...';
+                gstError.style.color = '#007bff';
+                gstError.style.display = 'block';
+            }
+
+            fetch(`/api/BPmaster/GetGSTMismatchByState?company=${companyId}&stateCode=${stateCode}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch GST validation data');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.data && data.data.length > 0) {
+                        const stateGSTCode = data.data[0].gstCode;
+                        const inputGSTCode = gstNumber.substring(0, 2);
+
+                        if (inputGSTCode === stateGSTCode) {
+                            // GST is valid
+                            showGSTSuccess(addressType, '✓ GST number is valid for selected state');
+                        } else {
+                            // GST code mismatch
+                            showGSTError(addressType, `GST code mismatch. Expected: ${stateGSTCode}, Got: ${inputGSTCode}`);
+                        }
+                    } else {
+                        showGSTError(addressType, 'Unable to validate GST for selected state');
+                    }
+                })
+                .catch(error => {
+                    console.error('GST validation error:', error);
+                    showGSTError(addressType, 'Error validating GST number. Please try again.');
+                });
+        }
+
+        function showGSTError(addressType, message) {
+            const gstError = document.getElementById(addressType + '-gst-error');
+            const gstField = document.getElementById(addressType + '-gst');
+
+            if (gstError) {
+                gstError.textContent = message;
+                gstError.style.color = '#dc3545';
+                gstError.style.display = 'block';
+            }
+
+            if (gstField) {
+                gstField.style.borderColor = '#dc3545';
+                gstField.classList.add('error');
+            }
+        }
+
+        function showGSTSuccess(addressType, message) {
+            const gstError = document.getElementById(addressType + '-gst-error');
+            const gstField = document.getElementById(addressType + '-gst');
+
+            if (gstError) {
+                gstError.textContent = message;
+                gstError.style.color = '#28a745';
+                gstError.style.display = 'block';
+            }
+
+            if (gstField) {
+                gstField.style.borderColor = '#28a745';
+                gstField.classList.remove('error');
+            }
+        }
+
+        function clearGSTValidation(addressType) {
+            const gstError = document.getElementById(addressType + '-gst-error');
+            const gstField = document.getElementById(addressType + '-gst');
+
+            if (gstError) {
+                gstError.style.display = 'none';
+            }
+
+            if (gstField) {
+                gstField.style.borderColor = '';
+                gstField.classList.remove('error');
+            }
+        }
+
+        // State change handler with GST validation
+        function handleStateChange(addressType) {
+            const gstField = document.getElementById(addressType + '-gst');
+
+            // If GST is already filled, re-validate with new state
+            if (gstField && gstField.value.trim()) {
+                console.log(`State changed for ${addressType}, re-validating GST`);
+                validateGSTNumber(addressType);
+            }
+        }
+        //     if (!gstInput || !panInput || !gstError || !panError) return;
+
+        function validateGstPanLive() {
+                const gst = gstInput.value.trim().toUpperCase();
+                const pan = panInput.value.trim().toUpperCase();
+
+                gstInput.value = gst;
+                panInput.value = pan;
+
+                let gstValid = true;
+                let panValid = true;
+                let matchValid = true;
+
+                gstError.style.display = "none";
+                panError.style.display = "none";
+                panInput.classList.remove("error");
+                gstInput.classList.remove("error");
+
+
+                const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+                if (pan && !panRegex.test(pan)) {
+                   panError.textContent = "PAN format: ABCDE1234F";
+                   panError.style.display = "block";
+                   panInput.classList.add("error");
+                   panValid = false;
+                }
+
+            if (gst && gst.length !== 15) {
+                gstError.textContent = "GSTIN must be 15 characters.";
+                gstError.style.display = "block";
+                gstInput.classList.add("error");
+                gstValid = false;
+            }
+
+            const panFromGst = gst.length === 15 ? gst.substring(2, 12) : null;
+
+            // Auto-fill PAN if not filled and GST is valid
+            if (!pan && panFromGst) {
+                panInput.value = panFromGst;
+            }
+
+            // Mismatch check only when both are filled
+            if (pan && panFromGst && pan !== panFromGst) {
+                panError.textContent = "PAN does not match PAN inside GSTIN.";
+                panError.style.display = "block";
+                panInput.classList.add("error");
+                matchValid = false;
+            }
+
+            return gstValid && panValid && matchValid;
+        }
+
+        // document.addEventListener("DOMContentLoaded", function () {
+        //     const gstInput = document.getElementById("billing-gst");
+        //     const panInput = document.getElementById("pan"); ✅ this is correct
+        //     const gstError = document.getElementById("billing-gst-error");
+        //     const panError = document.getElementById("pan-error");
+
+            //if (!gstInput || !panInput || !gstError || !panError) return;
+            
+                function validateGstPanLive() {
+            const gst = gstInput.value.trim().toUpperCase();
+            const pan = panInput.value.trim().toUpperCase();
+
+            gstInput.value = gst;
+            panInput.value = pan;
+
+            let gstValid = true;
+            let panValid = true;
+            let matchValid = true;
+
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+            // Reset errors
+            gstError.style.display = "none";
+            panError.style.display = "none";
+            gstInput.classList.remove("error");
+            panInput.classList.remove("error");
+
+            // Validate PAN format
+            if (pan && !panRegex.test(pan)) {
+                panError.textContent = "PAN format: ABCDE1234F";
+                panError.style.display = "block";
+                panInput.classList.add("error");
+                panValid = false;
+            }
+
+            // Validate GST format
+            if (gst && gst.length !== 15) {
+                gstError.textContent = "GSTIN must be 15 characters.";
+                gstError.style.display = "block";
+                gstInput.classList.add("error");
+                gstValid = false;
+            }
+
+            const panFromGst = gst.length === 15 ? gst.substring(2, 12) : null;
+
+            // Auto-fill PAN from GST if not filled
+            if (!pan && panFromGst) {
+                panInput.value = panFromGst;
+            }
+
+            // 🧠 🔁 Always check mismatch if both filled
+            if (gst.length === 15 && pan && pan !== panFromGst) {
+                panError.textContent = "PAN does not match PAN inside GSTIN.";
+                panError.style.display = "block";
+                panInput.classList.add("error");
+                matchValid = false;
+            }
+
+            return gstValid && panValid && matchValid;
+        }
+                document.addEventListener("DOMContentLoaded", function () {
+            const panInput = document.getElementById("pan");
+            const gstInput = document.getElementById("billing-gst");
+            const panError = document.getElementById("pan-error");
+            const gstError = document.getElementById("billing-gst-error");
+
+            // Expose for use in function
+            window.panInput = panInput;
+            window.gstInput = gstInput;
+            window.panError = panError;
+            window.gstError = gstError;
+
+            panInput.addEventListener("input", validateGstPanLive);
+            panInput.addEventListener("blur", validateGstPanLive);
+            gstInput.addEventListener("input", validateGstPanLive);
+            gstInput.addEventListener("blur", validateGstPanLive);
+        });
+           
+             window.addNew = function () {
+            const isValid = validateGstPanLive();
+
+            if (!isValid) {
+                alert("Fix GST/PAN issues before submitting.");
+                return;
+            }
+
+            // Proceed with actual submission logic
+            console.log("Form is valid — proceed to submit!");
+        };
+
+        // Contact Functions with Enhanced Validation
+        function validateContactField(field) {
+            const fieldName = field.name;
+            const value = field.value.trim();
+            let isValid = true;
+            let errorMessage = '';
+
+            // Get error element
+            const errorElement = field.parentElement.querySelector('.error-message') ||
+                                field.closest('td').querySelector('.error-message');
+
+            // Reset previous state
+            field.classList.remove('error');
+            if (errorElement) {
+                errorElement.style.display = 'none';
+            }
+
+            // Validation based on field type
+            switch (fieldName) {
+                case 'contactFirstName':
+                case 'contactLastName':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = 'Name is required';
+                    } else if (value.length < 2) {
+                        isValid = false;
+                        errorMessage = 'Name must be at least 2 characters';
+                    } else if (value.length > 50) {
+                        isValid = false;
+                        errorMessage = 'Name must be less than 50 characters';
+                    } else if (!/^[A-Za-z\s]+$/.test(value)) {
+                        isValid = false;
+                        errorMessage = 'Name must contain only letters and spaces';
+                    }
+                    break;
+
+                case 'phone':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = 'Mobile number is required';
+                    } else if (!/^[\+]?[0-9\-\s]{10,15}$/.test(value)) {
+                        isValid = false;
+                        errorMessage = 'Mobile number must be 10-15 digits';
+                    }
+                    break;
+
+                case 'email':
+                    if (!value) {
+                        isValid = false;
+                        errorMessage = 'Email is required';
+                    } else if (!isValidEmail(value)) {
+                        isValid = false;
+                        errorMessage = 'Please enter a valid email address';
+                    }
+                    break;
+            }
+
+            // Show error if validation failed
+            if (!isValid) {
+                field.classList.add('error');
+                if (errorElement) {
+                    errorElement.textContent = errorMessage;
+                    errorElement.style.display = 'block';
+                }
+            }
+
+            // Update add button state
+            updateAddContactButtonState();
+
+            return isValid;
+        }
+
+        function validateAllContactFields() {
+            const fields = [
+                document.querySelector("input[name='contactFirstName']"),
+                document.querySelector("input[name='contactLastName']"),
+                document.querySelector("input[name='phone']"),
+                document.querySelector("input[name='email']")
+            ];
+
+            let allValid = true;
+
+            fields.forEach(field => {
+                if (field && !validateContactField(field)) {
+                    allValid = false;
+                }
+            });
+
+            return allValid;
+        }
+
+        function updateAddContactButtonState() {
+            const fields = [
+                document.querySelector("input[name='contactFirstName']"),
+                document.querySelector("input[name='contactLastName']"),
+                document.querySelector("input[name='phone']"),
+                document.querySelector("input[name='email']")
+            ];
+
+            const addButton = document.getElementById('addContactBtn');
+            if (!addButton) return;
+
+            // Check if all fields are filled and valid
+            let allFieldsValid = true;
+            let allFieldsFilled = true;
+
+            fields.forEach(field => {
+                if (!field) return;
+
+                const value = field.value.trim();
+                const hasError = field.classList.contains('error');
+
+                if (!value) {
+                    allFieldsFilled = false;
+                }
+
+                if (hasError || !value) {
+                    allFieldsValid = false;
+                }
+            });
+
+            // Enable button only if all fields are filled and valid
+            if (allFieldsFilled && allFieldsValid) {
+                addButton.disabled = false;
+                addButton.style.opacity = '1';
+                addButton.style.cursor = 'pointer';
+            } else {
+                addButton.disabled = true;
+                addButton.style.opacity = '0.5';
+                addButton.style.cursor = 'not-allowed';
+            }
+        }
+
+        function setupContactValidationListeners() {
+            const contactFields = [
+                document.querySelector("input[name='contactFirstName']"),
+                document.querySelector("input[name='contactLastName']"),
+                document.querySelector("input[name='phone']"),
+                document.querySelector("input[name='email']")
+            ];
+
+            contactFields.forEach(field => {
+                if (!field) return;
+
+                // Real-time validation on input
+                field.addEventListener('input', function() {
+                    // Small delay to avoid excessive validation calls
+                    clearTimeout(this.validationTimeout);
+                    this.validationTimeout = setTimeout(() => {
+                        validateContactField(this);
+                    }, 300);
+                });
+
+                // Immediate validation on blur
+                field.addEventListener('blur', function() {
+                    clearTimeout(this.validationTimeout);
+                    validateContactField(this);
+                });
+
+                // Initial validation check
+                field.addEventListener('keyup', function() {
+                    updateAddContactButtonState();
+                });
+            });
+
+            // Initially disable the add button
+            updateAddContactButtonState();
+        }
+
+        function addNewContactForm() {
+            if (!validateAllContactFields()) {
+                alert("Please fix all validation errors before adding contact.");
+                return;
+            }
+
+            const firstName = document.querySelector("input[name='contactFirstName']").value.trim();
+            const lastName = document.querySelector("input[name='contactLastName']").value.trim();
+            const phone = document.querySelector("input[name='phone']").value.trim();
+            const email = document.querySelector("input[name='email']").value.trim();
+
+            if (!firstName || !lastName || !phone || !email) {
+                alert("Please fill all the required fields.");
+                return;
+            }
+
+            const contactData = { firstName, lastName, phone, email };
+            const baseId = generateContactId(firstName, lastName);
+
+            checkAndProcessContactId(baseId, contactData);
+        }
+        function checkAndProcessContactId(contactId, contactData) {
+            const idInput = document.getElementById("contactIdInput");
+            const errorDiv = document.getElementById("contact-id-error");
+            const idCell = document.getElementById("contact-id-cell");
+            if (!contactId) {
+            alert("Contact ID is missing.");
+            return;
+        }
+        fetch(`/api/BPmaster/CheckContactUid?contactUid=${encodeURIComponent(contactId)}`)
+        .then(res => {
+            if (!res.ok) throw new Error("Bad request");
+            return res.json();
+        })
+        .then(data => {
+            const msg = (data.data?.message || "").toLowerCase();
+
+            if (msg.includes("exists")) {
+                // ❌ ID already exists — show input and error
+                idInput.value = contactId;
+                idCell.style.display = "table-cell";
+                idInput.removeAttribute("readonly");
+                idInput.classList.add("error");
+                errorDiv.textContent = "Contact ID already exists. Please modify it.";
+                errorDiv.style.display = "block";
+
+                // Attach input listener only once
+                if (!idInput.dataset.listenerAttached) {
+                    idInput.addEventListener("input", () => {
+                        const newId = idInput.value.trim();
+                        if (!newId) return;
+
+                        fetch(`/api/BPmaster/CheckContactUid?contactUid=${encodeURIComponent(newId)}`)
+                            .then(r => r.json())
+                            .then(result => {
+                                const newMsg = (result.data?.message || "").toLowerCase();
+
+                                if (newMsg.includes("exists")) {
+                                    idInput.classList.add("error");
+                                    errorDiv.textContent = "Contact ID already exists.";
+                                    errorDiv.style.display = "block";
+                                } else if (newMsg.includes("not found")) {
+                                    // ✅ Unique ID entered
+                                    idInput.classList.remove("error");
+                                    errorDiv.style.display = "none";
+                                    idInput.setAttribute("readonly", true);
+                                    idCell.style.display = "none";
+
+                                    addContactRow(contactData, newId);
+                                    resetContactForm();
+                                    showContactSuccessMessage("Contact added successfully!");
+                                }
+                            });
+                    });
+
+                    idInput.dataset.listenerAttached = "true";
+                }
+
+            } else if (msg.includes("not found")) {
+                // ✅ ID is unique from the beginning
+                idInput.value = contactId;
+                idInput.setAttribute("readonly", true);
+                idCell.style.display = "none";
+                errorDiv.style.display = "none";
+
+                addContactRow(contactData, contactId);
+                resetContactForm();
+                showContactSuccessMessage("Contact added successfully!");
+            } else {
+                alert("Unexpected API response");
+                console.warn(data);
+            }
+        })
+        .catch(err => {
+            console.error("Error:", err);
+            alert("Something went wrong while checking Contact ID.");
+        });
+        }
+
+        function generateContactId(firstName, lastName) {
+            const fn = firstName.trim().toUpperCase().replace(/[^A-Z]/g, '');
+            const ln = lastName.trim().toUpperCase().replace(/[^A-Z]/g, '');
+
+            return fn + " " + ln;
+        }        
+
+        function addContactRow(contactData, contactId) {
+            const tbody = document.querySelector('.contact-table-display tbody');
+            const newRow = document.createElement('tr');
+          
+            newRow.innerHTML = `
+                <td>${contactData.firstName}</td>
+                <td>${contactData.lastName}</td>
+                <td>${contactData.phone}</td>
+                <td>${contactData.email}</td>
+                <td>${contactId}</td>
+                <td><button class="edit-btn" onclick="editContact(this)">Edit</button>
+                <button class="delete-btn" onclick="deleteContact(this)">Delete</button>
+                </td>
+            `;
+
+            tbody.appendChild(newRow);
+            document.querySelector('.contact-table-display').style.display = 'table';
+        }
+
+        function isDuplicateContactEmail(email) {
+            const existingEmails = Array.from(document.querySelectorAll('.contact-table-display tbody tr td:nth-child(4)'))
+                .map(td => td.textContent.trim().toLowerCase());
+
+            return existingEmails.includes(email.toLowerCase());
+        }
+
+        function showContactSuccessMessage(message) {
+            // Remove existing success message
+            const existingMessage = document.getElementById('contact-success-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            // Create new success message
+            const successDiv = document.createElement('div');
+            successDiv.id = 'contact-success-message';
+            successDiv.style.cssText = `
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                color: #155724;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 10px 0;
+                text-align: center;
+                font-weight: bold;
+            `;
+            successDiv.textContent = message;
+
+            // Insert after add button
+            const addButton = document.getElementById('addContactBtn');
+            if (addButton && addButton.parentNode) {
+                addButton.parentNode.insertBefore(successDiv, addButton.nextSibling);
+            }
+
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (successDiv.parentNode) {
+                    successDiv.remove();
+                }
+            }, 3000);
+        }
+
+        function resetContactForm() {
+            const fields = ['contactFirstName', 'contactLastName', 'phone', 'email'];
+            fields.forEach(name => {
+                const field = document.querySelector(`input[name='${name}']`);
+                if (field) {
+                    field.value = '';
+                    field.classList.remove('error');
+
+                    // Hide error messages
+                    const errorElement = field.parentElement.querySelector('.error-message') ||
+                                       field.closest('td').querySelector('.error-message');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                }
+            });
+
+            // Reset button state
+            updateAddContactButtonState();
+            updateAddContactButtonState();
+            document.getElementById("contact-id-cell").style.display = "none";
+            document.getElementById("contactIdInput").value = "";
+            document.getElementById("contactIdInput").classList.remove("error");
+            document.getElementById("contact-id-error").style.display = "none";
+
+        }
+          
+            window.editContact = function(button) {
+
+            const row = button.closest('tr');
+            const index = Array.from(row.parentElement.children).indexOf(row);
+            editingContactRowIndex = index;
+
+            // Fill form
+            document.querySelector("input[name='contactFirstName']").value = row.cells[0].textContent.trim();
+            document.querySelector("input[name='contactLastName']").value = row.cells[1].textContent.trim();
+            document.querySelector("input[name='phone']").value = row.cells[2].textContent.trim();
+            document.querySelector("input[name='email']").value = row.cells[3].textContent.trim();
+
+            // Store index for edit
+            // document.getElementById("editingContactRowIndex").value = index;
+
+            // Show edit controls
+            document.getElementById("contact-edit-actions").style.display = 'block';
+
+            // Disable Add button
+            const addBtn = document.getElementById("addContactBtn");
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.style.opacity = '0.5';
+                addBtn.style.cursor = 'not-allowed';
+            }
+
+            // Scroll to form
+            document.getElementById("contactForm").scrollIntoView({ behavior: "smooth" });
+        };
+
+        function saveEditedContact() {
+            if (!validateAllContactFields()) {
+                alert("Please fix validation errors before saving changes.");
+                return;
+            }
+
+            // const index = parseInt(document.getElementById("editingContactRowIndex").value);
+            if (editingContactRowIndex===-1) {
+                alert("No contact selected for editing.");
+                return;
+            }
+
+            const contactData = {
+                firstName: document.querySelector("input[name='contactFirstName']").value.trim(),
+                lastName: document.querySelector("input[name='contactLastName']").value.trim(),
+                phone: document.querySelector("input[name='phone']").value.trim(),
+                email: document.querySelector("input[name='email']").value.trim()
+            };
+
+            const tableRows = document.querySelectorAll(".contact-table-display tbody tr");
+            const row = tableRows[editingContactRowIndex];
+
+            row.cells[0].textContent = contactData.firstName;
+            row.cells[1].textContent = contactData.lastName;
+            row.cells[2].textContent = contactData.phone;
+            row.cells[3].textContent = contactData.email;
+
+            // Reset form and UI
+            resetContactForm(); finishEdit(); // new helper
+            showContactSuccessMessage(`Contact updated successfully!`);
+        }
+           function cancelEditContact() {
+            resetContactForm();
+            // editingContactRowIndex=-1;
+             finishEdit(); // new helper
+            showContactSuccessMessage("Edit cancelled.");
+        }
+          // document.getElementById("editingContactRowIndex").value = -1;
+          function finishEdit(){
+            // Hide save/cancel section
+            document.getElementById("contact-edit-actions").style.display = 'none';
+
+            // Reset add button
+            const addBtn = document.getElementById("addContactBtn");
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.innerHTML = `
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                    Add New Contact
+                `;
+                addBtn.style.opacity = '0.5';
+                addBtn.style.cursor = 'not-allowed';
+            }
+        }
+        function deleteContact(button) {
+            if (confirm('Are you sure you want to delete this contact?')) {
+                const row = button.closest('tr');
+                const contactName = row.cells[0].textContent + ' ' + row.cells[1].textContent;
+
+                row.remove();
+
+                const contactTable = document.querySelector('.contact-table-display tbody');
+                if (contactTable.children.length === 0) {
+                    document.querySelector('.contact-table-display').style.display = 'none';
+                }
+
+                showContactSuccessMessage(`Contact "${contactName}" deleted successfully!`);
+            }
+        }
+        
+        function validateField(field) {
+            var fieldId = field.id || field.name;
+            var formGroup = field.closest('.form-group');
+            var errorElement = document.getElementById(fieldId + '-error');
+            var isValid = true;
+            var errorMessage = '';
+
+            // Reset previous state
+            if (formGroup) formGroup.classList.remove('error');
+            if (errorElement) errorElement.style.display = 'none';
+
+            const value = field.value.trim().toUpperCase();
+
+            // Required field check
+            if (field.hasAttribute('required') && !value) {
+                isValid = false;
+                errorMessage = 'This field is required';
+            }
+            // Email validation
+            else if (field.type === 'email' && value && !isValidEmail(value)) {
+                isValid = false;
+                errorMessage = 'Please enter a valid email address';
+            }
+            // Specific field validations
+            else if (fieldId === 'MSMEnum' && value && !/^UDYAM-[A-Z]{2}-[0-9]{7,15}$/i.test(value)) {
+                isValid = false;
+                errorMessage = 'Invalid MSME No. Format. Expected: UDYAM-XX-1234567';
+            }
+            else if (fieldId === 'tan' && value && !/^[A-Z]{4}[0-9]{5}[A-Z]$/.test(value)) {
+                isValid = false;
+                errorMessage = 'Invalid TAN number. Format: ABCD12345E';
+            }
+            else if (fieldId === 'pan' && value && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value)) {
+                isValid = false;
+                errorMessage = 'Invalid PAN number. Format: ABCDE1234F';
+            }
+            // Generic pattern validation
+            else if (field.pattern && value && !new RegExp(`^${field.pattern}$`, 'i').test(value)) {
+                isValid = false;
+                errorMessage = 'Invalid format';
+            }
+
+            // Show error if validation failed
+            if (!isValid) {
+                if (formGroup) formGroup.classList.add('error');
+                if (errorElement) {
+                    errorElement.textContent = errorMessage;
+                    errorElement.style.display = 'block';
+                }
+            }
+
+            field.value = value; // enforce uppercase in input box
+            return isValid;
+        }
+
+
+        function isValidEmail(email) {
+            return /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/.test(email);
+        }
+
+        function validateAccountNumbers() {
+            const accountNumber = document.getElementById('account-number');
+            const confirmAccountNumber = document.getElementById('con-acc-number');
+            const accountError = document.getElementById('account-number-error');
+            const confirmError = document.getElementById('con-acc-number-error');
+            let isValid = true;
+
+            // Validate account number format
+            if (!/^\d{9,18}$/.test(accountNumber.value)) {
+                accountError.style.display = 'block';
+                isValid = false;
+            } else {
+                accountError.style.display = 'none';
+            }
+
+            // Validate confirmation and match
+            if (confirmAccountNumber.value !== accountNumber.value) {
+                confirmError.textContent = 'Account numbers must match';
+                confirmError.style.display = 'block';
+                isValid = false;
+            } else if (!/^\d{9,18}$/.test(confirmAccountNumber.value)) {
+                confirmError.textContent = 'Account number must be 9-18 digits';
+                confirmError.style.display = 'block';
+                isValid = false;
+            } else {
+                confirmError.style.display = 'none';
+            }
+
+            return isValid;
+        }
+
+        // Setup initialization for payment dropdowns
+        function initializePaymentDropdowns() {
+            console.log('Initializing payment dropdowns...');
+            // Load all payment-related dropdowns
+            loadPaymentTerms();
+            loadPricelist();
+            loadBankNames();
+        }
+
+        // Function to call when type selection changes
+        function onTypeSelectionChange() {
+            // Wait a bit for payment terms to load, then set defaults
+            setTimeout(() => {
+                setDefaultPaymentValues();
+            }, 500);
+        }
+
+        // Enhanced initialization function for all dropdowns
+        function initializeAllDropdowns() {
+            console.log('Loading all form dropdowns...');
+
+            // Initialize payment dropdowns immediately
+            initializePaymentDropdowns();
+
+            // Setup GST validation
+            if (typeof setupGSTValidation === 'function') {
+                setupGSTValidation();
+            }
+
+            // Setup contact validation
+            if (typeof setupContactValidationListeners === 'function') {
+                setupContactValidationListeners();
+            }
+
+            // Setup address synchronization
+            setupAddressSync();
+        }
+        function loadPricelist() {
+            const pricelistSelect = document.getElementById('price-list');
+            if (!pricelistSelect) return;
+
+            pricelistSelect.innerHTML = '<option value="">Loading...</option>';
+            pricelistSelect.disabled = true;
+
+            fetch(`/api/BPmaster/GetPricelist?company=${companyId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch pricelist');
+                    return response.json();
+                })
+                .then(data => {
+                    pricelistSelect.innerHTML = '<option value="">Select Price List</option>';
+                    if (data.success && data.data) {
+                        data.data.forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item.listName;
+                            option.textContent = item.listName;
+                            pricelistSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading pricelist:', error);
+                    pricelistSelect.innerHTML = '<option value="">Error loading pricelist</option>';
+                })
+                .finally(() => {
+                    pricelistSelect.disabled = false;
+                });
+        }
+
+        function loadBankNames() {
+            const bankSelect = document.getElementById('BankName');
+            if (!bankSelect) return;
+
+            bankSelect.innerHTML = '<option value="">Loading...</option>';
+            bankSelect.disabled = true;
+
+            fetch(`/api/BPmaster/GetDistinctBankName?company=${companyId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch bank names');
+                    return response.json();
+                })
+                .then(data => {
+                    bankSelect.innerHTML = '<option value="">Select Bank Name</option>';
+                    if (Array.isArray(data)) {
+                        data.forEach(bank => {
+                            const option = document.createElement('option');
+                            option.value = bank.bankCode;
+                            option.textContent = bank.bankName;
+                            bankSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading bank names:', error);
+                    bankSelect.innerHTML = '<option value="">Error loading banks</option>';
+                })
+                .finally(() => {
+                    bankSelect.disabled = false;
+                });
+        }
+
+        function loadPaymentTerms() {
+            const paymentTermsSelect = document.getElementById('payment-terms');
+            if (!paymentTermsSelect) return;
+
+            paymentTermsSelect.innerHTML = '<option value="">Loading...</option>';
+            paymentTermsSelect.disabled = true;
+
+            fetch(`/api/BPmaster/GetDistinctPaymentGroups?company=${companyId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch payment terms');
+                    return response.json();
+                })
+                .then(data => {
+                    paymentTermsSelect.innerHTML = '<option value="">Select Payment Terms</option>';
+                    if (Array.isArray(data)) {
+                        data.forEach(term => {
+                            const option = document.createElement('option');
+                            option.value = term.pymntGroup;
+                            option.textContent = term.pymntGroup;
+                            paymentTermsSelect.appendChild(option);
+                        });
+                    }
+
+                    // Set default value based on type after loading
+                    setDefaultPaymentValues();
+                })
+                .catch(error => {
+                    console.error('Error loading payment terms:', error);
+                    paymentTermsSelect.innerHTML = '<option value="">Error loading payment terms</option>';
+                })
+                .finally(() => {
+                    paymentTermsSelect.disabled = false;
+                });
+        }
+
+        function setDefaultPaymentValues() {
+            const typeElement = document.querySelector('input[name="type"]:checked');
+            if (!typeElement) return;
+
+            const type = typeElement.value;
+            const paymentTermsSelect = document.getElementById('payment-terms');
+            const creditLimitField = document.getElementById('credit-limit');
+
+            // Set default payment terms
+            if (paymentTermsSelect) {
+                if (type === 'custa') {
+                    // Customer - ADVANCE/CASH/0 DAYS
+                    paymentTermsSelect.value = 'ADVANCE/CASH/0 DAYS';
+                } else if (type === 'venda') {
+                    // Vendor - NET-30
+                    paymentTermsSelect.value = 'NET-30';
+                }
+            }
+
+            // Set default credit limit
+            if (creditLimitField) {
+                if (type === 'custa') {
+                    // Customer - 10
+                    creditLimitField.value = '10';
+                } else if (type === 'venda') {
+                    // Vendor - 0
+                    creditLimitField.value = '0';
+                }
+            }
+
+            console.log(`Set default payment values for type: ${type}`);
+        }
+        function loadStates(addressType) {
+            var countrySelect = document.getElementById(addressType + '-country');
+            var stateSelect = document.getElementById(addressType + '-state');
+            var countryCode = countrySelect.value;
+            if (addressType === 'billing'|| addressType==='shipping') {
+                toggleGSTVisibility(countryCode,addressType); // <-- New line
+            }
+            if (!countryCode) {
+                stateSelect.innerHTML = '<option value="">Select State</option>';
+                stateSelect.disabled = true;
+
+                // Clear GST field if country changes
+                const gstField = document.getElementById(addressType + '-gst');
+                if (gstField) {
+                    gstField.value = '';
+                    clearGSTValidation(addressType);
+                }
+                return;
+            }
+            stateSelect.innerHTML = '<option value="">Loading...</option>';
+            stateSelect.disabled = true;
+
+            // Use the exact API format: /api/BPmaster/GetDistinctStates?company=1&CountryCode=IN
+            const apiUrl = `/api/BPmaster/GetDistinctStates?company=${companyId}&CountryCode=${countryCode}`;
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch states');
+                    return response.json();
+                })
+                .then(states => {
+                    populateStateDropdown(stateSelect, states);
+                    console.log(`Loaded states for ${addressType} address, country: ${countryCode}`);
+                })
+                .catch(error => {
+                    console.error('Error loading states:', error);
+                    stateSelect.innerHTML = '<option value="">Error loading states</option>';
+                })
+                .finally(() => {
+                    stateSelect.disabled = false;
+                });
+        }
+
+            function toggleGSTVisibility(countryCode, addressType) {
+                const gstField = document.getElementById(`${addressType}-gst-field`);
+                const gstInput = document.getElementById(`${addressType}-gst`);
+
+                if (!gstField) return;
+
+                if (countryCode === 'IN') {
+                    gstField.style.display = 'block';
+                } else {
+                    gstField.style.display = 'none';
+                    if (gstInput) gstInput.value = '';
+                }    
+            }
+
+        function populateStateDropdown(stateSelect, states) {
+            stateSelect.innerHTML = '<option value="">Select State</option>';
+
+            if (states && states.length > 0) {
+                states.forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state.code || state.name || state.stateName;
+                    option.textContent = state.name || state.stateName;
+                    stateSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Attachment Functions
+        function triggerAttachmentsInput() {
+            document.getElementById('attachmentsInput').click();
+        }
+
+        function handleAttachmentsChange(event) {
+            const newFiles = Array.from(event.target.files);
+            const maxSize = 512 * 1024;
+            const allowedTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
+
+            clearMessages();
+
+            // Validate files
+            for (let file of newFiles) {
+                if (file.size > maxSize) {
+                    showError(`File "${file.name}" is too large. Maximum size is 512KB.`);
+                    return;
+                }
+
+                const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+                if (!allowedTypes.includes(fileExt)) {
+                    showError(`File "${file.name}" has unsupported format. Allowed: PDF, JPG, PNG, DOC, DOCX.`);
+                    return;
+                }
+            }
+
+            attachments.push(...newFiles);
+            renderAttachments();
+            uploadFiles(newFiles);
+            event.target.value = '';
+        }
+
+        function uploadFiles(files) {
+            const formData = new FormData();
+            files.forEach(file => formData.append('files', file));
+
+            showProgress();
+
+            fetch('/api/BPmaster/UploadAttachments', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideProgress();
+                if (data.success) {
+                    uploadedFiles.push(...data.filePaths);
+                    showSuccess(`${files.length} file(s) uploaded successfully!`);
+                } else {
+                    throw new Error(data.message || 'Upload failed');
+                }
+            })
+            .catch(error => {
+                hideProgress();
+                console.error('Upload error:', error);
+            });
+        }
+
+        function removeAttachment(index) {
+            const fileToRemove = attachments[index];
+            const uploadedIndex = uploadedFiles.findIndex(path => path.includes(fileToRemove.name));
+
+            if (uploadedIndex !== -1) {
+                const filePath = uploadedFiles[uploadedIndex];
+                fetch('/api/BPmaster/DeleteAttachment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filePath: filePath })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        uploadedFiles.splice(uploadedIndex, 1);
+                    }
+                })
+                .catch(error => console.error('Delete error:', error));
+            }
+
+            attachments.splice(index, 1);
+            renderAttachments();
+            clearMessages();
+        }
+
+        function renderAttachments() {
+            const container = document.getElementById('attachments-list');
+            container.innerHTML = '';
+
+            attachments.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+                    <button class="remove-btn" onclick="removeAttachment(${index})">Remove</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function showProgress() {
+            document.getElementById('upload-progress').style.display = 'block';
+            let width = 0;
+            const progressBar = document.getElementById('upload-progress-bar');
+            const interval = setInterval(() => {
+                width += 10;
+                progressBar.style.width = width + '%';
+                if (width >= 100) clearInterval(interval);
+            }, 100);
+        }
+
+        function hideProgress() {
+            setTimeout(() => {
+                document.getElementById('upload-progress').style.display = 'none';
+                document.getElementById('upload-progress-bar').style.width = '0%';
+            }, 500);
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('upload-error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successElement = document.getElementById('upload-success');
+            successElement.textContent = message;
+            successElement.style.display = 'block';
+            setTimeout(() => successElement.style.display = 'none', 3000);
+        }
+
+        function clearMessages() {
+            document.getElementById('upload-error').style.display = 'none';
+            document.getElementById('upload-success').style.display = 'none';
+        }
+
+        // Address synchronization setup
+        function setupAddressSync() {
+            const billingFields = [
+                "billing-address1", "billing-address2", "billing-city",
+                "billing-state", "billing-zip", "billing-country", "billing-gst"
+            ];
+            const shippingFields = [
+                "shipping-address1", "shipping-address2", "shipping-city",
+                "shipping-state", "shipping-zip", "shipping-country", "shipping-gst"
+            ];
+
+            billingFields.forEach((billingId, index) => {
+                const billingField = document.getElementById(billingId);
+                if (billingField) {
+                    ['input', 'change'].forEach(eventType => {
+                        billingField.addEventListener(eventType, function() {
+                            if (document.getElementById("same-as-billing").checked) {
+                                const shippingField = document.getElementById(shippingFields[index]);
+                                if (shippingField) {
+                                    shippingField.value = this.value;
+                                }
+                            }
+                        });
+                    });
+                }
+            });
+
+            // Setup country change listeners for state loading
+            const billingCountry = document.getElementById('billing-country');
+            const shippingCountry = document.getElementById('shipping-country');
+
+            if (billingCountry) {
+                billingCountry.addEventListener('change', function() {
+                    loadStates('billing');
+                });
+            }
+
+            if (shippingCountry) {
+                shippingCountry.addEventListener('change', function() {
+                    loadStates('shipping');
+                });
+            }
+
+            // Setup state change listeners for GST validation
+            const billingState = document.getElementById('billing-state');
+            const shippingState = document.getElementById('shipping-state');
+
+            if (billingState) {
+                billingState.addEventListener('change', function() {
+                    handleStateChange('billing');
+                });
+            }
+
+            if (shippingState) {
+                shippingState.addEventListener('change', function() {
+                    handleStateChange('shipping');
+                });
+            }
+
+            // Setup address form validation listeners
+            const requiredAddressFields = [
+                'billing-address1', 'billing-city', 'billing-country',
+                'billing-state', 'billing-zip'
+            ];
+            requiredAddressFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.addEventListener('input', checkAddressForm);
+            });
+
+            // Setup account number validation listeners
+            const accountNumber = document.getElementById('account-number');
+            const confirmAccountNumber = document.getElementById('con-acc-number');
+
+            if (accountNumber) {
+                accountNumber.addEventListener('input', validateAccountNumbers);
+            }
+
+            if (confirmAccountNumber) {
+                confirmAccountNumber.addEventListener('input', validateAccountNumbers);
+            }
+        }
+
+        // Form submission and data collection
+        function collectFormData() {
+            const typeElement = document.querySelector('input[name="type"]:checked');
+            const staffElement = document.querySelector('input[name="isStaff"]:checked');
+
+            return {
+                type: typeElement ? typeElement.value : null,
+                isStaff: staffElement ? staffElement.value : null,
+                group: document.getElementById("group").value,
+                name: document.getElementById("BPname").value,
+                mainGroup: document.getElementById("main-group").value,
+                chain: document.getElementById("chain").value,
+                msme: document.getElementById("MSME").value,
+                msmeBusinessType: document.getElementById("MSMEbtype").value,
+                fssai: document.getElementById("fssai").value,
+                salesEmployee: document.getElementById("SPname").value,
+                billingAddress: {
+                    address1: document.getElementById("billing-address1").value,
+                    address2: document.getElementById("billing-address2").value,
+                    country: document.getElementById("billing-country").value,
+                    state: document.getElementById("billing-state").value,
+                    city: document.getElementById("billing-city").value,
+                    zip: document.getElementById("billing-zip").value,
+                    gst: document.getElementById("billing-gst").value
+                },
+                shippingAddress: document.getElementById("same-as-billing").checked ? null : {
+                    address1: document.getElementById("shipping-address1").value,
+                    address2: document.getElementById("shipping-address2").value,
+                    country: document.getElementById("shipping-country").value,
+                    state: document.getElementById("shipping-state").value,
+                    city: document.getElementById("shipping-city").value,
+                    zip: document.getElementById("shipping-zip").value,
+                    gst: document.getElementById("shipping-gst").value
+                },
+                paymentInfo: {
+                    paymentTerms: document.getElementById("payment-terms").value,
+                    priceList: document.getElementById("price-list").value,
+                    creditLimit: document.getElementById("credit-limit").value,
+                    bankInfo: {
+                        bankName: document.getElementById("BankName").value,
+                        accountName: document.getElementById("account-name").value,
+                        accountNumber: document.getElementById("account-number").value,
+                        ifscCode: document.getElementById("ifsc-code").value
+                    }
+                },
+                attachments: uploadedFiles
+            };
+        }
+    </script>
+    <script>
+                // Script 2: BP Type & Data Loading Functions
+         function toggleStaffExtraFields() {
+            const isStaff = document.querySelector('input[name="isStaff"]:checked')?.value;
+
+            const fssaiDiv = document.getElementById("staffExtraFields");   // FSSAI
+            const tanDiv = document.getElementById("staffExtraField");      // TAN
+
+            if (fssaiDiv && tanDiv) {
+                if (isStaff === "Y") {
+                    fssaiDiv.style.display = "none";
+                    tanDiv.style.display = "none";
+                } else {
+                    fssaiDiv.style.display = "block";
+                    tanDiv.style.display = "block";
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            toggleStaffExtraFields(); // Set initial visibility on load
+
+            // Attach change listeners to isStaff radio buttons
+            document.querySelectorAll('input[name="isStaff"]').forEach(function (radio) {
+                radio.addEventListener("change", toggleStaffExtraFields);
+            });
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            toggleStaffExtraFields();
+
+            document.querySelectorAll('input[name="isStaff"]').forEach(function (radio) {
+                radio.addEventListener("change", toggleStaffExtraFields);
+            });
+        });
+
+
+        let bpList = [];
+        let omniBPList = [];
+        let existingPANs = [];
+
+        // Form sections toggle
+        function toggleFormSections(enable) {
+            document.querySelectorAll('.disabled-section').forEach(section => {
+                section.classList.toggle('disabled-section', !enable);
+            });
+        }
+
+        // Get base BP type (only venda or custa) for APIs
+        function getSimpleBpType() {
+            const type = document.querySelector('input[name="type"]:checked')?.value;
+            return type; // Returns "custa" or "venda" only, never "orgc" or "orgv"
+        }
+
+        // Get BP type based on radio selections (with staff status)
+        function getBpType() {
+            const type = document.querySelector('input[name="type"]:checked')?.value;
+            const staff = document.querySelector('input[name="isStaff"]:checked')?.value;
+            if (type === "venda") return staff === "Y" ? "orgv" : "venda";
+            return staff === "Y" ? "orgc" : "custa";
+        }
+
+        function getIsStaff() {
+            return document.querySelector('input[name="isStaff"]:checked')?.value || "N";
+        }
+
+        // Update the code field based on selections
+        function updateCodeField() {
+            const codeField = document.getElementById('bp-code');
+            const type = document.querySelector('input[name="type"]:checked')?.value;
+            const staff = document.querySelector('input[name="isStaff"]:checked')?.value;
+
+            if (type && staff) {
+                const code = getBpType().toUpperCase();
+                codeField.value = code;
+                codeField.style.backgroundColor = '#e8f5e8';
+            } else {
+                codeField.value = '';
+                codeField.style.backgroundColor = '#f8f9fa';
+            }
+        }
+        function showElement(element) {
+            if (element) {
+                element.classList.remove('hidden');
+                element.classList.remove('disabled-section');
+                element.style.display = 'block';
+             element.style.visibility = 'visible';
+            }
+        }
+
+        function hideElement(element) {
+        if (element) {
+             element.classList.add('hidden');
+             element.classList.add('disabled-section');
+             element.style.display = 'none';
+             element.style.visibility = 'hidden';
+            }
+        }
+        // Handle type selection and show/hide conditional fields
+        function handleTypeSelection() {
+         const type = document.querySelector('input[name="type"]:checked')?.value;
+        if (!type) return toggleFormSections(false);
+
+        toggleFormSections(true);
+        document.getElementById('staff-section').classList.remove('disabled-section');
+        document.getElementById('code-group').classList.remove('disabled-section');
+
+        const isCustomer = type === 'custa';
+        const isVendor = type === 'venda';
+
+        // Customer specific fields (Chain)
+        const chainGroup = document.getElementById('chain-group');
+        if (chainGroup) {
+            if (isCustomer) {
+                showElement(chainGroup);
+            } else {
+                hideElement(chainGroup);
+            }
+        }
+            // Vendor specific fields (MSME fields)
+            const vendorFields = ['msme-type-group', 'msme-no-group', 'msme-btype-group'];
+            vendorFields.forEach(id => {
+                const element = document.getElementById(id);
+                if (isVendor) {
+                    showElement(element);
+                } else {
+                    hideElement(element);
+                }
+            });
+
+            // Common fields for both (always visible) - PAN, TAN, FSSAI etc are already in HTML
+
+            // Set required fields based on type
+            const chainField = document.getElementById('chain');
+            if (chainField) {
+                chainField.required = isCustomer;
+            }
+
+            // MSME fields required only for vendors
+            ['MSME', 'MSMEno', 'MSMEbtype'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.required = isVendor;
+                }
+            });
+
+            // PAN and TAN are common fields, not required by default but can be filled
+            ['pan', 'tan'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.required = false; // Make them optional for both
+                }
+            });
+
+            updateCodeField();
+            handleTypeOrStaffChange();
+
+            console.log(`Type selected: ${type}. Showing ${isCustomer ? 'Customer' : 'Vendor'} specific fields.`);
+        }
+        //     document.addEventListener("DOMContentLoaded", function () {
+        //     handleTypeSelection(); 
+        //     Ensure proper toggle on load
+
+        //     Bind to radio change
+        //     document.querySelectorAll('input[name="type"]').forEach(radio => {
+        //         radio.addEventListener("change", function(){handleTypeSelection();});
+        //     });
+        // });
+                document.addEventListener("DOMContentLoaded", function () {
+            handleTypeSelection();
+            // Ensure proper toggle on load
+
+            // Bind to radio change
+            document.querySelectorAll('input[name="type"]').forEach(radio => {
+                radio.addEventListener("change", function(){
+                    handleTypeSelection();
+                });
+            });
+        });
+        function handleTypeOrStaffChange() {
+            if (!document.querySelector('input[name="type"]:checked')) return;
+            updateCodeField();
+            loadGroups();
+            loadMainGroups();
+            loadChain();
+            loadMSMEtype();
+            // Also trigger payment defaults when type changes
+            if (typeof onTypeSelectionChange === 'function') {
+                onTypeSelectionChange();
+            }
+        }
+         
+        // Data loading functions
+       function loadGroups() {
+    const groupSelect = document.getElementById('group');
+    const isStaff = getIsStaff();
+    const simpleBpType = getSimpleBpType(); // Use simple type
+    
+    groupSelect.innerHTML = '<option value="">Loading Groups...</option>';
+    groupSelect.disabled = true;
+    
+    console.log(`API Call: GetGroupNameByBPType - BPType: ${simpleBpType}, IsStaff: ${isStaff}`);
+    
+    fetch(`/api/BPmaster/GetGroupNameByBPType?company=${companyId}&bpType=${simpleBpType}&isStaff=${isStaff}`)
+        .then(res => res.json())
+        .then(data => {
+            groupSelect.innerHTML = '<option value="">Select Group</option>';
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.value || item.name || item.groupName;
+                opt.textContent = item.text || item.name || item.groupName;
+                groupSelect.appendChild(opt);
+            });
+            console.log(`✅ Groups loaded: ${data.length} items`);
+        })
+        .catch(err => {
+            console.error("❌ Error loading groups:", err);
+            groupSelect.innerHTML = '<option value="">Error loading groups</option>';
+        })
+        .finally(() => groupSelect.disabled = false);
+}
+
+// FIXED: Load Main Groups with simple BP type
+function loadMainGroups() {
+    const select = document.getElementById('main-group');
+    const isStaff = getIsStaff();
+    const simpleBpType = getSimpleBpType(); // Use simple type
+    
+    select.innerHTML = '<option value="">Loading Main Groups...</option>';
+    select.disabled = true;
+    
+    console.log(`API Call: GetMaingroup - BPType: ${simpleBpType}, IsStaff: ${isStaff}`);
+    
+    fetch(`/api/BPmaster/GetMaingroup?company=${companyId}&bpType=${simpleBpType}&IsStaff=${isStaff}`)
+        .then(res => res.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Select Main Group</option>';
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.u_Main_Group;
+                opt.textContent = item.u_Main_Group;
+                select.appendChild(opt);
+            });
+            console.log(`✅ Main Groups loaded: ${data.length} items`);
+        })
+        .catch(err => {
+            console.error("❌ Error loading main groups:", err);
+            select.innerHTML = '<option value="">Error loading main groups</option>';
+        })
+        .finally(() => select.disabled = false);
+}
+
+// FIXED: Load Chain with simple BP type
+function loadChain() {
+    const select = document.getElementById('chain');
+    const isStaff = getIsStaff();
+    const simpleBpType = getSimpleBpType(); // Use simple type
+    
+    select.innerHTML = '<option value="">Loading Chains...</option>';
+    select.disabled = true;
+    
+    console.log(`API Call: GetChain - BPType: ${simpleBpType}, IsStaff: ${isStaff}`);
+    
+    fetch(`/api/BPmaster/GetChain?company=${companyId}&bpType=${simpleBpType}&IsStaff=${isStaff}`)
+        .then(res => res.json())
+        .then(data => {
+            select.innerHTML = '<option value="">Select Chain</option>';
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.u_Chain;
+                opt.textContent = item.u_Chain;
+                select.appendChild(opt);
+            });
+            console.log(`✅ Chains loaded: ${data.length} items`);
+        })
+        .catch(err => {
+            console.error("❌ Error loading chains:", err);
+            select.innerHTML = '<option value="">Error loading chains</option>';
+        })
+        .finally(() => select.disabled = false);
+}
+
+function loadMSMEtype() {
+             const select = document.getElementById('MSME');
+             
+             select.innerHTML = '<option value="">Loading MSME type...</option>';
+             select.disabled = true;
+
+             fetch(`/api/BPmaster/GetMSMEtype?company=${companyId}`)
+                 .then(res => res.json())
+                 .then(data => {
+                     select.innerHTML = '<option value="">Select MSME Type</option>';
+                     data.forEach(item => {
+                         const opt = document.createElement('option');
+                                 opt.value = item.u_MSME_BType;
+                                 opt.textContent = item.u_MSME_BType;
+                         select.appendChild(opt);
+                     });
+                     console.log(`✅ MSME type loaded: ${data.length} items`);
+                 })
+                        .catch(err => {
+                                    console.error("❌ Error loading MSME types:", err);
+                                    select.innerHTML = '<option value="">Error loading MSME types</option>';
+                        })
+                        .finally(() => select.disabled = false);
+        }
+
+        function loadPaymentTerms() {
+            const select = document.getElementById('payment-terms');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Loading...</option>';
+            select.disabled = true;
+
+            fetch(`/api/BPmaster/GetDistinctPaymentGroups?company=${companyId}`)
+                .then(res => res.json())
+                .then(data => {
+                    select.innerHTML = '<option value="">Select Payment Terms</option>';
+                    data.forEach(term => {
+                        const opt = document.createElement('option');
+                        opt.value = term.pymntGroup;
+                        opt.textContent = term.pymntGroup;
+                        select.appendChild(opt);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading payment terms:', error);
+                    select.innerHTML = '<option value="">Error loading</option>';
+                })
+                .finally(() => {
+                    select.disabled = false;
+                });
+        }
+
+        // Event listeners setup
+        function setupEventListeners() {
+            // Type selection listeners
+            document.querySelectorAll('input[name="type"]').forEach(radio => {
+                radio.addEventListener("change", () => {
+                    handleTypeSelection();
+                    checkFormUnlock();
+                });
+            });
+
+            // Staff selection listeners
+            document.querySelectorAll('input[name="isStaff"]').forEach(radio => {
+                radio.addEventListener("change", () => {
+                    handleTypeSelection();
+                });
+            });
+
+            // Branch selection listener
+            const branchSelect = document.getElementById("branch");
+            if (branchSelect) {
+                branchSelect.addEventListener("change", checkFormUnlock);
+            }
+
+            // Account number validation listeners
+            const accountNumber = document.getElementById("account-number");
+            const confirmAccountNumber = document.getElementById("con-acc-number");
+            if (accountNumber) accountNumber.addEventListener("input", validateAccountNumbers);
+            if (confirmAccountNumber) confirmAccountNumber.addEventListener("input", validateAccountNumbers);
+
+            // SWIFT code validation
+            const swiftCode = document.getElementById('swift-code');
+            if (swiftCode) swiftCode.addEventListener('input', validateSWIFTCode);
+
+            // IFSC code auto-uppercase
+            const ifscField = document.getElementById('ifsc-code');
+            if (ifscField) {
+                ifscField.addEventListener('input', function() {
+                    this.value = this.value.toUpperCase();
+                });
+            }
+
+            // Address form validation
+            const requiredAddressFields = ['billing-address1', 'billing-city', 'billing-state', 'billing-country', 'billing-zip'];
+            requiredAddressFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.addEventListener('input', checkAddressForm);
+            });
+        }
+
+        function checkFormUnlock() {
+            const type = document.querySelector('input[name="type"]:checked');
+            const branch = document.getElementById("branch").value;
+            const allFields = document.querySelectorAll("input, select, textarea");
+
+            allFields.forEach(el => {
+                if (["branch", "type"].includes(el.name || el.id)) return;
+                el.disabled = !(type && branch);
+            });
+        }
+
+        // BP Name validation and suggestions
+        function setupBPNameValidation() {
+            const bpNameField = document.getElementById("BPname");
+            if (!bpNameField) return;
+
+            bpNameField.addEventListener("input", async function() {
+                const input = this;
+                const query = input.value.trim().toLowerCase();
+                const suggestionsBox = document.getElementById("bp-suggestions");
+                const errorBox = document.getElementById("bpname-error");
+
+                // Reset states
+                errorBox.style.display = "none";
+                errorBox.style.color = "";
+                input.classList.remove("error");
+                input.style.borderColor = "";
+
+                if (query.length < 2) {
+                    suggestionsBox.style.display = "none";
+                    return;
+                }
+
+                const type = document.querySelector('input[name="type"]:checked')?.value;
+                if (!type) {
+                    suggestionsBox.style.display = "none";
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/BPmaster/BPGetCardInfo?company=${companyId}&BPType=${getBaseBpType()}`);
+                    const data = await res.json();
+                    omniBPList = Array.isArray(data) ? data : data.data;
+
+                    const matches = omniBPList.filter(bp =>
+                        bp.cardName?.toLowerCase().includes(query)
+                    );
+
+                    const exactMatch = matches.some(bp => bp.cardName?.toLowerCase() === query);
+
+                    if (exactMatch) {
+                        // Already exists
+                        errorBox.style.display = "block";
+                        errorBox.style.color = "#dc3545";
+                        errorBox.textContent = "❌ Already exists, please write new.";
+                        input.classList.add("error");
+                        input.style.borderColor = "red";
+                        suggestionsBox.style.display = "none";
+                    } else {
+                        // Valid new name
+                        errorBox.style.display = "block";
+                        errorBox.style.color = "green";
+                        errorBox.textContent = "✓ Name is unique";
+                        input.classList.remove("error");
+                        input.style.borderColor = "green";
+
+                        if (matches.length > 0) {
+                            // Show suggestions
+                            suggestionsBox.innerHTML = matches.map(bp => `
+                                <div class="bp-suggestion-item" onclick="selectBPName('${bp.cardName.replace(/'/g, "\\'")}')">
+                                    <strong>${bp.cardName}</strong>
+                                    <small>${bp.address || ''}, ${bp.state || ''}</small>
+                                    <small>GST: ${bp.gstRegnNo || '-'}</small>
+                                </div>
+                            `).join('');
+                        } else {
+                            suggestionsBox.innerHTML = `<div class="bp-suggestion-item">✅ Valid new name</div>`;
+                        }
+                        suggestionsBox.style.display = "block";
+                    }
+                } catch (err) {
+                    console.error("Error loading BP data:", err);
+                    suggestionsBox.style.display = "none";
+                }
+            });
+        }
+
+        function selectBPName(name) {
+            const input = document.getElementById("BPname");
+            const errorBox = document.getElementById("bpname-error");
+
+            input.value = name;
+            input.classList.add("error");
+            input.style.borderColor = "red";
+            errorBox.style.display = "block";
+            errorBox.style.color = "#dc3545";
+            errorBox.textContent = "❌ Already exists, please write new.";
+            document.getElementById("bp-suggestions").style.display = "none";
+        }
+
+        // BP Filter Modal Functions
+        function openBPFilter() {
+            const type = document.querySelector('input[name="type"]:checked')?.value || '';
+            if (!type) return alert("Please select type first");
+
+            const url = `/api/BPmaster/BPGetCardInfo?company=${companyId}&BPType=${getBaseBpType()}`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    const list = Array.isArray(data) ? data : data.data;
+                    const tbody = document.querySelector('#bp-table tbody');
+                    tbody.innerHTML = '';
+
+                    list.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${item.cardCode}</td>
+                            <td>${item.cardName}</td>
+                            <td>${item.address}</td>
+                            <td>${item.state}</td>
+                            <td>${item.gstRegnNo || '-'}</td>
+                        `;
+                        tr.style.cursor = "pointer";
+                        tr.onclick = () => {
+                            document.getElementById("BPname").value = item.cardName;
+                            closeBPFilter();
+                        };
+                        tbody.appendChild(tr);
+                    });
+
+                    document.getElementById("bp-modal").style.display = "block";
+                })
+                .catch(err => {
+                    console.error("Error fetching BP info:", err);
+                    alert("Failed to load BP list");
+                });
+        }
+
+        function closeBPFilter() {
+            document.getElementById("bp-modal").style.display = "none";
+        }
+
+        function filterBPTable() {
+            const searchText = document.getElementById("bp-search").value.toLowerCase();
+            const rows = document.querySelectorAll("#bp-table tbody tr");
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? "" : "none";
+            });
+        }
+
+        // PAN validation setup
+         function setupPANValidation() {
+            const panInput = document.getElementById("pan");
+            const panError = document.getElementById("pan-error");
+            if (!panInput || !panError) return;
+
+            panInput.addEventListener("input", () => {
+                const panValue = panInput.value.toUpperCase().trim();
+                const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+                // Reset styles
+                panError.style.display = "none";
+                panInput.style.borderColor = "";
+                panInput.classList.remove("error");
+
+                if (panValue.length === 10) {
+                    if (!panRegex.test(panValue)) {
+                        // Invalid format
+                        panError.textContent = "❌ Invalid PAN format. Expected: ABCDE1234F";
+                        panError.style.color = "#dc3545";
+                        panError.style.display = "block";
+                        panInput.style.borderColor = "red";
+                        panInput.classList.add("error");
+                    } else if (existingPANs.includes(panValue)) {
+                        // Duplicate PAN
+                        panError.textContent = "❌ Already exists, please enter a new PAN.";
+                        panError.style.color = "#dc3545";
+                        panError.style.display = "block";
+                        panInput.style.borderColor = "red";
+                        panInput.classList.add("error");
+                    } else {
+                        // Valid and unique
+                        panError.textContent = "✓ PAN is valid and unique";
+                        panError.style.color = "green";
+                        panError.style.display = "block";
+                        panInput.style.borderColor = "green";
+                        panInput.classList.remove("error");
+                    }
+                } else if (panValue.length > 0 && panValue.length < 10) {
+                    // Too short PAN input
+                    panError.textContent = "❌ PAN must be exactly 10 characters";
+                    panError.style.color = "#dc3545";
+                    panError.style.display = "block";
+                    panInput.style.borderColor = "red";
+                    panInput.classList.add("error");
+                }
+
+                // Update the input with uppercase value
+                panInput.value = panValue;
+            });
+        }
+
+                function setupTANValidation() {
+            const tanInput = document.getElementById("tan");
+            const tanError = document.getElementById("tan-error");
+            if (!tanInput || !tanError) return;
+
+            tanInput.addEventListener("input", () => {
+                const tanValue = tanInput.value.toUpperCase().trim();
+                const tanRegex = /^[A-Z]{4}[0-9]{5}[A-Z]$/;
+
+                // Reset styles
+                tanError.style.display = "none";
+                tanInput.style.borderColor = "";
+                tanInput.classList.remove("error");
+
+                if (tanValue.length === 10) {
+                    if (!tanRegex.test(tanValue)) {
+                        tanError.textContent = "❌ Invalid TAN format. Expected: ABCD12345E";
+                        tanError.style.color = "#dc3545";
+                        tanError.style.display = "block";
+                        tanInput.style.borderColor = "red";
+                        tanInput.classList.add("error");
+                    } else {
+                        tanError.textContent = "✓ Valid TAN format";
+                        tanError.style.color = "green";
+                        tanError.style.display = "block";
+                        tanInput.style.borderColor = "green";
+                        tanInput.classList.remove("error");
+                    }
+                } else if (tanValue.length > 0 && tanValue.length < 10) {
+                    tanError.textContent = "❌ TAN must be exactly 10 characters";
+                    tanError.style.color = "#dc3545";
+                    tanError.style.display = "block";
+                    tanInput.style.borderColor = "red";
+                    tanInput.classList.add("error");
+                }
+
+                tanInput.value = tanValue; // force uppercase in input field
+            });
+        }
+
+        // Load existing PANs
+        async function loadExistingPANs() {
+            try {
+                const res = await fetch(`/api/BPmaster/GetUniquePANs?company=${companyId}`);
+                const result = await res.json();
+                if (result.success && Array.isArray(result.data)) {
+                    existingPANs = result.data.map(p => p.paN_Number.toUpperCase());
+                }
+            } catch (err) {
+                console.error("Error loading PAN list:", err);
+            }
+        }
+
+        // Hide suggestions when clicking outside
+        function setupClickOutsideHandler() {
+            document.addEventListener("click", function(e) {
+                const bpNameGroup = document.getElementById("bp-name-group");
+                if (bpNameGroup && !bpNameGroup.contains(e.target)) {
+                    const suggestions = document.getElementById("bp-suggestions");
+                    if (suggestions) suggestions.style.display = "none";
+                }
+            });
+        }
+
+        // Set default values based on BP type
+        function setDefaultValues() {
+            // Price list default values based on full type (with staff)
+            const fullType = getBpType(); // Use full type for internal logic
+            const priceListSelect = document.getElementById("price-list");
+            if (priceListSelect) {
+                if (fullType === 'venda' || fullType === 'orgv') {
+                    priceListSelect.value = '10';
+                } else if (fullType === 'custa' || fullType === 'orgc') {
+                    priceListSelect.value = '0';
+                }
+            }
+
+            // Payment terms default values based on full type (with staff)
+            const paymentTerms = getBpType(); // Use full type for internal logic
+            const payTermSelect = document.getElementById("payment-terms");
+            if (payTermSelect) {
+                setTimeout(() => {
+                    if (paymentTerms === 'venda' || paymentTerms === 'orgv') {
+                        payTermSelect.value = 'NET-30';
+                    } else if (paymentTerms === 'custa' || paymentTerms === 'orgc') {
+                        payTermSelect.value = 'ADVANCE/CASH/0 DAYS';
+                    }
+                }, 300);
+            }
+        }
+    </script>
+    <script>
+                // Script 3: Form Locking System & Main Initialization
+
+        // CSS for form locking functionality
+        const formLockingCSS = `
+            .form-disabled input:not([name="type"]),
+            .form-disabled select:not(#branch),
+            .form-disabled textarea,
+            .form-disabled button:not(.unlock-allowed) {
+                pointer-events: none !important;
+                opacity: 0.5 !important;
+                background-color: #f8f9fa !important;
+                cursor: not-allowed !important;
+            }
+
+            .tabs.disabled .tab {
+                pointer-events: none !important;
+                opacity: 0.5 !important;
+                cursor: not-allowed !important;
+                background-color: #e9ecef !important;
+            }
+
+            .form-disabled input[name="type"],
+            .form-disabled #branch {
+                pointer-events: auto !important;
+                opacity: 1 !important;
+                cursor: pointer !important;
+            }
+
+            .tab-content-disabled {
+                pointer-events: none !important;
+                opacity: 0.5 !important;
+                position: relative;
+            }
+
+            .tab-content-disabled::before {
+                content: "Please select Type first to enable this section";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 255, 255, 0.9);
+                padding: 20px;
+                border: 2px dashed #ccc;
+                border-radius: 8px;
+                font-weight: bold;
+                color: #666;
+                z-index: 1000;
+                text-align: center;
+            }
+
+            .type-selection-warning {
+                background: #fff3cd;
+                border: 2px solid #ffeaa7;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+                text-align: center;
+                font-weight: bold;
+                color: #856404;
+            }
+
+            /* Hide fields based on type selection */
+            .hidden {
+                display: none !important;
+            }
+
+            /* Customer specific fields */
+            .customer-only {
+                display: none;
+            }
+
+            .show-customer .customer-only {
+                display: block;
+            }
+
+            /* Vendor specific fields */
+            .vendor-only {
+                display: none;
+            }
+
+            .show-vendor .vendor-only {
+                display: block;
+            }
+
+            /* Smooth transitions for field visibility */
+            .form-group {
+                transition: opacity 0.3s ease, height 0.3s ease;
+            }
+
+            .form-group.hidden {
+                opacity: 0;
+                height: 0;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+            }
+        `;
+
+        // Add CSS to document head
+        function addFormLockingCSS() {
+            if (!document.getElementById('form-locking-styles')) {
+                const style = document.createElement('style');
+                style.id = 'form-locking-styles';
+                style.textContent = formLockingCSS;
+                document.head.appendChild(style);
+            }
+        }
+
+        // Lock all form elements except type and branch
+        function lockFormElements() {
+            const container = document.querySelector('.container');
+            if (container) {
+                container.classList.add('form-disabled');
+            }
+
+            const tabsContainer = document.querySelector('.tabs');
+            if (tabsContainer) {
+                tabsContainer.classList.add('disabled');
+            }
+
+            // Disable specific tab contents
+            const tabContents = ['contacts-tab', 'addresses-tab', 'payment-tab', 'attachments-tab'];
+            tabContents.forEach(tabId => {
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    tab.classList.add('tab-content-disabled');
+                }
+            });
+
+            // Disable all inputs except type and branch
+            const allInputs = document.querySelectorAll('input, select, textarea, button');
+            allInputs.forEach(element => {
+                if (element.name !== 'type' && element.id !== 'branch') {
+                    element.disabled = true;
+                }
+            });
+
+            showTypeSelectionWarning();
+        }
+
+        // Unlock all form elements
+        function unlockFormElements() {
+            const container = document.querySelector('.container');
+            if (container) {
+                container.classList.remove('form-disabled');
+            }
+
+            const tabsContainer = document.querySelector('.tabs');
+            if (tabsContainer) {
+                tabsContainer.classList.remove('disabled');
+            }
+
+            // Enable tab contents
+            const tabContents = ['contacts-tab', 'addresses-tab', 'payment-tab', 'attachments-tab'];
+            tabContents.forEach(tabId => {
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    tab.classList.remove('tab-content-disabled');
+                }
+            });
+
+            // Enable all form elements
+            const allInputs = document.querySelectorAll('input, select, textarea, button');
+            allInputs.forEach(element => {
+                element.disabled = false;
+            });
+
+            removeTypeSelectionWarning();
+        }
+
+        // Show warning message to select type first
+        function showTypeSelectionWarning() {
+            const generalTab = document.getElementById('general-tab');
+            if (generalTab && !document.getElementById('type-selection-warning')) {
+                const warning = document.createElement('div');
+                warning.id = 'type-selection-warning';
+                warning.className = 'type-selection-warning';
+                warning.innerHTML = `
+                    <h3>⚠️ Please Select Business Partner Type First</h3>
+                    <p>All form fields and tabs will be enabled after selecting the type (Customer/Vendor)</p>
+                `;
+
+                const salesSection = generalTab.querySelector('.form-section');
+                if (salesSection) {
+                    salesSection.parentNode.insertBefore(warning, salesSection);
+                }
+            }
+        }
+
+        // Remove warning message
+        function removeTypeSelectionWarning() {
+            const warning = document.getElementById('type-selection-warning');
+            if (warning) {
+                warning.remove();
+            }
+        }
+
+        // Setup type selection listeners for form unlocking
+        function setupFormUnlockListeners() {
+            const typeRadios = document.querySelectorAll('input[name="type"]');
+            typeRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.checked) {
+                        unlockFormElements();
+
+                        // Call existing type handling functions
+                        if (typeof handleTypeSelection === 'function') {
+                            handleTypeSelection();
+                        }
+
+                        if (typeof handleTypeOrStaffChange === 'function') {
+                            handleTypeOrStaffChange();
+                        }
+
+                        if (typeof checkFormUnlock === 'function') {
+                            checkFormUnlock();
+                        }
+
+                        console.log('Form unlocked after type selection');
+                    }
+                });
+            });
+        }
+
+        // Enhanced tab switching with type validation
+        function switchTab(tabName) {
+            const typeSelected = document.querySelector('input[name="type"]:checked');
+
+            if (!typeSelected) {
+                alert('कृपया पहले Business Partner Type (Customer/Vendor) select करें!');
+                return;
+            }
+
+            // Remove active class from all tabs
+            document.querySelectorAll(".tab").forEach((tab) => {
+                tab.classList.remove("active");
+            });
+
+            // Add active class to clicked tab
+            event.target.classList.add("active");
+
+            // Hide all tab contents
+            const tabIds = ["general-tab", "contacts-tab", "addresses-tab", "payment-tab", "attachments-tab"];
+            tabIds.forEach(id => {
+                const tab = document.getElementById(id);
+                if (tab) tab.style.display = "none";
+            });
+
+            // Show selected tab content
+            const activeTabId = `${tabName}-tab`;
+            const activeTab = document.getElementById(activeTabId);
+            if (activeTab) {
+                activeTab.style.display = "block";
+            }
+
+            console.log("Switched to tab:", tabName);
+        }
+
+        // Validate current tab
+        function validateCurrentTab() {
+            let isValid = true;
+            const activeTab = document.querySelector('.tab.active');
+            const currentTab = activeTab ? activeTab.textContent.trim().toLowerCase() : 'general';
+
+            let fieldsToValidate = [];
+
+            if (currentTab.includes('general') || currentTab === 'business partner master data') {
+                fieldsToValidate = [
+                    document.getElementById('group'),
+                    document.getElementById('BPname'),
+                    document.getElementById('main-group'),
+                    document.getElementById('chain'),
+                    document.getElementById('SPname')
+                ].filter(field => field !== null);
+
+                // Validate radio buttons
+                if (!document.querySelector('input[name="type"]:checked')) {
+                    showFieldError('type', 'Please select a type');
+                    isValid = false;
+                }
+                if (!document.querySelector('input[name="isStaff"]:checked')) {
+                    showFieldError('isStaff', 'Please select if this is a staff member');
+                    isValid = false;
+                }
+            } else if (currentTab.includes('contact')) {
+                fieldsToValidate = Array.from(document.querySelectorAll('#contactForm input[required]'));
+            } else if (currentTab.includes('address')) {
+                fieldsToValidate = [
+                    document.getElementById('billing-address1'),
+                    document.getElementById('billing-country'),
+                    document.getElementById('billing-state'),
+                    document.getElementById('billing-city'),
+                    document.getElementById('billing-zip')
+                ].filter(field => field !== null);
+
+                if (!document.getElementById('same-as-billing')?.checked) {
+                    const shippingFields = [
+                        document.getElementById('shipping-address1'),
+                        document.getElementById('shipping-country'),
+                        document.getElementById('shipping-state'),
+                        document.getElementById('shipping-city'),
+                        document.getElementById('shipping-zip')
+                    ].filter(field => field !== null);
+                    fieldsToValidate.push(...shippingFields);
+                }
+            } else if (currentTab.includes('payment')) {
+                fieldsToValidate = [
+                    document.getElementById('payment-terms'),
+                    document.getElementById('BankName')
+                ].filter(field => field !== null);
+            }
+
+            // Validate each field
+            fieldsToValidate.forEach(field => {
+                if (field && typeof validateField === 'function' && !validateField(field)) {
+                    isValid = false;
+                }
+            });
+
+            // Additional validations
+            if (typeof validateAccountNumbers === 'function' && !validateAccountNumbers()) {
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function showFieldError(fieldName, message) {
+            const errorElement = document.getElementById(fieldName + '-error');
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+                const formGroup = errorElement.closest('.form-group');
+                if (formGroup) {
+                    formGroup.classList.add('error');
+                }
+            }
+        }
+                document.addEventListener("DOMContentLoaded", function () {
+            const prefix = "JWPL";
+            const suffixDropdown = document.getElementById("staffCodeSuffix");
+            const fullInput = document.getElementById("staffCode");
+            const errorDiv = document.getElementById("staffCode-error");
+
+            // Update staff code when suffix changes
+            suffixDropdown.addEventListener("change", function () {
+                const suffix = suffixDropdown.value.trim();
+                if (suffix) {
+                    fullInput.value = prefix + suffix;console.log(fullInput.value);
+                    errorDiv.style.display = "none";
+                } else {
+                    fullInput.value = "";
+                }
+            });
+
+            // Expose validation for submit
+            window.validateStaffCode = function () {
+                const suffix = suffixDropdown.value.trim();
+                if (!suffix) {
+                    errorDiv.style.display = "block";
+                    return false;
+                }
+                errorDiv.style.display = "none";
+                return true;
+            };
+
+            // 🛠️ Placeholder for future API integration
+            // fetch('/api/GetStaffCodes')
+            //     .then(res => res.json())
+            //     .then(data => {
+            //         suffixDropdown.innerHTML = '<option value="">Select Code</option>';
+            //         data.forEach(code => {
+            //             const opt = document.createElement('option');
+            //             opt.value = code;
+            //             opt.textContent = code;
+            //             suffixDropdown.appendChild(opt);
+            //         });
+            //     })
+            //     .catch(err => {
+            //         console.error("Failed to load staff codes:", err);
+            //         suffixDropdown.innerHTML = '<option value="">Error loading codes</option>';
+            //     });
+        });
+
+        // Form submission
+        function addNew() {
+            if (!validateCurrentTab()) {
+                alert('Please fix all validation errors before submitting.');
+                return;
+            }
+            if(!validateStaffCode()) return;
+            const formData = collectFormData();
+            console.log("Submitting form data:", formData);
+            alert("Business Partner created successfully!");
+            // Send data to server here
+        }
+
+        // Form cancellation
+        function cancelForm() {
+            if (confirm("Are you sure you want to cancel? All unsaved changes will be lost.")) {
+                // Reset all form fields
+                document.querySelectorAll('input, select').forEach(field => {
+                    if (field.type === 'radio' || field.type === 'checkbox') {
+                        field.checked = field.defaultChecked;
+                    } else {
+                        field.value = field.defaultValue || '';
+                    }
+                });
+
+                // Clear error messages
+                document.querySelectorAll('.error-message').forEach(error => {
+                    error.style.display = 'none';
+                });
+                document.querySelectorAll('.form-group').forEach(group => {
+                    group.classList.remove('error');
+                });
+
+                // Clear attachments
+                attachments = [];
+                uploadedFiles = [];
+                if (typeof renderAttachments === 'function') {
+                    renderAttachments();
+                }
+                if (typeof clearMessages === 'function') {
+                    clearMessages();
+                }
+
+                // Re-lock the form
+                lockFormElements();
+
+                // Reload initial data
+                loadGroups();
+                loadChain();
+                loadMainGroups();
+                loadStates('billing');
+                loadStates('shipping');
+                loadPaymentTerms();
+                loadMSMEtype();
+                console.log("Form cancelled and reset");
+                alert("Form has been reset!");
+            }
+        }
+
+        // Initialize form validation listeners
+        function initializeFormValidation() {
+            const formFields = document.querySelectorAll('input, select');
+            formFields.forEach(field => {
+                // Blur validation
+                field.addEventListener('blur', function() {
+                    if (typeof validateField === 'function') {
+                        validateField(this);
+                    }
+                });
+
+                // Input validation for error clearing
+                field.addEventListener('input', function() {
+                    const formGroup = this.closest('.form-group');
+                    if (formGroup && formGroup.classList.contains('error')) {
+                        if (typeof validateField === 'function') {
+                            validateField(this);
+                        }
+                    }
+                });
+            });
+        }
+
+        // Main initialization function
+        function initializeForm() {
+            console.log('Initializing Business Partner Form...');
+
+            // Add CSS for form locking
+            addFormLockingCSS();
+
+            // Initially lock all fields except type and branch
+            lockFormElements();
+
+            // Setup form unlock listeners
+            setupFormUnlockListeners();
+
+            // Initialize existing functions
+            if (typeof toggleFormSections === 'function') {
+                toggleFormSections(false);
+            }
+
+            if (typeof setupEventListeners === 'function') {
+                setupEventListeners();
+            }
+
+            if (typeof checkFormUnlock === 'function') {
+                checkFormUnlock();
+            }
+
+            if (typeof updateCodeField === 'function') {
+                updateCodeField();
+            }
+
+            // Load initial data
+            if (typeof loadPaymentTerms === 'function') {
+                loadPaymentTerms();
+            }
+
+            // Note: States will be loaded when country is selected (not initially)
+
+            // Initialize validation
+            initializeFormValidation();
+
+            // Setup address synchronization
+            if (typeof setupAddressSync === 'function') {
+                setupAddressSync();
+            }
+
+            // Setup BP name validation
+            if (typeof setupBPNameValidation === 'function') {
+                setupBPNameValidation();
+            }
+
+            // Setup PAN validation
+            if (typeof loadExistingPANs === 'function') {
+                loadExistingPANs().then(() => {
+                    if (typeof setupPANValidation === 'function') {
+                        setupPANValidation();
+                    }
+                });
+            }
+
+            // Setup TAN validation
+             if (typeof setupTANValidation === 'function') {
+               
+                setupTANValidation();
+            }
+
+            // Setup click outside handlers
+            if (typeof setupClickOutsideHandler === 'function') {
+                setupClickOutsideHandler();
+            }
+
+            // Load initial data and setup dropdowns
+            if (typeof initializeAllDropdowns === 'function') {
+                initializeAllDropdowns();
+            } else {
+                // Fallback - call individual functions
+                if (typeof initializePaymentDropdowns === 'function') {
+                    initializePaymentDropdowns();
+                }
+
+                if (typeof setupGSTValidation === 'function') {
+                    setupGSTValidation();
+                }
+
+                if (typeof setupContactValidationListeners === 'function') {
+                    setupContactValidationListeners();
+                }
+
+                if (typeof setupAddressSync === 'function') {
+                    setupAddressSync();
+                }
+            }
+
+            console.log('Business Partner Form initialized successfully');
+        }
+
+        // DOM Content Loaded Event
+        document.addEventListener("DOMContentLoaded", initializeForm);
+
+        // Global form reset function
+        function resetFormLocking() {
+            // Uncheck all type radios
+            document.querySelectorAll('input[name="type"]').forEach(radio => {
+                radio.checked = false;
+            });
+
+            // Re-lock everything
+            lockFormElements();
+        }
+
+        // Export functions for global access
+        window.switchTab = switchTab;
+        window.addNew = addNew;
+        window.cancelForm = cancelForm;
+        window.resetFormLocking = resetFormLocking;
+        // window.editContact = function(button) {
+        // console.log("Edit button clicked", button);  should print the button element
+        // const row = button.closest('tr');
+        // console.log("Row:", row);                    should print the <tr> element
+
+        // if (!row) {
+        //     alert("Row not found!");
+        //     return;
+        // }
+        // Run once on page load (for pre-selected value)
+        window.onload = toggleGstField;
+        window.onload = function () {
+            const billingCountry = document.getElementById("billing-country");
+            const shippingCountry = document.getElementById("shipping-country");
+
+            if (billingCountry && billingCountry.value === "IN") {
+                loadStates('billing');
+            }
+
+            if (shippingCountry && shippingCountry.value === "IN") {
+                loadStates('shipping');
+            }
+        };
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Utility to collect all values from inputs of a given class
+            function getAllValues(selector) {
+                return Array.from(document.querySelectorAll(selector)).map(i => i.value.trim());
+            }
+
+            // Validate uniqueness of the current input among all others
+            function validateUniqueness(inputSelector, errorSelector) {
+                document.querySelectorAll(inputSelector).forEach(input => {
+                    input.addEventListener('input', () => {
+                        const currentVal = input.value.trim();
+                        const allValues = getAllValues(inputSelector);
+
+                        const count = allValues.filter(val => val === currentVal).length;
+                        const errorDiv = input.closest('tr').querySelector(errorSelector);
+
+                        if (currentVal !== '' && count > 1) {
+                            errorDiv.style.display = 'block';
+                            input.classList.add('is-invalid');
+                        } else {
+                            errorDiv.style.display = 'none';
+                            input.classList.remove('is-invalid');
+                        }
+                    });
+                });
+            }
+
+            // Set up both validations
+            validateUniqueness('.contact-id', '.error-msg');
+            validateUniqueness('.address-id', '.error-msg');
+
+        });
+        document.addEventListener("DOMContentLoaded", function () {
+            const staffRadios = document.querySelectorAll('input[name="isStaff"]');
+            const staffCodeSection = document.getElementById("staffCodeSection");
+
+            function toggleStaffCode() {
+                const selected = document.querySelector('input[name="isStaff"]:checked');
+                if (selected && selected.value === "Y") {
+                    staffCodeSection.style.display = "block";
+                } else {
+                    staffCodeSection.style.display = "none";
+                    document.getElementById("staffCode").value = ""; // Reset
+                }
+            }
+            staffRadios.forEach(radio => radio.addEventListener("change", toggleStaffCode));
+                toggleStaffCode(); // Run on page load
+        });
+    </script>
+</body>
+</html>

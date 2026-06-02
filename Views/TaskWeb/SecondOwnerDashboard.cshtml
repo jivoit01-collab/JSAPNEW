@@ -1,0 +1,2150 @@
+@{
+    ViewData["Title"] = "Second Owner Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var employeeName = ViewBag.EmployeeName?.ToString() ?? "Owner";
+}
+
+<style>
+    :root {
+        --so-ink: #09203f;
+        --so-muted: #68758b;
+        --so-line: #dce6f3;
+        --so-soft: #f4f8fd;
+        --so-blue: #0d4f8b;
+        --so-blue2: #1677c8;
+        --so-green: #0fba7a;
+        --so-amber: #f59e0b;
+        --so-red: #ef4444;
+        --so-purple: #6d5dfc;
+        --so-shadow: 0 18px 45px rgba(9, 32, 63, .10);
+    }
+
+    .owner2-page {
+        min-height: calc(100vh - 72px);
+        padding: 22px;
+        color: var(--so-ink);
+        background:
+            radial-gradient(circle at top left, rgba(22, 119, 200, .16), transparent 32%),
+            linear-gradient(180deg, #f6f9fd 0%, #edf4fb 100%);
+    }
+
+    .owner2-shell {
+        max-width: 1680px;
+        margin: 0 auto;
+    }
+
+    .owner2-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: stretch;
+        padding: 20px;
+        border: 1px solid rgba(13, 79, 139, .16);
+        border-radius: 18px;
+        background:
+            linear-gradient(135deg, rgba(9, 32, 63, .98), rgba(13, 79, 139, .96)),
+            linear-gradient(135deg, rgba(255, 255, 255, .08), transparent);
+        color: #fff;
+        box-shadow: var(--so-shadow);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .owner2-hero:after {
+        content: "";
+        position: absolute;
+        right: -120px;
+        top: -140px;
+        width: 360px;
+        height: 360px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .09);
+    }
+
+    .owner2-title-wrap {
+        position: relative;
+        z-index: 1;
+    }
+
+    .owner2-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 11px;
+        border: 1px solid rgba(255, 255, 255, .22);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .1);
+        color: #d8efff;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .owner2-title {
+        margin: 12px 0 7px;
+        font-size: 31px;
+        line-height: 1.15;
+        font-weight: 900;
+        letter-spacing: 0;
+    }
+
+    .owner2-subtitle {
+        max-width: 780px;
+        margin: 0;
+        color: #d7e7f5;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .owner2-filters {
+        position: relative;
+        z-index: 1;
+        min-width: 430px;
+        padding: 14px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .10);
+        backdrop-filter: blur(10px);
+    }
+
+    .owner2-range-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+        margin-bottom: 10px;
+    }
+
+    .owner2-pill {
+        border: 1px solid rgba(255, 255, 255, .20);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: rgba(255, 255, 255, .08);
+        color: #eaf6ff;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .owner2-pill.active,
+    .owner2-refresh {
+        background: #fff;
+        color: var(--so-blue);
+        border-color: #fff;
+    }
+
+    .owner2-date-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+    }
+
+    .owner2-date-row input {
+        min-width: 0;
+        height: 38px;
+        border: 1px solid rgba(255, 255, 255, .26);
+        border-radius: 10px;
+        padding: 0 10px;
+        background: rgba(255, 255, 255, .92);
+        color: var(--so-ink);
+        font-weight: 700;
+    }
+
+    .owner2-refresh {
+        height: 38px;
+        border-radius: 10px;
+        padding: 0 13px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 18px;
+        margin-top: 18px;
+    }
+
+    .owner2-card {
+        border: 1px solid var(--so-line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, .94);
+        box-shadow: 0 12px 30px rgba(9, 32, 63, .06);
+    }
+
+    .owner2-kpis {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .owner2-viewbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 14px 0;
+        padding: 12px;
+        border: 1px solid var(--so-line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .82);
+        box-shadow: 0 10px 24px rgba(9, 32, 63, .05);
+    }
+
+    .owner2-viewbar-label {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 6px;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .owner2-view-btn,
+    .owner2-card-toggle {
+        border: 1px solid var(--so-line);
+        border-radius: 999px;
+        padding: 8px 11px;
+        background: #fff;
+        color: #31506f;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-view-btn:hover,
+    .owner2-card-toggle:hover {
+        border-color: rgba(13, 79, 139, .35);
+        color: var(--so-blue);
+    }
+
+    .owner2-view-btn.active {
+        background: var(--so-blue);
+        border-color: var(--so-blue);
+        color: #fff;
+    }
+
+    .owner2-card-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        flex: 0 0 auto;
+    }
+
+    .owner2-card.collapsed .owner2-collapsible {
+        display: none !important;
+    }
+
+    .owner2-hidden {
+        display: none !important;
+    }
+
+    .owner2-kpi {
+        min-height: 118px;
+        padding: 16px;
+        border-radius: 16px;
+        border: 1px solid var(--so-line);
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(9, 32, 63, .06);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .owner2-kpi:before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        background: var(--tone, var(--so-blue));
+    }
+
+    .owner2-kpi label {
+        display: block;
+        color: var(--so-muted);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+
+    .owner2-kpi strong {
+        display: block;
+        margin: 8px 0 6px;
+        font-size: 33px;
+        line-height: 1;
+        letter-spacing: 0;
+    }
+
+    .owner2-kpi span {
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .owner2-main-card {
+        margin-top: 18px;
+        padding: 18px;
+    }
+
+    .owner2-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .owner2-section-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 900;
+    }
+
+    .owner2-section-note {
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .owner2-role-tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .owner2-role-tab {
+        border: 1px solid var(--so-line);
+        border-radius: 999px;
+        padding: 9px 14px;
+        background: var(--so-soft);
+        color: #31506f;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-role-tab.active {
+        background: var(--so-blue);
+        border-color: var(--so-blue);
+        color: #fff;
+    }
+
+    .owner2-command-grid {
+        display: grid;
+        grid-template-columns: minmax(300px, .62fr) minmax(680px, 1.38fr);
+        gap: 16px;
+        align-items: start;
+    }
+
+    .owner2-focus-panel {
+        border: 1px solid var(--so-line);
+        border-radius: 14px;
+        padding: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .owner2-score-row {
+        display: grid;
+        grid-template-columns: 165px 1fr;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .owner2-ring {
+        width: 148px;
+        height: 148px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: conic-gradient(var(--so-green) calc(var(--done, 0) * 1%), #e8eef6 0);
+        position: relative;
+    }
+
+    .owner2-ring:before {
+        content: "";
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        background: #fff;
+        position: absolute;
+        box-shadow: inset 0 0 0 1px var(--so-line);
+    }
+
+    .owner2-ring-value {
+        position: relative;
+        z-index: 1;
+        font-size: 30px;
+        font-weight: 900;
+    }
+
+    .owner2-health-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .owner2-metric-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .owner2-track {
+        height: 9px;
+        border-radius: 999px;
+        background: #e8eef6;
+        overflow: hidden;
+    }
+
+    .owner2-fill {
+        display: block;
+        height: 100%;
+        width: var(--w, 0%);
+        border-radius: inherit;
+        background: var(--tone, var(--so-blue2));
+    }
+
+    .owner2-table-wrap {
+        border: 1px solid var(--so-line);
+        border-radius: 14px;
+        overflow-x: auto;
+        background: #fff;
+    }
+
+    .owner2-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+
+    .owner2-table th {
+        padding: 12px 12px;
+        background: #f3f7fc;
+        color: #54708f;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--so-line);
+    }
+
+    .owner2-table td {
+        padding: 12px;
+        border-bottom: 1px solid #edf2f8;
+        vertical-align: middle;
+    }
+
+    .owner2-table tbody tr {
+        cursor: pointer;
+    }
+
+    .owner2-table tbody tr:hover {
+        background: #f7fbff;
+    }
+
+    .owner2-person {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 360px;
+    }
+
+    .owner2-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: inline-grid;
+        place-items: center;
+        background: #e8f2ff;
+        color: var(--so-blue);
+        font-weight: 900;
+        flex: 0 0 auto;
+    }
+
+    .owner2-person strong {
+        display: block;
+        font-size: 13px;
+        white-space: normal;
+    }
+
+    .owner2-person span {
+        display: block;
+        margin-top: 2px;
+        color: var(--so-muted);
+        font-size: 11px;
+        font-weight: 700;
+        white-space: normal;
+        line-height: 1.35;
+    }
+
+    .owner2-inline-workload {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--so-line);
+    }
+
+    .owner2-inline-workload .owner2-section-title {
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+
+    .owner2-badge {
+        display: inline-flex;
+        min-width: 26px;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: #eef5ff;
+        color: var(--so-blue);
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .owner2-badge.red {
+        background: #ffe8e8;
+        color: #d92d20;
+    }
+
+    .owner2-badge.green {
+        background: #dbf7ec;
+        color: #087b54;
+    }
+
+    .owner2-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--so-line);
+        border-top: 0;
+        border-radius: 0 0 14px 14px;
+        background: #fff;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .owner2-page-btn {
+        border: 1px solid var(--so-line);
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: #f8fbff;
+        color: var(--so-blue);
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-page-btn:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+    }
+
+    .owner2-side {
+        display: grid;
+        gap: 18px;
+        align-content: start;
+    }
+
+    .owner2-health-card {
+        padding: 18px;
+    }
+
+    .owner2-insight {
+        padding: 12px;
+        border-radius: 12px;
+        background: #f6f9fd;
+        border: 1px solid var(--so-line);
+        color: #334d6b;
+        font-size: 12px;
+        font-weight: 750;
+        line-height: 1.45;
+    }
+
+    .owner2-dept-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .owner2-dept {
+        border: 1px solid var(--so-line);
+        border-radius: 14px;
+        padding: 14px;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .owner2-dept:hover {
+        border-color: rgba(13, 79, 139, .35);
+        box-shadow: 0 12px 28px rgba(9, 32, 63, .08);
+    }
+
+    .owner2-dept.active {
+        border-color: var(--so-blue);
+        box-shadow: 0 0 0 3px rgba(13, 79, 139, .12);
+    }
+
+    .owner2-dept h4 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .owner2-dept-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .owner2-risk-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .owner2-tree {
+        display: grid;
+        gap: 12px;
+    }
+
+    .owner2-tree-dept {
+        border: 1px solid var(--so-line);
+        border-radius: 14px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .owner2-tree-dept-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px;
+        background: #f6f9fd;
+        border-bottom: 1px solid var(--so-line);
+    }
+
+    .owner2-tree-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .owner2-tree-toggle {
+        border: 1px solid var(--so-line);
+        border-radius: 999px;
+        padding: 5px 9px;
+        background: #fff;
+        color: var(--so-blue);
+        font-size: 11px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-tree-dept-head h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .owner2-tree-dept-head span {
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .owner2-tree-body {
+        padding: 14px;
+        display: grid;
+        gap: 12px;
+    }
+
+    .owner2-tree-dept.collapsed > .owner2-tree-body,
+    .owner2-tree-hod.collapsed > .owner2-tree-level {
+        display: none;
+    }
+
+    .owner2-tree-hod {
+        border: 1px solid #e6edf6;
+        border-radius: 12px;
+        padding: 12px;
+        background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+    }
+
+    .owner2-tree-person-row {
+        display: grid;
+        grid-template-columns: minmax(190px, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .owner2-tree-person-row-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .owner2-tree-person-row:hover strong {
+        color: var(--so-blue2);
+    }
+
+    .owner2-tree-level {
+        margin-top: 10px;
+        padding-left: 20px;
+        border-left: 2px solid #e8eef6;
+        display: grid;
+        gap: 9px;
+    }
+
+    .owner2-tree-subhod,
+    .owner2-tree-exec {
+        padding: 10px;
+        border: 1px solid #edf2f8;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .owner2-tree-tagline {
+        margin-top: 3px;
+        color: var(--so-muted);
+        font-size: 11px;
+        font-weight: 750;
+    }
+
+    .owner2-risk-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 11px;
+        border: 1px solid var(--so-line);
+        border-radius: 12px;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .owner2-risk-item:hover {
+        background: #f7fbff;
+    }
+
+    .owner2-risk-item strong {
+        display: block;
+        font-size: 13px;
+    }
+
+    .owner2-risk-item span {
+        display: block;
+        margin-top: 2px;
+        color: var(--so-muted);
+        font-size: 11px;
+        font-weight: 750;
+    }
+
+    .owner2-empty,
+    .owner2-loading {
+        padding: 24px;
+        color: var(--so-muted);
+        text-align: center;
+        font-weight: 800;
+    }
+
+    .owner2-drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: none;
+        background: rgba(9, 32, 63, .42);
+        backdrop-filter: blur(5px);
+    }
+
+    .owner2-drawer-backdrop.open {
+        display: block;
+    }
+
+    .owner2-drawer {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: min(760px, 96vw);
+        height: 100%;
+        background: #fff;
+        box-shadow: -18px 0 45px rgba(9, 32, 63, .20);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .owner2-drawer-head {
+        padding: 18px;
+        border-bottom: 1px solid var(--so-line);
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+    }
+
+    .owner2-drawer-head h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 900;
+    }
+
+    .owner2-drawer-head p {
+        margin: 5px 0 0;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .owner2-close {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--so-line);
+        border-radius: 10px;
+        background: #f6f9fd;
+        color: var(--so-ink);
+        font-size: 18px;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .owner2-drawer-tools {
+        display: grid;
+        grid-template-columns: 1fr 180px 160px;
+        gap: 10px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--so-line);
+        background: #f8fbff;
+    }
+
+    .owner2-drawer-tools input,
+    .owner2-drawer-tools select {
+        height: 38px;
+        border: 1px solid var(--so-line);
+        border-radius: 10px;
+        padding: 0 11px;
+        color: var(--so-ink);
+        font-weight: 750;
+    }
+
+    .owner2-drawer-body {
+        overflow: auto;
+        padding: 16px 18px 22px;
+    }
+
+    .owner2-task {
+        border: 1px solid var(--so-line);
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 10px;
+        background: #fff;
+    }
+
+    .owner2-task-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .owner2-task-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .owner2-task-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin-top: 9px;
+        color: var(--so-muted);
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .owner2-task-progress {
+        margin-top: 12px;
+    }
+
+    @@media (max-width: 1320px) {
+        .owner2-kpis {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .owner2-grid,
+        .owner2-command-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .owner2-dept-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 860px) {
+        .owner2-page {
+            padding: 14px;
+        }
+
+        .owner2-hero {
+            grid-template-columns: 1fr;
+        }
+
+        .owner2-filters {
+            min-width: 0;
+        }
+
+        .owner2-date-row,
+        .owner2-drawer-tools {
+            grid-template-columns: 1fr;
+        }
+
+        .owner2-kpis,
+        .owner2-dept-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .owner2-score-row {
+            grid-template-columns: 1fr;
+            justify-items: center;
+        }
+    }
+</style>
+
+<div class="owner2-page">
+    <div class="owner2-shell">
+        <section class="owner2-hero">
+            <div class="owner2-title-wrap">
+                <span class="owner2-kicker"><i class="fas fa-chart-line"></i> Owner Command Center</span>
+                <h1 class="owner2-title">Good overview, @employeeName</h1>
+                <p class="owner2-subtitle">
+                    One screen for department health, HOD accountability, Sub-HOD movement, executive workload and task risk.
+                    Start from HODs, drill into Sub-HODs, and open executive task details without hunting through internal hierarchy.
+                </p>
+            </div>
+
+            <div class="owner2-filters">
+                <div class="owner2-range-tabs" id="rangeTabs">
+                    <button class="owner2-pill" data-range="today">Today</button>
+                    <button class="owner2-pill" data-range="week">Week</button>
+                    <button class="owner2-pill" data-range="month">Month</button>
+                    <button class="owner2-pill active" data-range="all">All</button>
+                </div>
+                <div class="owner2-date-row">
+                    <input type="date" id="fromDate" />
+                    <input type="date" id="toDate" />
+                    <button class="owner2-refresh" id="refreshDashboard"><i class="fas fa-rotate"></i> Refresh</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="owner2-viewbar">
+            <span class="owner2-viewbar-label">Show me</span>
+            <button class="owner2-view-btn" data-show-section="summary">Summary</button>
+            <button class="owner2-view-btn" data-show-section="hierarchy">HOD / Sub-HOD / Executive</button>
+            <button class="owner2-view-btn" data-show-section="departments">Departments</button>
+            <button class="owner2-view-btn" data-show-section="fullmap">Full Map</button>
+            <button class="owner2-view-btn" data-show-section="all">Show All</button>
+            <button class="owner2-view-btn" data-show-section="none">Hide All</button>
+        </div>
+
+        <section class="owner2-kpis" id="kpiStrip" data-section="summary">
+            <div class="owner2-loading">Loading dashboard...</div>
+        </section>
+
+        <section class="owner2-grid">
+            <main>
+                <div class="owner2-card owner2-main-card" data-section="hierarchy">
+                    <div class="owner2-section-head">
+                        <div>
+                            <h2 class="owner2-section-title"><i class="fas fa-sitemap"></i> Hierarchy Performance</h2>
+                            <div class="owner2-section-note">Review in owner order: HODs first, then Sub-HODs, then Executives.</div>
+                        </div>
+                        <div class="owner2-role-tabs" id="roleTabs">
+                            <button class="owner2-role-tab active" data-role="hod">HODs</button>
+                            <button class="owner2-role-tab" data-role="subhod">Sub-HODs</button>
+                            <button class="owner2-role-tab" data-role="exec">Executives</button>
+                            <button type="button" class="owner2-card-toggle"><i class="fas fa-chevron-up"></i> Collapse</button>
+                        </div>
+                    </div>
+
+                    <div class="owner2-command-grid owner2-collapsible">
+                        <div class="owner2-focus-panel">
+                            <div class="owner2-score-row">
+                                <div class="owner2-ring" id="roleRing" style="--done:0">
+                                    <span class="owner2-ring-value">0%</span>
+                                </div>
+                                <div class="owner2-health-list">
+                                    <div>
+                                        <div class="owner2-metric-line"><span>Total tasks</span><strong id="roleTotal">0</strong></div>
+                                        <div class="owner2-track"><span class="owner2-fill" id="roleTotalFill" style="--w:0%;--tone:var(--so-blue2)"></span></div>
+                                    </div>
+                                    <div>
+                                        <div class="owner2-metric-line"><span>Pending</span><strong id="rolePending">0</strong></div>
+                                        <div class="owner2-track"><span class="owner2-fill" id="rolePendingFill" style="--w:0%;--tone:var(--so-amber)"></span></div>
+                                    </div>
+                                    <div>
+                                        <div class="owner2-metric-line"><span>In progress</span><strong id="roleProgress">0</strong></div>
+                                        <div class="owner2-track"><span class="owner2-fill" id="roleProgressFill" style="--w:0%;--tone:var(--so-blue)"></span></div>
+                                    </div>
+                                    <div>
+                                        <div class="owner2-metric-line"><span>Completed</span><strong id="roleCompleted">0</strong></div>
+                                        <div class="owner2-track"><span class="owner2-fill" id="roleDoneFill" style="--w:0%;--tone:var(--so-green)"></span></div>
+                                    </div>
+                                    <div>
+                                        <div class="owner2-metric-line"><span>Overdue</span><strong id="roleOverdue">0</strong></div>
+                                        <div class="owner2-track"><span class="owner2-fill" id="roleRiskFill" style="--w:0%;--tone:var(--so-red)"></span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="owner2-inline-workload">
+                                <h3 class="owner2-section-title"><i class="fas fa-ranking-star"></i> Top Workload</h3>
+                                <div class="owner2-risk-list" id="workloadList">
+                                    <div class="owner2-loading">Loading workload...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="owner2-table-wrap">
+                            <table class="owner2-table">
+                                <thead>
+                                    <tr>
+                                        <th>Person</th>
+                                        <th>Total</th>
+                                        <th>Pending</th>
+                                        <th>Progress</th>
+                                        <th>Done</th>
+                                        <th>Overdue</th>
+                                        <th>Completion</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="roleTableBody">
+                                    <tr><td colspan="7" class="owner2-loading">Loading hierarchy...</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="owner2-pagination" id="rolePager"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="owner2-card owner2-main-card" data-section="departments">
+                    <div class="owner2-section-head">
+                        <div>
+                            <h2 class="owner2-section-title"><i class="fas fa-building"></i> Department Health Board</h2>
+                            <div class="owner2-section-note">Departments with risk rise to the top. Click a department to see its task list.</div>
+                        </div>
+                        <button type="button" class="owner2-card-toggle"><i class="fas fa-chevron-up"></i> Collapse</button>
+                    </div>
+                    <div class="owner2-dept-grid owner2-collapsible" id="departmentGrid">
+                        <div class="owner2-loading">Loading departments...</div>
+                    </div>
+                </div>
+
+                <div class="owner2-card owner2-main-card" data-section="fullmap">
+                    <div class="owner2-section-head">
+                        <div>
+                            <h2 class="owner2-section-title"><i class="fas fa-layer-group"></i> Complete Hierarchy Map</h2>
+                            <div class="owner2-section-note">Every department, then HOD, Sub-HOD, executive, and their task counts. Click any person to view tasks.</div>
+                        </div>
+                        <button type="button" class="owner2-card-toggle"><i class="fas fa-chevron-up"></i> Collapse</button>
+                    </div>
+                    <div class="owner2-tree owner2-collapsible" id="hierarchyTree">
+                        <div class="owner2-loading">Loading complete hierarchy...</div>
+                    </div>
+                </div>
+            </main>
+        </section>
+    </div>
+</div>
+
+<div class="owner2-drawer-backdrop" id="taskDrawerBackdrop">
+    <aside class="owner2-drawer">
+        <div class="owner2-drawer-head">
+            <div>
+                <h3 id="drawerTitle">Task Details</h3>
+                <p id="drawerSubtitle">All assigned tasks</p>
+            </div>
+            <button class="owner2-close" id="closeDrawer" aria-label="Close">&times;</button>
+        </div>
+        <div class="owner2-drawer-tools">
+            <input type="search" id="drawerSearch" placeholder="Search task, project, assignee..." />
+            <input type="search" id="drawerPerson" placeholder="Filter person name..." />
+            <select id="drawerStatus">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Overdue">Overdue</option>
+            </select>
+        </div>
+        <div class="owner2-drawer-body" id="drawerBody">
+            <div class="owner2-loading">Loading tasks...</div>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+<script>
+    (() => {
+        const state = {
+            owner: null,
+            departments: [],
+            hierarchy: [],
+            roles: { hod: [], subhod: [], exec: [] },
+            activeRole: 'hod',
+            rolePage: 1,
+            rolePageSize: 10,
+            currentTasks: [],
+            drawerMode: null,
+            hierarchyTree: [],
+            allTasks: [],
+            selectedDeptId: null
+        };
+
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setRange('all');
+            bindEvents();
+            loadDashboard();
+        });
+
+        function bindEvents() {
+            $('#refreshDashboard').addEventListener('click', loadDashboard);
+            $('#fromDate').addEventListener('change', () => activateCustomRange());
+            $('#toDate').addEventListener('change', () => activateCustomRange());
+
+            $$('#rangeTabs .owner2-pill').forEach(btn => {
+                btn.addEventListener('click', () => setRange(btn.dataset.range, true));
+            });
+
+            $$('#roleTabs .owner2-role-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.activeRole = btn.dataset.role;
+                    state.rolePage = 1;
+                    $$('#roleTabs .owner2-role-tab').forEach(x => x.classList.toggle('active', x === btn));
+                    renderRolePanel();
+                    renderSideLists();
+                });
+            });
+
+            $$('.owner2-card-toggle').forEach(btn => {
+                btn.addEventListener('click', () => toggleCard(btn.closest('.owner2-card'), btn));
+            });
+
+            $$('.owner2-view-btn').forEach(btn => {
+                btn.addEventListener('click', () => applyQuickView(btn.dataset.showSection));
+            });
+
+            $('#closeDrawer').addEventListener('click', closeDrawer);
+            $('#taskDrawerBackdrop').addEventListener('click', (e) => {
+                if (e.target.id === 'taskDrawerBackdrop') closeDrawer();
+            });
+            $('#drawerSearch').addEventListener('input', renderDrawerTasks);
+            $('#drawerPerson').addEventListener('input', renderDrawerTasks);
+            $('#drawerStatus').addEventListener('change', renderDrawerTasks);
+        }
+
+        function activateCustomRange() {
+            $$('#rangeTabs .owner2-pill').forEach(btn => btn.classList.remove('active'));
+        }
+
+        function setRange(range, reload) {
+            const now = new Date();
+            const from = new Date(now);
+            let fromText = '';
+            let toText = toInputDate(now);
+
+            if (range === 'today') {
+                fromText = toInputDate(now);
+            } else if (range === 'week') {
+                const day = now.getDay() || 7;
+                from.setDate(now.getDate() - day + 1);
+                fromText = toInputDate(from);
+            } else if (range === 'month') {
+                fromText = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+            } else {
+                fromText = '';
+                toText = '';
+            }
+
+            $('#fromDate').value = fromText;
+            $('#toDate').value = toText;
+            $$('#rangeTabs .owner2-pill').forEach(btn => btn.classList.toggle('active', btn.dataset.range === range));
+            if (reload) loadDashboard();
+        }
+
+        async function loadDashboard() {
+            setLoading();
+            try {
+                const [ownerResponse, departmentsResponse, hierarchyTreeResponse, allTaskResponse] = await Promise.all([
+                    getJson(`/api/task/GetOwnerDashboard${queryDates()}`),
+                    getJson('/api/Hierarchy/GetDepartments'),
+                    getJson('/api/Hierarchy/GetHierarchyTree'),
+                    postJson('/api/task/GetAllTasks', {
+                        page: 1,
+                        limit: 99999,
+                        viewMode: 'ALL',
+                        sortBy: 'created_on',
+                        sortOrder: 'DESC'
+                    })
+                ]);
+
+                const owner = apiData(ownerResponse) || {};
+                const departments = apiData(departmentsResponse) || [];
+                state.hierarchyTree = apiData(hierarchyTreeResponse) || [];
+                state.allTasks = filterTasksByDate(cleanTasks(apiData(allTaskResponse) || []));
+                state.owner = owner || {};
+                state.departments = mergeDepartments(
+                    mergeDepartments(normalizeDepartments(departments), owner.Departments || owner.departments || []),
+                    treeDepartments(state.hierarchyTree)
+                );
+
+                const deptIds = new Set([
+                    ...state.departments.map(d => d.id).filter(Boolean),
+                    ...((owner?.Departments || owner?.departments || []).map(d => d.DeptId || d.deptId).filter(Boolean))
+                ]);
+
+                state.hierarchy = mergeTreeIntoHierarchy(await loadHierarchy(Array.from(deptIds)), state.hierarchyTree);
+                applyTaskCountsToHierarchy(state.hierarchy, state.allTasks);
+                state.roles = flattenHierarchy(state.hierarchy);
+
+                renderKpis();
+                renderRolePanel();
+                renderDepartments();
+                renderHierarchyTree();
+                renderSideLists();
+            } catch (error) {
+                console.error(error);
+                showPageError('Dashboard data could not be loaded. Please refresh once.');
+            }
+        }
+
+        function setLoading() {
+            $('#kpiStrip').innerHTML = '<div class="owner2-loading">Loading dashboard...</div>';
+            $('#roleTableBody').innerHTML = '<tr><td colspan="7" class="owner2-loading">Loading hierarchy...</td></tr>';
+            $('#departmentGrid').innerHTML = '<div class="owner2-loading">Loading departments...</div>';
+            $('#hierarchyTree').innerHTML = '<div class="owner2-loading">Loading complete hierarchy...</div>';
+            $('#workloadList').innerHTML = '<div class="owner2-loading">Loading workload...</div>';
+        }
+
+        function toggleCard(card, btn) {
+            if (!card) return;
+            const collapsed = card.classList.toggle('collapsed');
+            const label = collapsed ? 'Expand' : 'Collapse';
+            const icon = collapsed ? 'fa-chevron-down' : 'fa-chevron-up';
+            btn.innerHTML = `<i class="fas ${icon}"></i> ${label}`;
+        }
+
+        function applyQuickView(section) {
+            const targets = $$('[data-section]');
+            $$('.owner2-view-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.showSection === section));
+            if (section === 'all') {
+                targets.forEach(node => node.classList.remove('owner2-hidden'));
+                return;
+            }
+            if (section === 'none') {
+                targets.forEach(node => node.classList.add('owner2-hidden'));
+                return;
+            }
+            targets.forEach(node => {
+                node.classList.toggle('owner2-hidden', node.dataset.section !== section);
+            });
+        }
+
+        function showPageError(message) {
+            $('#kpiStrip').innerHTML = `<div class="owner2-empty">${escapeHtml(message)}</div>`;
+            $('#roleTableBody').innerHTML = `<tr><td colspan="7" class="owner2-empty">${escapeHtml(message)}</td></tr>`;
+            $('#departmentGrid').innerHTML = `<div class="owner2-empty">${escapeHtml(message)}</div>`;
+            $('#hierarchyTree').innerHTML = `<div class="owner2-empty">${escapeHtml(message)}</div>`;
+        }
+
+        async function loadHierarchy(deptIds) {
+            const result = [];
+            for (const deptId of deptIds) {
+                try {
+                    const response = await postJson('/api/task/GetDeptHierarchy', {
+                        deptId,
+                        fromDate: $('#fromDate').value || null,
+                        toDate: $('#toDate').value || null
+                    });
+                    const item = apiData(response);
+                    if (item) result.push(item);
+                } catch (error) {
+                    console.warn('Hierarchy failed for department', deptId, error);
+                }
+            }
+            return result;
+        }
+
+        function treeDepartments(tree) {
+            const map = new Map();
+            (tree || []).forEach(hod => {
+                (hod.Departments || hod.departments || []).forEach(dept => {
+                    const id = Number(dept.DepartmentId || dept.departmentId || 0);
+                    const name = dept.DepartmentName || dept.departmentName || '';
+                    if (id > 0 && !map.has(id)) map.set(id, { id, name });
+                });
+                (hod.SubHODs || hod.subHODs || hod.subHods || []).forEach(sub => {
+                    const id = Number(sub.DepartmentId || sub.departmentId || 0);
+                    const name = sub.DepartmentName || sub.departmentName || '';
+                    if (id > 0 && !map.has(id)) map.set(id, { id, name });
+                });
+            });
+            return Array.from(map.values());
+        }
+
+        function mergeTreeIntoHierarchy(hierarchies, tree) {
+            const merged = [...(hierarchies || [])];
+            const deptMap = new Map(merged.map(dept => [Number(dept.DeptId || dept.deptId || 0), dept]));
+
+            function ensureDept(id, name) {
+                if (!id) return null;
+                if (!deptMap.has(id)) {
+                    const dept = {
+                        DeptId: id,
+                        DeptName: name || findDeptName(id),
+                        TotalTasks: 0,
+                        PendingCount: 0,
+                        InProgressCount: 0,
+                        CompletedCount: 0,
+                        OverdueCount: 0,
+                        AvgProgress: 0,
+                        Hods: []
+                    };
+                    deptMap.set(id, dept);
+                    merged.push(dept);
+                }
+                return deptMap.get(id);
+            }
+
+            function ensureChild(list, node, roleTypeId, roleName) {
+                const id = Number(node.EmployeeId || node.employeeId || 0);
+                const code = node.EmployeeCode || node.employeeCode || '';
+                const name = node.EmployeeName || node.employeeName || '';
+                let existing = list.find(item =>
+                    (id > 0 && Number(item.EmployeeId || item.employeeId || 0) === id) ||
+                    (code && String(item.EmployeeCode || item.employeeCode || '').toLowerCase() === code.toLowerCase()) ||
+                    (name && normalize(item.EmployeeName || item.employeeName) === normalize(name))
+                );
+                if (!existing) {
+                    existing = {
+                        EmployeeId: id,
+                        EmployeeCode: code,
+                        EmployeeName: name,
+                        RoleTypeId: roleTypeId,
+                        RoleName: roleName,
+                        SubDepartmentId: node.SubDepartmentId || node.subDepartmentId || null,
+                        SubDepartmentName: node.SubDepartmentName || node.subDepartmentName || '',
+                        TotalTasks: 0,
+                        PendingCount: 0,
+                        InProgressCount: 0,
+                        CompletedCount: 0,
+                        OverdueCount: 0,
+                        AvgProgress: 0,
+                        Children: []
+                    };
+                    list.push(existing);
+                }
+                if (!existing.Children) existing.Children = existing.children || [];
+                return existing;
+            }
+
+            (tree || []).forEach(hod => {
+                const hodDepartments = hod.Departments || hod.departments || [];
+                hodDepartments.forEach(deptRow => {
+                    const dept = ensureDept(
+                        Number(deptRow.DepartmentId || deptRow.departmentId || 0),
+                        deptRow.DepartmentName || deptRow.departmentName || ''
+                    );
+                    if (dept) ensureChild(dept.Hods || (dept.Hods = []), hod, 1, 'HOD');
+                });
+
+                (hod.SubHODs || hod.subHODs || hod.subHods || []).forEach(sub => {
+                    const dept = ensureDept(
+                        Number(sub.DepartmentId || sub.departmentId || 0),
+                        sub.DepartmentName || sub.departmentName || ''
+                    );
+                    if (!dept) return;
+                    const hodNode = ensureChild(dept.Hods || (dept.Hods = []), hod, 1, 'HOD');
+                    const subNode = ensureChild(hodNode.Children, sub, 2, 'Sub-HOD');
+                    (sub.Executives || sub.executives || []).forEach(exec => {
+                        ensureChild(subNode.Children, exec, 3, 'Executive');
+                    });
+                });
+            });
+
+            return merged.sort((a, b) => String(a.DeptName || a.deptName || '').localeCompare(String(b.DeptName || b.deptName || '')));
+        }
+
+        function applyTaskCountsToHierarchy(hierarchies, tasks) {
+            const taskList = tasks || [];
+            hierarchies.forEach(dept => {
+                const deptId = Number(dept.DeptId || dept.deptId || 0);
+                const deptTasks = taskList.filter(task => Number(task.DeptId ?? task.deptId ?? 0) === deptId);
+                applyStatsToObject(dept, summarizeTasks(deptTasks));
+                (dept.Hods || dept.hods || []).forEach(hod => applyTaskCountsToNode(hod, taskList));
+            });
+        }
+
+        function applyTaskCountsToNode(node, tasks) {
+            applyStatsToObject(node, summarizeTasks(tasks.filter(task => taskMatchesPerson(task, node))));
+            (node.Children || node.children || []).forEach(child => applyTaskCountsToNode(child, tasks));
+        }
+
+        function applyStatsToObject(target, stats) {
+            target.TotalTasks = stats.total;
+            target.PendingCount = stats.pending;
+            target.InProgressCount = stats.progress;
+            target.CompletedCount = stats.completed;
+            target.OverdueCount = stats.overdue;
+            target.AvgProgress = stats.avgProgress;
+        }
+
+        function summarizeTasks(tasks) {
+            const list = tasks || [];
+            const completed = list.filter(task => isStatus(task, 'COMPLETED')).length;
+            const totalProgress = list.reduce((sum, task) => sum + num(task.PercentComplete ?? task.percentComplete), 0);
+            return {
+                total: list.length,
+                pending: list.filter(task => isStatus(task, 'PENDING') || isStatus(task, 'SUBMITTED')).length,
+                progress: list.filter(task => isStatus(task, 'IN_PROGRESS') || isStatus(task, 'IN PROGRESS')).length,
+                completed,
+                overdue: list.filter(task => isStatus(task, 'OVERDUE')).length,
+                avgProgress: list.length ? Math.round(totalProgress / list.length) : 0
+            };
+        }
+
+        function taskMatchesPerson(task, person) {
+            const empId = Number(person.EmployeeId || person.employeeId || person.id || 0);
+            const code = String(person.EmployeeCode || person.employeeCode || person.code || '').trim().toLowerCase();
+            const name = normalizePersonName(person.EmployeeName || person.employeeName || person.name || '');
+            const taskEmpId = Number(task.AssignedToEmployeeId ?? task.assignedToEmployeeId ?? 0);
+            const taskCode = String(task.AssignedToCode || task.assignedToCode || '').trim().toLowerCase();
+            const taskName = normalizePersonName(task.AssignedTo || task.assignedTo || '');
+            return (empId > 0 && taskEmpId === empId)
+                || (code && taskCode && taskCode === code)
+                || (name && taskName && taskName === name);
+        }
+
+        function personTasks(member) {
+            return state.allTasks.filter(task => taskMatchesPerson(task, {
+                EmployeeId: member.id,
+                EmployeeCode: member.code,
+                EmployeeName: member.name
+            }));
+        }
+
+        function flattenHierarchy(hierarchies) {
+            const buckets = { hod: new Map(), subhod: new Map(), exec: new Map() };
+
+            hierarchies.forEach(dept => {
+                const deptName = dept.DeptName || dept.deptName || findDeptName(dept.DeptId || dept.deptId);
+                const hods = dept.Hods || dept.hods || [];
+                hods.forEach(hod => {
+                    const hodMember = addMember(buckets.hod, hod, deptName, '');
+                    const children = hod.Children || hod.children || [];
+                    children.forEach(child => {
+                        const roleName = String(child.RoleName || child.roleName || '').toLowerCase();
+                        const roleId = Number(child.RoleTypeId || child.roleTypeId || 0);
+                        if (roleId === 2 || roleName.includes('sub')) {
+                            const subMember = addMember(buckets.subhod, child, deptName, hodMember.name);
+                            const executives = child.Children || child.children || [];
+                            executives.forEach(exec => addMember(buckets.exec, exec, deptName, subMember.name));
+                        } else {
+                            addMember(buckets.exec, child, deptName, hodMember.name);
+                        }
+                    });
+                });
+            });
+
+            return {
+                hod: sortMembers(Array.from(buckets.hod.values())),
+                subhod: sortMembers(Array.from(buckets.subhod.values())),
+                exec: sortMembers(Array.from(buckets.exec.values()))
+            };
+        }
+
+        function addMember(map, node, deptName, parentName) {
+            const id = Number(node.EmployeeId || node.employeeId || 0);
+            const code = node.EmployeeCode || node.employeeCode || '';
+            const name = node.EmployeeName || node.employeeName || 'Unknown';
+            const key = id > 0 ? `id:${id}` : `${normalize(name)}:${normalize(code)}`;
+            const existing = map.get(key) || {
+                id,
+                code,
+                name,
+                role: node.RoleName || node.roleName || '',
+                parentName,
+                departments: new Set(),
+                total: 0,
+                pending: 0,
+                progress: 0,
+                completed: 0,
+                overdue: 0,
+                completion: 0,
+                avgProgress: 0
+            };
+
+            if (deptName) existing.departments.add(deptName);
+            if (!existing.parentName && parentName) existing.parentName = parentName;
+            existing.total += Number(node.TotalTasks || node.totalTasks || 0);
+            existing.pending += Number(node.PendingCount || node.pendingCount || 0);
+            existing.progress += Number(node.InProgressCount || node.inProgressCount || 0);
+            existing.completed += Number(node.CompletedCount || node.completedCount || 0);
+            existing.overdue += Number(node.OverdueCount || node.overdueCount || 0);
+            existing.avgProgress = existing.total ? Math.round((existing.completed / existing.total) * 100) : Number(node.AvgProgress || node.avgProgress || 0);
+            existing.completion = existing.total ? Math.round((existing.completed / existing.total) * 100) : Number(node.CompletionRate || node.completionRate || 0);
+            map.set(key, existing);
+            return existing;
+        }
+
+        function sortMembers(items) {
+            return items.sort((a, b) => (b.overdue - a.overdue) || (b.total - a.total) || a.name.localeCompare(b.name));
+        }
+
+        function renderKpis() {
+            const owner = state.owner || {};
+            const live = summarizeTasks(state.allTasks);
+            const total = live.total || num(owner.TotalTasks ?? owner.totalTasks);
+            const pending = live.total ? live.pending : num(owner.PendingCount ?? owner.pendingCount);
+            const progress = live.total ? live.progress : num(owner.InProgressCount ?? owner.inProgressCount);
+            const completed = live.total ? live.completed : num(owner.CompletedCount ?? owner.completedCount);
+            const overdue = live.total ? live.overdue : num(owner.OverdueCount ?? owner.overdueCount);
+            const activeDepts = num(owner.ActiveDepts ?? owner.activeDepts ?? state.departments.length);
+            const open = pending + progress;
+            const completion = pct(completed, total);
+
+            const cards = [
+                { label: 'Total Tasks', value: total, note: `${activeDepts} active departments`, tone: 'var(--so-blue)' },
+                { label: 'Open Work', value: open, note: `${pending} pending, ${progress} in progress`, tone: 'var(--so-amber)' },
+                { label: 'Completed', value: completed, note: `${completion}% completion rate`, tone: 'var(--so-green)' },
+                { label: 'Overdue', value: overdue, note: overdue ? 'Needs owner attention' : 'No overdue risk', tone: 'var(--so-red)' },
+                { label: 'HODs', value: state.roles.hod.length, note: 'First review layer', tone: 'var(--so-purple)' },
+                { label: 'Executives', value: state.roles.exec.length, note: 'Ground task owners', tone: 'var(--so-blue2)' }
+            ];
+
+            $('#kpiStrip').innerHTML = cards.map(card => `
+                <article class="owner2-kpi" style="--tone:${card.tone}">
+                    <label>${escapeHtml(card.label)}</label>
+                    <strong>${card.value}</strong>
+                    <span>${escapeHtml(card.note)}</span>
+                </article>
+            `).join('');
+        }
+
+        function renderRolePanel() {
+            const items = state.roles[state.activeRole] || [];
+            const totals = items.reduce((acc, item) => {
+                acc.total += item.total;
+                acc.pending += item.pending;
+                acc.progress += item.progress;
+                acc.completed += item.completed;
+                acc.overdue += item.overdue;
+                return acc;
+            }, { total: 0, pending: 0, progress: 0, completed: 0, overdue: 0 });
+
+            const completion = pct(totals.completed, totals.total);
+            setRing($('#roleRing'), completion);
+            $('#roleTotal').textContent = totals.total;
+            $('#rolePending').textContent = totals.pending;
+            $('#roleProgress').textContent = totals.progress;
+            $('#roleCompleted').textContent = totals.completed;
+            $('#roleOverdue').textContent = totals.overdue;
+            $('#roleTotalFill').style.setProperty('--w', '100%');
+            $('#roleDoneFill').style.setProperty('--w', `${completion}%`);
+            $('#roleRiskFill').style.setProperty('--w', `${pct(totals.overdue, Math.max(totals.total, 1))}%`);
+            renderRoleStatusBreakdown(totals);
+
+            if (!items.length) {
+                $('#roleTableBody').innerHTML = '<tr><td colspan="7" class="owner2-empty">No people found in this role for the selected period.</td></tr>';
+                $('#rolePager').innerHTML = '';
+                return;
+            }
+
+            const totalPages = Math.max(1, Math.ceil(items.length / state.rolePageSize));
+            if (state.rolePage > totalPages) state.rolePage = totalPages;
+            if (state.rolePage < 1) state.rolePage = 1;
+            const start = (state.rolePage - 1) * state.rolePageSize;
+            const pageItems = items.slice(start, start + state.rolePageSize);
+
+            $('#roleTableBody').innerHTML = pageItems.map((item, index) => `
+                <tr data-role-index="${start + index}">
+                    <td>
+                        <div class="owner2-person">
+                            <span class="owner2-avatar">${initials(item.name)}</span>
+                            <div>
+                                <strong>${escapeHtml(item.name)}</strong>
+                                <span>${escapeHtml([item.code, item.departmentsText || Array.from(item.departments).join(', '), item.parentName ? `Reports: ${item.parentName}` : ''].filter(Boolean).join(' | '))}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="owner2-badge">${item.total}</span></td>
+                    <td><span class="owner2-badge">${item.pending}</span></td>
+                    <td><span class="owner2-badge">${item.progress}</span></td>
+                    <td><span class="owner2-badge green">${item.completed}</span></td>
+                    <td><span class="owner2-badge red">${item.overdue}</span></td>
+                    <td>
+                        <div class="owner2-metric-line"><span>${item.completion}%</span><strong></strong></div>
+                        <div class="owner2-track"><span class="owner2-fill" style="--w:${item.completion}%;--tone:var(--so-green)"></span></div>
+                    </td>
+                </tr>
+            `).join('');
+
+            $$('#roleTableBody tr[data-role-index]').forEach(row => {
+                row.addEventListener('click', () => openPersonDrawer(items[Number(row.dataset.roleIndex)]));
+            });
+
+            $('#rolePager').innerHTML = `
+                <span>Showing ${start + 1}-${Math.min(start + state.rolePageSize, items.length)} of ${items.length}</span>
+                <button type="button" class="owner2-page-btn" id="rolePrevPage" ${state.rolePage <= 1 ? 'disabled' : ''}>Prev</button>
+                <span>Page ${state.rolePage} / ${totalPages}</span>
+                <button type="button" class="owner2-page-btn" id="roleNextPage" ${state.rolePage >= totalPages ? 'disabled' : ''}>Next</button>
+            `;
+            $('#rolePrevPage')?.addEventListener('click', () => {
+                if (state.rolePage > 1) {
+                    state.rolePage -= 1;
+                    renderRolePanel();
+                }
+            });
+            $('#roleNextPage')?.addEventListener('click', () => {
+                if (state.rolePage < totalPages) {
+                    state.rolePage += 1;
+                    renderRolePanel();
+                }
+            });
+        }
+
+        function renderDepartments() {
+            const ownerDepts = state.owner?.Departments || state.owner?.departments || [];
+            const byId = new Map(ownerDepts.map(d => [Number(d.DeptId || d.deptId), d]));
+            const cards = state.departments.map(dept => {
+                const deptTasks = state.allTasks.filter(task => Number(task.DeptId ?? task.deptId ?? 0) === Number(dept.id));
+                const live = summarizeTasks(deptTasks);
+                const data = byId.get(Number(dept.id)) || {};
+                const total = live.total || num(data.TotalTasks ?? data.totalTasks);
+                const completed = live.total ? live.completed : num(data.CompletedCount ?? data.completedCount);
+                return {
+                    id: dept.id,
+                    name: dept.name,
+                    total,
+                    pending: live.total ? live.pending : num(data.PendingCount ?? data.pendingCount),
+                    progress: live.total ? live.progress : num(data.InProgressCount ?? data.inProgressCount),
+                    completed,
+                    overdue: live.total ? live.overdue : num(data.OverdueCount ?? data.overdueCount),
+                    completion: pct(completed, total)
+                };
+            }).sort((a, b) => (b.overdue - a.overdue) || (b.total - a.total) || a.name.localeCompare(b.name));
+
+            if (!cards.length) {
+                $('#departmentGrid').innerHTML = '<div class="owner2-empty">No departments found.</div>';
+                return;
+            }
+
+            $('#departmentGrid').innerHTML = cards.map((dept, index) => `
+                <article class="owner2-dept ${state.selectedDeptId === dept.id ? 'active' : ''}" data-dept-index="${index}">
+                    <h4>${escapeHtml(dept.name)}</h4>
+                    <div class="owner2-track"><span class="owner2-fill" style="--w:${dept.completion}%;--tone:${dept.overdue ? 'var(--so-amber)' : 'var(--so-green)'}"></span></div>
+                    <div class="owner2-dept-row"><span>Total</span><strong>${dept.total}</strong></div>
+                    <div class="owner2-dept-row"><span>Completed</span><strong>${dept.completed}</strong></div>
+                    <div class="owner2-dept-row"><span>Overdue</span><strong class="${dept.overdue ? 'text-danger' : ''}">${dept.overdue}</strong></div>
+                </article>
+            `).join('');
+
+            $$('#departmentGrid .owner2-dept').forEach(card => {
+                card.addEventListener('click', () => openDepartmentDrawer(cards[Number(card.dataset.deptIndex)]));
+            });
+        }
+
+        function renderHierarchyTree() {
+            const hierarchies = state.hierarchy || [];
+            if (!hierarchies.length) {
+                $('#hierarchyTree').innerHTML = '<div class="owner2-empty">No hierarchy data found.</div>';
+                return;
+            }
+
+            $('#hierarchyTree').innerHTML = hierarchies.map((dept, deptIndex) => {
+                const hods = dept.Hods || dept.hods || [];
+                const deptName = dept.DeptName || dept.deptName || findDeptName(dept.DeptId || dept.deptId);
+                const total = num(dept.TotalTasks ?? dept.totalTasks);
+                const completed = num(dept.CompletedCount ?? dept.completedCount);
+                const overdue = num(dept.OverdueCount ?? dept.overdueCount);
+                const personCount = countPeople(hods);
+
+                return `
+                    <section class="owner2-tree-dept" data-tree-dept>
+                        <div class="owner2-tree-dept-head">
+                            <div>
+                                <h4>${escapeHtml(deptName)}</h4>
+                                <span>${personCount} people in hierarchy</span>
+                            </div>
+                            <div class="owner2-tree-actions">
+                                <span class="owner2-badge">${total} total</span>
+                                <span class="owner2-badge green">${completed} done</span>
+                                <span class="owner2-badge red">${overdue} overdue</span>
+                                <button type="button" class="owner2-tree-toggle" data-toggle-tree="dept">Collapse Dept</button>
+                            </div>
+                        </div>
+                        <div class="owner2-tree-body">
+                            ${hods.length ? hods.map((hod, hodIndex) => renderTreeHod(hod, deptName, deptIndex, hodIndex)).join('') : '<div class="owner2-empty">No HOD found in this department.</div>'}
+                        </div>
+                    </section>
+                `;
+            }).join('');
+
+            $$('#hierarchyTree [data-tree-path]').forEach(node => {
+                node.addEventListener('click', () => {
+                    const person = getTreePerson(node.dataset.treePath);
+                    if (person) openTreePersonDrawer(person);
+                });
+            });
+            $$('#hierarchyTree [data-toggle-tree]').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const target = btn.dataset.toggleTree === 'dept'
+                        ? btn.closest('.owner2-tree-dept')
+                        : btn.closest('.owner2-tree-hod');
+                    if (!target) return;
+                    const collapsed = target.classList.toggle('collapsed');
+                    btn.textContent = collapsed
+                        ? (btn.dataset.toggleTree === 'dept' ? 'Expand Dept' : 'Expand HOD')
+                        : (btn.dataset.toggleTree === 'dept' ? 'Collapse Dept' : 'Collapse HOD');
+                });
+            });
+        }
+
+        function renderTreeHod(hod, deptName, deptIndex, hodIndex) {
+            const children = hod.Children || hod.children || [];
+            const subHods = children.filter(child => {
+                const roleId = Number(child.RoleTypeId || child.roleTypeId || 0);
+                const roleName = String(child.RoleName || child.roleName || '').toLowerCase();
+                return roleId === 2 || roleName.includes('sub');
+            });
+            const directExecs = children.filter(child => !subHods.includes(child));
+
+            return `
+                <div class="owner2-tree-hod">
+                    <div class="owner2-tree-person-row-wrap">
+                        ${treePersonRow(hod, `HOD | ${deptName}`, `${deptIndex}.${hodIndex}`)}
+                        <button type="button" class="owner2-tree-toggle" data-toggle-tree="hod">Collapse HOD</button>
+                    </div>
+                    <div class="owner2-tree-level">
+                        ${subHods.map((sub, subIndex) => `
+                            <div class="owner2-tree-subhod">
+                                ${treePersonRow(sub, `Sub-HOD | ${sub.SubDepartmentName || sub.subDepartmentName || deptName}`, `${deptIndex}.${hodIndex}.${subIndex}`)}
+                                <div class="owner2-tree-level">
+                                    ${((sub.Children || sub.children || []).length)
+                                        ? (sub.Children || sub.children || []).map((exec, execIndex) => `
+                                            <div class="owner2-tree-exec">
+                                                ${treePersonRow(exec, `Executive | Reports: ${sub.EmployeeName || sub.employeeName || 'Sub-HOD'}`, `${deptIndex}.${hodIndex}.${subIndex}.${execIndex}`)}
+                                            </div>
+                                        `).join('')
+                                        : '<div class="owner2-empty" style="padding:10px;">No executives under this Sub-HOD.</div>'}
+                                </div>
+                            </div>
+                        `).join('')}
+                        ${directExecs.map((exec, execIndex) => `
+                            <div class="owner2-tree-exec">
+                                ${treePersonRow(exec, `Executive | Reports: ${hod.EmployeeName || hod.employeeName || 'HOD'}`, `${deptIndex}.${hodIndex}.direct.${execIndex}`)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function treePersonRow(node, tagline, path) {
+            const name = node.EmployeeName || node.employeeName || 'Employee';
+            const code = node.EmployeeCode || node.employeeCode || '';
+            const total = num(node.TotalTasks ?? node.totalTasks);
+            const completed = num(node.CompletedCount ?? node.completedCount);
+            const overdue = num(node.OverdueCount ?? node.overdueCount);
+            return `
+                <div class="owner2-tree-person-row" data-tree-path="${escapeHtml(path)}">
+                    <div class="owner2-person">
+                        <span class="owner2-avatar">${initials(name)}</span>
+                        <div>
+                            <strong>${escapeHtml(name)}</strong>
+                            <div class="owner2-tree-tagline">${escapeHtml([code, tagline].filter(Boolean).join(' | '))}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="owner2-badge">${total}</span>
+                        <span class="owner2-badge green">${completed}</span>
+                        <span class="owner2-badge red">${overdue}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function countPeople(nodes) {
+            return (nodes || []).reduce((sum, node) => {
+                const children = node.Children || node.children || [];
+                return sum + 1 + countPeople(children);
+            }, 0);
+        }
+
+        function getTreePerson(path) {
+            const parts = String(path || '').split('.');
+            const dept = state.hierarchy[Number(parts[0])];
+            const hod = (dept?.Hods || dept?.hods || [])[Number(parts[1])];
+            if (!hod || parts.length === 2) return nodeToMember(hod, dept);
+
+            const hodChildren = hod.Children || hod.children || [];
+            const subHods = hodChildren.filter(child => {
+                const roleId = Number(child.RoleTypeId || child.roleTypeId || 0);
+                const roleName = String(child.RoleName || child.roleName || '').toLowerCase();
+                return roleId === 2 || roleName.includes('sub');
+            });
+            const directExecs = hodChildren.filter(child => !subHods.includes(child));
+
+            if (parts[2] === 'direct') {
+                const exec = directExecs[Number(parts[3])];
+                return exec ? nodeToMember(exec, dept, hod) : null;
+            }
+
+            const sub = subHods[Number(parts[2])];
+            if (!sub || parts.length === 3) return sub ? nodeToMember(sub, dept, hod) : null;
+            const exec = (sub.Children || sub.children || [])[Number(parts[3])];
+            return exec ? nodeToMember(exec, dept, sub) : null;
+        }
+
+        function nodeToMember(node, dept, parent) {
+            const name = node.EmployeeName || node.employeeName || 'Employee';
+            const member = {
+                id: Number(node.EmployeeId || node.employeeId || 0),
+                code: node.EmployeeCode || node.employeeCode || '',
+                name,
+                role: node.RoleName || node.roleName || '',
+                parentName: parent ? (parent.EmployeeName || parent.employeeName || '') : '',
+                departments: new Set([dept.DeptName || dept.deptName || findDeptName(dept.DeptId || dept.deptId)]),
+                total: num(node.TotalTasks ?? node.totalTasks),
+                pending: num(node.PendingCount ?? node.pendingCount),
+                progress: num(node.InProgressCount ?? node.inProgressCount),
+                completed: num(node.CompletedCount ?? node.completedCount),
+                overdue: num(node.OverdueCount ?? node.overdueCount),
+                completion: pct(num(node.CompletedCount ?? node.completedCount), num(node.TotalTasks ?? node.totalTasks))
+            };
+            return member;
+        }
+
+        function openTreePersonDrawer(member) {
+            openPersonDrawer(member);
+        }
+
+        function renderSideLists() {
+            const workload = (state.roles[state.activeRole] || []).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 7);
+
+            $('#workloadList').innerHTML = workload.length ? workload.map(item => riskItemHtml(item, `${item.total} total tasks`, '')).join('') : '<div class="owner2-empty">No workload in this role.</div>';
+
+            bindRiskList('#workloadList', workload);
+        }
+
+        function riskItemHtml(item, metric, tone) {
+            return `
+                <div class="owner2-risk-item" data-person-key="${escapeHtml(memberKey(item))}">
+                    <div>
+                        <strong>${escapeHtml(item.name)}</strong>
+                        <span>${escapeHtml([item.code, Array.from(item.departments).join(', ')].filter(Boolean).join(' | '))}</span>
+                    </div>
+                    <span class="owner2-badge ${tone}">${escapeHtml(metric)}</span>
+                </div>
+            `;
+        }
+
+        function bindRiskList(selector, items) {
+            $$(selector + ' .owner2-risk-item').forEach((node, index) => {
+                node.addEventListener('click', () => openPersonDrawer(items[index]));
+            });
+        }
+
+        async function openPersonDrawer(member) {
+            if (!member) return;
+            state.drawerMode = 'person';
+            $('#drawerTitle').textContent = member.name;
+            $('#drawerSubtitle').textContent = `${member.code || 'Employee'} | ${Array.from(member.departments).join(', ') || 'All departments'} | ${member.total} tasks`;
+            openDrawerLoading();
+            state.currentTasks = personTasks(member);
+            renderDrawerTasks();
+        }
+
+        async function openDepartmentDrawer(dept) {
+            state.drawerMode = 'department';
+            state.selectedDeptId = dept.id;
+            $('#drawerTitle').textContent = dept.name;
+            $('#drawerSubtitle').textContent = `${dept.total} tasks | ${dept.overdue} overdue | ${dept.completion}% completed`;
+            openDrawerLoading();
+            state.currentTasks = state.allTasks.filter(task => Number(task.DeptId ?? task.deptId ?? 0) === Number(dept.id));
+            renderDepartments();
+            renderDrawerTasks();
+        }
+
+        function openDrawerLoading() {
+            $('#drawerSearch').value = '';
+            $('#drawerPerson').value = '';
+            $('#drawerStatus').value = '';
+            $('#drawerBody').innerHTML = '<div class="owner2-loading">Loading tasks...</div>';
+            $('#taskDrawerBackdrop').classList.add('open');
+        }
+
+        function closeDrawer() {
+            $('#taskDrawerBackdrop').classList.remove('open');
+            state.currentTasks = [];
+        }
+
+        function renderDrawerTasks() {
+            const search = normalize($('#drawerSearch').value);
+            const personSearch = normalize($('#drawerPerson').value);
+            const status = $('#drawerStatus').value;
+            let tasks = state.currentTasks || [];
+
+            if (status) {
+                tasks = tasks.filter(task => normalize(statusOf(task)) === normalize(status));
+            }
+            if (search) {
+                tasks = tasks.filter(task => normalize([
+                    task.TaskName || task.taskName,
+                    task.ProjectName || task.projectName,
+                    task.ModuleName || task.moduleName,
+                    task.AssignedTo || task.assignedTo,
+                    task.AssignedByName || task.assignedByName,
+                    task.DeptName || task.deptName
+                ].join(' ')).includes(search));
+            }
+            if (personSearch) {
+                tasks = tasks.filter(task => normalize(task.AssignedTo || task.assignedTo || '').includes(personSearch));
+            }
+
+            if (!tasks.length) {
+                $('#drawerBody').innerHTML = '<div class="owner2-empty">No tasks match this view.</div>';
+                return;
+            }
+
+            $('#drawerBody').innerHTML = tasks.map(task => {
+                const title = task.TaskName || task.taskName || 'Untitled task';
+                const project = task.ProjectName || task.projectName || '';
+                const module = task.ModuleName || task.moduleName || '';
+                const assignedTo = task.AssignedTo || task.assignedTo || '';
+                const assignedBy = task.AssignedByName || task.assignedByName || task.CreatedBy || task.createdBy || '';
+                const start = fmtDate(task.StartDate || task.startDate);
+                const due = fmtDate(task.ExpectedEndDate || task.expectedEndDate);
+                const completed = fmtDate(task.CompletionDate || task.completionDate);
+                const progress = num(task.PercentComplete ?? task.percentComplete);
+                const statusText = statusOf(task);
+                const badgeTone = statusText === 'Completed' ? 'green' : statusText === 'Overdue' ? 'red' : '';
+
+                return `
+                    <article class="owner2-task">
+                        <div class="owner2-task-top">
+                            <h4 class="owner2-task-title">${escapeHtml(title)}</h4>
+                            <span class="owner2-badge ${badgeTone}">${escapeHtml(statusText)}</span>
+                        </div>
+                        <div class="owner2-task-meta">
+                            ${project ? `<span><strong>Project:</strong> ${escapeHtml(project)}</span>` : ''}
+                            ${module ? `<span><strong>Module:</strong> ${escapeHtml(module)}</span>` : ''}
+                            ${assignedTo ? `<span><strong>To:</strong> ${escapeHtml(assignedTo)}</span>` : ''}
+                            ${assignedBy ? `<span><strong>From:</strong> ${escapeHtml(assignedBy)}</span>` : ''}
+                            ${start ? `<span><strong>Start:</strong> ${start}</span>` : ''}
+                            ${due ? `<span><strong>Till:</strong> ${due}</span>` : ''}
+                            ${completed ? `<span><strong>Completed:</strong> ${completed}</span>` : ''}
+                        </div>
+                        <div class="owner2-task-progress">
+                            <div class="owner2-metric-line"><span>Progress</span><strong>${progress}%</strong></div>
+                            <div class="owner2-track"><span class="owner2-fill" style="--w:${Math.min(progress, 100)}%;--tone:${statusText === 'Overdue' ? 'var(--so-red)' : 'var(--so-green)'}"></span></div>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function queryDates() {
+            const params = new URLSearchParams();
+            if ($('#fromDate').value) params.set('fromDate', $('#fromDate').value);
+            if ($('#toDate').value) params.set('toDate', $('#toDate').value);
+            const text = params.toString();
+            return text ? `?${text}` : '';
+        }
+
+        async function getJson(url) {
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!response.ok) throw new Error(`${url} failed`);
+            return await response.json();
+        }
+
+        async function postJson(url, body) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) throw new Error(`${url} failed`);
+            return await response.json();
+        }
+
+        function normalizeDepartments(data) {
+            const list = Array.isArray(data) ? data : [];
+            return list.map(item => ({
+                id: Number(item.DepartmentId || item.departmentId || item.DeptId || item.deptId || item.Id || item.id || 0),
+                name: item.DepartmentName || item.departmentName || item.DeptName || item.deptName || item.Name || item.name || 'Department'
+            })).filter(item => item.id || item.name);
+        }
+
+        function mergeDepartments(baseDepartments, ownerDepartments) {
+            const map = new Map();
+            (baseDepartments || []).forEach(dept => {
+                if (dept.id > 0) map.set(dept.id, dept);
+            });
+            (ownerDepartments || []).forEach(item => {
+                const id = Number(item.DeptId || item.deptId || item.DepartmentId || item.departmentId || 0);
+                const name = item.DeptName || item.deptName || item.DepartmentName || item.departmentName || 'No Department';
+                if (id > 0 && !map.has(id)) map.set(id, { id, name });
+            });
+            return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        function apiData(response) {
+            if (response && typeof response === 'object') {
+                if ('Data' in response) return response.Data;
+                if ('data' in response) return response.data;
+            }
+            return response;
+        }
+
+        function findDeptName(id) {
+            const dept = state.departments.find(d => Number(d.id) === Number(id));
+            return dept?.name || 'Department';
+        }
+
+        function filterTasksByDate(tasks) {
+            const from = $('#fromDate').value ? new Date($('#fromDate').value + 'T00:00:00') : null;
+            const to = $('#toDate').value ? new Date($('#toDate').value + 'T23:59:59') : null;
+            if (!from && !to) return tasks;
+
+            return tasks.filter(task => {
+                const date = task.ExpectedEndDate || task.expectedEndDate || task.StartDate || task.startDate;
+                if (!date) return true;
+                const taskDate = new Date(date);
+                if (from && taskDate < from) return false;
+                if (to && taskDate > to) return false;
+                return true;
+            });
+        }
+
+        function cleanTasks(tasks) {
+            return (Array.isArray(tasks) ? tasks : []).filter(task => {
+                const isDeleted = task.IsDeleted ?? task.isDeleted;
+                const deletedOn = task.DeletedOn ?? task.deletedOn;
+                return !(isDeleted === true || String(isDeleted).toLowerCase() === 'true' || deletedOn);
+            });
+        }
+
+        function statusOf(task) {
+            const raw = String(task.Status || task.status || '').trim();
+            if (raw) return raw;
+            const due = task.ExpectedEndDate || task.expectedEndDate;
+            const completed = num(task.PercentComplete ?? task.percentComplete) >= 100 || task.CompletionDate || task.completionDate;
+            if (!completed && due && new Date(due) < new Date()) return 'Overdue';
+            if (completed) return 'Completed';
+            return num(task.PercentComplete ?? task.percentComplete) > 0 ? 'In Progress' : 'Pending';
+        }
+
+        function isStatus(task, expected) {
+            return normalizeStatus(statusOf(task)) === normalizeStatus(expected);
+        }
+
+        function normalizeStatus(value) {
+            return String(value || '').replace(/_/g, ' ').trim().toUpperCase();
+        }
+
+        function renderRoleStatusBreakdown(totals) {
+            const lines = [
+                { id: 'roleTotalFill', value: totals.total, pct: 100, tone: 'var(--so-blue2)' },
+                { id: 'rolePendingFill', value: totals.pending, pct: pct(totals.pending, Math.max(totals.total, 1)), tone: 'var(--so-amber)' },
+                { id: 'roleProgressFill', value: totals.progress, pct: pct(totals.progress, Math.max(totals.total, 1)), tone: 'var(--so-blue)' },
+                { id: 'roleDoneFill', value: totals.completed, pct: pct(totals.completed, Math.max(totals.total, 1)), tone: 'var(--so-green)' },
+                { id: 'roleRiskFill', value: totals.overdue, pct: pct(totals.overdue, Math.max(totals.total, 1)), tone: 'var(--so-red)' }
+            ];
+            lines.forEach(line => {
+                const fill = document.getElementById(line.id);
+                if (!fill) return;
+                fill.style.setProperty('--w', `${line.pct}%`);
+                fill.style.setProperty('--tone', line.tone);
+            });
+        }
+
+        function setRing(node, value) {
+            const safeValue = Math.max(0, Math.min(100, Number(value) || 0));
+            node.style.setProperty('--done', safeValue);
+            const label = node.querySelector('.owner2-ring-value');
+            if (label) label.textContent = `${safeValue}%`;
+        }
+
+        function pct(value, total) {
+            return total > 0 ? Math.round((Number(value || 0) / Number(total)) * 100) : 0;
+        }
+
+        function num(value) {
+            return Number(value || 0);
+        }
+
+        function initials(name) {
+            const parts = String(name || 'U').trim().split(/\s+/).filter(Boolean);
+            if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+            return parts.slice(0, 2).map(x => x[0]).join('').toUpperCase();
+        }
+
+        function normalizePersonName(value) {
+            return String(value || '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        function memberKey(member) {
+            return member.id ? `id:${member.id}` : normalize(member.name);
+        }
+
+        function normalize(value) {
+            return String(value || '').toLowerCase().trim();
+        }
+
+        function pad(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function toInputDate(date) {
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        }
+
+        function fmtDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+    })();
+</script>
+}
