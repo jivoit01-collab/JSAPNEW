@@ -1924,6 +1924,47 @@ body {
 }
 
 /* Maker dashboard */
+.maker-dashboard-shell {
+    width: min(100%, 1560px);
+}
+
+.maker-dashboard-shell .admin-dashboard-body {
+    display: block;
+}
+
+.maker-dashboard-shell .premium-nav {
+    margin-bottom: 24px;
+}
+
+.maker-dashboard-shell .nav-glass {
+    grid-template-columns: minmax(260px, 1fr) minmax(360px, .95fr) auto;
+}
+
+.maker-dashboard-shell .kpi-grid {
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    gap: 18px;
+    margin: 0 0 22px;
+}
+
+.maker-dashboard-shell .kpi-card {
+    min-height: 158px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.maker-dashboard-shell .kpi-val {
+    font-size: clamp(28px, 2.35vw, 36px);
+}
+
+.maker-dashboard-shell .kpi-bottom {
+    margin-top: 18px;
+}
+
+.maker-dashboard-shell .kpi-wave {
+    max-width: 118px;
+}
+
 .maker-dashboard-shell .module-box.maker {
     color: var(--admin-primary);
     background: rgba(255, 255, 255, .74);
@@ -1937,6 +1978,40 @@ body {
 
 .maker-dashboard-shell .maker-filter-card {
     grid-template-columns: minmax(132px, .68fr) minmax(132px, .68fr) minmax(230px, 1.25fr) minmax(145px, .8fr) minmax(145px, .8fr) auto auto;
+    align-items: end;
+    margin: 0 0 20px;
+    padding: 18px;
+}
+
+.maker-dashboard-shell .maker-filter-card .btn {
+    min-height: 42px;
+    white-space: nowrap;
+}
+
+.maker-dashboard-shell .maker-table-card {
+    margin-top: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .78);
+    background: rgba(255, 255, 255, .86);
+    box-shadow: 0 22px 54px rgba(15, 43, 91, .12);
+}
+
+.maker-dashboard-shell .maker-table-card .t-header {
+    gap: 12px;
+    flex-wrap: wrap;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(248, 250, 252, .86));
+}
+
+.maker-dashboard-shell .maker-table-card .t-count {
+    margin-left: auto;
+    flex: 0 0 auto;
+    color: #64748b;
+    background: rgba(239, 246, 255, .86);
+    border: 1px solid rgba(147, 197, 253, .38);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 850;
 }
 
 .maker-dashboard-shell .autocomplete-group {

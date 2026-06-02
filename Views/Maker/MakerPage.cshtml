@@ -32,7 +32,6 @@
                     <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
                 </div>
             </div>
-        </div>
 
             <div class="module-box maker">
                 <span class="module-dot"></span>
@@ -82,7 +81,6 @@
                     <div class="kpi-trend"><i class="fa-solid fa-folder-open fa-xs"></i> Total</div>
                 </div>
             </div>
-        </div>
 
 
             <!-- PENDING -->
@@ -167,100 +165,7 @@
                     <div class="kpi-trend"><i class="fa-solid fa-rotate-right fa-xs"></i> Needs Action</div>
                 </div>
             </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
-                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-folder-open fa-xs"></i> Total</div>
-            </div>
         </div>
-
-
-        <!-- PENDING -->
-
-        <div class="kpi-card k-amber">
-
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardPending">
-                        0
-                    </div>
-                    <div class="kpi-label">
-                        Pending Entries
-                    </div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-clock"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
-                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
-            </div>
-        </div>
-
-
-        <!-- SUBMITTED -->
-
-        <div class="kpi-card k-green">
-
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardSubmitted">
-                        0
-                    </div>
-                    <div class="kpi-label">
-                        Submitted Entries
-                    </div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
-                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Uploaded</div>
-            </div>
-        </div>
-
-
-        <!-- REJECTED -->
-
-        <div class="kpi-card k-purple">
-
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val"
-                         id="cardRejected">
-                        0
-                    </div>
-                    <div class="kpi-label">
-                        Rejected Entries
-                    </div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
-                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-rotate-right fa-xs"></i> Needs Action</div>
-            </div>
-        </div>
-
-    </div>
 
     <!-- GLOBAL FILTER -->
     <div class="filter-card maker-filter-card">
@@ -313,9 +218,12 @@
     <div class="t-card maker-table-card">
 
         <div class="t-header">
-            <span class="t-title">
-                <i class="fa-solid fa-list-check"></i> My Entries
-            </span>
+            <div>
+                <span class="t-title">
+                    <i class="fa-solid fa-list-check"></i> My Entries
+                </span>
+                <div class="t-subtitle">Upload bills, update remarks, and track checker feedback</div>
+            </div>
             <span class="t-count" id="maker-count">0 records</span>
         </div>
 
@@ -401,148 +309,7 @@
             <iframe id="pdfFrame"></iframe>
 
         </div>
-
-        <!-- GLOBAL FILTER -->
-        <div class="filter-card maker-filter-card">
-            <div class="f-group">
-                <span class="f-label">From Date</span>
-                <input type="date" class="f-input" id="fromDate" />
-            </div>
-            <div class="f-group">
-                <span class="f-label">To Date</span>
-                <input type="date" class="f-input" id="toDate" />
-            </div>
-            <div class="f-group grow autocomplete-group">
-                <span class="f-label">Account Name</span>
-                <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
-                <div id="suggestionBox" class="suggestion-box"></div>
-            </div>
-
-            <div class="f-group">
-                <span class="f-label">Entry Type</span>
-                <select id="entryFilter" class="f-input">
-                    <option value="all">All Entries</option>
-                    <option value="submitted">Submitted</option>
-                    <option value="notsubmitted">Not Submitted</option>
-                </select>
-            </div>
-
-            <div class="f-group">
-                <span class="f-label">Due Date</span>
-                <select id="dueFilter" class="f-input">
-                    <option value="">All</option>
-                    <option value="overdue">Overdue</option>
-                    <option value="today">Due Today</option>
-                    <option value="upcoming">Upcoming</option>
-                </select>
-            </div>
-
-            <button class="btn btn-dark admin-search-btn" onclick="loadData()">
-                <i class="fa-solid fa-magnifying-glass"></i> Search
-            </button>
-
-            <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
-                <i class="fa-solid fa-file-excel"></i> Export
-            </button>
-
-        </div>
-
-       
-
-        <!-- TABLE CARD -->
-        <div class="t-card maker-table-card">
-
-            <div class="t-header">
-                <span class="t-title">
-                    <i class="fa-solid fa-list-check"></i> My Entries
-                </span>
-                <span class="t-count" id="maker-count">0 records</span>
-            </div>
-
-            <div class="table-slide-hint">
-                <i class="fa-solid fa-arrows-left-right"></i>
-                Slide horizontally to inspect all columns
-            </div>
-            <div class="top-scroll">
-                <div class="top-scroll-inner"></div>
-            </div>
-
-            <div class="t-wrap">
-                <table class="dt maker-workflow-table">
-                    <colgroup>
-                        <col class="col-account" />
-                        <col class="col-voucher" />
-                        <col class="col-date" />
-                        <col class="col-amount" />
-                        <col class="col-supplier" />
-                        <col class="col-date" />
-                        <col class="col-date" />
-                        <col class="col-attachment" />
-                        <col class="col-maker-remark" />
-                        <col class="col-status" />
-                        <col class="col-action" />
-                        <col class="col-qty" />
-                        <col class="col-value" />
-                        <col class="col-items" />
-                        <col class="col-payment-status" />
-                        <col class="col-date" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-
-                            <th>Account Name</th>
-                            <th>Voucher No</th>
-                            <th>Voucher Date</th>
-                            <th>Bill Amount</th>
-                            <th>Supplier Ref</th>
-                            <th>Supplier Ref Date</th>
-                            <th>Due Date</th>
-                            <th>Attachment</th>
-                            <th>Maker Remark</th>
-                            <th>Checker Status</th>
-                            <th>Action</th>
-                            <th>Total Qty</th>
-                            <th>Total Value</th>
-                            <th>Total Items</th>
-                            <th>Payment Status</th>
-                            <th>Payment Date</th>
-
-                        </tr>
-                    </thead>
-                    <tbody id="makerBody"></tbody>
-                </table>
-            </div>
-
-        </div>
-
-        <!-- SCROLL BUTTONS -->
-        <div id="scroll-btns">
-            <button class="scroll-btn"
-                    onclick="window.scrollTo({top:0,behavior:'smooth'})"
-                    title="Scroll to Top">
-                <i class="fa-solid fa-chevron-up"></i>
-            </button>
-            <button class="scroll-btn"
-                    onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})"
-                    title="Scroll to Bottom">
-                <i class="fa-solid fa-chevron-down"></i>
-            </button>
-        </div>
-        <!-- PDF MODAL -->
-
-        <div id="pdfContainer" class="pdf-modal">
-
-            <div class="pdf-box">
-
-                <button onclick="closePdf()" class="pdf-close">
-                    ×
-                </button>
-
-                <iframe id="pdfFrame"></iframe>
-
-            </div>
-
-        </div>
+    </div>
 
     </div><!-- /.body -->
 </div><!-- /.maker-dashboard-shell -->
@@ -713,9 +480,6 @@
     if (seenVch.has(item.vchNumber)) return;
     seenVch.add(item.vchNumber);
     
-    let isSubmitted =
-    !!item.attachmentPath;
-
     let isSubmitted =
     !!item.attachmentPath;
 
