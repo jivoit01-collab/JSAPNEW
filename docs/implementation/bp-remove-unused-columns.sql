@@ -1140,11 +1140,8 @@ END;');
     VALUES
         (N'jsMaster', N'staffCode'),
         (N'jsMaster', N'groupID'),
-        (N'jsMaster', N'mainGroupID'),
-        (N'jsMaster', N'chain'),
         (N'jsMaster', N'contactPerson'),
         (N'jsMaster', N'paymentTermID'),
-        (N'jsMaster', N'creditLimit'),
         (N'jsMaster', N'priceList'),
         (N'jsMasterAddress', N'email'),
         (N'jsMasterAddress', N'isDefault'),

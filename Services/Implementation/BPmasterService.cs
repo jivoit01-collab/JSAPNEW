@@ -10,6 +10,7 @@ using JSAPNEW.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.Design;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -141,6 +142,11 @@ namespace JSAPNEW.Services.Implementation
         private static string FirstText(params string[] values)
         {
             return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
+        }
+
+        private static string? NullIfBlank(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
 
         private static List<ChainModel> NormalizeChains(IEnumerable<ChainModel> rows)
@@ -332,6 +338,41 @@ namespace JSAPNEW.Services.Implementation
                 "UAE Dirham" => "AED",
                 _ => currency.ToUpperInvariant()
             };
+        }
+
+        private static string ResolveMainGroup(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.MainGroup, model.MgrMainGroup, model.MainGroupID);
+        }
+
+        private static string ResolveChain(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.Chain, model.MgrChain);
+        }
+
+        private static string ResolveCreditLimitText(InsertBPMasterDataModel model)
+        {
+            return FirstText(model.CreditLimit, model.MgrCreditLimit);
+        }
+
+        private static bool TryResolveCreditLimit(InsertBPMasterDataModel model, out decimal creditLimit)
+        {
+            var value = ResolveCreditLimitText(model);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                creditLimit = 0m;
+                return true;
+            }
+
+            value = value.Trim().Replace(",", string.Empty);
+            if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out creditLimit)
+                || decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out creditLimit))
+            {
+                return creditLimit >= 0m;
+            }
+
+            creditLimit = 0m;
+            return false;
         }
 
         private static string SanitizeMobileForValidation(string mobile)
@@ -593,6 +634,9 @@ namespace JSAPNEW.Services.Implementation
             if (!Regex.IsMatch(currency, "^[A-Z]{3}$"))
                 return "Currency must be a valid three-letter code.";
 
+            if (!TryResolveCreditLimit(model, out var creditLimit) || creditLimit < 0m)
+                return "Credit limit must be a valid non-negative number.";
+
             var mobile = ResolveMobile(model);
             if (string.IsNullOrWhiteSpace(mobile))
             {
@@ -753,6 +797,9 @@ namespace JSAPNEW.Services.Implementation
                 AlternateEmail = item.AlternateEmail ?? string.Empty,
                 Currency = string.IsNullOrWhiteSpace(item.Currency) ? "INR" : item.Currency,
                 Remarks = item.Remarks ?? string.Empty,
+                MainGroup = item.MainGroup ?? string.Empty,
+                Chain = item.Chain ?? string.Empty,
+                CreditLimit = item.CreditLimit,
                 company = item.CompanyId,
                 flowId = item.flowId
             };
@@ -768,12 +815,9 @@ namespace JSAPNEW.Services.Implementation
             if (codes.Length == 0)
                 return;
 
+            var optionalColumns = await GetBpMasterOptionalColumnsAsync(connection);
             var masterRows = (await connection.QueryAsync<BpMasterDetailRow>(
-                @"SELECT
-                    code,
-                    companyByUser
-                  FROM BP.jsMaster
-                  WHERE code IN @Codes",
+                BuildBpMasterDetailSql(optionalColumns),
                 new { Codes = codes })).ToDictionary(row => row.Code);
 
             var taxRows = (await connection.QueryAsync<BpTaxDetailRow>(
@@ -854,7 +898,15 @@ namespace JSAPNEW.Services.Implementation
             {
                 row.Master = BuildListMaster(row);
                 if (masterRows.TryGetValue(row.Code, out var master))
+                {
                     row.Master.CompanyByUser = master.CompanyByUser ?? string.Empty;
+                    row.Master.MainGroup = master.MainGroup ?? string.Empty;
+                    row.Master.Chain = master.Chain ?? string.Empty;
+                    row.Master.CreditLimit = master.CreditLimit;
+                    row.MainGroup = master.MainGroup ?? string.Empty;
+                    row.Chain = master.Chain ?? string.Empty;
+                    row.CreditLimit = master.CreditLimit;
+                }
 
                 row.TaxDetails = taxRows.TryGetValue(row.Code, out var tax) ? tax : new BP_Tax();
 
@@ -868,6 +920,110 @@ namespace JSAPNEW.Services.Implementation
                 row.ContactPersons = contactsByCode.TryGetValue(row.Code, out var contacts) ? contacts : new List<BP_Contact>();
                 row.Attachments = attachmentsByCode.TryGetValue(row.Code, out var attachments) ? attachments : new List<BP_Attachment>();
             }
+        }
+
+        private static string BuildBpMasterDetailSql(BpMasterOptionalColumns columns)
+        {
+            var select = new List<string>
+            {
+                "code",
+                "companyByUser",
+                columns.HasMainGroupID ? "mainGroupID AS MainGroup" : "CAST(NULL AS NVARCHAR(100)) AS MainGroup",
+                columns.HasChain ? "chain AS Chain" : "CAST(NULL AS NVARCHAR(100)) AS Chain",
+                columns.HasCreditLimit ? "creditLimit AS CreditLimit" : "CAST(0 AS DECIMAL(18,2)) AS CreditLimit"
+            };
+
+            return $@"
+                SELECT
+                    {string.Join("," + Environment.NewLine + "                    ", select)}
+                FROM BP.jsMaster
+                WHERE code IN @Codes";
+        }
+
+        private async Task<BpMasterOptionalColumns> GetBpMasterOptionalColumnsAsync(SqlConnection connection)
+        {
+            const string sql = @"
+SELECT name
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'BP.jsMaster')
+  AND name IN (N'mainGroupID', N'chain', N'creditLimit');";
+
+            var names = (await connection.QueryAsync<string>(sql)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return new BpMasterOptionalColumns
+            {
+                HasMainGroupID = names.Contains("mainGroupID"),
+                HasChain = names.Contains("chain"),
+                HasCreditLimit = names.Contains("creditLimit")
+            };
+        }
+
+        private async Task SaveBpManagerFieldsAsync(
+            SqlConnection connection,
+            int bpCode,
+            InsertBPMasterDataModel model)
+        {
+            if (bpCode <= 0)
+                return;
+
+            var columns = await GetBpMasterOptionalColumnsAsync(connection);
+            if (!columns.HasAny)
+            {
+                _logger.LogWarning(
+                    "BP manager fields were not saved because columns are missing. Run the BP.jsMaster MainGroup/Chain/CreditLimit migration. BpCode={BpCode}",
+                    bpCode);
+                return;
+            }
+
+            TryResolveCreditLimit(model, out var creditLimit);
+
+            var setClauses = new List<string>();
+            var parameters = new DynamicParameters();
+            parameters.Add("@Code", bpCode);
+
+            if (columns.HasMainGroupID)
+            {
+                setClauses.Add("mainGroupID = @MainGroup");
+                parameters.Add("@MainGroup", NullIfBlank(ResolveMainGroup(model)));
+            }
+
+            if (columns.HasChain)
+            {
+                setClauses.Add("chain = @Chain");
+                parameters.Add("@Chain", NullIfBlank(ResolveChain(model)));
+            }
+
+            if (columns.HasCreditLimit)
+            {
+                setClauses.Add("creditLimit = @CreditLimit");
+                parameters.Add("@CreditLimit", creditLimit);
+            }
+
+            if (setClauses.Count == 0)
+                return;
+
+            var sql = $@"
+UPDATE BP.jsMaster
+SET {string.Join(", ", setClauses)}
+WHERE code = @Code;";
+
+            await connection.ExecuteAsync(sql, parameters);
+        }
+
+        private async Task ApplyBpManagerFieldsAsync(SingleBPDataModel result, SqlConnection connection, int bpCode)
+        {
+            if (result.Master == null || bpCode <= 0)
+                return;
+
+            var columns = await GetBpMasterOptionalColumnsAsync(connection);
+            var sql = BuildBpMasterDetailSql(columns).Replace("WHERE code IN @Codes", "WHERE code = @Code");
+            var masterFields = await connection.QueryFirstOrDefaultAsync<BpMasterDetailRow>(sql, new { Code = bpCode });
+            if (masterFields == null)
+                return;
+
+            result.Master.CompanyByUser = FirstText(result.Master.CompanyByUser, masterFields.CompanyByUser);
+            result.Master.MainGroup = masterFields.MainGroup ?? string.Empty;
+            result.Master.Chain = masterFields.Chain ?? string.Empty;
+            result.Master.CreditLimit = masterFields.CreditLimit;
         }
 
         public async Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model)
@@ -951,6 +1107,8 @@ namespace JSAPNEW.Services.Implementation
                     response.Success = true;
                     response.Message = "BP Master inserted successfully.";
                     response.GeneratedCode = (int)(outCode.Value ?? 0);
+
+                    await SaveBpManagerFieldsAsync(conn, response.GeneratedCode, model);
                 }
 
                 if (response.GeneratedCode > 0)
@@ -1465,6 +1623,7 @@ WHERE ar.UserId IS NOT NULL
                     }
                 }
 
+                await ApplyBpManagerFieldsAsync(result, connection, bpCode);
                 return result;
             }
         }
@@ -1984,25 +2143,40 @@ WHERE f.id = @flowId;";
         private async Task<SingleBPDataModel> GetSingleBPDataForSapAsync(int bpCode)
         {
             using var connection = new SqlConnection(_connectionString);
-            using var multi = await connection.QueryMultipleAsync(
+
+            BP_Master? master;
+            BP_Tax? taxDetails;
+            List<BP_Address> addresses;
+            List<BP_Bank> banks;
+            List<BP_Contact> contacts;
+            List<BP_Attachment> attachments;
+
+            using (var multi = await connection.QueryMultipleAsync(
                 "[BP].[jsGetSingleBPData]",
                 new { bpCode },
-                commandType: CommandType.StoredProcedure);
+                commandType: CommandType.StoredProcedure))
+            {
+                master = await multi.ReadFirstOrDefaultAsync<BP_Master>();
+                taxDetails = await multi.ReadFirstOrDefaultAsync<BP_Tax>();
+                addresses = (await multi.ReadAsync<BP_Address>()).ToList();
+                banks = (await multi.ReadAsync<BP_Bank>()).ToList();
+                contacts = (await multi.ReadAsync<BP_Contact>()).ToList();
+                attachments = (await multi.ReadAsync<BP_Attachment>()).ToList();
+            }
 
-            var master = await multi.ReadFirstOrDefaultAsync<BP_Master>();
-            var taxDetails = await multi.ReadFirstOrDefaultAsync<BP_Tax>();
-            var addresses = (await multi.ReadAsync<BP_Address>()).ToList();
-
-            return new SingleBPDataModel
+            var result = new SingleBPDataModel
             {
                 Master = master ?? new BP_Master(),
                 TaxDetails = taxDetails ?? new BP_Tax(),
                 BillingAddresses = addresses.Where(IsBillTo).ToList(),
                 ShippingAddresses = addresses.Where(IsShipTo).ToList(),
-                BankDetails = (await multi.ReadAsync<BP_Bank>()).ToList(),
-                ContactPersons = (await multi.ReadAsync<BP_Contact>()).ToList(),
-                Attachments = (await multi.ReadAsync<BP_Attachment>()).ToList()
+                BankDetails = banks,
+                ContactPersons = contacts,
+                Attachments = attachments
             };
+
+            await ApplyBpManagerFieldsAsync(result, connection, bpCode);
+            return result;
         }
 
         private async Task<string?> GetBpApiStatusTagAsync(int bpCode)
@@ -2432,6 +2606,8 @@ ORDER BY id DESC;";
                     await conn.OpenAsync();
                     await cmd.ExecuteNonQueryAsync();
 
+                    await SaveBpManagerFieldsAsync(conn, model.Code, model);
+
                     response.Success = true;
                     response.Message = "BP Master updated successfully.";
                 }
@@ -2585,6 +2761,17 @@ ORDER BY id DESC;";
         {
             public int Code { get; set; }
             public string CompanyByUser { get; set; } = string.Empty;
+            public string MainGroup { get; set; } = string.Empty;
+            public string Chain { get; set; } = string.Empty;
+            public decimal CreditLimit { get; set; }
+        }
+
+        private sealed class BpMasterOptionalColumns
+        {
+            public bool HasMainGroupID { get; set; }
+            public bool HasChain { get; set; }
+            public bool HasCreditLimit { get; set; }
+            public bool HasAny => HasMainGroupID || HasChain || HasCreditLimit;
         }
 
         private sealed class BpTaxDetailRow : BP_Tax

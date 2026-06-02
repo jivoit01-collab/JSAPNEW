@@ -212,6 +212,16 @@ Only these fields are active for BP Master. The frontend must not send retired l
 | MSME Business Type | Conditional | `BP.jsTaxDetails` | `msmeBType` | `msmeBType` | SQL/workflow | MSME business classification |
 | FSSAI License | Vendor optional | `BP.jsTaxDetails` | `fssaiNo` | `fssaiLicense` | SAP UDF | FSSAI license |
 
+### SAP Manager Fields
+
+These fields match the working Node.js SAP portal manager approval fields. They are active for both Customer and Vendor BP records.
+
+| Field Name | Required | Table | Column | API Field | Used In | Description |
+|---|---:|---|---|---|---|---|
+| Main Group | No | `BP.jsMaster` | `mainGroupID` | `mainGroup` / `mgrMainGroup` | Details, SAP OCRD | SAP UDF `U_Main_Group`; values come from SAP `@MAIN_GROUP` |
+| Chain | No | `BP.jsMaster` | `chain` | `chain` / `mgrChain` | Details, SAP OCRD | SAP UDF `U_Chain`; values come from SAP `@CHAIN` |
+| Credit Limit | No | `BP.jsMaster` | `creditLimit` | `creditLimit` / `mgrCreditLimit` | Details, SAP OCRD | Numeric value sent as SAP `CreditLimit` when greater than zero |
+
 ### Bank Fields
 
 | Field Name | Required | Table | Column | API Field | Used In | Description |
@@ -243,11 +253,8 @@ These fields are removed from active frontend and backend usage because they are
 |---|---|---|---|
 | `staffCode` | `BP.jsMaster` | Not present in new portal UI | None; `isStaff` remains |
 | `groupID` | `BP.jsMaster` | Old SAP grouping field hidden from UI | SAP setup no longer driven by portal form |
-| `mainGroupID` | `BP.jsMaster` | Old UDF hidden from UI | `industry` or `typeOfBusiness` where applicable |
-| `chain` | `BP.jsMaster` | Old chain field hidden from UI | None |
 | `contactPerson` | `BP.jsMaster` | Replaced by structured contact fields | `firstName`, `lastName`, `designation` |
 | `paymentTermID` | `BP.jsMaster` | Old payment term field hidden from UI | None |
-| `creditLimit` | `BP.jsMaster` | Credit limit moved out of BP registration | Credit Limit module |
 | `priceList` | `BP.jsMaster` | Old price list field hidden from UI | None |
 | `email` | `BP.jsMasterAddress` | Address-level email removed | `emailAddress` in contacts |
 | `isDefault` | `BP.jsMasterAddress` | UI uses billing/shipping arrays instead | Address array type |
@@ -280,11 +287,8 @@ The active SQL procedure contracts and .NET DTOs were aligned to the new Custome
 | Removed Input/Property | Previous Area | Reason Removed | Current Rule |
 |---|---|---|---|
 | `groupID` / `GroupCode` | DTO, procedures, SAP payload | Not shown in new frontend | Do not send to SAP from BP registration |
-| `mainGroupID` / `U_Main_Group` | DTO, procedures, SAP payload | Not shown in new frontend | Use `industry` or `typeOfBusiness` only when relevant |
-| `chain` / `U_Chain` | DTO, procedures, SAP payload | Not shown in new frontend | No replacement |
 | `contactPerson` | DTO, procedures | Replaced by structured contact fields | Use `firstName`, `lastName`, `designation` |
 | `paymentTermID` / `PayTermsGrpCode` | DTO, procedures, SAP payload | Not shown in new frontend | Payment term is not portal-controlled |
-| `creditLimit` / `CreditLimit` | DTO, procedures, SAP payload | Not part of BP registration | Managed by the credit-limit module |
 | `priceList` | DTO, procedures, SAP payload | Not shown in new frontend | No replacement |
 | `staffCode` | DTO, procedures | Old staff code field removed | Keep only `isStaff` |
 | `addressUid` | Address DTO/procedure | Renamed for portal clarity | Use `addressName` |

@@ -762,6 +762,12 @@ LIMIT 1";
                 payload["EmailAddress"] = master.EmailAddress.Trim();
             if (!string.IsNullOrWhiteSpace(master.Remarks))
                 payload["Notes"] = master.Remarks.Trim();
+            if (master.CreditLimit > 0)
+                payload["CreditLimit"] = master.CreditLimit;
+            if (!string.IsNullOrWhiteSpace(master.MainGroup))
+                payload["U_Main_Group"] = master.MainGroup.Trim();
+            if (!string.IsNullOrWhiteSpace(master.Chain))
+                payload["U_Chain"] = master.Chain.Trim();
             if (attachmentEntry.HasValue)
                 payload["AttachmentEntry"] = attachmentEntry.Value;
             if (!string.IsNullOrWhiteSpace(tax?.FssaiLicense))

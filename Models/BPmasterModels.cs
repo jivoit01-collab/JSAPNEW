@@ -34,6 +34,9 @@ namespace JSAPNEW.Models
         public string AlternateEmail { get; set; } = string.Empty;
         public string Currency { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
+        public string MainGroup { get; set; } = string.Empty;
+        public string Chain { get; set; } = string.Empty;
+        public decimal CreditLimit { get; set; }
         public bool IsStaff { get; set; }
         public DateTime? CreatedOn { get; set; }
         public string status { get; set; } = string.Empty;
@@ -141,6 +144,13 @@ namespace JSAPNEW.Models
         public string FssaiNo { get; set; } = string.Empty;
         public string FssaiLicense { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
+        public string MainGroup { get; set; } = string.Empty;
+        public string MainGroupID { get; set; } = string.Empty;
+        public string MgrMainGroup { get; set; } = string.Empty;
+        public string Chain { get; set; } = string.Empty;
+        public string MgrChain { get; set; } = string.Empty;
+        public string CreditLimit { get; set; } = string.Empty;
+        public string MgrCreditLimit { get; set; } = string.Empty;
         public bool IsStaff { get; set; }
         public int UserId { get; set; }
         public string CompanyByUser { get; set; } = string.Empty;
@@ -318,6 +328,9 @@ namespace JSAPNEW.Models
         public string AlternateEmail { get; set; } = string.Empty;
         public string Currency { get; set; } = "INR";
         public string Remarks { get; set; } = string.Empty;
+        public string MainGroup { get; set; } = string.Empty;
+        public string Chain { get; set; } = string.Empty;
+        public decimal CreditLimit { get; set; }
         public string CompanyByUser { get; set; } = string.Empty;
         public int company { get; set; }
         public int flowId { get; set; }
