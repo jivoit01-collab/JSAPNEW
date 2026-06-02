@@ -39,6 +39,16 @@ namespace JSAPNEW.Controllers
             var data = _service.GetInvoiceItemDetails(vchNumber);
             return Json(data);
         }
+        [HttpPost]
+        public IActionResult MarkVerified(int vchNumber)
+        {
+            _service.MarkVerified(vchNumber);
 
+            return Json(new
+            {
+                success = true,
+                message = "Payment verified successfully"
+            });
+        }
     }
 }
