@@ -21,6 +21,7 @@
         public object TotalQuantity { get; set; }
         public object TotalItemValue { get; set; }
         public object TotalItems { get; set; }
+        public bool IsPaymentVerified { get; set; }
     }
 
     //public class InvoiceItemDto
@@ -76,17 +77,14 @@
     {
         public int VchNumber { get; set; }
     }
+    public class DocumentFolderDto
+    {
+        public int FolderId { get; set; }
+        public int? ParentFolderId { get; set; }
+        public string FolderName { get; set; }
+    }
 }
 
 
-//public class BillSummaryDto
-//{
-//    public int TotalBills { get; set; }
-//    public int PendingMaker { get; set; }
-//    public int ApprovedChecker { get; set; }
-//    public int TotalPaid { get; set; }
-//}
-//public class DeleteRequest
-//{
-//    public int VchNumber { get; set; }
-//}
+
+   
