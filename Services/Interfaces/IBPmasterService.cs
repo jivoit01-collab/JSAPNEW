@@ -7,9 +7,10 @@ namespace JSAPNEW.Services.Interfaces
     {
         Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model);
         Task<ApproveOrRejectBpResponse> ApproveBPAsync(ApproveOrRejectBpRequest request);
+        Task<ApproveOrRejectBpResponse> RetrySapPostAsync(ApproveOrRejectBpRequest request);
         Task<ApproveOrRejectBpResponse> RejectBPAsync(ApproveOrRejectBpRequest request);
         Task<IEnumerable<ApprovedBpModel>> GetApprovedBPsAsync(int userId, int companyId, string month = null);
-        Task<BPCountModel> GetBPCountsAsync(string month, int userId);
+        Task<BPCountModel> GetBPCountsAsync(string month, int userId, int companyId = 0);
         Task<IEnumerable<PendingBpModel>> GetPendingBpAsync(int userId, int companyId, string month = null);
         Task<IEnumerable<RejectedBPModel>> GetRejectedBpAsync(int userId, int companyId, string month = null);
         Task<SingleBPDataModel> GetSingleBPDataAsync(int bpCode, IUrlHelper urlHelper);
@@ -22,12 +23,11 @@ namespace JSAPNEW.Services.Interfaces
         Task<IEnumerable<GroupNameResponse>> GetGroupNameByBPTypeAsync(int company, string bpType,string isStaff);
         Task<IEnumerable<PaymentGroupModel>> GetDistinctPaymentGroupsAsync(int company);
         Task<IEnumerable<BPStateModel>> GetDistinctStatesAsync(int company, string CountryCode);
+        Task<BPOptionsModel> GetOptionsAsync(int company, string bpType, string isStaff, string countryCode = "IN");
         Task<IEnumerable<BPGetCard>> BPGetCardInfoAsync(int company, string BPType, string IsStaff);
         Task<IEnumerable<UniquePANModel>> GetUniquePANsAsync(int company);
         Task<IEnumerable<GSTMismatchByStateModel>> GetGSTMismatchByStateAsync(int company, string stateCode);
         Task<IEnumerable<GetPricelist>> GetPricelistAsync(int company);
-        Task<UidResponse> CheckAddressUidAsync(string addressUid);
-        Task<UidResponse> CheckContactUidAsync(string contactUid);
         Task<IEnumerable<GetPanByBranch>> GetBpPANByBranchAsync(string Branch, int company);
         Task<SPAData> GetSPADataAsync(int masterId);
         Task<IEnumerable<MergeBpModel>> GetMergeBpModelAsync(int userId, int companyId, string month = null);

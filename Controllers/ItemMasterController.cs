@@ -70,6 +70,28 @@ namespace JSAPNEW.Controllers
             }
         }
 
+        [HttpGet("GetUType")]
+        // [CheckUserPermission("item_master_creation", "view")]
+        public async Task<ActionResult> GetUType(int company)
+        {
+            try
+            {
+                var uTypes = await _ItemMasterService.GetUTypeAsync(company);
+                if (uTypes == null)
+                {
+                    _Itemmasterlogger.LogInformation("No UType found");
+                    return NotFound(new { Success = false, Message = "No UType found" });
+                }
+                _Itemmasterlogger.LogInformation("UType retrieved successfully.");
+                return Ok(new { Success = true, Data = uTypes });
+            }
+            catch (Exception ex)
+            {
+                _Itemmasterlogger.LogError(ex, "Error occurred while retrieving UType.");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
         [HttpGet("GetInventoryUOM")]
        // [CheckUserPermission("item_master_creation", "view")]
         public async Task<ActionResult> GetInventoryUOM(int company)

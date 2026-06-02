@@ -1277,9 +1277,6 @@ WHERE EmployeeCode = @EmployeeCode",
             if (!IsUserLoggedIn())
                 return Ok(new { Success = false, Message = "Not logged in" });
 
-            if (string.IsNullOrWhiteSpace(request?.Password))
-                return Ok(new { Success = false, Message = "Password is required" });
-
             if (string.IsNullOrWhiteSpace(request?.Action))
                 return Ok(new { Success = false, Message = "Action is required" });
 
@@ -1293,6 +1290,13 @@ WHERE EmployeeCode = @EmployeeCode",
 
             if (string.IsNullOrWhiteSpace(apiUsername))
                 return Ok(new { Success = false, Message = "Tankha Payee API username is not configured." });
+
+            var apiPassword = !string.IsNullOrWhiteSpace(request?.Password)
+                ? request.Password
+                : _configuration["TankhaPayeeApi:Password"];
+
+            if (string.IsNullOrWhiteSpace(apiPassword))
+                return Ok(new { Success = false, Message = "Tankha Payee API password is not configured." });
 
             var userId = GetUserId() ?? 0;
             var currentEmployee = await GetCurrentHierarchyEmployeeAsync();
@@ -1308,13 +1312,14 @@ WHERE EmployeeCode = @EmployeeCode",
             try
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{apiUsername}:{request.Password}"));
+                var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{apiUsername}:{apiPassword}"));
                 client.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encoded);
 
                 // Discard credentials immediately after building the header
                 request.Username = null;
                 request.Password = null;
+                apiPassword = null;
 
                 foreach (var apiAction in requestedActions)
                 {

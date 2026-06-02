@@ -37,6 +37,27 @@ namespace JSAPNEW.Services.Implementation
         // item to SAP. Keyed by InitId, not FlowId, because that is the unit SAP receives.
         private static readonly ConcurrentDictionary<int, SemaphoreSlim> _sapPostLocks = new();
 
+        private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var value = (utype ?? "").Trim();
+
+            return groupCode == "112"
+                ? ""
+                : string.IsNullOrEmpty(value)
+                    ? DBNull.Value
+                    : value.ToUpperInvariant();
+        }
+
+        private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupName = (itemGroupName ?? "").Trim();
+
+            return groupName.Equals("PACKAGING MATERIAL", StringComparison.OrdinalIgnoreCase)
+                && groupCode == "105";
+        }
+
 
 
         private readonly INotificationService _notificationService;
@@ -96,6 +117,30 @@ namespace JSAPNEW.Services.Implementation
                 var query = $"CALL \"{settings.Schema}\".\"JsGetTaxRate\"()";
 
                 var result = await connection.QueryAsync<TaxRateModel>(query);
+                return result;
+            }
+        }
+
+        public async Task<IEnumerable<UTypeModel>> GetUTypeAsync(int company)
+        {
+            if (!_hanaSettings.TryGetValue(company, out var settings))
+                throw new ArgumentException($"Invalid company ID: {company}");
+
+            using (var connection = new HanaConnection(settings.ConnectionString))
+            {
+                var query = $@"
+                    SELECT
+                        T1.""FldValue"" AS ""Value"",
+                        T1.""Descr"" AS ""Label""
+                    FROM ""{settings.Schema}"".""CUFD"" T0
+                    INNER JOIN ""{settings.Schema}"".""UFD1"" T1
+                        ON T1.""TableID"" = T0.""TableID""
+                       AND T1.""FieldID"" = T0.""FieldID""
+                    WHERE T0.""TableID"" = 'OITM'
+                      AND T0.""AliasID"" = 'TYPE'
+                    ORDER BY T1.""IndexID""";
+
+                var result = await connection.QueryAsync<UTypeModel>(query);
                 return result;
             }
         }
@@ -751,6 +796,9 @@ namespace JSAPNEW.Services.Implementation
                     CommandType = CommandType.StoredProcedure
                 };
 
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 cmd.Parameters.AddWithValue("@userId", request.UserId);
                 cmd.Parameters.AddWithValue("@company", request.Company);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -772,7 +820,10 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
 
-                //cmd.Parameters.AddWithValue("@utype", (object?)request.Utype ?? DBNull.Value);
+                cmd.Parameters.AddWithValue(
+                    "@utype",
+                    GetUTypeDbValue(request.ItemGroupCode, request.Utype)
+                );
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -918,6 +969,9 @@ namespace JSAPNEW.Services.Implementation
                     CommandType = CommandType.StoredProcedure
                 };
 
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 cmd.Parameters.AddWithValue("@id", request.Id);
                 cmd.Parameters.AddWithValue("@company", (object?)request.Company ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -938,7 +992,10 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
-                // cmd.Parameters.AddWithValue("@utype",(object ?)request.Utype ?? DBNull.Value);
+                cmd.Parameters.AddWithValue(
+                    "@utype",
+                    GetUTypeDbValue(request.ItemGroupCode, request.Utype)
+                );
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -1248,7 +1305,10 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@series", (object?)model.Series ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstRelevant", (object?)model.GstRelevant ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstTaxCtg", (object?)model.GstTaxCtg ?? DBNull.Value);
-                    //cmd.Parameters.AddWithValue("@utype", (object?)model.Utype ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue(
+                        "@utype",
+                        GetUTypeDbValue(model.ItemGroupCode, model.Utype)
+                    );
 
                     await conn.OpenAsync();
                     var reader = await cmd.ExecuteReaderAsync();
@@ -1661,16 +1721,6 @@ namespace JSAPNEW.Services.Implementation
                     _ => 0
                 };
 
-                // ── U_TYPE: Premium vs Commodity ──
-                string isLitre = (first.IsLitre ?? "").Trim();
-                string variety = (first.Variety?.Trim() ?? "");
-                bool isPremium =
-                    (isLitre.Equals("N", StringComparison.OrdinalIgnoreCase)
-                        && new[] { "CANOLA", "OLIVE", "GROUNDNUT" }.Contains(variety, StringComparer.OrdinalIgnoreCase))
-                    || (isLitre.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                        && new[] { "EXTRA VIRGIN", "POMACE", "EXTRA LIGHT" }.Contains(variety, StringComparer.OrdinalIgnoreCase));
-                string uType = isPremium ? "PREMIUM" : "COMMODITY";
-
                 // ── Series: mapped by (company, groupCode) — differs across companies ──
                 int? seriesFromGroup = (company, gc) switch
                 {
@@ -1748,7 +1798,7 @@ namespace JSAPNEW.Services.Implementation
                     GSTRelevnt = "tYES",
                     GSTTaxCategory = "gtc_Regular",
                     GLMethod = "glm_WH",
-                    U_TYPE = uType
+                    U_TYPE = first.Utype ?? ""
                 };
                 // U_Packing_Type exists in OIL(1) and BEV(2), NOT in MART(3)
                 if (company == 1 || company == 2)

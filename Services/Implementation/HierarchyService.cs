@@ -710,6 +710,9 @@ ORDER BY e.EmployeeName";
                 "SikhNonSikh",
                 "Sikh_Non_Sikh",
                 "sikh_no_sikh");
+            string? genderColumn = FindFirstExistingColumn(employeeColumns, "Gender");
+            string? qualificationColumn = FindFirstExistingColumn(employeeColumns, "Qualification", "Qulaification");
+            string? areaColumn = FindFirstExistingColumn(employeeColumns, "Area");
 
             if (!string.IsNullOrWhiteSpace(sikhNonSikhColumn))
             {
@@ -3757,7 +3760,8 @@ WHERE EmployeeId = @EmployeeId";
                        COALESCE(NULLIF(sh.EmpCode, ''), e.EmployeeCode) AS EmpCode,
                        COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName) AS EmpName,
                        sh.State, sh.GroupName, COALESCE(NULLIF(sh.Designation, ''), e.Designation) AS Designation, sh.Department,
-                       sh.Mobile, sh.Email, sh.DateOfJoining, sh.IsActive, sh.CreatedOn, sh.ModifiedOn
+                       sh.Mobile, sh.Email, sh.Qualification, sh.Gender, sh.sikh_no_sikh AS SikhNonSikh, sh.Area,
+                       sh.DateOfJoining, sh.IsActive, sh.CreatedOn, sh.ModifiedOn
                 FROM [Hie].[SalesHierarchy] sh
                 OUTER APPLY (
                     SELECT TOP 1 e.EmployeeCode, e.EmployeeName
@@ -3994,8 +3998,7 @@ WHERE EmployeeId = @EmployeeId";
                 {
                     try
                     {
-                        row.EmpCode = row.EmpCode?.Trim();
-                        row.EmpName = row.EmpName?.Trim();
+                        NormalizeSalesImportRow(row);
 
                         // If an upload row has a person name but no employee code, reuse an existing employee by name.
                         // If the person is new, create a TEMP#### code so the sales hierarchy row can be matched later.
@@ -4209,6 +4212,60 @@ WHERE EmployeeId = @EmployeeId";
             };
         }
 
+        private static void NormalizeSalesImportRow(SalesImportRowRequest row)
+        {
+            row.H1Code = NormalizeJwplCode(row.H1Code);
+            row.H2Code = NormalizeJwplCode(row.H2Code);
+            row.H3Code = NormalizeJwplCode(row.H3Code);
+            row.H4Code = NormalizeJwplCode(row.H4Code);
+            row.EmpCode = NormalizeJwplCode(row.EmpCode);
+
+            row.H1Name = ToTitleCaseName(row.H1Name);
+            row.H2Name = ToTitleCaseName(row.H2Name);
+            row.H3Name = ToTitleCaseName(row.H3Name);
+            row.H4Name = ToTitleCaseName(row.H4Name);
+            row.EmpName = ToTitleCaseName(row.EmpName);
+
+            row.State = NormalizeSalesText(row.State, true);
+            row.GroupName = NormalizeSalesText(row.GroupName, true);
+            row.Designation = NormalizeSalesText(row.Designation, true);
+        }
+
+        private static string? NormalizeJwplCode(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            var raw = value.Trim().ToUpperInvariant().Replace(" ", "");
+            var match = System.Text.RegularExpressions.Regex.Match(raw, @"^([A-Z]+)(\d+)$");
+            if (match.Success)
+            {
+                var prefix = match.Groups[1].Value;
+                var digits = match.Groups[2].Value;
+                return $"{prefix}{digits.PadLeft(4, '0')}";
+            }
+
+            if (System.Text.RegularExpressions.Regex.IsMatch(raw, @"^\d+$"))
+                return $"JWPL{raw.PadLeft(4, '0')}";
+
+            return raw;
+        }
+
+        private static string? ToTitleCaseName(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(value.Trim(), @"\s+", " ").ToLowerInvariant();
+            return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(cleaned);
+        }
+
+        private static string? NormalizeSalesText(string? value, bool upper)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(value.Trim(), @"\s+", " ");
+            return upper ? cleaned.ToUpperInvariant() : cleaned;
+        }
+
         public async Task<int> UpdateMissingSalesHierarchyCodesAsync(int companyId)
         {
             using var conn = new SqlConnection(_connectionString);
@@ -4247,6 +4304,10 @@ WHERE EmployeeId = @EmployeeId";
                         State       = @State,
                         GroupName   = @GroupName,
                         Designation = @Designation,
+                        Qualification = @Qualification,
+                        Gender      = @Gender,
+                        sikh_no_sikh = @SikhNonSikh,
+                        Area        = @Area,
                         IsActive    = @IsActive,
                         ModifiedBy  = @ModifiedBy,
                         ModifiedOn  = GETDATE()
@@ -4254,8 +4315,15 @@ WHERE EmployeeId = @EmployeeId";
                     new
                     {
                         Id = request.SalesHierarchyId,
-                        request.EmpCode, request.EmpName, request.State,
-                        request.GroupName, request.Designation,
+                        EmpCode = NormalizeJwplCode(request.EmpCode),
+                        EmpName = ToTitleCaseName(request.EmpName),
+                        State = NormalizeSalesText(request.State, true),
+                        GroupName = NormalizeSalesText(request.GroupName, true),
+                        Designation = NormalizeSalesText(request.Designation, true),
+                        Qualification = NormalizeSalesText(request.Qualification, false),
+                        Gender = NormalizeSalesText(request.Gender, false),
+                        SikhNonSikh = NormalizeSikhNonSikhCode(request.SikhNonSikh),
+                        Area = NormalizeSalesText(request.Area, false),
                         request.IsActive, ModifiedBy = updatedBy
                     });
 
@@ -4366,7 +4434,22 @@ WHERE EmployeeId = @EmployeeId";
         /// </summary>
         public async Task<object> GetSalesHierarchyForTreeAsync(int companyId)
         {
-            const string sql = @"
+            using var conn = new SqlConnection(_connectionString);
+            var employeeColumns = (await conn.QueryAsync<string>(
+                "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')"))
+                .ToList();
+            string? sikhNonSikhColumn = FindFirstExistingColumn(
+                employeeColumns,
+                "Sikh / Non-Sikh",
+                "Sikh/Non-Sikh",
+                "SikhNonSikh",
+                "Sikh_Non_Sikh",
+                "sikh_no_sikh");
+            string? genderColumn = FindFirstExistingColumn(employeeColumns, "Gender");
+            string? qualificationColumn = FindFirstExistingColumn(employeeColumns, "Qualification", "Qulaification");
+            string? areaColumn = FindFirstExistingColumn(employeeColumns, "Area");
+
+            string sql = $@"
                 SELECT
                        COALESCE(hodMap.EmployeeCode, eh1.EmployeeCode, NULLIF(sh.H1Code, '')) AS H1Code,
                        COALESCE(hodMap.EmployeeName, sh.H1Name) AS H1Name,
@@ -4376,7 +4459,13 @@ WHERE EmployeeId = @EmployeeId";
                        COALESCE(NULLIF(sh.EmpCode, ''), e.EmployeeCode) AS EmpCode,
                        COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName) AS EmpName,
                        COALESCE(NULLIF(sh.Designation, ''), e.Designation) AS Designation,
-                       sh.State, sh.GroupName
+                       sh.State, sh.GroupName,
+                       e.EmployeeId,
+                       e.DateOfJoining,
+                       e.Gender,
+                       e.Qualification,
+                       e.Area,
+                       e.SikhNonSikh
                 FROM [Hie].[SalesHierarchy] sh
                 OUTER APPLY (
                     SELECT TOP 1 e.EmployeeCode, e.EmployeeName
@@ -4438,7 +4527,11 @@ WHERE EmployeeId = @EmployeeId";
                       AND s.H4Name = sh.H4Name
                 ) h4
                 OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName, e.Designation
+                    SELECT TOP 1 e.EmployeeId, e.EmployeeCode, e.EmployeeName, e.Designation, e.DateOfJoining,
+                           {BuildOptionalStringColumnExpression(genderColumn)} AS Gender,
+                           {BuildOptionalStringColumnExpression(qualificationColumn)} AS Qualification,
+                           {BuildOptionalStringColumnExpression(areaColumn)} AS Area,
+                           {BuildOptionalStringColumnExpression(sikhNonSikhColumn)} AS SikhNonSikh
                     FROM [Hie].[Employees] e
                     WHERE (sh.EmployeeId IS NOT NULL AND e.EmployeeId = sh.EmployeeId)
                        OR (sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NOT NULL AND e.EmployeeCode = sh.EmpCode)
@@ -4459,8 +4552,6 @@ WHERE EmployeeId = @EmployeeId";
                       )
                 ORDER BY sh.H1Name, sh.H2Name, sh.H3Name, sh.H4Name, ISNULL(sh.GroupName,''),
                          COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName)";
-
-            using var conn = new SqlConnection(_connectionString);
             var rows = (await conn.QueryAsync<dynamic>(sql, new { CompanyId = companyId })).ToList();
 
             var h1Map = new Dictionary<string, SalesH1Node>(StringComparer.OrdinalIgnoreCase);
@@ -4485,6 +4576,12 @@ WHERE EmployeeId = @EmployeeId";
                 string empCode = ((string?)r.EmpCode  ?? "").Trim();
                 string desig   = ((string?)r.Designation ?? "").Trim();
                 string state   = ((string?)r.State    ?? "").Trim();
+                string sikhNonSikh = ((string?)r.SikhNonSikh ?? "").Trim();
+                int employeeId = (int?)r.EmployeeId ?? 0;
+                DateTime? dateOfJoining = TryGetDate(r.DateOfJoining);
+                string gender = ((string?)r.Gender ?? "").Trim();
+                string qualification = ((string?)r.Qualification ?? "").Trim();
+                string area = ((string?)r.Area ?? "").Trim();
 
                 if (!h1Map.TryGetValue(h1Key, out var h1Node))
                     h1Map[h1Key] = h1Node = new SalesH1Node(h1Name);
@@ -4509,7 +4606,7 @@ WHERE EmployeeId = @EmployeeId";
                     (!string.IsNullOrEmpty(empCode) && e.EmpCode == empCode) ||
                     (string.IsNullOrEmpty(empCode)  && e.EmpName  == empName));
                 if (!dup)
-                    gNode.Employees.Add(new SalesEmpLeaf(empCode, empName, desig, state));
+                    gNode.Employees.Add(new SalesEmpLeaf(employeeId, empCode, empName, desig, state, sikhNonSikh, dateOfJoining, gender, qualification, area));
             }
 
             return h1Map.Select(kvp => new
@@ -4533,10 +4630,16 @@ WHERE EmployeeId = @EmployeeId";
                                 groupName = g.Name,
                                 employees = g.Employees.Select(e => new
                                 {
+                                    employeeId  = e.EmployeeId,
                                     empCode     = e.EmpCode,
                                     empName     = e.EmpName,
                                     designation = e.Desig,
-                                    state       = e.State
+                                    state       = e.State,
+                                    sikhNonSikh = e.SikhNonSikh,
+                                    dateOfJoining = e.DateOfJoining,
+                                    gender = e.Gender,
+                                    qualification = e.Qualification,
+                                    area = e.Area
                                 }).ToList()
                             }).ToList()
                         }).ToList()
@@ -4551,7 +4654,17 @@ WHERE EmployeeId = @EmployeeId";
         private sealed class SalesH3Node    { public string Code; public string Name; public Dictionary<string,SalesH4Node>    H4Map    = new(StringComparer.OrdinalIgnoreCase); public SalesH3Node(string c,string n){Code=c;Name=n;} }
         private sealed class SalesH4Node    { public string Code; public string Name; public Dictionary<string,SalesGroupNode> GroupMap = new(StringComparer.OrdinalIgnoreCase); public SalesH4Node(string c,string n){Code=c;Name=n;} }
         private sealed class SalesGroupNode { public string Name; public List<SalesEmpLeaf> Employees = new(); public SalesGroupNode(string n){Name=n;} }
-        private sealed class SalesEmpLeaf   { public string EmpCode,EmpName,Desig,State; public SalesEmpLeaf(string c,string n,string d,string s){EmpCode=c;EmpName=n;Desig=d;State=s;} }
+        private sealed class SalesEmpLeaf
+        {
+            public int EmployeeId;
+            public string EmpCode, EmpName, Desig, State, SikhNonSikh, Gender, Qualification, Area;
+            public DateTime? DateOfJoining;
+            public SalesEmpLeaf(int id, string c, string n, string d, string s, string sns, DateTime? doj, string gender, string qualification, string area)
+            {
+                EmployeeId = id; EmpCode = c; EmpName = n; Desig = d; State = s; SikhNonSikh = sns;
+                DateOfJoining = doj; Gender = gender; Qualification = qualification; Area = area;
+            }
+        }
 
         public async Task<List<EmployeeDropdownDto>> GetSalesEmployeeListAsync()
         {
@@ -4568,6 +4681,9 @@ WHERE EmployeeId = @EmployeeId";
         public async Task<HierarchyApiResponse<bool>> CreateSalesEmployeeAsync(
             CreateSalesEmployeeRequest request, int createdBy, int companyId)
         {
+            request.EmpCode = NormalizeJwplCode(request.EmpCode) ?? "";
+            request.EmpName = ToTitleCaseName(request.EmpName) ?? "";
+
             if (string.IsNullOrWhiteSpace(request.EmpCode))
                 return HierarchyApiResponse<bool>.ErrorResponse("Employee code is required.");
             if (string.IsNullOrWhiteSpace(request.EmpName))

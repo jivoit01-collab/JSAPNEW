@@ -81,6 +81,7 @@ builder.Services.AddScoped<IAdvanceRequestService, AdvanceRequestService>();
 builder.Services.AddScoped<IReportsService, ReportsService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IItemMasterService, ItemMasterService>();
+builder.Services.AddScoped<IBPMasterSapService, BPMasterSapService>();
 builder.Services.AddScoped<IBPmasterService, BPmasterService>();
 builder.Services.AddScoped<IDocumentDispatchService, DocumentDispatchService>();
 builder.Services.AddScoped<IGIGOService, GIGOService>();

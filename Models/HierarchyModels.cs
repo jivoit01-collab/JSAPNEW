@@ -878,6 +878,10 @@ namespace JSAPNEW.Models
         public string? Department { get; set; }
         public string? Mobile { get; set; }
         public string? Email { get; set; }
+        public string? Qualification { get; set; }
+        public string? Gender { get; set; }
+        public string? SikhNonSikh { get; set; }
+        public string? Area { get; set; }
         public DateTime? DateOfJoining { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedOn { get; set; }
@@ -957,6 +961,10 @@ namespace JSAPNEW.Models
         public string? State { get; set; }
         public string? GroupName { get; set; }
         public string? Designation { get; set; }
+        public string? Qualification { get; set; }
+        public string? Gender { get; set; }
+        public string? SikhNonSikh { get; set; }
+        public string? Area { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
