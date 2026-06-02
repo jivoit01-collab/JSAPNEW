@@ -141,21 +141,56 @@ namespace JSAPNEW.Controllers
         }
 
         // ✅ Maker Activity Tab
+        //[HttpGet]
+        //public IActionResult GetMakerActivity(string accountName, string fromDate, string toDate)
+        //{
+        //    var data = FetchBillDetails(accountName, fromDate, toDate);
+        //    return Json(data);
+        //}
         [HttpGet]
         public IActionResult GetMakerActivity(string accountName, string fromDate, string toDate)
         {
             var data = FetchBillDetails(accountName, fromDate, toDate);
-            return Json(data);
-        }
 
-        // ✅ Checker Activity Tab
+            var filtered = data.Where(x =>
+            {
+                dynamic item = x;
+
+                string checkerStatus = item.checkerStatus?.ToString() ?? "";
+                string attachmentPath = item.attachmentPath?.ToString();
+
+                return
+                    checkerStatus.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+                    ||
+                    string.IsNullOrEmpty(attachmentPath);
+            });
+
+            return Json(filtered);
+        }
+        //// ✅ Checker Activity Tab
+        //[HttpGet]
+        //public IActionResult GetCheckerActivity(string accountName, string fromDate, string toDate)
+        //{
+        //    var data = FetchBillDetails(accountName, fromDate, toDate);
+        //    return Json(data);
+        //}
         [HttpGet]
         public IActionResult GetCheckerActivity(string accountName, string fromDate, string toDate)
         {
             var data = FetchBillDetails(accountName, fromDate, toDate);
-            return Json(data);
-        }
 
+            var filtered = data.Where(x =>
+            {
+                dynamic item = x;
+
+                string checkerStatus = item.checkerStatus?.ToString() ?? "Pending";
+
+                return string.IsNullOrEmpty(checkerStatus)
+                    || checkerStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase);
+            });
+
+            return Json(filtered);
+        }
         // ✅ Invoice Payment Tab
         [HttpGet]
         public IActionResult GetInvoicePaymentActivity(string accountName, string fromDate, string toDate)

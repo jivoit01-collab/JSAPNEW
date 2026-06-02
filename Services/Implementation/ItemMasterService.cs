@@ -37,6 +37,24 @@ namespace JSAPNEW.Services.Implementation
         // item to SAP. Keyed by InitId, not FlowId, because that is the unit SAP receives.
         private static readonly ConcurrentDictionary<int, SemaphoreSlim> _sapPostLocks = new();
 
+        private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+
+            return groupCode == "112"
+                ? ""
+                : (object?)utype ?? DBNull.Value;
+        }
+
+        private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
+        {
+            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupName = (itemGroupName ?? "").Trim();
+
+            return groupName.Equals("PACKAGING MATERIAL", StringComparison.OrdinalIgnoreCase)
+                && groupCode == "105";
+        }
+
 
 
         private readonly INotificationService _notificationService;
@@ -70,24 +88,6 @@ namespace JSAPNEW.Services.Implementation
                 _ => throw new ArgumentException("Invalid company ID (only 1, 2, and 3 are allowed).")
             };
         }
-
-        private static bool IsGroupCode112(object? itemGroupCode)
-        {
-            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
-
-            return groupCode == "112";
-        }
-
-        private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
-        {
-            return IsGroupCode112(itemGroupCode) ? "" : (object?)utype ?? DBNull.Value;
-        }
-
-        private static string GetUTypeSapValue(object? itemGroupCode, string? utype)
-        {
-            return IsGroupCode112(itemGroupCode) ? "" : utype ?? "";
-        }
-
         public async Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company)
         {
             if (!_hanaSettings.TryGetValue(company, out var settings))
@@ -760,6 +760,9 @@ namespace JSAPNEW.Services.Implementation
                     CommandType = CommandType.StoredProcedure
                 };
 
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 cmd.Parameters.AddWithValue("@userId", request.UserId);
                 cmd.Parameters.AddWithValue("@company", request.Company);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -780,7 +783,11 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.Utype));
+
+                cmd.Parameters.AddWithValue(
+                    "@utype",
+                    GetUTypeDbValue(request.ItemGroupCode, request.Utype)
+                );
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
@@ -926,6 +933,9 @@ namespace JSAPNEW.Services.Implementation
                     CommandType = CommandType.StoredProcedure
                 };
 
+                if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
+                    request.IsLitre = "N";
+
                 cmd.Parameters.AddWithValue("@id", request.Id);
                 cmd.Parameters.AddWithValue("@company", (object?)request.Company ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -946,14 +956,13 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@packingType", (object?)request.PackingType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@faType", (object?)request.FaType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uom", (object?)request.Uom ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(request.ItemGroupCode, request.Utype));
+                cmd.Parameters.AddWithValue(
+                    "@utype",
+                    GetUTypeDbValue(request.ItemGroupCode, request.Utype)
+                );
                 cmd.Parameters.AddWithValue("@salesUom", (object?)request.SalesUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@invUom", (object?)request.InvUom ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@purchaseUom", (object?)request.PurchaseUom ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@litre", (object?)request.Litre ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@boxSize", (object?)request.BoxSize ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@unitSize", (object?)request.UnitSize ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@uomGroup", (object?)request.UomGroup ?? DBNull.Value);
 
                 await conn.OpenAsync();
 
@@ -1229,7 +1238,6 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@boxSize", (object?)model.BoxSize ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@UnitSize", (object?)model.UnitSize ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@UomGroup", (object?)model.UomGroup ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@utype", GetUTypeDbValue(model.ItemGroupCode, model.Utype));
 
                     // SAP Data
                     cmd.Parameters.AddWithValue("@franName", (object?)model.FranName ?? DBNull.Value);
@@ -1261,6 +1269,10 @@ namespace JSAPNEW.Services.Implementation
                     cmd.Parameters.AddWithValue("@series", (object?)model.Series ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstRelevant", (object?)model.GstRelevant ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstTaxCtg", (object?)model.GstTaxCtg ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue(
+                        "@utype",
+                        GetUTypeDbValue(model.ItemGroupCode, model.Utype)
+                    );
 
                     await conn.OpenAsync();
                     var reader = await cmd.ExecuteReaderAsync();
@@ -1627,10 +1639,6 @@ namespace JSAPNEW.Services.Implementation
                 string costMethod = costMethodFromDb
                     ?? (manageBatch == "tYES" ? "bis_SNB" : "bis_FIFO");
 
-                // BEV finished goods must always use FIFO, even when batch-managed.
-                if (company == 2 && gc == "102")
-                    costMethod = "bis_FIFO";
-
                 // ── WTLiable: only FINISHED(102) in OIL(1) & BEV(2) ──
                 string wtLiable = (gc == "102" && company != 3) ? "tYES" : "tNO";
 
@@ -1676,9 +1684,6 @@ namespace JSAPNEW.Services.Implementation
                     "MTS2LITRE(OLIVE)" => 3,
                     _ => 0
                 };
-
-                // U_TYPE must match the frontend value. Only group code 112 is blanked.
-                string uType = GetUTypeSapValue(gc, first.Utype);
 
                 // ── Series: mapped by (company, groupCode) — differs across companies ──
                 int? seriesFromGroup = (company, gc) switch
@@ -1757,7 +1762,7 @@ namespace JSAPNEW.Services.Implementation
                     GSTRelevnt = "tYES",
                     GSTTaxCategory = "gtc_Regular",
                     GLMethod = "glm_WH",
-                    U_TYPE = uType
+                    U_TYPE = first.Utype ?? ""
                 };
                 // U_Packing_Type exists in OIL(1) and BEV(2), NOT in MART(3)
                 if (company == 1 || company == 2)

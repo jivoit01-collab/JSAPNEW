@@ -342,7 +342,8 @@
                      
                         <th>Checker Status</th>
                         <th>Payment Status</th>
-                   
+                            
+                           <th>Action</th>
                        <th>Checker Remark</th>
 
                     </tr>
@@ -353,12 +354,9 @@
 
                     <tr>
 
-                        <td colspan="12"
-                            class="empty-row">
-
-                            Select date range and click Search
-
-                        </td>
+                            <td colspan="13" class="empty-row">
+                                Select date range and click Search
+                            </td>
 
                     </tr>
 
@@ -370,8 +368,97 @@
 
     </div>
 
+        <div id="verificationModal"
+             class="verify-modal"
+             style="display:none;">
 
+            <div class="verify-box">
 
+                <div class="verify-header">
+                    <h3>
+                        <i class="fa-solid fa-shield-check"></i>
+                        Payment Verification
+                    </h3>
+                </div>
+
+                <div class="verify-content">
+
+                    <div class="verify-row">
+                        <span>Voucher No</span>
+                        <strong id="verifyVoucherNo"></strong>
+                    </div>
+
+                    <div class="verify-row">
+                        <span>Amount</span>
+                        <strong id="verifyAmount"></strong>
+                    </div>
+
+                    <div class="verify-row">
+                        <span>Payment Date</span>
+                        <strong id="verifyPaymentDate"></strong>
+                    </div>
+                    <div class="verify-row">
+                        <span>Attachment</span>
+
+                        <a id="verifyAttachment"
+                               class="verify-attachment-btn"
+                               target="_blank">
+                            <i class="fa-solid fa-paperclip"></i>
+                            View Attachment
+                        </a>
+                    </div>
+                </div>
+
+                <div class="verify-footer">
+
+                    <button class="btn-cancel"
+                            onclick="closeVerificationModal()">
+                        Close
+                    </button>
+
+                    <button class="btn-verify"
+                            onclick="openConfirmVerifyModal()">
+                        Mark Verified
+                    </button>
+
+                </div>
+                <div id="confirmVerifyModal"
+                     class="verify-modal"
+                     style="display:none;">
+
+                    <div class="verify-box">
+
+                        <div class="verify-header">
+                            <h3>
+                                <i class="fa-solid fa-circle-question"></i>
+                                Confirm Verification
+                            </h3>
+                        </div>
+
+                        <div class="verify-content">
+                            Are you sure you want to verify this payment?
+                        </div>
+
+                        <div class="verify-footer">
+
+                            <button class="btn-cancel"
+                                    onclick="closeConfirmVerifyModal()">
+                                Cancel
+                            </button>
+
+                            <button class="btn-verify"
+                                    onclick="confirmVerifyPayment()">
+                                Verify Payment
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
     <!-- =====================================================
          PDF VIEWER
     ====================================================== -->
@@ -404,6 +491,7 @@
 <script>
   
     let _paymentCheckerCache = [];
+    let currentVoucherNo = null;
     // -----------------------------------------------
     // LOAD DATA
     // -----------------------------------------------
@@ -427,7 +515,7 @@
 
     $("#paymentCheckerTable").html(`
     <tr>
-    <td colspan="12" class="empty-row">
+    <td colspan="13" class="empty-row">
     <i class="fa-solid fa-spinner fa-spin"></i> Loading...
     </td>
     </tr>`);
@@ -533,16 +621,7 @@
     <tr id="row-${safeAttr(item.vchNumber)}">
 
     <td class="td-account" title="${safeAttr(item.accountName ?? '')}">
-
-    <a href="javascript:void(0)"
-    class="account-drill-link"
-    onclick="loadDetails(${item.vchNumber}, ${item.serialNumber})">
-
     <span class="cell-text">${safeText(item.accountName ?? "")}</span>
-    <i class="fa-solid fa-chevron-down"></i>
-
-    </a>
-
     </td>
 
     <td class="td-voucher"><span class="cell-text">${safeText(item.vchNumber ?? "")}</span></td>
@@ -566,7 +645,18 @@
     <td class="td-status">
     <span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>
     </td>
-   
+    <td class="td-action">
+    <button class="btn-review"
+    onclick="openVerificationModal(
+    '${item.vchNumber}',
+    '${item.billAmount}',
+    '${formatDate(item.paymentDate)}',
+    '${item.attachmentPath || ""}'
+    )">
+    <i class="fa-solid fa-shield-check"></i>
+    Verify
+    </button>
+    </td>
     <td class="td-remark" title="${safeAttr(item.checkerRemark || "-")}"><span class="cell-text clamp-text">${safeText(item.checkerRemark || "-")}</span></td>
 
     </tr>`;
@@ -646,74 +736,6 @@
     }
 
 
-    // -----------------------------------------------
-    // LOAD DETAILS
-    // -----------------------------------------------
-    function loadDetails(vchNumber, serialNumber) {
-    const existing = document.getElementById("details-" + vchNumber);
-    if (existing) { existing.remove(); return; }
-    document.querySelectorAll("[id^='details-']").forEach(el => el.remove());
-    const row = document.getElementById("row-" + vchNumber);
-    if (!row) return;
-
-    row.insertAdjacentHTML("afterend", `
-    <tr id="details-${vchNumber}" class="detail-row">
-    <td colspan="12">
-    <div class="detail-inner">
-    <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
-    Loading items...
-    </div>
-    </td>
-    </tr>`);
-
-    fetch("/PaymentChecker/GetInvoiceItems?vchNumber=" + vchNumber)
-    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-    .then(data => {
-    const bodyRows = data.map((item, idx) => `
-    <tr class="erp-item-row">
-    <td class="erp-sno">${item.serialNumber ?? idx + 1}</td>
-    <td class="erp-product">${item.productName ?? "-"}</td>
-    <td class="erp-hsn">${item.hsnsacid ?? "-"}</td>
-    <td class="erp-qty">${item.quantity ?? 0}</td>
-    <td class="erp-rate">₹${item.itemValue ?? 0}</td>
-    <td class="erp-tax">${item.tax ?? 0}%</td>
-    <td class="erp-taxname">${item.taxName ?? "-"}</td>
-    <td class="erp-warehouse">${item.warehouseName ?? "-"}</td>
-    <td class="erp-uom">${item.uom ?? "-"}</td>
-    </tr>`).join("");
-
-    const el = document.getElementById("details-" + vchNumber);
-    if (el) {
-    el.outerHTML = `
-    <tr id="details-${vchNumber}" class="detail-row">
-    <td colspan="12" class="erp-detail-cell">
-    <div class="erp-detail-wrap">
-    <table class="erp-detail-table">
-    <thead>
-    <tr>
-    <th>S.No</th>
-    <th>Product Name</th>
-    <th>HSN/SAC</th>
-    <th>Qty</th>
-    <th>Item Value</th>
-    <th>Tax %</th>
-    <th>Tax Name</th>
-    <th>Warehouse</th>
-    <th>UOM</th>
-    </tr>
-    </thead>
-    <tbody>${bodyRows}</tbody>
-    </table>
-    </div>
-    </td>
-    </tr>`;
-    }
-    })
-    .catch(() => {
-    const el = document.getElementById("details-" + vchNumber);
-    if (el) el.innerHTML = `<td colspan="12" class="empty-row" style="color:#EF4444">Error loading items ❌</td>`;
-    });
-    }
 
 
 
@@ -923,5 +945,95 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    }
+    function openVerificationModal(vchNo, amount, paymentDate, attachmentPath)
+    {
+    currentVoucherNo = vchNo;
+
+    $("#verifyVoucherNo").text(vchNo);
+    $("#verifyAmount").text("₹" + amount);
+    $("#verifyPaymentDate").text(paymentDate);
+
+    if (attachmentPath)
+    {
+    $("#verifyAttachment")
+    .attr("href", attachmentPath)
+    .html('<i class="fa-solid fa-paperclip"></i> View Attachment')
+    .show();
+    }
+    else
+    {
+    $("#verifyAttachment")
+    .removeAttr("href")
+    .html('<i class="fa-solid fa-ban"></i> No Attachment');
+    }
+
+    $("#verificationModal").css("display", "flex");
+    }
+    function closeVerificationModal() {
+    $("#verificationModal").hide();
+    }
+
+    // function markVerified()
+    // {
+    // if (!currentVoucherNo)
+    // {
+    // alert("Voucher not found");
+    // return;
+    // }
+
+    // if (!confirm("Are you sure you want to verify this payment?"))
+    // {
+    // return;
+    // }
+
+    // $.post('/PaymentChecker/MarkVerified',
+    // {
+    // vchNumber: currentVoucherNo
+    // },
+    // function(response)
+    // {
+    // if(response.success)
+    // {
+    // closeVerificationModal();
+
+    // alert("Payment verified successfully");
+
+    // loadData();
+    // }
+    // else
+    // {
+    // alert("Verification failed");
+    // }
+    // });
+    // }
+    function confirmVerifyPayment()
+    {
+    $.post('/PaymentChecker/MarkVerified',
+    {
+    vchNumber: currentVoucherNo
+    },
+    function(response)
+    {
+    if(response.success)
+    {
+    closeConfirmVerifyModal();
+    closeVerificationModal();
+    loadData();
+    }
+    else
+    {
+    alert("Verification failed");
+    }
+    });
+    }
+    function openConfirmVerifyModal()
+    {
+    $("#confirmVerifyModal").css("display", "flex");
+    }
+
+    function closeConfirmVerifyModal()
+    {
+    $("#confirmVerifyModal").hide();
     }
 </script>

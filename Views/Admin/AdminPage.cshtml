@@ -292,8 +292,11 @@
                     <div class="t-subtitle">Attachment and maker approval overview</div>
                 </div>
             </div>
-            <div class="top-scroll"><div class="top-scroll-inner"></div></div>
-            <div class="t-wrap">
+                <div class="top-scroll" id="adminTopScroll">
+                    <div class="top-scroll-inner" id="adminTopScrollInner"></div>
+                </div>
+
+                <div class="t-wrap" id="adminTableWrap">
                 <table class="dt dt-maker">
                     <colgroup>
                         <col class="col-account" />
@@ -1631,5 +1634,54 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     }
+
+
+
+    function initAdminTopScroll() {
+
+    const topScroll = document.getElementById('adminTopScroll');
+    const topInner = document.getElementById('adminTopScrollInner');
+
+    if (!topScroll || !topInner) return;
+
+    function bindActiveTable() {
+
+    const activeTab = document.querySelector('.tp.on');
+    if (!activeTab) return;
+
+    const tableWrap = activeTab.querySelector('.t-wrap');
+    const table = activeTab.querySelector('table');
+
+    if (!tableWrap || !table) return;
+
+    topInner.style.width = table.scrollWidth + 'px';
+
+    topScroll.onscroll = function () {
+    tableWrap.scrollLeft = topScroll.scrollLeft;
+    };
+
+    tableWrap.onscroll = function () {
+    topScroll.scrollLeft = tableWrap.scrollLeft;
+    };
+    }
+
+    bindActiveTable();
+
+    const tabButtons = document.querySelectorAll('.tab-btn');
+
+    tabButtons.forEach(btn => {
+    btn.addEventListener('click', function () {
+
+    setTimeout(() => {
+    bindActiveTable();
+    }, 100);
+
+    });
+    });
+
+    window.addEventListener('resize', bindActiveTable);
+    }
+
+    window.addEventListener('load', initAdminTopScroll);
 </script>
 

@@ -53,6 +53,25 @@ namespace JSAPNEW.Services.Implementation
             return settings;
         }
 
+        private static string? NormalizeMonthFilter(string? month)
+        {
+            if (string.IsNullOrWhiteSpace(month))
+                return null;
+
+            var value = month.Trim();
+
+            if (Regex.IsMatch(value, @"^\d{2}-\d{4}$"))
+                return value;
+
+            if (Regex.IsMatch(value, @"^\d{4}-\d{2}$"))
+                return $"{value.Substring(5, 2)}-{value.Substring(0, 4)}";
+
+            if (Regex.IsMatch(value, @"^\d{1,2}$") && int.TryParse(value, out var monthNumber) && monthNumber >= 1 && monthNumber <= 12)
+                return $"{monthNumber:00}-{DateTime.Now.Year}";
+
+            return value;
+        }
+
         private async Task<IEnumerable<T>> QueryHanaWithFallbackAsync<T>(
             int company,
             string optionName,
@@ -715,6 +734,142 @@ namespace JSAPNEW.Services.Implementation
                 || type.Contains("Ship", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static BP_Master BuildListMaster(BpListModel item)
+        {
+            return new BP_Master
+            {
+                Code = item.Code,
+                Type = item.Type ?? string.Empty,
+                IsStaff = item.IsStaff,
+                Name = item.CompanyName ?? string.Empty,
+                ForeignName = item.ForeignName ?? string.Empty,
+                TypeOfBusiness = item.TypeOfBusiness ?? string.Empty,
+                Industry = item.Industry ?? string.Empty,
+                FirstName = item.FirstName ?? string.Empty,
+                LastName = item.LastName ?? string.Empty,
+                Designation = item.Designation ?? string.Empty,
+                MobileNumber = item.MobileNumber ?? string.Empty,
+                EmailAddress = item.EmailAddress ?? string.Empty,
+                AlternateEmail = item.AlternateEmail ?? string.Empty,
+                Currency = string.IsNullOrWhiteSpace(item.Currency) ? "INR" : item.Currency,
+                Remarks = item.Remarks ?? string.Empty,
+                company = item.CompanyId,
+                flowId = item.flowId
+            };
+        }
+
+        private async Task EnrichBpListDetailsAsync<T>(SqlConnection connection, IReadOnlyCollection<T> rows)
+            where T : BpListModel
+        {
+            if (rows == null || rows.Count == 0)
+                return;
+
+            var codes = rows.Select(r => r.Code).Where(code => code > 0).Distinct().ToArray();
+            if (codes.Length == 0)
+                return;
+
+            var masterRows = (await connection.QueryAsync<BpMasterDetailRow>(
+                @"SELECT
+                    code,
+                    companyByUser
+                  FROM BP.jsMaster
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToDictionary(row => row.Code);
+
+            var taxRows = (await connection.QueryAsync<BpTaxDetailRow>(
+                @"SELECT
+                    code,
+                    buyerTANNo AS tan,
+                    panNo AS panNumber,
+                    fssaiNo AS fssaiLicense,
+                    msmeNo AS msme,
+                    msmeType,
+                    msmeBType,
+                    gstin
+                  FROM BP.jsTaxDetails
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToDictionary(row => row.Code);
+
+            var addressRows = (await connection.QueryAsync<BpAddressDetailRow>(
+                @"SELECT
+                    code,
+                    addressType,
+                    addressLine1 AS street,
+                    addressLine2 AS blockArea,
+                    stateID AS state,
+                    cityID AS city,
+                    pincode AS pinCode,
+                    countryID AS country,
+                    gstNo AS gstin,
+                    addressName
+                  FROM BP.jsMasterAddress
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var bankRows = (await connection.QueryAsync<BpBankDetailRow>(
+                @"SELECT
+                    code,
+                    name AS bankName,
+                    branch AS branchName,
+                    accountNo AS accountNumber,
+                    ifscCode,
+                    swiftCode,
+                    accountType
+                  FROM BP.jsBankDetails
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var contactRows = (await connection.QueryAsync<BpContactDetailRow>(
+                @"SELECT
+                    code,
+                    firstName,
+                    lastName,
+                    designation,
+                    emailAddress,
+                    alternateEmail,
+                    mobileNumber,
+                    alternateContact
+                  FROM BP.jsContactPersons
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var attachmentRows = (await connection.QueryAsync<BpAttachmentDetailRow>(
+                @"SELECT
+                    code,
+                    fileName,
+                    filePath,
+                    fileSize,
+                    contentType,
+                    fileType
+                  FROM BP.jsAttachments
+                  WHERE code IN @Codes",
+                new { Codes = codes })).ToList();
+
+            var addressesByCode = addressRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Address>().ToList());
+            var banksByCode = bankRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Bank>().ToList());
+            var contactsByCode = contactRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Contact>().ToList());
+            var attachmentsByCode = attachmentRows.GroupBy(row => row.Code).ToDictionary(group => group.Key, group => group.Cast<BP_Attachment>().ToList());
+
+            foreach (var row in rows)
+            {
+                row.Master = BuildListMaster(row);
+                if (masterRows.TryGetValue(row.Code, out var master))
+                    row.Master.CompanyByUser = master.CompanyByUser ?? string.Empty;
+
+                row.TaxDetails = taxRows.TryGetValue(row.Code, out var tax) ? tax : new BP_Tax();
+
+                var addresses = addressesByCode.TryGetValue(row.Code, out var bpAddresses)
+                    ? bpAddresses
+                    : new List<BP_Address>();
+
+                row.BillingAddresses = addresses.Where(IsBillTo).ToList();
+                row.ShippingAddresses = addresses.Where(IsShipTo).ToList();
+                row.BankDetails = banksByCode.TryGetValue(row.Code, out var banks) ? banks : new List<BP_Bank>();
+                row.ContactPersons = contactsByCode.TryGetValue(row.Code, out var contacts) ? contacts : new List<BP_Contact>();
+                row.Attachments = attachmentsByCode.TryGetValue(row.Code, out var attachments) ? attachments : new List<BP_Attachment>();
+            }
+        }
+
         public async Task<BPMasterResponse> InsertBPMasterAsync(InsertBPMasterDataModel model)
         {
             var response = new BPMasterResponse();
@@ -797,6 +952,9 @@ namespace JSAPNEW.Services.Implementation
                     response.Message = "BP Master inserted successfully.";
                     response.GeneratedCode = (int)(outCode.Value ?? 0);
                 }
+
+                if (response.GeneratedCode > 0)
+                    await EnsureInitialPendingFlowStatusAsync(response.GeneratedCode, model.UserId);
             }
             catch (Exception ex)
             {
@@ -827,6 +985,72 @@ namespace JSAPNEW.Services.Implementation
             }
 
             return "BP Master insert failed.";
+        }
+
+        private async Task EnsureInitialPendingFlowStatusAsync(int bpCode, int creatorUserId)
+        {
+            const string sql = @"
+;WITH FlowRows AS
+(
+    SELECT
+        f.id AS FlowId,
+        f.currentStageId AS StageId,
+        f.templateId AS TemplateId
+    FROM BP.jsFlow AS f
+    WHERE f.bpCode = @BpCode
+      AND f.status = 'P'
+),
+ApproverRows AS
+(
+    SELECT DISTINCT
+        fr.FlowId,
+        fr.StageId,
+        fr.TemplateId,
+        COALESCE(us.userId, @CreatorUserId) AS UserId
+    FROM FlowRows AS fr
+    LEFT JOIN dbo.jsUserStage AS us
+        ON us.stageId = fr.StageId
+       AND ISNULL(us.status, 1) = 1
+)
+INSERT INTO BP.jsFlowStatus
+(
+    flowId,
+    status,
+    stageId,
+    templateId,
+    userId,
+    createdOn,
+    description
+)
+SELECT
+    ar.FlowId,
+    'P',
+    ar.StageId,
+    ar.TemplateId,
+    ar.UserId,
+    GETDATE(),
+    'Pending'
+FROM ApproverRows AS ar
+WHERE ar.UserId IS NOT NULL
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM BP.jsFlowStatus AS fs
+      WHERE fs.flowId = ar.FlowId
+        AND fs.status = 'P'
+        AND fs.stageId = ar.StageId
+        AND fs.templateId = ar.TemplateId
+        AND fs.userId = ar.UserId
+  );";
+
+            using var connection = new SqlConnection(_connectionString);
+            var inserted = await connection.ExecuteAsync(sql, new { BpCode = bpCode, CreatorUserId = creatorUserId });
+
+            _logger.LogInformation(
+                "BP initial pending flow-status rows ensured. BpCode={BpCode}, CreatorUserId={CreatorUserId}, RowsInserted={RowsInserted}",
+                bpCode,
+                creatorUserId,
+                inserted);
         }
 
         private DataTable ToAddressDataTable(List<BPMasterAddress> list)
@@ -1133,17 +1357,22 @@ namespace JSAPNEW.Services.Implementation
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", userId);
                 parameters.Add("@companyId", companyId);
-                parameters.Add("@month", month);
+                parameters.Add("@month", normalizedMonth);
 
-                var result = await connection.QueryAsync<ApprovedBpModel>(
+                var result = (await connection.QueryAsync<ApprovedBpModel>(
                     "[BP].[jsGetApprovedBP]",
                     parameters,
                     commandType: CommandType.StoredProcedure
-                );
+                )).ToList();
 
+                foreach (var row in result)
+                    row.status = "approved";
+
+                await EnrichBpListDetailsAsync(connection, result);
                 return result;
             }
         }
@@ -1152,17 +1381,22 @@ namespace JSAPNEW.Services.Implementation
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            var normalizedMonth = NormalizeMonthFilter(month);
             var parameters = new DynamicParameters();
             parameters.Add("@userId", userId);
             parameters.Add("@companyId", companyId);
-            parameters.Add("@month", month);
+            parameters.Add("@month", normalizedMonth);
 
-            var result = await connection.QueryAsync<PendingBpModel>(
+            var result = (await connection.QueryAsync<PendingBpModel>(
                 "[BP].[jsGetPendingBP]",
                 parameters,
                 commandType: CommandType.StoredProcedure
-            );
+            )).ToList();
 
+            foreach (var row in result)
+                row.status = "pending";
+
+            await EnrichBpListDetailsAsync(connection, result);
             return result;
         }
         public async Task<IEnumerable<RejectedBPModel>> GetRejectedBpAsync(int userId, int companyId, string month = null)
@@ -1170,17 +1404,22 @@ namespace JSAPNEW.Services.Implementation
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            var normalizedMonth = NormalizeMonthFilter(month);
             var parameters = new DynamicParameters();
             parameters.Add("@userId", userId);
             parameters.Add("@companyId", companyId);
-            parameters.Add("@month", month);
+            parameters.Add("@month", normalizedMonth);
 
-            var result = await connection.QueryAsync<RejectedBPModel>(
+            var result = (await connection.QueryAsync<RejectedBPModel>(
                 "[BP].[jsGetRejectedBP]",
                 parameters,
                 commandType: CommandType.StoredProcedure
-            );
+            )).ToList();
 
+            foreach (var row in result)
+                row.status = "rejected";
+
+            await EnrichBpListDetailsAsync(connection, result);
             return result;
         }
         public async Task<SingleBPDataModel> GetSingleBPDataAsync(int bpCode, IUrlHelper urlHelper)
@@ -1946,21 +2185,47 @@ ORDER BY id DESC;";
                 fallbackSql,
                 fallbackParameters);
         }
-        public async Task<BPCountModel> GetBPCountsAsync(string month, int userId)
+        public async Task<BPCountModel> GetBPCountsAsync(string month, int userId, int companyId = 0)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
-                parameters.Add("@month", month);    // Format: "MM-YYYY"
+                parameters.Add("@month", normalizedMonth);    // Format: "MM-YYYY"
                 parameters.Add("@userId", userId);
+                parameters.Add("@companyId", companyId);
 
-                var result = await connection.QueryFirstOrDefaultAsync<BPCountModel>(
-                    "[BP].[jsGetBPCounts]",
-                    parameters,
-                    commandType: CommandType.StoredProcedure
-                );
+                try
+                {
+                    var result = await connection.QueryFirstOrDefaultAsync<BPCountModel>(
+                        "[BP].[jsGetBPCounts]",
+                        parameters,
+                        commandType: CommandType.StoredProcedure
+                    );
 
-                return result;
+                    return result ?? new BPCountModel();
+                }
+                catch (SqlException ex) when (ex.Number == 8144)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "BP.jsGetBPCounts does not yet accept @companyId. Falling back to user/month counts. UserId={UserId}, CompanyId={CompanyId}, Month={Month}",
+                        userId,
+                        companyId,
+                        normalizedMonth);
+
+                    var fallbackParameters = new DynamicParameters();
+                    fallbackParameters.Add("@month", normalizedMonth);
+                    fallbackParameters.Add("@userId", userId);
+
+                    var fallbackResult = await connection.QueryFirstOrDefaultAsync<BPCountModel>(
+                        "[BP].[jsGetBPCounts]",
+                        fallbackParameters,
+                        commandType: CommandType.StoredProcedure
+                    );
+
+                    return fallbackResult ?? new BPCountModel();
+                }
             }
         }
         public async Task<IEnumerable<GetPricelist>> GetPricelistAsync(int company)
@@ -2047,15 +2312,26 @@ ORDER BY id DESC;";
             using (var connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
+                var normalizedMonth = NormalizeMonthFilter(month);
+                var parameters = new DynamicParameters();
+                parameters.Add("@userId", userId);
+                parameters.Add("@companyId", companyId);
+                parameters.Add("@month", normalizedMonth);
 
                 var pendingBP = await connection.QueryAsync<MergeBpModel>(
-                    "EXEC [BP].[jsGetPendingBP] @userId, @companyId, @month", new { userId, companyId, month });
+                    "[BP].[jsGetPendingBP]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
                 var approvedBP = await connection.QueryAsync<MergeBpModel>(
-                    "EXEC [BP].[jsGetApprovedBP] @userId, @companyId, @month", new { userId, companyId, month });
+                    "[BP].[jsGetApprovedBP]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
                 var rejectedBP = await connection.QueryAsync<MergeBpModel>(
-                    "EXEC [BP].[jsGetRejectedBP] @userId, @companyId, @month", new { userId, companyId, month });
+                    "[BP].[jsGetRejectedBP]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
                 var allBP = new List<MergeBpModel>();
 
@@ -2074,6 +2350,8 @@ ORDER BY id DESC;";
                     Items.status = "rejected";
                     allBP.Add(Items);
                 }
+
+                await EnrichBpListDetailsAsync(connection, allBP);
                 return allBP;
             }
         }
@@ -2230,10 +2508,11 @@ ORDER BY id DESC;";
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", userId);
                 parameters.Add("@companyId", companyId);
-                parameters.Add("@month", month);
+                parameters.Add("@month", normalizedMonth);
 
                 var result = await connection.QueryAsync<BPinsightsModel>(
                     "[BP].[jsGetBPInsights]",
@@ -2249,13 +2528,14 @@ ORDER BY id DESC;";
         {
             using (var connection = new SqlConnection(_connectionString))
             {
+                var normalizedMonth = NormalizeMonthFilter(month);
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", userId);
                 parameters.Add("@companyId", companyId);
-                parameters.Add("@month", month);
+                parameters.Add("@month", normalizedMonth);
 
                 var result = await connection.QueryAsync<BPinsightsModel>(
-                    "[BP].[jsGetBPInsightsByCreator]",
+                    "[BP].[jsGetBPInsights]",
                     parameters,
                     commandType: CommandType.StoredProcedure
                 );
@@ -2299,6 +2579,37 @@ ORDER BY id DESC;";
             public int? MatchedTemplateApprovalId { get; set; }
             public int? MatchedApproverUserId { get; set; }
             public int? MatchedApproverStatus { get; set; }
+        }
+
+        private sealed class BpMasterDetailRow
+        {
+            public int Code { get; set; }
+            public string CompanyByUser { get; set; } = string.Empty;
+        }
+
+        private sealed class BpTaxDetailRow : BP_Tax
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpAddressDetailRow : BP_Address
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpBankDetailRow : BP_Bank
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpContactDetailRow : BP_Contact
+        {
+            public int Code { get; set; }
+        }
+
+        private sealed class BpAttachmentDetailRow : BP_Attachment
+        {
+            public int Code { get; set; }
         }
     }
 }

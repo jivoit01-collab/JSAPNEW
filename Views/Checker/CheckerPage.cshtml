@@ -1,6 +1,4 @@
-﻿
-
-@{
+﻿@{
     ViewData["Title"] = "Checker Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -14,26 +12,117 @@
      NAVBAR
 ═══════════════════════════════════ -->
 <div class="admin-dashboard-shell checker-dashboard-shell">
-<nav class="premium-nav">
-    <div class="nav-glass">
-        <div class="nav-left-section">
-            <div class="brand-logo-wrap">
-                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+    <nav class="premium-nav">
+        <div class="nav-glass">
+            <div class="nav-left-section">
+                <div class="brand-logo-wrap">
+                    <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+                </div>
+                <div class="brand-content">
+                    <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                    <div class="brand-title">Wellness Verification Desk</div>
+                    <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
+                </div>
             </div>
-            <div class="brand-content">
-                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
-                <div class="brand-title">Wellness Verification Desk</div>
-                <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
+
+            <div class="product-slider" aria-label="Product showcase">
+                <div class="product-track">
+                    <img src="@Url.Content("~/images/canola.jpg")" class="product-img" alt="Canola oil" />
+                    <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img" alt="Pomace oil" />
+                    <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img" alt="Groundnut oil" />
+                    <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" alt="Desi ghee" />
+                    <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
+                </div>
             </div>
         </div>
 
-        <div class="product-slider" aria-label="Product showcase">
-            <div class="product-track">
-                <img src="@Url.Content("~/images/canola.jpg")" class="product-img" alt="Canola oil" />
-                <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img" alt="Pomace oil" />
-                <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img" alt="Groundnut oil" />
-                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" alt="Desi ghee" />
-                <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
+            <div class="module-box checker">
+                <span class="module-dot"></span>
+                <i class="fa-solid fa-user-check"></i>
+                <span>Checker Dashboard</span>
+            </div>
+        </div>
+    </nav>
+
+
+    <div class="body admin-dashboard-body">
+        <!-- KPI CARDS -->
+        <div class="kpi-grid">
+
+            <div class="kpi-card k-amber">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="pendingCount">0</div>
+                        <div class="kpi-label">Pending Approvals</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,10 12,18 24,12 36,20 48,10 60,16 72,8 80,14"
+                                  stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-green">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="approvedToday">0</div>
+                        <div class="kpi-label">Approved</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,18 12,10 24,16 36,6 48,14 60,4 72,10 80,6"
+                                  stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Verified</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-blue">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="monthlyEntries">0</div>
+                        <div class="kpi-label">Total Entries</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,22 12,14 24,18 36,8 48,16 60,6 72,12 80,8"
+                                  stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-arrow-trend-up fa-xs"></i> All Entries</div>
+                </div>
+            </div>
+
+            <div class="kpi-card k-purple">
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val" id="rejectedToday">0</div>
+                        <div class="kpi-label">Rejected</div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,12 24,18 36,8 48,18 60,10 72,14 80,8"
+                                  stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-ban fa-xs"></i> Returned</div>
+                </div>
             </div>
         </div>
 
@@ -42,42 +131,165 @@
             <i class="fa-solid fa-user-check"></i>
             <span>Checker Dashboard</span>
         </div>
-    </div>
-</nav>
 
-
-<div class="body admin-dashboard-body">
-    <!-- KPI CARDS -->
-    <div class="kpi-grid">
-
-        <div class="kpi-card k-amber">
-            <div class="kpi-top">
-                <div>
-                    <div class="kpi-val" id="pendingCount">0</div>
-                    <div class="kpi-label">Pending Approvals</div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-clock"></i>
-                </div>
-            </div>
-            <div class="kpi-bottom">
-                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
-                    <polyline points="0,10 12,18 24,12 36,20 48,10 60,16 72,8 80,14"
-                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+        <!-- PDF VIEWER -->
+        <div id="pdfContainer" class="pdf-modal">
+            <div class="pdf-box">
+                <button onclick="closePdf()" class="pdf-close">×</button>
+                <iframe id="pdfFrame"></iframe>
             </div>
         </div>
 
-        <div class="kpi-card k-green">
-            <div class="kpi-top">
+        <!-- ═══════════════════════════════════
+         FILTER CARD
+    ═══════════════════════════════════ -->
+        <div class="filter-card checker-filter-card">
+            <div class="f-group">
+                <span class="f-label">From Date</span>
+                <input type="date" id="fromDate" class="f-input" />
+            </div>
+            <div class="f-group">
+                <span class="f-label">To Date</span>
+                <input type="date" id="toDate" class="f-input" />
+            </div>
+            <div class="f-group grow autocomplete-group">
+                <span class="f-label">Account Name</span>
+                <input type="text" id="accountName" class="f-input"
+                       placeholder="Search account..." autocomplete="off" />
+                <div id="suggestionBox" class="suggestion-box"></div>
+            </div>
+            <div class="f-group">
+                <span class="f-label">Status</span>
+                <select id="statusFilter" class="f-input">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+            <button class="btn btn-dark admin-search-btn" id="searchBtn">
+                <i class="fa-solid fa-magnifying-glass"></i> Search
+            </button>
+            <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
+                <i class="fa-solid fa-file-excel"></i> Export
+            </button>
+        </div>
+
+        <!-- ═══════════════════════════════════
+         TABLE CARD
+    ═══════════════════════════════════ -->
+        <div class="t-card checker-table-card">
+            <div class="t-header">
+                <span class="t-title">
+                    <i class="fa-solid fa-shield-check"></i> Bill Verification
+                </span>
+                <span class="t-count" id="checkerCount">0 records</span>
+            </div>
+
+            <div class="table-slide-hint">
+                <i class="fa-solid fa-arrows-left-right"></i>
+                Slide horizontally to inspect all columns
+            </div>
+
+            <!-- TOP SCROLLBAR -->
+            <div class="top-scroll" id="topScroll">
+                <div class="top-scroll-inner" id="topScrollInner"></div>
+            </div>
+
+            <div class="t-wrap" id="tableWrap">
+                <table class="dt checker-workflow-table" id="checkerDt">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-supplier" />
+                        <col class="col-date" />
+                        <col class="col-attachment" />
+                        <col class="col-maker-remark" />
+                        <col class="col-status" />
+                        <col class="col-checker-remark" />
+                        <col class="col-action" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Account</th>
+                            <th>Voucher No</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Supplier Ref</th>
+                            <th>Due Date</th>
+                            <th>Attachment</th>
+                            <th>Maker Remark</th>
+                            <th>Status</th>
+                            <th>Checker Remark</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="checkerTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SCROLL BUTTONS -->
+        <div id="scroll-btns">
+            <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Top">
+                <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Bottom">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+        </div>
+
+    </div><!-- /.body -->
+    <!-- ═══════════════════════════════════
+     CONFIRMATION MODAL
+═══════════════════════════════════ -->
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-box" id="confirmBox">
+
+            <div class="confirm-header">
+                <div class="confirm-icon" id="confirmIcon">
+                    <i id="confirmIconSymbol" class="fa-solid fa-circle-check"></i>
+                </div>
                 <div>
-                    <div class="kpi-val" id="approvedToday">0</div>
-                    <div class="kpi-label">Approved</div>
+                    <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+                    <div class="confirm-subtitle" id="confirmSubtitle">Please review before proceeding</div>
                 </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <div class="confirm-body">
+                <div class="confirm-warning" id="confirmWarning">
+                    <i id="confirmWarnIcon" class="fa-solid fa-triangle-exclamation"></i>
+                    <div id="confirmWarningText">Are you sure?</div>
                 </div>
+                <div class="confirm-meta" id="confirmMeta">
+                    <div class="confirm-meta-row">
+                        <span>Voucher No</span>
+                        <span id="meta-vch">—</span>
+                    </div>
+                    <div class="confirm-meta-row">
+                        <span>Account Name</span>
+                        <span id="meta-account">—</span>
+                    </div>
+                    <div class="confirm-meta-row">
+                        <span>Amount</span>
+                        <span id="meta-amount">—</span>
+                    </div>
+                    <div class="confirm-meta-row">
+                        <span>Checker Remark</span>
+                        <span id="meta-remark">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="confirm-footer">
+                <button class="confirm-cancel" id="confirmCancel">
+                    <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+                <button class="confirm-proceed" id="confirmProceed">
+                    <i class="fa-solid fa-check"></i> Confirm
+                </button>
             </div>
             <div class="kpi-bottom">
                 <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
@@ -125,171 +337,7 @@
                 <div class="kpi-trend"><i class="fa-solid fa-ban fa-xs"></i> Returned</div>
             </div>
         </div>
-
     </div>
-
-    <!-- PDF VIEWER -->
-    <div id="pdfContainer" class="pdf-modal">
-        <div class="pdf-box">
-            <button onclick="closePdf()" class="pdf-close">×</button>
-            <iframe id="pdfFrame"></iframe>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════
-         FILTER CARD
-    ═══════════════════════════════════ -->
-    <div class="filter-card checker-filter-card">
-        <div class="f-group">
-            <span class="f-label">From Date</span>
-            <input type="date" id="fromDate" class="f-input" />
-        </div>
-        <div class="f-group">
-            <span class="f-label">To Date</span>
-            <input type="date" id="toDate" class="f-input" />
-        </div>
-        <div class="f-group grow autocomplete-group">
-            <span class="f-label">Account Name</span>
-            <input type="text" id="accountName" class="f-input"
-                   placeholder="Search account..." autocomplete="off" />
-            <div id="suggestionBox" class="suggestion-box"></div>
-        </div>
-        <div class="f-group">
-            <span class="f-label">Status</span>
-            <select id="statusFilter" class="f-input">
-                <option value="">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-            </select>
-        </div>
-        <button class="btn btn-dark admin-search-btn" id="searchBtn">
-            <i class="fa-solid fa-magnifying-glass"></i> Search
-        </button>
-        <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
-            <i class="fa-solid fa-file-excel"></i> Export
-        </button>
-    </div>
-
-    <!-- ═══════════════════════════════════
-         TABLE CARD
-    ═══════════════════════════════════ -->
-    <div class="t-card checker-table-card">
-        <div class="t-header">
-            <span class="t-title">
-                <i class="fa-solid fa-shield-check"></i> Bill Verification
-            </span>
-            <span class="t-count" id="checkerCount">0 records</span>
-        </div>
-
-        <div class="table-slide-hint">
-            <i class="fa-solid fa-arrows-left-right"></i>
-            Slide horizontally to inspect all columns
-        </div>
-
-        <!-- TOP SCROLLBAR -->
-        <div class="top-scroll" id="topScroll">
-            <div class="top-scroll-inner" id="topScrollInner"></div>
-        </div>
-
-        <div class="t-wrap" id="tableWrap">
-            <table class="dt checker-workflow-table" id="checkerDt">
-                <colgroup>
-                    <col class="col-account" />
-                    <col class="col-voucher" />
-                    <col class="col-date" />
-                    <col class="col-amount" />
-                    <col class="col-supplier" />
-                    <col class="col-date" />
-                    <col class="col-attachment" />
-                    <col class="col-maker-remark" />
-                    <col class="col-status" />
-                    <col class="col-checker-remark" />
-                    <col class="col-action" />
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>Account</th>
-                        <th>Voucher No</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Supplier Ref</th>
-                        <th>Due Date</th>
-                        <th>Attachment</th>
-                        <th>Maker Remark</th>
-                        <th>Status</th>
-                        <th>Checker Remark</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="checkerTable"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- SCROLL BUTTONS -->
-    <div id="scroll-btns">
-        <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Top">
-            <i class="fa-solid fa-chevron-up"></i>
-        </button>
-        <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Bottom">
-            <i class="fa-solid fa-chevron-down"></i>
-        </button>
-    </div>
-
-</div><!-- /.body -->
-<!-- ═══════════════════════════════════
-     CONFIRMATION MODAL
-═══════════════════════════════════ -->
-<div class="confirm-overlay" id="confirmOverlay">
-    <div class="confirm-box" id="confirmBox">
-
-        <div class="confirm-header">
-            <div class="confirm-icon" id="confirmIcon">
-                <i id="confirmIconSymbol" class="fa-solid fa-circle-check"></i>
-            </div>
-            <div>
-                <div class="confirm-title" id="confirmTitle">Confirm Action</div>
-                <div class="confirm-subtitle" id="confirmSubtitle">Please review before proceeding</div>
-            </div>
-        </div>
-
-        <div class="confirm-body">
-            <div class="confirm-warning" id="confirmWarning">
-                <i id="confirmWarnIcon" class="fa-solid fa-triangle-exclamation"></i>
-                <div id="confirmWarningText">Are you sure?</div>
-            </div>
-            <div class="confirm-meta" id="confirmMeta">
-                <div class="confirm-meta-row">
-                    <span>Voucher No</span>
-                    <span id="meta-vch">—</span>
-                </div>
-                <div class="confirm-meta-row">
-                    <span>Account Name</span>
-                    <span id="meta-account">—</span>
-                </div>
-                <div class="confirm-meta-row">
-                    <span>Amount</span>
-                    <span id="meta-amount">—</span>
-                </div>
-                <div class="confirm-meta-row">
-                    <span>Checker Remark</span>
-                    <span id="meta-remark">—</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="confirm-footer">
-            <button class="confirm-cancel" id="confirmCancel">
-                <i class="fa-solid fa-xmark"></i> Cancel
-            </button>
-            <button class="confirm-proceed" id="confirmProceed">
-                <i class="fa-solid fa-check"></i> Confirm
-            </button>
-        </div>
-
-    </div>
-</div>
 </div><!-- /.checker-dashboard-shell -->
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -464,7 +512,7 @@
 
     /* render table */
     function renderTable(data) {
-  
+
   
     const seen = new Set();
     const rows = (data || []).filter(item => {
@@ -583,9 +631,9 @@
     $("#exportBtn").show();
     if (window._syncTopScroll) window._syncTopScroll();
     }
-   
-   
 
+   
+   
     /* ═══════════════════════════════════════
     ROW HIGHLIGHT
     ═══════════════════════════════════════ */
@@ -789,7 +837,7 @@
     ${err.name === "AbortError" ? "Request timed out ⏱" : "Error loading items ❌"}
     </td>`;
     });
- }
+    }
 
     /* ═══════════════════════════════════════
     PDF

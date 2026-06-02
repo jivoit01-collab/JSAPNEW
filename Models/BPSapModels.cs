@@ -32,6 +32,11 @@ namespace JSAPNEW.Models
     {
         public int? code { get; set; }
         public string message { get; set; } = string.Empty;
+        public string field { get; set; } = string.Empty;
+        public string invalidValue { get; set; } = string.Empty;
+        public List<string> validValues { get; set; } = new();
+        public string reason { get; set; } = string.Empty;
+        public string correctionHint { get; set; } = string.Empty;
     }
 
     public class BpApiStatusUpdateResult

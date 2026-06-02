@@ -484,7 +484,9 @@ Important columns:
 
 Inserted by: `BP.jsApproveBP` and `BP.jsRejectBP`.
 
-Used by: approval history, duplicate action prevention, approved/rejected lists.
+Used by: approval history, duplicate action prevention, pending/approved/rejected lists.
+
+New BP creation also writes an initial `P` row for the current stage approver. This keeps `BP.jsFlowStatus` complete for pending, approved, and rejected workflow tracking. Existing pending rows can be backfilled with `docs/implementation/bp-approval-flowstatus-fix.sql`.
 
 ### `BP.jsSAPData`
 
@@ -761,25 +763,46 @@ Failure response shape:
 ```json
 {
   "success": false,
-  "message": "Define account in \"Liabilities\" drawer [OCRD.DebPayAcct]",
-  "errorCode": "SAP_-5002",
-  "sapError": {
-    "code": -5002,
-    "message": "Define account in \"Liabilities\" drawer [OCRD.DebPayAcct]"
-  },
-  "data": null
+  "approvalStatus": "Blocked",
+  "sapStatus": "Failed: Invalid Control Account. Value '2110005' does not exist or is not active in SAP. (SAP Error Code: -5002)",
+  "message": "Invalid Control Account. Value '2110005' does not exist or is not active in SAP. (SAP Error Code: -5002)"
 }
 ```
 
-Frontend rule: display `sapError.message` when it exists; otherwise display `message`.
+Frontend rule: display the top-level `message` field as the main error. BP follows the compact IMC-style failure response and does not return `errorCode`, `field`, `value`, or a nested `sapError` object in API failures.
 
 Backend rules:
 
 - Do not replace SAP messages with generic text such as `SAP rejected the payload`.
 - Do not prefix SAP messages with additional text in API responses.
+- Do not dump the whole SAP payload to the frontend.
+- For generic SAP `Internal error (-5002) occurred`, return the single most likely failing field and invalid value.
 - Do not expose stack traces, connection strings, or raw SQL errors to the frontend.
 - Log the full SAP request payload, SAP HTTP status, raw SAP response body, `flowId`, `bpCode`, `sapCardCode`, and `payloadHash`.
-- `sapError` must be populated for every SAP Service Layer failure.
+- The exact SAP error must be copied into top-level `message`.
+- The top-level `sapStatus` must be `Failed: <same SAP message>`.
+
+Invalid dropdown/value example:
+
+```json
+{
+  "success": false,
+  "approvalStatus": "Blocked",
+  "sapStatus": "Failed: 'Premium' is not a valid value for property 'U_TYPE'. The valid values are: 'PREMIUM' - 'PREMIUM', 'COMMODITY' - 'COMMODITY' (SAP Error Code: -1004)",
+  "message": "'Premium' is not a valid value for property 'U_TYPE'. The valid values are: 'PREMIUM' - 'PREMIUM', 'COMMODITY' - 'COMMODITY' (SAP Error Code: -1004)"
+}
+```
+
+Focused BP example:
+
+```json
+{
+  "success": false,
+  "approvalStatus": "Blocked",
+  "sapStatus": "Failed: Bank Code 'HDFC BANK' was rejected by SAP Bank Master. (SAP Error Code: -5002)",
+  "message": "Bank Code 'HDFC BANK' was rejected by SAP Bank Master. (SAP Error Code: -5002)"
+}
+```
 
 Examples of SAP messages that should pass through unchanged:
 
@@ -1024,19 +1047,80 @@ Response example:
   "success": true,
   "data": [
     {
-      "flowId": 1115,
-      "code": 1234,
-      "companyId": 1,
-      "type": "C",
-      "companyName": "North India Distributor",
-      "isStaff": false,
-      "currentStage": 1,
-      "totalStage": 3,
-      "currentStageName": "Manager Approval",
-      "isFinalStage": false,
-      "apiStatusTag": null,
-      "sapStatus": "SAP Not Started",
-      "canRetrySap": false
+      "workflow": {
+        "flowId": 1154,
+        "sapStatus": "SAP Not Started",
+        "apiMessage": "",
+        "sapCardCode": ""
+      },
+      "master": {
+        "code": 1191,
+        "type": "C",
+        "isStaff": true,
+        "name": "jyoti customer",
+        "foreignName": "",
+        "typeOfBusiness": "Individual",
+        "industry": "Construction",
+        "firstName": "jyoti",
+        "lastName": "bishnoi",
+        "designation": "",
+        "mobileNumber": "8571695323",
+        "emailAddress": "jyoti@gmail.com",
+        "alternateEmail": "jyoti@gmail.com",
+        "currency": "INR",
+        "remarks": "",
+        "companyByUser": "JIVO_OIL_HANADB",
+        "company": 1,
+        "flowId": 1154
+      },
+      "taxDetails": {
+        "tan": "",
+        "panNumber": "ABCDE1234F",
+        "fssaiLicense": "",
+        "msme": "",
+        "msmeType": "",
+        "enterpriseType": "",
+        "gstin": "07ABCDE1234F1Z5"
+      },
+      "billingAddresses": [
+        {
+          "addressType": "B",
+          "street": "xyz123",
+          "blockArea": "tilak nagar",
+          "state": "DELHI",
+          "city": "delhi",
+          "pinCode": "110064",
+          "country": "India",
+          "gstin": "07ABCDE1234F1Z5",
+          "addressName": "jyoti customer"
+        }
+      ],
+      "shippingAddresses": [
+        {
+          "addressType": "S",
+          "street": "xyz123",
+          "blockArea": "tilak nagar",
+          "state": "DELHI",
+          "city": "delhi",
+          "pinCode": "110064",
+          "country": "India",
+          "gstin": "07ABCDE1234F1Z5",
+          "addressName": "jyoti customer"
+        }
+      ],
+      "bankDetails": [],
+      "contactPersons": [
+        {
+          "firstName": "jyoti",
+          "lastName": "bishnoi",
+          "designation": "",
+          "emailAddress": "jyoti@gmail.com",
+          "alternateEmail": "jyoti@gmail.com",
+          "mobileNumber": "8571695323",
+          "alternateContact": ""
+        }
+      ],
+      "attachments": []
     }
   ]
 }
@@ -1045,7 +1129,9 @@ Response example:
 Notes:
 
 - User sees only records assigned to their current stage.
-- Final-stage failed SAP records return `canRetrySap = true`.
+- Pending, approved, rejected, total approval, and total BP list APIs return the clean frontend contract: `workflow`, `master`, `taxDetails`, `billingAddresses`, `shippingAddresses`, `bankDetails`, `contactPersons`, and `attachments`.
+- The `workflow` block intentionally exposes only `flowId`, `sapStatus`, `apiMessage`, and `sapCardCode`; detailed approval-stage fields stay internal to workflow APIs.
+- Duplicate top-level business fields such as `companyName`, `firstName`, `mobileNumber`, and `currency` are not sent by these list APIs because they already exist in `master` and child blocks.
 
 ### Get Approved BP
 
@@ -1241,8 +1327,8 @@ Response:
 | API | Method | Purpose |
 |---|---|---|
 | `/GetBPInsights?userId=70&companyId=1&month=05-2026` | `GET` | Pending/approved/rejected counts for approver |
-| `/GetBPInsightsByCreator?userId=107&companyId=1&month=05-2026` | `GET` | Counts by creator |
-| `/GetBPCounts?month=05-2026&userId=70` | `GET` | BP count summary |
+| `/GetBPInsightsByCreator?userId=76&companyId=1&month=05-2026` | `GET` | Legacy frontend alias; returns BP approver dashboard counts in the current backend |
+| `/GetBPCounts?month=05-2026&userId=76&companyId=1` | `GET` | BP count summary for the approver and company |
 
 Example:
 
@@ -1262,13 +1348,67 @@ Example:
 
 ### Combined Approval APIs
 
+These endpoints are BP-only. They must not return IMC/item data. Older backend builds mixed `ItemPending`, `ItemApproved`, `ItemRejected`, and `ItemTotal` into these responses; that behavior is retired.
+
 | API | Method | Purpose |
 |---|---|---|
 | `/GetTotalBPData` | `GET` | Combined pending/approved/rejected BP list |
-| `/GetAllBpPendingApproval` | `GET` | BP + Item pending approval data |
-| `/GetAllBpApprovedApproval` | `GET` | BP + Item approved data |
-| `/GetAllBpRejectedApproval` | `GET` | BP + Item rejected data |
-| `/GetAllBpTotalApproval` | `GET` | BP + Item total approval data |
+| `/GetAllBpPendingApproval` | `GET` | BP-only pending approval data |
+| `/GetAllBpApprovedApproval` | `GET` | BP-only approved data |
+| `/GetAllBpRejectedApproval` | `GET` | BP-only rejected data |
+| `/GetAllBpTotalApproval` | `GET` | BP-only total approval data |
+
+Example:
+
+```text
+GET /api/BPmaster/GetAllBpTotalApproval?userId=76&companyId=1&month=05-2026
+```
+
+Expected shape:
+
+```json
+{
+  "success": true,
+  "data": {
+    "bpTotal": [
+      {
+        "flowId": 1154,
+        "code": 1191,
+        "companyId": 1,
+        "type": "C",
+        "companyName": "jyoti customer",
+        "status": "pending"
+      }
+    ]
+  }
+}
+```
+
+`bpTotal` is empty only when one of these is true:
+
+- the API process has not been restarted after deploying the latest BP controller/service changes
+- the query is using the wrong `userId`, `companyId`, or `month`
+- the approver is not mapped in `dbo.jsUserStage` for the BP template stage
+- the selected month has no BP flow rows
+
+For test database `jsap_test`, user `76`, company `1`, month `05-2026`, verification should show BP rows:
+
+```sql
+EXEC BP.jsGetBPCounts @userId = 76, @companyId = 1, @month = '05-2026';
+EXEC BP.jsGetBPInsights @userId = 76, @companyId = 1, @month = '05-2026';
+EXEC BP.jsGetPendingBP @userId = 76, @companyId = 1, @month = '05-2026';
+EXEC BP.jsGetApprovedBP @userId = 76, @companyId = 1, @month = '05-2026';
+```
+
+Month values accepted by the backend and SQL fix:
+
+| Input | Meaning |
+|---|---|
+| `05-2026` | May 2026 |
+| `05` | May of the current server year |
+| `2026-05` | May 2026 |
+
+Do not send a blank query key such as `month=05&=05-2026`; ASP.NET ignores the second value because it has no key.
 
 ### Lookup APIs
 
