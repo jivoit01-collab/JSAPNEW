@@ -1007,6 +1007,148 @@
         overflow-y: auto;
         font-family: 'JetBrains Mono',monospace
     }
+
+    .hm-help-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,42,.28);
+        z-index: 12000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .18s ease, visibility .18s ease;
+    }
+
+    #hmHelpToggle {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .hm-help-backdrop.open {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    #hmHelpToggle:checked ~ .hm-help-backdrop {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .hm-help-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        width: min(520px, 94vw);
+        background: #fff;
+        border-left: 1px solid var(--border);
+        box-shadow: -12px 0 34px rgba(15,23,42,.18);
+        z-index: 12001;
+        transform: translateX(104%);
+        transition: transform .22s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hm-help-drawer.open {
+        transform: translateX(0);
+    }
+
+    #hmHelpToggle:checked ~ .hm-help-drawer {
+        transform: translateX(0);
+    }
+
+    .hm-help-head {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    .hm-help-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg,var(--g1),var(--g2));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+    }
+
+    .hm-help-head h3 {
+        font-size: 16px;
+        color: var(--g1);
+        margin: 0;
+        flex: 1;
+    }
+
+    .hm-help-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    .hm-help-close:hover {
+        background: var(--bg2);
+        color: var(--g1);
+    }
+
+    .hm-help-body {
+        overflow-y: auto;
+        padding: 18px 20px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .hm-help-section {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        padding: 13px 14px;
+    }
+
+    .hm-help-section h4 {
+        font-size: 13px;
+        color: var(--g1);
+        margin: 0 0 8px;
+    }
+
+    .hm-help-section p,
+    .hm-help-section li {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .hm-help-section ul {
+        padding-left: 18px;
+        display: grid;
+        gap: 5px;
+    }
+
+    .hm-help-section strong {
+        color: var(--text);
+        font-weight: 700;
+    }
+
+    .hm-help-note {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
 </style>
 
 <!-- TOP BAR -->
@@ -1064,6 +1206,10 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 100-.49" /></svg>
                 Refresh
             </button>
+            <label class="btn btn-ghost" for="hmHelpToggle" title="How to use Hierarchy Master">
+                ?
+                Help
+            </label>
         </div>
     </div>
     <div class="stat-bar">
@@ -1075,6 +1221,176 @@
         <div class="stat-pill clickable" id="statExec" onclick="showRoleFilter('exec')"><span class="stat-pill-dot" style="background:#f59e0b"></span><b id="sExec">—</b> Execs</div>
     </div>
 </div>
+
+<!-- HELP DRAWER -->
+<input type="checkbox" id="hmHelpToggle" />
+<label class="hm-help-backdrop" id="hmHelpBackdrop" for="hmHelpToggle"></label>
+<aside class="hm-help-drawer" id="hmHelpDrawer" aria-hidden="true" aria-label="Hierarchy Master help">
+    <div class="hm-help-head">
+        <div class="hm-help-icon">?</div>
+        <h3>How to use Hierarchy Master</h3>
+        <label class="hm-help-close" for="hmHelpToggle" aria-label="Close help">x</label>
+    </div>
+    <div class="hm-help-body">
+        <section class="hm-help-section hm-help-note">
+            <h4>Page Purpose</h4>
+            <p>This page manages the HO employee hierarchy: HOD, Department, Sub-Department, SubHOD, and Executive. Use it to add employees, assign reporting structure, edit hierarchy details, import/export Excel data, and audit hierarchy changes.</p>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Top Buttons</h4>
+            <ul>
+                <li><strong>Import Excel</strong>: Opens the Excel upload panel. Admin only.</li>
+                <li><strong>Download Excel</strong>: Downloads the current hierarchy table in Excel format. Use this file as a working/export file.</li>
+                <li><strong>Add Employee</strong>: Opens the create employee popup. Admin only.</li>
+                <li><strong>Bulk Assign</strong>: Assigns many executives to a HOD/SubHOD in one action, or changes a selected group from one SubHOD to another. Admin only.</li>
+                <li><strong>Departments</strong>: Opens Department and Sub-Department master management. Admin only.</li>
+                <li><strong>Logs</strong>: Shows hierarchy change audit logs with search, action filter, and pagination. Admin only.</li>
+                <li><strong>View</strong>: Opens Column Visibility and Order. Show/hide columns and move columns up/down.</li>
+                <li><strong>Salary</strong>: Loads salary data for a limited session after password validation. Visible only for allowed users.</li>
+                <li><strong>Refresh</strong>: Reloads hierarchy data from the server.</li>
+                <li><strong>Help</strong>: Opens this right-side guide.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Stats Bar</h4>
+            <ul>
+                <li><strong>Employees</strong>: Shows total unique employees in the hierarchy. Click to clear role/status filter.</li>
+                <li><strong>Active</strong>: Shows active employees only.</li>
+                <li><strong>Inactive</strong>: Shows inactive employees only.</li>
+                <li><strong>HODs</strong>: Filters the grid to active HOD rows.</li>
+                <li><strong>SubHODs</strong>: Filters the grid to active SubHOD rows.</li>
+                <li><strong>Execs</strong>: Filters the grid to active executive rows.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Search And Filters</h4>
+            <ul>
+                <li><strong>Search box</strong>: Searches employee name, employee code, department, and sub-department.</li>
+                <li><strong>All Departments</strong>: Filters rows by department.</li>
+                <li><strong>All Status</strong>: Filters active or inactive employees.</li>
+                <li><strong>Unassigned</strong>: Shows employees that exist in Hierarchy Master but do not have a department/hierarchy assignment.</li>
+                <li><strong>Row count</strong>: Shows how many rows are currently visible after filters.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Main Grid</h4>
+            <ul>
+                <li><strong>HOD</strong>: Top hierarchy person. HOD names/codes can be clicked to edit.</li>
+                <li><strong>Department</strong>: Department attached to the hierarchy row.</li>
+                <li><strong>Sub-Dept</strong>: Optional sub-department under a department.</li>
+                <li><strong>SubHOD</strong>: Person reporting to HOD and managing executives. Click name/code to edit.</li>
+                <li><strong>SubHOD Desig.</strong>: Designation of the SubHOD.</li>
+                <li><strong>Executive</strong>: Leaf employee under HOD/SubHOD. Click name/code to edit.</li>
+                <li><strong>Exec Desig.</strong>: Executive designation.</li>
+                <li><strong>Status</strong>: Shows Active/Inactive for the row's leaf employee.</li>
+                <li><strong>Actions</strong>: Admin quick edit buttons: H edits HOD, S edits SubHOD, E edits Executive.</li>
+                <li><strong>Custom columns</strong>: If custom fields exist, they appear before Actions. Admins can edit their values inline.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Import Excel</h4>
+            <ul>
+                <li><strong>Download Format</strong>: Downloads the current hierarchy in upload-ready format.</li>
+                <li><strong>Drop Excel / Browse</strong>: Select an .xlsx or .xls file. The page previews parsed rows before import.</li>
+                <li><strong>Run Import</strong>: Saves the parsed Excel hierarchy into the system.</li>
+                <li><strong>Clear</strong>: Removes the selected file preview and resets import state.</li>
+                <li><strong>Import result</strong>: Shows inserted/updated/error counts and row-level errors.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Add Employee</h4>
+            <ul>
+                <li><strong>HOD / SubHOD / Executive tabs</strong>: Select the role you are creating.</li>
+                <li><strong>Create as unassigned</strong>: Creates the employee without HOD, department, or reporting links.</li>
+                <li><strong>Employee Code and Full Name</strong>: Required fields.</li>
+                <li><strong>Email, Phone, Designation, DOJ</strong>: Optional employee details.</li>
+                <li><strong>Gender, Qualification, Area, Sikh/Non-Sikh</strong>: Optional profile fields.</li>
+                <li><strong>Reports To, Department, Sub-Department</strong>: These fields change based on selected role.</li>
+                <li><strong>Create Employee</strong>: Saves the employee and hierarchy assignment.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Edit Employee</h4>
+            <ul>
+                <li>Open it by clicking an employee name/code or by pressing H, S, or E in Actions.</li>
+                <li><strong>Salary box</strong>: Shows salary only if salary data is loaded and permitted.</li>
+                <li><strong>Role</strong>: Change between HOD, Sub-HOD, and Executive. Change role before choosing reporting fields.</li>
+                <li><strong>Reports To HOD/SubHOD</strong>: Controls manager relationship.</li>
+                <li><strong>Department/Sub-Department</strong>: Controls placement in the hierarchy.</li>
+                <li><strong>Make employee unassigned</strong>: Clears hierarchy assignment but keeps the employee record.</li>
+                <li><strong>Status</strong>: Activates or deactivates the employee.</li>
+                <li><strong>Team impact detected</strong>: If a move affects a team, choose whether the team moves with the employee or stays behind.</li>
+                <li><strong>Save Changes</strong>: Applies employee and hierarchy updates.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Bulk Assign</h4>
+            <ul>
+                <li><strong>Assign Team</strong>: Pick HOD, Department, optional Sub-Department/SubHOD, then select executives to assign.</li>
+                <li><strong>Change SubHOD</strong>: Pick current SubHOD and move selected executives to another SubHOD.</li>
+                <li><strong>Executive search</strong>: Filters the selectable executive list.</li>
+                <li><strong>Select Visible</strong>: Selects all currently visible executives.</li>
+                <li><strong>Clear Visible</strong>: Clears currently visible selections.</li>
+                <li><strong>Assign Team</strong>: Saves the bulk action.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Departments</h4>
+            <ul>
+                <li><strong>Departments tab</strong>: Add a new department or edit existing department names.</li>
+                <li><strong>Sub-Departments tab</strong>: Select parent department, add sub-departments, or edit existing names.</li>
+                <li>Changes here are used by Add/Edit/Bulk Assign dropdowns.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Salary</h4>
+            <ul>
+                <li><strong>Password</strong>: Required before loading salary data.</li>
+                <li><strong>Below 40 Employees</strong>: Loads below-40 salary data.</li>
+                <li><strong>Equal and Above 40</strong>: Loads upper salary group data.</li>
+                <li><strong>Load Salaries</strong>: Starts a temporary salary session. Salary appears in edit popup where available.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Logs</h4>
+            <ul>
+                <li><strong>Search</strong>: Finds logs by employee name/code.</li>
+                <li><strong>Action filter</strong>: Filters by Create, Update, Role Change, Dept Change, Move Team, Detach Team, Bulk Assign, Import, Deactivate, Set Password, Add Dept, or Add SubDept.</li>
+                <li><strong>Prev/Next</strong>: Moves between log pages.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>View And Page Settings</h4>
+            <ul>
+                <li><strong>Column Visibility & Order</strong>: Check columns to show/hide them, use up/down arrows to reorder, then Apply & Refresh.</li>
+                <li><strong>Reset Default</strong>: Restores the default column setup.</li>
+                <li><strong>Page Settings</strong>: Controls text size, font, row density, colors, and other page display settings when available from the global page settings menu.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Important Rules</h4>
+            <ul>
+                <li>Use <strong>Unassigned</strong> when an employee exists but should not be placed in hierarchy yet.</li>
+                <li>For role changes, select the new role first, then choose reporting and department fields.</li>
+                <li>If changing a manager or department affects a team, read the team impact prompt carefully before saving.</li>
+                <li>After imports or large changes, use <strong>Refresh</strong> to reload the latest data.</li>
+            </ul>
+        </section>
+    </div>
+</aside>
 
 <!-- EXCEL UPLOAD PANEL -->
 @if (isAdmin)
@@ -1303,6 +1619,7 @@
             <div class="fg" id="e_sdept_wrap">
                 <label class="fl" id="e_sdept_label">Sub-Department</label>
                 <select class="fs" id="e_sdept" onchange="onEditSubDeptChange()"><option value="">— None —</option></select>
+                <div id="e_subhod_sdept_multi" style="display:none;max-height:132px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;padding:7px 8px"></div>
             </div>
         </div>
         <div id="e_sub_row" style="display:none">
@@ -1655,21 +1972,49 @@
     const IS_ADMIN    = @(isAdmin ? "true" : "false");
     const CAN_VIEW_SALARY = @(canViewSalary ? "true" : "false");
     const API         = '/api/Hierarchy';
-    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, roleFilter='', editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set(), salaryLookup={}, salarySessionActive=false, salarySessionTimer=null, salaryApiAction='belowfourtyemployee';
+    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, roleFilter='', editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set(), editSubHodSelectedSubDeptIds=new Set(), editSubHodOriginalSubDeptIds=new Set(), salaryLookup={}, salarySessionActive=false, salarySessionTimer=null, salaryApiAction='belowfourtyemployee';
+
+    function openHierarchyHelp(){
+        var toggle = document.getElementById('hmHelpToggle');
+        if(toggle) toggle.checked = true;
+        document.getElementById('hmHelpBackdrop')?.classList.add('open');
+        const drawer = document.getElementById('hmHelpDrawer');
+        if(drawer){
+            drawer.classList.add('open');
+            drawer.setAttribute('aria-hidden','false');
+        }
+    }
+
+    function closeHierarchyHelp(){
+        var toggle = document.getElementById('hmHelpToggle');
+        if(toggle) toggle.checked = false;
+        document.getElementById('hmHelpBackdrop')?.classList.remove('open');
+        const drawer = document.getElementById('hmHelpDrawer');
+        if(drawer){
+            drawer.classList.remove('open');
+            drawer.setAttribute('aria-hidden','true');
+        }
+    }
 
     document.addEventListener('DOMContentLoaded', async()=>{
         // Move all overlays to <body> so layout's overflow-x:hidden doesn't trap fixed positioning
         document.querySelectorAll('.hm-modal-overlay').forEach(el => document.body.appendChild(el));
         await Promise.all([loadGrid(), loadDeptsMeta(), loadHodsMeta()]);
-        restoreSalarySession();
+    });
+
+    document.addEventListener('keydown', e=>{
+        if(e.key === 'Escape') closeHierarchyHelp();
     });
 
     async function loadGrid(){
         setLoad(true);
         try{
             const r = await api(`${API}/GetMasterFlatAdmin`);
-            if(!r.success){toast(r.message||'Load failed','err');return;}
-            allRows=r.data||[];
+            const success = r.success ?? r.Success;
+            const message = r.message ?? r.Message;
+            const data = r.data ?? r.Data;
+            if(!success){toast(message||'Load failed','err');return;}
+            allRows=Array.isArray(data)?data:[];
             updateStats(); populateDeptFilter(); applyFilters();
         }catch(e){toast('Network error','err');}
         finally{setLoad(false);}
@@ -1800,6 +2145,9 @@
             };
             h+=`<tr data-hod="${row.hodEmployeeId}" class="${nH?'hod-border':''}">${visCols.map(c=>cellMap[c.key]||'<td></td>').join('')}</tr>`;
         });
+        if(!rows.length){
+            h+=`<tr><td colspan="${Math.max(visCols.length,1)}" style="padding:28px;text-align:center;color:var(--muted);font-size:12px">No hierarchy rows to show.</td></tr>`;
+        }
         h+=`</tbody></table>`;
         document.getElementById('gridCont').innerHTML=h;
         document.getElementById('rowCount').textContent=`${rows.length} rows`;
@@ -1895,7 +2243,6 @@
         const filtered=source.filter(r=>{
             const rowIsUnassigned=isUnassignedRow(r);
             if(unassignedOnly && !rowIsUnassigned)return false;
-            if(!unassignedOnly && rowIsUnassigned)return false;
             if(q){const hay=[r.hodName,r.hodCode,r.subHodName,r.subHodCode,r.execName,r.execCode,r.departmentName,r.subDepartmentName].join(' ').toLowerCase();if(!hay.includes(q))return false;}
             if(dept && !(r._departmentIds||[r.departmentId]).some(id=>String(id||'')===dept))return false;
             if(st){const a=getRowDisplayActive(r);if(st==='active'&&!a)return false;if(st==='inactive'&&a)return false;}
@@ -2391,6 +2738,39 @@
         syncEditHodDeptSelect();
     }
 
+    function getEditSubHodSubDepartmentIds(){
+        return [...document.querySelectorAll('#e_subhod_sdept_multi input[type="checkbox"]:checked')]
+            .map(cb=>parseInt(cb.value)||0)
+            .filter(id=>id>0);
+    }
+    function syncEditSubHodSubDeptSelect(){
+        const selected = getEditSubHodSubDepartmentIds();
+        editSubHodSelectedSubDeptIds = new Set(selected);
+        const subDeptSel = document.getElementById('e_sdept');
+        if(subDeptSel) subDeptSel.value = selected.length ? String(selected[0]) : '';
+    }
+    function renderEditSubHodSubDepartments(selectedIds){
+        const wrap = document.getElementById('e_subhod_sdept_multi');
+        if(!wrap) return;
+        const deptId = parseInt(document.getElementById('e_dept')?.value) || 0;
+        const selected = new Set((selectedIds||[]).map(id=>Number(id)||0).filter(id=>id>0));
+        const subDepartments = getSubDepartmentsFromMeta(deptId);
+        if (!subDepartments.length) {
+            wrap.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px 0">No sub-departments found for this department</div>';
+            if (selected.size) editSubHodSelectedSubDeptIds = new Set([...selected]);
+            return;
+        }
+        wrap.innerHTML = subDepartments.map(s=>{
+            const id = Number(s.subDepartmentId)||0;
+            const checked = selected.has(id) ? 'checked' : '';
+            return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;font-size:12px;color:var(--text)">
+                <input type="checkbox" value="${id}" ${checked} onchange="syncEditSubHodSubDeptSelect()" style="width:15px;height:15px;accent-color:var(--g2)" />
+                <span>${esc(s.subDepartmentName)}</span>
+            </label>`;
+        }).join('');
+        syncEditSubHodSubDeptSelect();
+    }
+
     function getDepartmentNameById(deptId) {
         if (!deptId) return '';
         const dept = (deptsMeta || []).find(d => String(d.departmentId ?? d.DepartmentId ?? '') === String(deptId));
@@ -2423,9 +2803,14 @@
     function setEditDeptMode(role){
         const deptSel = document.getElementById('e_dept');
         const multi = document.getElementById('e_hod_dept_multi');
+        const subDeptSel = document.getElementById('e_sdept');
+        const subHodMulti = document.getElementById('e_subhod_sdept_multi');
         const isHod = Number(role) === 1;
+        const isSubHod = Number(role) === 2;
         if(deptSel) deptSel.style.display = isHod ? 'none' : '';
         if(multi) multi.style.display = isHod ? '' : 'none';
+        if(subDeptSel) subDeptSel.style.display = isSubHod ? 'none' : '';
+        if(subHodMulti) subHodMulti.style.display = isSubHod ? '' : 'none';
     }
     function isValidEmail(email){
         if(!email) return true;
@@ -2607,6 +2992,15 @@
                 if(id && name) items.set(String(id), name);
             });
         }catch(e){}
+        const dept = (deptsMeta || []).find(d => String(d.departmentId ?? d.DepartmentId ?? '') === String(dId));
+        if (dept && items.size) {
+            const merged = [...items.entries()].map(([id, name]) => ({
+                subDepartmentId: Number(id) || id,
+                subDepartmentName: name
+            }));
+            dept.subDepartments = merged;
+            dept.SubDepartments = merged;
+        }
         items.forEach((name,id)=>{sel.innerHTML+=`<option value="${id}">${esc(name)}</option>`;});
     }
     function validateHierarchySequence(role, prefix){
@@ -2617,6 +3011,7 @@
         const subHodId=role===3 ? (parseInt(document.getElementById(`${prefix}_sub`)?.value)||0) : 0;
         if(role>=2 && !hodId) return 'Select HOD first';
         if(prefix==='e' && role===1 && !getEditHodDepartmentIds().length) return 'Select Department after HOD';
+        if(prefix==='e' && role===2 && !getEditSubHodSubDepartmentIds().length) return 'Select at least one Sub-Department before saving Sub-HOD';
         if(!deptId) return 'Select Department after HOD';
         if(role===2 && !subDeptId) return 'Select Sub-Department before saving Sub-HOD';
         if(role===3 && subHodId && !subDeptId) return 'Select Sub-Department before choosing Sub-HOD';
@@ -2722,6 +3117,12 @@
         try{
             const r=await api(`${API}/GetSalarySessionData`);
             if(!r.success)return;
+            if(r.active === false || r.Active === false){
+                salaryLookup={};
+                salarySessionActive=false;
+                updateSalaryButton(null);
+                return;
+            }
             salaryApiAction=r.action||salaryApiAction;
             applySalaryMap(r.salaries||{},r.expiresAt);
         }catch(e){}
@@ -2862,6 +3263,8 @@
         editModalExtras = null;
         editHodSelectedDeptIds = new Set();
         editHodOriginalDeptIds = new Set();
+        editSubHodSelectedSubDeptIds = new Set();
+        editSubHodOriginalSubDeptIds = new Set();
         showEditError('');
         updateEditFormLabels();
         document.getElementById('editSaveBtn').disabled = false;
@@ -3045,6 +3448,24 @@
         ensureSelectOption('e_sdept', row.subDepartmentId || '', row.subDepartmentName || 'Current Sub-Department');
         document.getElementById('e_sdept').value = roleTypeId === 1 ? '' : String(row.subDepartmentId || '');
         document.getElementById('e_sdept_wrap').style.display = roleTypeId >= 2 ? '' : 'none';
+        let pendingSubHodSubDeptIds = [];
+        if (roleTypeId === 2) {
+            const subHodSubDeptIds = allRows
+                .filter(r =>
+                    Number(r.subHodEmployeeId) === Number(empId) &&
+                    (!reportsToHodId || Number(r.hodEmployeeId) === Number(reportsToHodId)) &&
+                    (!deptId || Number(r.departmentId) === Number(deptId)) &&
+                    Number(r.subDepartmentId) > 0)
+                .map(r => Number(r.subDepartmentId))
+                .filter(id => id > 0);
+            if (row.subDepartmentId) subHodSubDeptIds.push(Number(row.subDepartmentId));
+            const distinctSubDeptIds = [...new Set(subHodSubDeptIds)];
+            editSubHodSelectedSubDeptIds = new Set(distinctSubDeptIds);
+            editSubHodOriginalSubDeptIds = new Set(distinctSubDeptIds);
+            pendingSubHodSubDeptIds = distinctSubDeptIds;
+        } else {
+            renderEditSubHodSubDepartments([]);
+        }
 
         // Load reporting dropdowns
         await onEditRoleChange(reportsToHodId, reportsToSubId, row.subDepartmentId || null);
@@ -3056,6 +3477,9 @@
         if (roleTypeId >= 2 && row.subDepartmentId) {
             ensureSelectOption('e_sdept', row.subDepartmentId, row.subDepartmentName || 'Current Sub-Department');
             document.getElementById('e_sdept').value = String(row.subDepartmentId);
+        }
+        if (roleTypeId === 2) {
+            renderEditSubHodSubDepartments(pendingSubHodSubDeptIds);
         }
         onEditUnassignedChange(false);
 
@@ -3075,8 +3499,12 @@
         document.querySelectorAll('#e_hod_dept_multi input[type="checkbox"]').forEach(cb => {
             cb.disabled = unassigned;
         });
+        document.querySelectorAll('#e_subhod_sdept_multi input[type="checkbox"]').forEach(cb => {
+            cb.disabled = unassigned;
+        });
         document.getElementById('e_hod_row').style.opacity = unassigned ? '.55' : '1';
         document.getElementById('e_hod_dept_multi').style.opacity = unassigned ? '.55' : '1';
+        document.getElementById('e_subhod_sdept_multi').style.opacity = unassigned ? '.55' : '1';
         document.getElementById('e_sdept_wrap').style.opacity = unassigned ? '.55' : '1';
         document.getElementById('e_sub_row').style.opacity = unassigned ? '.55' : '1';
         if (!unassigned && reloadWhenAssigned) await onEditRoleChange();
@@ -3115,6 +3543,7 @@
         }
 
         if (role >= 2) {
+            if (role !== 2) renderEditSubHodSubDepartments([]);
             await loadHodsMeta();
             renderHodOptions('e_hod', hodsMeta, editEmpId);
             if (presetHodId) {
@@ -3133,6 +3562,12 @@
         const role = parseInt(document.getElementById('e_role').value);
         const deptId = parseInt(document.getElementById('e_dept').value) || null;
         await loadSubDepts(deptId, 'e_sdept');
+        if (role === 2) {
+            const selected = keepCurrentSubDept
+                ? [...editSubHodSelectedSubDeptIds]
+                : [];
+            renderEditSubHodSubDepartments(selected);
+        }
         if (keepCurrentSubDept && (presetSubDeptId || editContextRow?.subDepartmentId)) {
             const selectedSubDeptId = presetSubDeptId || editContextRow?.subDepartmentId;
             ensureSelectOption('e_sdept', selectedSubDeptId, editContextRow?.subDepartmentName || 'Current Sub-Department');
@@ -3235,6 +3670,7 @@
         const role = parseInt(document.getElementById('e_role').value);
         const isUnassigned = document.getElementById('e_unassigned')?.checked || false;
         const hodDepartmentIds = role === 1 && !isUnassigned ? getEditHodDepartmentIds() : [];
+        const subHodSubDepartmentIds = role === 2 && !isUnassigned ? getEditSubHodSubDepartmentIds() : [];
 
         if (!code || !name) { showEditError('Code and Name are required'); return; }
         if (!isUnassigned) {
@@ -3344,7 +3780,8 @@
                     reportsToEmpId:  reportsTo,
                     isUnassigned:    isUnassigned,
                     isActive:        document.getElementById('e_active').checked,
-                    moveTeamWithDepartment: moveTeamWithDepartment
+                    moveTeamWithDepartment: moveTeamWithDepartment,
+                    skipRelationshipSync: role === 2 && !isUnassigned
                 })
             });
             const d = await r.json();
@@ -3356,6 +3793,19 @@
                     });
                     if (!syncResult.success) {
                         showEditError(syncResult.message || 'Employee updated, but department selection was not saved');
+                        btn.disabled = false; btn.textContent = 'Save Changes';
+                        return;
+                    }
+                }
+                if (role === 2 && !isUnassigned) {
+                    const syncResult = await api(`${API}/SyncSubHODSubDepartments`, 'POST', {
+                        subHodEmployeeId: editEmpId,
+                        hodEmployeeId: hodId,
+                        departmentId: deptId,
+                        subDepartmentIds: subHodSubDepartmentIds
+                    });
+                    if (!syncResult.success) {
+                        showEditError(syncResult.message || 'Employee updated, but sub-department selection was not saved');
                         btn.disabled = false; btn.textContent = 'Save Changes';
                         return;
                     }

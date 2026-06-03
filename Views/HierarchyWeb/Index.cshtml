@@ -3451,7 +3451,6 @@
                         $('#ehLoading').fadeOut(200);
                         $('#ehStats,#ehTabs').fadeIn(300);
                         switchTab('v1');
-                        restoreSalarySession();
                     } else {
                         $('#ehLoading').html('<div class="ld-err"><i class="bi bi-exclamation-triangle me-2"></i>No data found</div>');
                     }
@@ -3777,12 +3776,27 @@
             }
 
             function isHiddenSalesHierarchyName(value){
-                var name = (value || '').toString().trim().toUpperCase();
-                return name === 'ASM' || name === 'RSM';
+                return false;
             }
 
             function getVisibleSalesH2List(h1){
                 return h1 && h1.h2List || [];
+            }
+
+            function getDirectSalesH3List(h1){
+                return h1 && (h1.directH3List || h1.DirectH3List) || [];
+            }
+
+            function getDirectSalesH3Buckets(h1){
+                return getDirectSalesH3List(h1).map(function(h3){
+                    var stateMap = Object.create(null), stateOrder = [];
+                    mergeSalesStateBuckets(stateMap, stateOrder, h3);
+                    return {
+                        h3Code: h3.h3Code || '',
+                        h3Name: h3.h3Name || '',
+                        stateBuckets: stateOrder.map(function(stateName){ return stateMap[stateName]; })
+                    };
+                });
             }
 
             function getVisibleSalesH3List(h2){
@@ -3804,13 +3818,29 @@
                 return !!name && name !== '-' && name !== '\u2014';
             }
 
+            function getSalesH3StatRows(){
+                var rows = [], seen = Object.create(null);
+                function addRow(h3, under){
+                    var key = (h3.h3Code || h3.h3Name || '').toString().trim().toLowerCase();
+                    if(!key || seen[key]) return;
+                    seen[key] = 1;
+                    rows.push([h3.h3Name || '—', h3.h3Code || '—', under || '—', getVisibleSalesH4List(h3).length]);
+                }
+                SALES_RAW_DATA.forEach(function(h1){
+                    getDirectSalesH3List(h1).forEach(function(h3){ addRow(h3, h1.h1Name || 'H1'); });
+                    getVisibleSalesH2List(h1).forEach(function(h2){
+                        getVisibleSalesH3List(h2).forEach(function(h3){ addRow(h3, h2.h2Name || 'H2'); });
+                    });
+                });
+                return rows;
+            }
+
             function showSalesStatPopup(level){
                 if(!SALES_RAW_DATA.length){showAlert('warning','Sales data not loaded yet.');return;}
                 var cfgs={
                     h1:{title:'Sales H1 Leaders',icon:'bi-person-badge-fill',gradient:'#2563eb,#1d4ed8',heads:['#','Name','Code','H2 Count'],rows:(function(){var r=[];SALES_RAW_DATA.forEach(function(h1){r.push([h1.h1Name||'—',h1.h1Code||'—',getVisibleSalesH2List(h1).length]);});return r;})()},
                     h2:{title:'Sales H2 Leaders',icon:'bi-diagram-2-fill',gradient:'#059669,#047857',heads:['#','Name','Code','Under H1','H3 Count'],rows:(function(){var r=[],seen={};SALES_RAW_DATA.forEach(function(h1){getVisibleSalesH2List(h1).forEach(function(h2){var k=h2.h2Code||h2.h2Name;if(!seen[k]){seen[k]=1;r.push([h2.h2Name||'—',h2.h2Code||'—',h1.h1Name||'—',getVisibleSalesH3List(h2).length]);}});});return r;})()},
-                    h3:{title:'Sales H3 (Regions/States)',icon:'bi-diagram-3-fill',gradient:'#d97706,#b45309',heads:['#','Name','Code','Under H2','H4 Count'],rows:(function(){var r=[],seen={};SALES_RAW_DATA.forEach(function(h1){getVisibleSalesH2List(h1).forEach(function(h2){getVisibleSalesH3List(h2).forEach(function(h3){var k=h3.h3Code||h3.h3Name;if(!seen[k]){seen[k]=1;r.push([h3.h3Name||'—',h3.h3Code||'—',h2.h2Name||'—',getVisibleSalesH4List(h3).length]);}});});});return r;})()},
-                    h4:{title:'Sales H4 (Designations)',icon:'bi-people-fill',gradient:'#9333ea,#7c3aed',heads:['#','Name','Code','Under H3','Employees'],rows:(function(){var r=[],seen={};SALES_RAW_DATA.forEach(function(h1){getVisibleSalesH2List(h1).forEach(function(h2){getVisibleSalesH3List(h2).forEach(function(h3){getVisibleSalesH4List(h3).forEach(function(h4){var k=h4.h4Code||h4.h4Name;if(!seen[k]){seen[k]=1;var cnt=(h4.groups||[]).reduce(function(s,g){return s+getVisibleSalesEmployees(g).length;},0);r.push([h4.h4Name||'—',h4.h4Code||'—',h3.h3Name||'—',cnt]);}});});});});return r;})()},
+                    h3:{title:'Sales H3',icon:'bi-diagram-3-fill',gradient:'#d97706,#b45309',heads:['#','Name','Code','Under','H4 Count'],rows:getSalesH3StatRows()},
                     emp:{title:'All Sales Employees',icon:'bi-person-fill',gradient:'#15803d,#16a34a',heads:['#','Code','Name','H1','H2','H3','State','Designation','Group','Sikh/N-S'],rows:getSalesEmployeesFromRaw(SALES_RAW_DATA).map(function(emp){return[emp.empCode||'—',emp.empName||'—',emp.h1Name||'—',emp.h2Name||'—',emp.h3Name||'—',emp.state||'—',emp.designation||'—',emp.groupName||'—',formatSikhShort(emp.sikhNonSikh)];})},
                     allpersons:{title:'All Persons (HO + Sales)',icon:'bi-people-fill',gradient:'#0f766e,#0d9488',heads:['#','Source','Code','Name','Sikh/N-S','Department/H1','Role/H2','H3','State','Designation','Group'],rows:getAllPersonRows()}
                 };
@@ -3818,7 +3848,7 @@
                 showCustomStatTable(c);
             }
 
-            /* renderSalesTeamCards — 5 stat cards (H1/H2/H3/H4/Employees) shown below HO section */
+            /* renderSalesTeamCards — sales stat cards shown below HO section */
             function renderSalesTeamCards(){
                 var grid = document.getElementById('salesTeamGrid');
                 var sec  = document.getElementById('salesTeamSection');
@@ -3828,10 +3858,14 @@
                     if(!value || value === '\u2014') return '';
                     return value.toLowerCase();
                 }
-                var h1Set = {}, h2Set = {}, h3Set = {}, h4Set = {}, empCount = 0;
+                var h1Set = {}, h2Set = {}, h3Set = {};
                 SALES_RAW_DATA.forEach(function(h1){
                     var h1Key = salesLevelKey(h1.h1Code || h1.h1Name);
                     if(h1Key) h1Set[h1Key] = 1;
+                    getDirectSalesH3List(h1).forEach(function(h3){
+                        var directH3Key = salesLevelKey(h3.h3Name || h3.h3Code);
+                        if(directH3Key) h3Set[directH3Key] = 1;
+                    });
                     var h2List = getVisibleSalesH2List(h1);
                     h2List.forEach(function(h2){
                         var h2Key = salesLevelKey(h2.h2Code || h2.h2Name);
@@ -3840,27 +3874,18 @@
                         h3List.forEach(function(h3){
                             var h3Key = salesLevelKey(h3.h3Name || h3.h3Code);
                             if(h3Key) h3Set[h3Key] = 1;
-                            var h4List = getVisibleSalesH4List(h3);
-                            h4List.forEach(function(h4){
-                                var h4Key = salesLevelKey(h4.h4Code || h4.h4Name);
-                                if(h4Key) h4Set[h4Key] = 1;
-                                (h4.groups || []).forEach(function(g){
-                                    empCount += getVisibleSalesEmployees(g).length;
-                                });
-                            });
                         });
                     });
                 });
                 var h1Count = Object.keys(h1Set).length;
                 var h2Count = Object.keys(h2Set).length;
-                var h3Count = Object.keys(h3Set).length;
-                var h4Count = Object.keys(h4Set).length;
+                var h3Count = getSalesH3StatRows().length;
+                var empCount = getSalesEmployeesFromRaw(SALES_RAW_DATA).length;
                 var allPersonCount = getAllPersonRows().length;
                 grid.innerHTML =
                     '<div class="esc sales-stat-card" data-level="h1" style="cursor:pointer"><div class="esc-ico" style="background:#dbeafe;color:#2563eb"><i class="bi bi-person-badge-fill"></i></div><div><div class="esc-val">'+h1Count+'</div><div class="esc-lbl">H1</div></div></div>' +
                     '<div class="esc sales-stat-card" data-level="h2" style="cursor:pointer"><div class="esc-ico" style="background:#bbf7d0;color:#16a34a"><i class="bi bi-diagram-2-fill"></i></div><div><div class="esc-val">'+h2Count+'</div><div class="esc-lbl">H2</div></div></div>' +
                     '<div class="esc sales-stat-card" data-level="h3" style="cursor:pointer"><div class="esc-ico" style="background:#fde68a;color:#d97706"><i class="bi bi-diagram-3-fill"></i></div><div><div class="esc-val">'+h3Count+'</div><div class="esc-lbl">H3</div></div></div>' +
-                    '<div class="esc sales-stat-card" data-level="h4" style="cursor:pointer"><div class="esc-ico" style="background:#ede9fe;color:#9333ea"><i class="bi bi-people-fill"></i></div><div><div class="esc-val">'+h4Count+'</div><div class="esc-lbl">H4</div></div></div>' +
                     '<div class="esc sales-stat-card" data-level="emp" style="cursor:pointer"><div class="esc-ico" style="background:#dcfce7;color:#15803d"><i class="bi bi-person-fill"></i></div><div><div class="esc-val">'+empCount+'</div><div class="esc-lbl">Sales Employees</div></div></div>' +
                     '<div class="esc sales-stat-card" data-level="allpersons" style="cursor:pointer"><div class="esc-ico" style="background:#ccfbf1;color:#0f766e"><i class="bi bi-people-fill"></i></div><div><div class="esc-val">'+allPersonCount+'</div><div class="esc-lbl">HO + Sales</div></div></div>';
                 grid.querySelectorAll('.sales-stat-card').forEach(function(el){
@@ -3903,12 +3928,14 @@
 
             function mergeSalesTreeIntoHod(hod, salesHod){
                 var incomingH2 = getVisibleSalesH2List(salesHod);
+                var incomingDirectH3 = getDirectSalesH3List(salesHod);
                 if(!hod.salesTree){
-                    hod.salesTree = Object.assign({}, salesHod, { h2List: incomingH2.slice() });
+                    hod.salesTree = Object.assign({}, salesHod, { h2List: incomingH2.slice(), directH3List: incomingDirectH3.slice() });
                     return;
                 }
 
                 hod.salesTree.h2List = (hod.salesTree.h2List || []).concat(incomingH2);
+                hod.salesTree.directH3List = (hod.salesTree.directH3List || []).concat(incomingDirectH3);
             }
 
             function applySavedSalaryToSalesRaw(){
@@ -3939,7 +3966,8 @@
                 SALES_RAW_DATA.forEach(function(salesHod){
                     var h1Code = (salesHod.h1Code || '').trim().toUpperCase();
                     var h2List = getVisibleSalesH2List(salesHod);
-                    if(!h2List.length) return;
+                    var directH3List = getDirectSalesH3List(salesHod);
+                    if(!h2List.length && !directH3List.length) return;
 
                     // Find matching HOD in merged by employee code first, then by name.
                     var hod = findSalesHodMatch(salesHod, merged);
@@ -3983,14 +4011,25 @@
 
             function getSalesEmployeeCount(salesTree){
                 var total = 0;
+                var seen = Object.create(null);
+                function addEmp(emp){
+                    var key = salesPersonKey(emp && emp.empCode, emp && emp.empName);
+                    if(key && seen[key]) return;
+                    if(key) seen[key] = 1;
+                    total++;
+                }
+                getDirectSalesH3Buckets(salesTree).forEach(function(h3Bucket){
+                    (h3Bucket.stateBuckets || []).forEach(function(stateBucket){
+                        getSalesCombinedBuckets(stateBucket).forEach(function(bucket){
+                            getVisibleSalesEmployees(bucket).forEach(addEmp);
+                        });
+                    });
+                });
                 getVisibleSalesH2List(salesTree).forEach(function(h2){
-                    var leaderKeys = collectSalesLeaderKeysFromH2(h2);
                     getVisibleSalesH3List(h2).forEach(function(h3){
                         getVisibleSalesH4List(h3).forEach(function(h4){
                             (h4.groups || []).forEach(function(group){
-                                getVisibleSalesEmployees(group).forEach(function(emp){
-                                    if(!isSalesLeaderEmployee(emp, leaderKeys)) total++;
-                                });
+                                getVisibleSalesEmployees(group).forEach(addEmp);
                             });
                         });
                     });
@@ -4018,9 +4057,6 @@
                 addSalesPersonKeys(keys, h2.h2Code, h2.h2Name);
                 getVisibleSalesH3List(h2).forEach(function(h3){
                     addSalesPersonKeys(keys, h3.h3Code, h3.h3Name);
-                    getVisibleSalesH4List(h3).forEach(function(h4){
-                        addSalesPersonKeys(keys, h4.h4Code, h4.h4Name);
-                    });
                 });
                 return keys;
             }
@@ -4029,12 +4065,19 @@
                 var keys = Object.create(null);
                 (source || []).forEach(function(h1){
                     addSalesPersonKeys(keys, h1.h1Code, h1.h1Name);
+                    getDirectSalesH3List(h1).forEach(function(h3){
+                        addSalesPersonKeys(keys, h3.h3Code, h3.h3Name);
+                    });
                     getVisibleSalesH2List(h1).forEach(function(h2){
                         var h2Keys = collectSalesLeaderKeysFromH2(h2);
                         Object.keys(h2Keys).forEach(function(k){ keys[k] = 1; });
                     });
                 });
                 return keys;
+            }
+
+            function collectSalesLeaderKeysFromTree(salesTree){
+                return collectSalesLeaderKeysFromRaw(salesTree ? [salesTree] : []);
             }
 
             function isSalesLeaderEmployee(emp, leaderKeys){
@@ -4044,38 +4087,59 @@
                 return !!((codeKey && leaderKeys[codeKey]) || (nameKey && leaderKeys[nameKey]));
             }
 
+            function getSalesLeafEmployees(bucket, salesTree){
+                var leaderKeys = collectSalesLeaderKeysFromTree(salesTree);
+                return getVisibleSalesEmployees(bucket).filter(function(emp){
+                    return !isSalesLeaderEmployee(emp, leaderKeys);
+                });
+            }
+
             function getSalesEmployeesFromRaw(source){
                 var out = [];
-                var leaderKeys = collectSalesLeaderKeysFromRaw(source);
+                var seen = Object.create(null);
+                function pushEmp(h1, h2, h3, h4, group, emp){
+                    var key = salesPersonKey(emp.empCode, emp.empName);
+                    if(key && seen[key]) return;
+                    if(key) seen[key] = 1;
+                    out.push({
+                        employeeId: emp.employeeId || emp.EmployeeId || 0,
+                        h1Name: h1.h1Name || '',
+                        h1Code: h1.h1Code || '',
+                        h2Name: h2 && h2.h2Name || '',
+                        h2Code: h2 && h2.h2Code || '',
+                        h3Name: h3 && h3.h3Name || '',
+                        h3Code: h3 && h3.h3Code || '',
+                        h4Name: h4 && h4.h4Name || '',
+                        h4Code: h4 && h4.h4Code || '',
+                        groupName: group.groupName || '',
+                        empCode: emp.empCode || '',
+                        empName: emp.empName || '',
+                        designation: emp.designation || (h4 && h4.h4Name) || '',
+                        state: emp.state || '',
+                        sikhNonSikh: emp.sikhNonSikh || emp.SikhNonSikh || '',
+                        dateOfJoining: emp.dateOfJoining || emp.DateOfJoining || null,
+                        gender: emp.gender || emp.Gender || '',
+                        qualification: emp.qualification || emp.Qualification || emp.qulaification || emp.Qulaification || '',
+                        area: emp.area || emp.Area || '',
+                        sal: emp.sal
+                    });
+                }
                 (source || []).forEach(function(h1){
+                    getDirectSalesH3List(h1).forEach(function(h3){
+                        getVisibleSalesH4List(h3).forEach(function(h4){
+                            (h4.groups || []).forEach(function(group){
+                                getVisibleSalesEmployees(group).forEach(function(emp){
+                                    pushEmp(h1, null, h3, h4, group, emp);
+                                });
+                            });
+                        });
+                    });
                     getVisibleSalesH2List(h1).forEach(function(h2){
                         getVisibleSalesH3List(h2).forEach(function(h3){
                             getVisibleSalesH4List(h3).forEach(function(h4){
                                 (h4.groups || []).forEach(function(group){
                                     getVisibleSalesEmployees(group).forEach(function(emp){
-                                        if(isSalesLeaderEmployee(emp, leaderKeys)) return;
-                                        out.push({
-                                            employeeId: emp.employeeId || emp.EmployeeId || 0,
-                                            h1Name: h1.h1Name || '',
-                                            h1Code: h1.h1Code || '',
-                                            h2Name: h2.h2Name || '',
-                                            h2Code: h2.h2Code || '',
-                                            h3Name: h3.h3Name || '',
-                                            h3Code: h3.h3Code || '',
-                                            h4Name: h4.h4Name || '',
-                                            h4Code: h4.h4Code || '',
-                                            groupName: group.groupName || '',
-                                            empCode: emp.empCode || '',
-                                            empName: emp.empName || '',
-                                            designation: emp.designation || h4.h4Name || '',
-                                            state: emp.state || '',
-                                            sikhNonSikh: emp.sikhNonSikh || emp.SikhNonSikh || '',
-                                            dateOfJoining: emp.dateOfJoining || emp.DateOfJoining || null,
-                                            gender: emp.gender || emp.Gender || '',
-                                            qualification: emp.qualification || emp.Qualification || emp.qulaification || emp.Qulaification || '',
-                                            area: emp.area || emp.Area || '',
-                                            sal: emp.sal
-                                        });
+                                        pushEmp(h1, h2, h3, h4, group, emp);
                                     });
                                 });
                             });
@@ -4425,6 +4489,20 @@
                 return order.map(function(key){ return map[key]; }).filter(function(bucket){ return bucket.employees.length; });
             }
 
+            function getSalesDisplayBuckets(stateBucket, salesTree){
+                return getSalesCombinedBuckets(stateBucket).map(function(bucket){
+                    return Object.assign({}, bucket, { employees: getSalesLeafEmployees(bucket, salesTree) });
+                }).filter(function(bucket){
+                    return bucket.employees.length > 0;
+                });
+            }
+
+            function getSalesDisplayStateBuckets(stateBuckets, salesTree){
+                return (stateBuckets || []).filter(function(stateBucket){
+                    return getSalesDisplayBuckets(stateBucket, salesTree).length > 0;
+                });
+            }
+
             function getSalesStateBucketsLegacy(h2){
                 var stateMap = Object.create(null), stateOrder = [];
                 getVisibleSalesH3List(h2).forEach(function(h3){
@@ -4462,7 +4540,8 @@
                 if(!salesTree) return null;
                 var h2 = null, h3Bucket = null, stateBucket = null, firstBucket = null, secondBucket = null, employee = null;
                 if(parts.length > 2){
-                    h2 = getVisibleSalesH2List(salesTree)[+parts[2]];
+                    if(parts[2] === 'direct') h2 = { h2Code: '', h2Name: '', h3List: getDirectSalesH3List(salesTree) };
+                    else h2 = getVisibleSalesH2List(salesTree)[+parts[2]];
                     if(!h2) return null;
                 }
                 if(parts.length > 3){
@@ -4478,19 +4557,23 @@
                     if(!firstBucket) return null;
                 }
                 if(parts.length > 6){
-                    employee = getVisibleSalesEmployees(firstBucket)[+parts[6]];
+                    employee = getSalesLeafEmployees(firstBucket, salesTree)[+parts[6]];
                     if(!employee) return null;
                 }
                 return { salesTree: salesTree, h2: h2, h3Bucket: h3Bucket, stateBucket: stateBucket, firstBucket: firstBucket, secondBucket: secondBucket, employee: employee };
             }
 
             function v1_buildSalesDept(hod, salesTree, di){
-                var nid='dept-'+hod.idx+'-'+di,isExp=!!v1_exp[nid],h2List=getVisibleSalesH2List(salesTree);
+                var nid='dept-'+hod.idx+'-'+di,isExp=!!v1_exp[nid],h2List=getVisibleSalesH2List(salesTree),directH3Buckets=getDirectSalesH3Buckets(salesTree);
                 var employeeCount=getSalesEmployeeCount(salesTree);
                 var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+hod.id+'">';
-                h+=v1_card({id:nid,type:'dept',cardClass:'nc-sales-dept',name:SALES_DEPT_NAME,levelLabel:'Sub-Dept',c:'#16a34a',stats:[{ic:'bi-diagram-2',v:h2List.length,lb:'H2 Persons'},{ic:'bi-people',v:employeeCount,lb:'Employees'}],sal:null,hasKids:h2List.length>0});
-                if(isExp&&h2List.length){
+                h+=v1_card({id:nid,type:'dept',cardClass:'nc-sales-dept',name:SALES_DEPT_NAME,levelLabel:'Sales',c:'#16a34a',stats:[{ic:'bi-diagram-2',v:h2List.length,lb:'H2 Persons'},{ic:'bi-people',v:employeeCount,lb:'Employees'}],sal:null,hasKids:h2List.length>0||directH3Buckets.length>0});
+                if(isExp&&(h2List.length||directH3Buckets.length)){
                     h+='<div class="children-row">';
+                    directH3Buckets.forEach(function(h3Bucket,h3i){
+                        if(isMeaningfulSalesLevelName(h3Bucket.h3Name)) h+=v1_buildSalesH3(hod,'direct',h3Bucket,h3i,nid);
+                        else h+=v1_buildSalesStates(hod,'direct',h3i,h3Bucket.stateBuckets||[],nid);
+                    });
                     h2List.forEach(function(h2,h2i){ h+=v1_buildSalesH2(hod,h2,h2i,nid); });
                     h+='</div>';
                 }
@@ -4501,7 +4584,7 @@
                 var nid='sales2-'+hod.idx+'-'+h2i,isExp=!!v1_exp[nid],h3Buckets=getSalesH3Buckets(h2);
                 var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">';
                 var visibleH3Count=h3Buckets.filter(function(x){return isMeaningfulSalesLevelName(x.h3Name);}).length;
-                var stateCount=h3Buckets.reduce(function(a,x){return a+(x.stateBuckets||[]).length;},0);
+                var stateCount=h3Buckets.reduce(function(a,x){return a+getSalesDisplayStateBuckets(x.stateBuckets||[], hod.salesTree).length;},0);
                 h+=v1_card({id:nid,type:'subdept',cardClass:'nc-sales-h2',name:h2.h2Name||'H2',levelLabel:'H2',c:'#d97706',stats:[{ic:visibleH3Count?'bi-diagram-3':'bi-geo-alt',v:visibleH3Count||stateCount,lb:visibleH3Count?'H3 Persons':'States'}],sal:null,hasKids:h3Buckets.length>0});
                 if(isExp&&h3Buckets.length){
                     h+='<div class="children-row">';
@@ -4515,7 +4598,7 @@
             }
 
             function v1_buildSalesH3(hod,h2i,h3Bucket,h3i,parId){
-                var nid='sales3-'+hod.idx+'-'+h2i+'-'+h3i,isExp=!!v1_exp[nid],stateBuckets=h3Bucket.stateBuckets||[];
+                var nid='sales3-'+hod.idx+'-'+h2i+'-'+h3i,isExp=!!v1_exp[nid],stateBuckets=getSalesDisplayStateBuckets(h3Bucket.stateBuckets||[], hod.salesTree);
                 var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">';
                 h+=v1_card({id:nid,type:'subdept',cardClass:'nc-sales-h3',name:h3Bucket.h3Name||'H3',levelLabel:'H3',c:'#2563eb',stats:[{ic:'bi-geo-alt',v:stateBuckets.length,lb:'States'}],sal:null,hasKids:stateBuckets.length>0});
                 if(isExp&&stateBuckets.length){
@@ -4533,7 +4616,8 @@
             }
 
             function v1_buildSalesState(hod,h2i,h3i,stateBucket,stateIdx,parId){
-                var nid='salesstate-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx,isExp=!!v1_exp[nid],buckets=getSalesCombinedBuckets(stateBucket);
+                var nid='salesstate-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx,isExp=!!v1_exp[nid],buckets=getSalesDisplayBuckets(stateBucket, hod.salesTree);
+                if(!buckets.length) return '';
                 var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">';
                 h+=v1_card({id:nid,type:'subdept',cardClass:'nc-sales-state',name:stateBucket.state||'State',levelLabel:'State',c:'#0f766e',stats:[{ic:'bi-collection',v:buckets.length,lb:'Designation + Group'}],sal:null,hasKids:buckets.length>0});
                 if(isExp&&buckets.length){
@@ -4545,7 +4629,7 @@
             }
 
             function v1_buildSalesCombo(hod,h2i,h3i,stateIdx,bucket,bucketIdx,parId){
-                var nid='sales4-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx,isExp=!!v1_exp[nid],employees=getVisibleSalesEmployees(bucket);
+                var nid='sales4-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx,isExp=!!v1_exp[nid],employees=getSalesLeafEmployees(bucket, hod.salesTree);
                 var h='<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">';
                 h+=v1_card({id:nid,type:'subhod',cardClass:'nc-sales-combo',name:bucket.name||'-',levelLabel:'Designation + Group',c:'#9333ea',stats:[{ic:'bi-people',v:employees.length,lb:'Names'}],sal:null,hasKids:employees.length>0});
                 if(isExp&&employees.length){
@@ -4558,13 +4642,14 @@
 
             function v1_buildSalesEmp(hod,h2i,h3i,stateIdx,bucketIdx,emp,ei,parId){
                 var nid='salese-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx+'-'+ei;
-                return '<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">'+v1_card({id:nid,type:'exec',cardClass:'nc-sales-name',name:emp.empName||'-',levelLabel:'Name',c:'#0891b2',dateOfJoining:emp.dateOfJoining||emp.DateOfJoining||null,stats:[],sal:SHOW_SAL?emp.sal:null,hasKids:false})+'</div>';
+                return '<div class="branch" data-node-id="'+nid+'" data-parent-id="'+parId+'">'+v1_card({id:nid,type:'exec',cardClass:'nc-sales-name',name:emp.empName||'-',levelLabel:'',c:'#0891b2',dateOfJoining:emp.dateOfJoining||emp.DateOfJoining||null,stats:[],sal:SHOW_SAL?emp.sal:null,hasKids:false})+'</div>';
             }
 
-            function renderSalesStateTreeItems(h2i,h3i,stateBuckets,ts,togglePrefix){
+            function renderSalesStateTreeItems(h2i,h3i,stateBuckets,ts,togglePrefix,salesTree){
                 var html='';
                 (stateBuckets||[]).forEach(function(stateBucket,stateIdx){
-                    var stKey='salesstate_'+h2i+'_'+h3i+'_'+stateIdx,stExp=!!ts[stKey],buckets=getSalesCombinedBuckets(stateBucket);
+                    var stKey='salesstate_'+h2i+'_'+h3i+'_'+stateIdx,stExp=!!ts[stKey],buckets=getSalesDisplayBuckets(stateBucket, salesTree);
+                    if(!buckets.length) return;
                     html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subdept'+(stExp?' tr-exp':'')+'" style="background:'+(stExp?'#ccfbf1':'#fff')+';border-color:'+(stExp?'#14b8a6':'#cbd5e1')+';color:'+(stExp?'#0f766e':'#1e293b')+'"'+(buckets.length?' onclick="'+togglePrefix+'\''+stKey+'\',event)"':'')+'>';
                     if(buckets.length) html+='<i class="bi '+(stExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';
                     html+='<i class="bi bi-geo-alt-fill tr-ico"></i><span class="tr-name">'+esc(stateBucket.state||'State')+'</span><span class="tr-tag">State</span>';
@@ -4573,7 +4658,7 @@
                     if(stExp&&buckets.length){
                         html+='<div class="tr-children">';
                         buckets.forEach(function(bucket,bucketIdx){
-                            var bKey='sales4_'+h2i+'_'+h3i+'_'+stateIdx+'_'+bucketIdx,bExp=!!ts[bKey],employees=getVisibleSalesEmployees(bucket);
+                            var bKey='sales4_'+h2i+'_'+h3i+'_'+stateIdx+'_'+bucketIdx,bExp=!!ts[bKey],employees=bucket.employees || [];
                             html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subhod'+(bExp?' tr-exp':'')+'" style="background:'+(bExp?'#ede9fe':'#fff')+';border-color:'+(bExp?'#a855f7':'#cbd5e1')+';color:'+(bExp?'#581c87':'#1e293b')+'"'+(employees.length?' onclick="'+togglePrefix+'\''+bKey+'\',event)"':'')+'>';
                             if(employees.length) html+='<i class="bi '+(bExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';
                             html+='<i class="bi bi-tags-fill tr-ico"></i><span class="tr-name">'+esc(bucket.name||'-')+'</span><span class="tr-tag">Designation + Group</span>';
@@ -4582,7 +4667,7 @@
                             if(bExp&&employees.length){
                                 html+='<div class="tr-children">';
                                 employees.forEach(function(emp){
-                                    html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-exec"><i class="bi bi-person-fill tr-ico"></i><span class="tr-name">'+esc(emp.empName||'-')+'</span><span class="tr-tag">Name</span>'+(emp.empCode?'<span class="tr-code">'+esc(emp.empCode)+'</span>':'')+(SHOW_SAL&&emp.sal!==undefined&&emp.sal!==null?'<span class="tr-sal">Salary '+fmtN(emp.sal)+'</span>':'')+'</div></div>';
+                                    html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-exec"><i class="bi bi-person-fill tr-ico"></i><span class="tr-name">'+esc(emp.empName||'-')+'</span>'+(emp.empCode?'<span class="tr-code">'+esc(emp.empCode)+'</span>':'')+(SHOW_SAL&&emp.sal!==undefined&&emp.sal!==null?'<span class="tr-sal">Salary '+fmtN(emp.sal)+'</span>':'')+'</div></div>';
                                 });
                                 html+='</div>';
                             }
@@ -4598,6 +4683,21 @@
             function renderSalesTreeBranch(h, salesTree, ts, togglePrefix){
                 var h2List = getVisibleSalesH2List(salesTree);
                 var html = '';
+                getDirectSalesH3Buckets(salesTree).forEach(function(h3Bucket,h3i){
+                    var stateBuckets=getSalesDisplayStateBuckets(h3Bucket.stateBuckets||[], salesTree);
+                    if(!isMeaningfulSalesLevelName(h3Bucket.h3Name)){
+                        html+=renderSalesStateTreeItems('direct',h3i,stateBuckets,ts,togglePrefix,salesTree);
+                        return;
+                    }
+                    var h3Key='sales3_direct_'+h3i,h3Exp=!!ts[h3Key];
+                    html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subdept'+(h3Exp?' tr-exp':'')+'" style="background:'+(h3Exp?'#dbeafe':'#fff')+';border-color:'+(h3Exp?'#3b82f6':'#cbd5e1')+';color:'+(h3Exp?'#1e3a8a':'#1e293b')+'"'+(stateBuckets.length?' onclick="'+togglePrefix+'\''+h3Key+'\',event)"':'')+'>';
+                    if(stateBuckets.length) html+='<i class="bi '+(h3Exp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';
+                    html+='<i class="bi bi-diagram-3-fill tr-ico"></i><span class="tr-name">'+esc(h3Bucket.h3Name||'H3')+'</span><span class="tr-tag">H3</span>';
+                    if(stateBuckets.length) html+='<span class="tr-count" style="background:'+(h3Exp?'#2563eb':'#94a3b8')+'">'+stateBuckets.length+'</span>';
+                    html+='</div>';
+                    if(h3Exp&&stateBuckets.length) html+='<div class="tr-children">'+renderSalesStateTreeItems('direct',h3i,stateBuckets,ts,togglePrefix,salesTree)+'</div>';
+                    html+='</div>';
+                });
                 h2List.forEach(function(h2,h2i){
                     var h2Key='sales2_'+h2i,h2Exp=!!ts[h2Key],h3Buckets=getSalesH3Buckets(h2);
                     var visibleH3Count=h3Buckets.filter(function(x){return isMeaningfulSalesLevelName(x.h3Name);}).length;
@@ -4609,9 +4709,9 @@
                     if(h2Exp&&h3Buckets.length){
                         html+='<div class="tr-children">';
                         h3Buckets.forEach(function(h3Bucket,h3i){
-                            var stateBuckets=h3Bucket.stateBuckets||[];
+                            var stateBuckets=getSalesDisplayStateBuckets(h3Bucket.stateBuckets||[], salesTree);
                             if(!isMeaningfulSalesLevelName(h3Bucket.h3Name)){
-                                html+=renderSalesStateTreeItems(h2i,h3i,stateBuckets,ts,togglePrefix);
+                                html+=renderSalesStateTreeItems(h2i,h3i,stateBuckets,ts,togglePrefix,salesTree);
                                 return;
                             }
                             var h3Key='sales3_'+h2i+'_'+h3i,h3Exp=!!ts[h3Key];
@@ -4620,7 +4720,7 @@
                             html+='<i class="bi bi-diagram-3-fill tr-ico"></i><span class="tr-name">'+esc(h3Bucket.h3Name||'H3')+'</span><span class="tr-tag">H3</span>';
                             if(stateBuckets.length) html+='<span class="tr-count" style="background:'+(h3Exp?'#2563eb':'#94a3b8')+'">'+stateBuckets.length+'</span>';
                             html+='</div>';
-                            if(h3Exp&&stateBuckets.length) html+='<div class="tr-children">'+renderSalesStateTreeItems(h2i,h3i,stateBuckets,ts,togglePrefix)+'</div>';
+                            if(h3Exp&&stateBuckets.length) html+='<div class="tr-children">'+renderSalesStateTreeItems(h2i,h3i,stateBuckets,ts,togglePrefix,salesTree)+'</div>';
                             html+='</div>';
                         });
                         html+='</div>';
@@ -4997,8 +5097,75 @@
                 3. Render ? the tree shows only the found node's chain
                 4. Scroll into view and flash the node
             ---------------------------------------------------------- */
-            var S_CMAP={hod:'#1d4ed8',dept:'#15803d',subdept:'#b45309',subhod:'#7c3aed',exec:'#0e7490'};
-            var S_IMAP={hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill'};
+            var S_CMAP={hod:'#1d4ed8',dept:'#15803d',subdept:'#b45309',subhod:'#7c3aed',exec:'#0e7490',salesh2:'#d97706',salesh3:'#2563eb',salesstate:'#0f766e',salesgroup:'#9333ea',sales:'#0891b2'};
+            var S_IMAP={hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill',salesh2:'diagram-2-fill',salesh3:'diagram-3-fill',salesstate:'geo-alt-fill',salesgroup:'collection-fill',sales:'person-fill'};
+
+            function searchMatches(q){
+                for(var i=1;i<arguments.length;i++){
+                    var value=(arguments[i]||'').toString().toLowerCase();
+                    if(value && value.indexOf(q)>-1) return true;
+                }
+                return false;
+            }
+
+            function addSalesSearchResult(res, type, id, name, detail){
+                if(!name || isHiddenSalesHierarchyName(name)) return;
+                res.push({type:type,id:id,name:name,detail:detail});
+            }
+
+            function appendSalesSearchResults(q, res){
+                if(!SHOW_SALES) return;
+                RAW_DATA.forEach(function(hod){
+                    var salesTree=hod.salesTree;
+                    if(!salesTree) return;
+
+                    getDirectSalesH3Buckets(salesTree).forEach(function(h3Bucket,h3i){
+                        var h3Name=h3Bucket.h3Name||'H3';
+                        if(isMeaningfulSalesLevelName(h3Name) && searchMatches(q,h3Name,h3Bucket.h3Code)){
+                            addSalesSearchResult(res,'salesh3','sales3-'+hod.idx+'-direct-'+h3i,h3Name,'Sales H3 · '+hod.name);
+                        }
+                        appendSalesStateSearchResults(q,res,hod,'direct',h3i,h3Bucket);
+                    });
+
+                    getVisibleSalesH2List(salesTree).forEach(function(h2,h2i){
+                        var h2Name=h2.h2Name||'H2';
+                        if(searchMatches(q,h2Name,h2.h2Code)){
+                            addSalesSearchResult(res,'salesh2','sales2-'+hod.idx+'-'+h2i,h2Name,'Sales H2 · '+hod.name);
+                        }
+                        getSalesH3Buckets(h2).forEach(function(h3Bucket,h3i){
+                            var h3Name=h3Bucket.h3Name||'H3';
+                            if(isMeaningfulSalesLevelName(h3Name) && searchMatches(q,h3Name,h3Bucket.h3Code)){
+                                addSalesSearchResult(res,'salesh3','sales3-'+hod.idx+'-'+h2i+'-'+h3i,h3Name,'Sales H3 · '+h2Name+' · '+hod.name);
+                            }
+                            appendSalesStateSearchResults(q,res,hod,h2i,h3i,h3Bucket,h2Name);
+                        });
+                    });
+                });
+            }
+
+            function appendSalesStateSearchResults(q,res,hod,h2i,h3i,h3Bucket,h2Name){
+                var stateBuckets=getSalesDisplayStateBuckets(h3Bucket.stateBuckets||[],hod.salesTree);
+                stateBuckets.forEach(function(stateBucket,stateIdx){
+                    var stateName=stateBucket.state||'State';
+                    var stateId='salesstate-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx;
+                    if(searchMatches(q,stateName)){
+                        addSalesSearchResult(res,'salesstate',stateId,stateName,'Sales State · '+(h3Bucket.h3Name||h2Name||hod.name));
+                    }
+                    var buckets=getSalesDisplayBuckets(stateBucket,hod.salesTree);
+                    buckets.forEach(function(bucket,bucketIdx){
+                        var comboName=bucket.name||bucket.label||'-';
+                        var comboId='sales4-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx;
+                        if(searchMatches(q,comboName,bucket.designation,bucket.groupName)){
+                            addSalesSearchResult(res,'salesgroup',comboId,comboName,'Sales Designation + Group · '+stateName);
+                        }
+                        var employees=getSalesLeafEmployees(bucket,hod.salesTree);
+                        employees.forEach(function(emp,ei){
+                            if(!searchMatches(q,emp.empName,emp.empCode,emp.state,emp.designation,emp.groupName,emp.sikhNonSikh)) return;
+                            addSalesSearchResult(res,'sales','salese-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx+'-'+ei,emp.empName||emp.empCode,'Sales Employee · '+(emp.empCode||'')+' · '+stateName);
+                        });
+                    });
+                });
+            }
 
             function ehSearchHandle(val){
                 var q=(val||'').trim().toLowerCase();
@@ -5016,9 +5183,10 @@
                         (s.execs||[]).forEach(function(ex,ei){if(ex.name.toLowerCase().indexOf(q)>-1)res.push({type:'exec',id:'exd-'+hod.idx+'-'+si+'-'+ei,name:ex.name,detail:s.sdName+' (direct)'});});
                     });
                 });
+                appendSalesSearchResults(q,res);
                 if(!res.length){$('#searchDrop').html('<div class="sd-empty"><i class="bi bi-search me-2"></i>No results</div>').show();return;}
                 var h='';
-                res.slice(0,8).forEach(function(r){
+                res.slice(0,12).forEach(function(r){
                     h+='<div class="sd-item" onclick="ehNavTo(\''+r.id+'\',\''+r.type+'\')">';
                     h+='<div class="sd-ico" style="background:'+S_CMAP[r.type]+'18;color:'+S_CMAP[r.type]+'"><i class="bi bi-'+S_IMAP[r.type]+'"></i></div>';
                     h+='<div><div class="sd-name">'+esc(r.name)+'</div><div class="sd-detail"><span class="sd-type" style="background:'+S_CMAP[r.type]+'18;color:'+S_CMAP[r.type]+'">'+r.type+'</span> '+esc(r.detail)+'</div></div></div>';
@@ -5306,6 +5474,20 @@ function v1_card(n){
                 else if(p[0]==='sd'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true; }
                 else if(p[0]==='sh'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true;v1_exp['sd-'+p[1]+'-'+p[2]]=true; }
                 else if(p[0]==='ex'||p[0]==='exd'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true;v1_exp['sd-'+p[1]+'-'+p[2]]=true;if(p[0]==='ex')v1_exp['sh-'+p[1]+'-'+p[2]+'-'+p[3]]=true; }
+                else if(p[0]==='sales2'||p[0]==='sales3'||p[0]==='salesstate'||p[0]==='sales4'||p[0]==='salese'){
+                    var sh=RAW_DATA[+p[1]]; if(!sh)return;
+                    var sdi=sh.depts.indexOf(SALES_DEPT_NAME); if(sdi<0)sdi=0;
+                    v1_exp[sh.id]=true;
+                    v1_exp['dept-'+p[1]+'-'+sdi]=true;
+                    if(p[0]==='sales2'){ v1_exp[nodeId]=true; return; }
+                    var h2Part=p[2], h3Part=p[3];
+                    if(h2Part && h2Part!=='direct') v1_exp['sales2-'+p[1]+'-'+h2Part]=true;
+                    if(h3Part) v1_exp['sales3-'+p[1]+'-'+h2Part+'-'+h3Part]=true;
+                    if(p[0]==='salesstate'){ v1_exp[nodeId]=true; return; }
+                    if(p[4]) v1_exp['salesstate-'+p[1]+'-'+h2Part+'-'+h3Part+'-'+p[4]]=true;
+                    if(p[0]==='sales4'){ v1_exp[nodeId]=true; return; }
+                    if(p[5]) v1_exp['sales4-'+p[1]+'-'+h2Part+'-'+h3Part+'-'+p[4]+'-'+p[5]]=true;
+                }
             }
 
             /* SVG CONNECTOR LINES */
@@ -5543,7 +5725,7 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
                 var hc=h.color;var html='<div class="tr-wrap"><div class="tr-root"><div class="tr-node tr-hod" style="background:'+hc.bg+';border-color:'+hc.border+';color:'+hc.text+'"><i class="bi bi-person-badge-fill tr-ico"></i><span class="tr-name">'+esc(h.name)+'</span><span class="tr-tag">HOD</span>';
                 if(SHOW_SAL&&hasSalaryValue(h.sal))html+='<span class="tr-sal">Salary '+fmtN(h.sal)+'</span>';
                 html+='</div>';
-                if(h.depts.length){html+='<div class="tr-children">';h.depts.forEach(function(dept,di){var dKey='dept_'+dept,dExp=!!ts[dKey];var dc=DEPT_COLORS[di%DEPT_COLORS.length];var salesTree=getSalesTreeForDept(h,dept);var salesH2Count=salesTree?getVisibleSalesH2List(salesTree).length:0;var subs=h.subs.filter(function(s){return s.dept===dept||(s.dept===''&&dept===h.depts[0]);});var hasKids=salesTree?salesH2Count>0:subs.length>0;var deptCount=salesTree?salesH2Count:subs.length;html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node '+(salesTree?'tr-subdept':'tr-dept')+(dExp?' tr-exp':'')+'" style="background:'+(dExp?dc.bg:'#fff')+';border-color:'+(dExp?dc.border:'#cbd5e1')+';color:'+(dExp?dc.text:'#1e293b')+'"'+(hasKids?' onclick="'+togglePrefix+'\''+escAttr(dKey)+'\',event)"':'')+'>'; if(hasKids)html+='<i class="bi '+(dExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi '+(salesTree?'bi-buildings':'bi-building')+' tr-ico"></i><span class="tr-name">'+esc(dept)+'</span><span class="tr-tag">'+(salesTree?'Sub-Dept':'Dept')+'</span>';if(hasKids)html+='<span class="tr-count" style="background:'+(dExp?dc.badge:'#94a3b8')+'">'+deptCount+'</span>';html+='</div>';
+                if(h.depts.length){html+='<div class="tr-children">';h.depts.forEach(function(dept,di){var dKey='dept_'+dept,dExp=!!ts[dKey];var dc=DEPT_COLORS[di%DEPT_COLORS.length];var salesTree=getSalesTreeForDept(h,dept);var salesH2Count=salesTree?getVisibleSalesH2List(salesTree).length:0;var salesDirectCount=salesTree?getDirectSalesH3Buckets(salesTree).length:0;var subs=h.subs.filter(function(s){return s.dept===dept||(s.dept===''&&dept===h.depts[0]);});var hasKids=salesTree?(salesH2Count>0||salesDirectCount>0):subs.length>0;var deptCount=salesTree?salesH2Count:subs.length;html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node '+(salesTree?'tr-dept':'tr-dept')+(dExp?' tr-exp':'')+'" style="background:'+(dExp?dc.bg:'#fff')+';border-color:'+(dExp?dc.border:'#cbd5e1')+';color:'+(dExp?dc.text:'#1e293b')+'"'+(hasKids?' onclick="'+togglePrefix+'\''+escAttr(dKey)+'\',event)"':'')+'>'; if(hasKids)html+='<i class="bi '+(dExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi '+(salesTree?'bi-diagram-3':'bi-building')+' tr-ico"></i><span class="tr-name">'+esc(dept)+'</span><span class="tr-tag">'+(salesTree?'Sales':'Dept')+'</span>';if(hasKids)html+='<span class="tr-count" style="background:'+(dExp?dc.badge:'#94a3b8')+'">'+deptCount+'</span>';html+='</div>';
                 if(dExp&&salesTree){html+='<div class="tr-children">'+renderSalesTreeBranch(h,salesTree,ts,togglePrefix)+'</div>';}
                 else if(dExp&&subs.length){html+='<div class="tr-children">';subs.forEach(function(s){var sdKey='sd_'+s.idx,sdExp=!!ts[sdKey];var hasSubHods=(s.subHods&&s.subHods.length>0),hasDirectEx=s.execs.length>0,hasMore=hasSubHods||hasDirectEx;var totalExecs=hasSubHods?s.subHods.reduce(function(a,sh){return a+(sh.execs||[]).length;},0):s.execs.length;html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subdept'+(sdExp?' tr-exp':'')+'" style="background:'+(sdExp?'#d1fae5':'#fff')+';border-color:'+(sdExp?'#059669':'#cbd5e1')+';color:'+(sdExp?'#064e3b':'#1e293b')+'"'+(hasMore?' onclick="'+togglePrefix+'\''+sdKey+'\',event)"':'')+'>'; if(hasMore)html+='<i class="bi '+(sdExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi bi-buildings tr-ico"></i><span class="tr-name">'+esc(s.sdName)+'</span><span class="tr-tag">Sub-Dept</span>';if(totalExecs)html+='<span class="tr-count" style="background:'+(sdExp?'#047857':'#94a3b8')+'">'+totalExecs+'</span>';html+='</div>';
                 if(sdExp&&hasMore){html+='<div class="tr-children">';if(hasSubHods){s.subHods.forEach(function(sh,shi){var shKey='sh_'+s.idx+'_'+shi,shExp=!!ts[shKey];var shExecs=sh.execs||[];html+='<div class="tr-item"><div class="tr-line-h"></div><div class="tr-node tr-subhod'+(shExp?' tr-exp':'')+'" style="background:'+(shExp?'#fef3c7':'#fff')+';border-color:'+(shExp?'#d97706':'#cbd5e1')+';color:'+(shExp?'#78350f':'#1e293b')+'"'+(shExecs.length?' onclick="'+togglePrefix+'\''+shKey+'\',event)"':'')+'>'; if(shExecs.length)html+='<i class="bi '+(shExp?'bi-chevron-down':'bi-chevron-right')+' tr-arrow"></i>';html+='<i class="bi bi-people-fill tr-ico"></i><span class="tr-name">'+esc(sh.name)+'</span><span class="tr-tag">Sub-HOD</span>';if(sh.code)html+='<span class="tr-code">'+esc(sh.code)+'</span>';if(SHOW_SAL&&hasSalaryValue(sh.sal))html+='<span class="tr-sal">Salary '+fmtN(sh.sal)+'</span>';if(shExecs.length)html+='<span class="tr-count" style="background:'+(shExp?'#b45309':'#94a3b8')+'">'+shExecs.length+'</span>';html+='</div>';if(shExp&&shExecs.length){html+='<div class="tr-children">';shExecs.forEach(function(ex){html+='<div class="tr-item"><div class="tr-line-h"></div>'+trExecNode(ex)+'</div>';});html+='</div>';}html+='</div>';}); }else{s.execs.forEach(function(ex){html+='<div class="tr-item"><div class="tr-line-h"></div>'+trExecNode(ex)+'</div>';});}html+='</div>';}html+='</div>';});html+='</div>';}html+='</div>';});html+='</div>';}
@@ -5594,7 +5776,7 @@ function normalizeCustomValues(customValues){var map={};(customValues||[]).forEa
                 if(p[0]==='sales2'){var h=RAW_DATA[+p[1]];var node=findSalesNode(h,p);if(!node||!node.h2)return null;return{type:'subdept',name:node.h2.h2Name||'H2',role:'H2 Level',dept:SALES_DEPT_NAME,hod:h.name,subDept:'H2',execCount:(getSalesH3Buckets(node.h2)||[]).length};}
                 if(p[0]==='sales3'){var h=RAW_DATA[+p[1]];var node=findSalesNode(h,p);if(!node||!node.h3Bucket)return null;return{type:'subdept',name:node.h3Bucket.h3Name||'H3',role:'H3 Level',dept:SALES_DEPT_NAME,hod:h.name,subDept:node.h2.h2Name||'H2',execCount:(node.h3Bucket.stateBuckets||[]).length};}
                 if(p[0]==='salesstate'){var h=RAW_DATA[+p[1]];var node=findSalesNode(h,p);if(!node||!node.stateBucket)return null;return{type:'subdept',name:node.stateBucket.state||'State',role:'State',dept:SALES_DEPT_NAME,hod:h.name,subDept:node.h3Bucket.h3Name||'H3',execCount:(node.stateBucket.combos||[]).length};}
-                if(p[0]==='sales4'){var h=RAW_DATA[+p[1]];var node=findSalesNode(h,p);if(!node||!node.firstBucket)return null;return{type:'subhod',name:node.firstBucket.name||'-',role:'Designation + Group',dept:SALES_DEPT_NAME,hod:h.name,subDept:node.stateBucket.state||'State',execCount:getVisibleSalesEmployees(node.firstBucket).length};}
+                if(p[0]==='sales4'){var h=RAW_DATA[+p[1]];var node=findSalesNode(h,p);if(!node||!node.firstBucket)return null;return{type:'subhod',name:node.firstBucket.name||'-',role:'Designation + Group',dept:SALES_DEPT_NAME,hod:h.name,subDept:node.stateBucket.state||'State',execCount:getSalesLeafEmployees(node.firstBucket,h.salesTree).length};}
                 if(p[0]==='salese'){var h=RAW_DATA[+p[1]];var node=findSalesNode(h,p);if(!node||!node.employee)return null;return{type:'exec',employeeId:node.employee.employeeId||node.employee.EmployeeId||0,name:node.employee.empName||'-',role:'Sales Employee',code:node.employee.empCode||'',sal:node.employee.sal,dateOfJoining:node.employee.dateOfJoining||node.employee.DateOfJoining||null,gender:node.employee.gender||node.employee.Gender||'',qualification:node.employee.qualification||node.employee.Qualification||node.employee.qulaification||node.employee.Qulaification||'',area:node.employee.area||node.employee.Area||'',sikhNonSikh:node.employee.sikhNonSikh||node.employee.SikhNonSikh||'',dept:SALES_DEPT_NAME,hod:h.name,subDept:node.stateBucket.state||'State',subHod:node.firstBucket?node.firstBucket.name:''};}
                 return null;
             }

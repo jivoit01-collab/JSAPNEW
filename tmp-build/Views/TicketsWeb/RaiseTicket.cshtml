@@ -1,0 +1,829 @@
+﻿@* ============================================
+   FILE: Views/TicketsWeb/RaiseTicket.cshtml
+   View 1: User Raise Ticket (With Attachments)
+   ============================================ *@
+
+@{
+    ViewData["Title"] = "Raise Ticket";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .ticket-container {
+        max-width: 900px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #0b2c4d 0%, #1a5276 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .page-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+
+    .form-card {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+    }
+
+        .form-label .required {
+            color: #dc3545;
+        }
+
+    .form-control {
+        width: 100%;
+        padding: 6px 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        box-sizing: border-box;
+    }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #0b2c4d;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        }
+
+    select.form-control {
+        cursor: pointer;
+    }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .priority-options {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .priority-option {
+        flex: 1;
+        min-width: 100px;
+    }
+
+        .priority-option input {
+            display: none;
+        }
+
+        .priority-option label {
+            display: block;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .priority-option input:checked + label {
+            color: white;
+        }
+
+    .priority-low input:checked + label {
+        background: #28a745;
+        border-color: #28a745;
+    }
+
+    .priority-medium input:checked + label {
+        background: #ffc107;
+        border-color: #ffc107;
+        color: #333;
+    }
+
+    .priority-high input:checked + label {
+        background: #fd7e14;
+        border-color: #fd7e14;
+    }
+
+    .priority-critical input:checked + label {
+        background: #dc3545;
+        border-color: #dc3545;
+    }
+
+    /* File Upload Styles */
+    .file-upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #fafafa;
+    }
+
+        .file-upload-area:hover {
+            border-color: #1976d2;
+            background: #f0f7ff;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #1976d2;
+            background: #e3f2fd;
+        }
+
+        .file-upload-area i {
+            font-size: 48px;
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-area p {
+            margin: 0;
+            color: #666;
+        }
+
+        .file-upload-area .browse-text {
+            color: #1976d2;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+    .file-input {
+        display: none;
+    }
+
+    .file-list {
+        margin-top: 15px;
+    }
+
+    .file-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .file-item-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .file-item-info i {
+            font-size: 20px;
+            color: #1976d2;
+        }
+
+    .file-item-name {
+        font-size: 14px;
+        color: #333;
+    }
+
+    .file-item-size {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .file-item-remove {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 5px;
+    }
+
+        .file-item-remove:hover {
+            color: #a71d2a;
+        }
+
+    .btn-container {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.4);
+        }
+
+    .btn-secondary {
+        background: #f5f5f5;
+        color: #333;
+    }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .alert {
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s linear infinite;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .recent-tickets {
+        margin-top: 40px;
+    }
+
+        .recent-tickets h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+    .ticket-item {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: transform 0.2s;
+    }
+
+        .ticket-item:hover {
+            transform: translateX(5px);
+        }
+
+    .ticket-info h4 {
+        margin: 0 0 5px 0;
+        color: #333;
+    }
+
+    .ticket-info p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-open {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .status-assign {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .status-inprogress {
+        background: #e8f5e9;
+        color: #388e3c;
+    }
+
+    .status-onhold {
+        background: #fce4ec;
+        color: #c2185b;
+    }
+
+    .status-close {
+        background: #f5f5f5;
+        color: #757575;
+    }
+
+    .file-hint {
+        font-size: 12px;
+        color: #999;
+        margin-top: 8px;
+    }
+
+    .upload-progress {
+        margin-top: 10px;
+        display: none;
+    }
+
+    .progress-bar {
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: #1976d2;
+        width: 0%;
+        transition: width 0.3s;
+    }
+
+    .progress-text {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+        text-align: center;
+    }
+</style>
+
+<div class="ticket-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1>🎫 Raise New Ticket</h1>
+            <p>Submit your issue or request to IT support</p>
+        </div>
+        <div style="font-size: 48px;">📝</div>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="alertSuccess" class="alert alert-success">
+        <strong>✓ Success!</strong> <span id="successMessage"></span>
+    </div>
+    <div id="alertError" class="alert alert-danger">
+        <strong>✗ Error!</strong> <span id="errorMessage"></span>
+    </div>
+
+    <!-- Ticket Form -->
+    <div class="form-card">
+        <form id="raiseTicketForm">
+            <!-- Project Selection -->
+            <div class="form-group">
+                <label class="form-label">
+                    Select Project <span class="required">*</span>
+                </label>
+                <select id="projectId" class="form-control" required>
+                    <option value="">-- Select Project --</option>
+                </select>
+            </div>
+
+            <!-- Ticket Title -->
+            <div class="form-group">
+                <label class="form-label">
+                    Ticket Title <span class="required">*</span>
+                </label>
+                <input type="text" id="title" class="form-control"
+                       placeholder="Brief description of your issue" required maxlength="500">
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="description" class="form-control"
+                          placeholder="Provide detailed information about your issue..."></textarea>
+            </div>
+
+            <!-- Priority -->
+            <div class="form-group">
+                <label class="form-label">
+                    Priority Level <span class="required">*</span>
+                </label>
+                <div class="priority-options">
+                    <div class="priority-option priority-low">
+                        <input type="radio" name="priority" id="priorityLow" value="Low">
+                        <label for="priorityLow">🟢 Low</label>
+                    </div>
+                    <div class="priority-option priority-medium">
+                        <input type="radio" name="priority" id="priorityMedium" value="Medium" checked>
+                        <label for="priorityMedium">🟡 Medium</label>
+                    </div>
+                    <div class="priority-option priority-high">
+                        <input type="radio" name="priority" id="priorityHigh" value="High">
+                        <label for="priorityHigh">🟠 High</label>
+                    </div>
+                    <div class="priority-option priority-critical">
+                        <input type="radio" name="priority" id="priorityCritical" value="Critical">
+                        <label for="priorityCritical">🔴 Critical</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Attachments -->
+            <div class="form-group">
+                <label class="form-label">Attachments</label>
+                <div class="file-upload-area" id="fileUploadArea">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag & drop files here or <span class="browse-text">browse</span></p>
+                    <p class="file-hint">Supported: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX (Max 10MB each)</p>
+                </div>
+                <input type="file" id="fileInput" class="file-input" multiple
+                       accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar">
+
+                <div class="file-list" id="fileList"></div>
+
+                <div class="upload-progress" id="uploadProgress">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="progressBarFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">Uploading files...</p>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="btn-container">
+                <button type="submit" id="submitBtn" class="btn btn-primary">
+                    Submit Ticket
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                    Clear Form
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Recent Tickets -->
+    <div class="recent-tickets">
+        <h3>📋 Your Recent Tickets</h3>
+        <div id="recentTicketsList">
+            <p style="text-align: center; color: #999;">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = '/api/Tickets';
+    const userId = sessionStorage.getItem("userId") || @ViewBag.UserId;
+    let selectedFiles = [];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProjects();
+        loadRecentTickets();
+        setupFileUpload();
+    });
+
+    // Setup File Upload
+    function setupFileUpload() {
+        const uploadArea = document.getElementById('fileUploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        // Click to browse
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+    }
+
+    // Handle Files
+    function handleFiles(files) {
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf',
+                              'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              'text/plain', 'application/zip', 'application/x-rar-compressed'];
+
+        for (let file of files) {
+            // Check size
+            if (file.size > maxSize) {
+                showAlert('error', `File "${file.name}" exceeds 10MB limit`);
+                continue;
+            }
+
+            // Check if already added
+            if (selectedFiles.some(f => f.name === file.name)) {
+                continue;
+            }
+
+            selectedFiles.push(file);
+        }
+
+        renderFileList();
+    }
+
+    // Render File List
+    function renderFileList() {
+        const fileList = document.getElementById('fileList');
+
+        if (selectedFiles.length === 0) {
+            fileList.innerHTML = '';
+            return;
+        }
+
+        fileList.innerHTML = selectedFiles.map((file, index) => `
+            <div class="file-item">
+                <div class="file-item-info">
+                    <i class="fas ${getFileIcon(file.name)}"></i>
+                    <div>
+                        <div class="file-item-name">${file.name}</div>
+                        <div class="file-item-size">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+                <button type="button" class="file-item-remove" onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    // Remove File
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        renderFileList();
+    }
+
+    // Get File Icon
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+            'pdf': 'fa-file-pdf',
+            'doc': 'fa-file-word',
+            'docx': 'fa-file-word',
+            'xls': 'fa-file-excel',
+            'xlsx': 'fa-file-excel',
+            'jpg': 'fa-file-image',
+            'jpeg': 'fa-file-image',
+            'png': 'fa-file-image',
+            'gif': 'fa-file-image',
+            'zip': 'fa-file-archive',
+            'rar': 'fa-file-archive',
+            'txt': 'fa-file-alt'
+        };
+        return icons[ext] || 'fa-file';
+    }
+
+    // Format File Size
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    // Load Projects
+    async function loadProjects() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/GetAllProjects`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ includeInactive: false })
+            });
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const select = document.getElementById('projectId');
+                result.data.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.projectId;
+                    option.textContent = project.projectName;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }
+
+    // Load Recent Tickets
+    async function loadRecentTickets() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/GetMyTickets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: parseInt(userId) })
+            });
+            const result = await response.json();
+
+            const container = document.getElementById('recentTicketsList');
+
+            if (result.success && result.data && result.data.length > 0) {
+                const recentTickets = result.data.slice(0, 5);
+                container.innerHTML = recentTickets.map(ticket => `
+                    <div class="ticket-item">
+                        <div class="ticket-info">
+                            <h4>#${ticket.ticketId} - ${escapeHtml(ticket.title)}</h4>
+                            <p>${ticket.projectName} • ${formatDate(ticket.createdOn)}</p>
+                        </div>
+                        <div>
+                            <span class="status-badge status-${ticket.status.toLowerCase()}">${ticket.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p style="text-align: center; color: #999;">🎫 No tickets raised yet</p>';
+            }
+        } catch (error) {
+            console.error('Error loading recent tickets:', error);
+        }
+    }
+
+    // Form Submit
+    document.getElementById('raiseTicketForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
+
+        const ticketData = {
+            projectId: parseInt(document.getElementById('projectId').value),
+            title: document.getElementById('title').value.trim(),
+            description: document.getElementById('description').value.trim(),
+            priority: document.querySelector('input[name="priority"]:checked').value,
+            fromUserId: parseInt(userId)
+        };
+
+        try {
+            // Step 1: Create Ticket
+            const response = await fetch(`${API_BASE_URL}/CreateTicket`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ticketData)
+            });
+            const result = await response.json();
+
+            if (result.success && result.ticketId) {
+                const ticketId = result.ticketId;
+
+                // Step 2: Upload Attachments (if any)
+                if (selectedFiles.length > 0) {
+                    await uploadAttachments(ticketId);
+                }
+
+                showAlert('success', `Ticket #${ticketId} created successfully!`);
+                resetForm();
+                loadRecentTickets();
+            } else {
+                showAlert('error', result.message || 'Failed to create ticket');
+            }
+        } catch (error) {
+            showAlert('error', 'Network error. Please try again.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Submit Ticket';
+        }
+    });
+
+    // Upload Attachments
+    async function uploadAttachments(ticketId) {
+        const progressDiv = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressBarFill');
+        const progressText = document.getElementById('progressText');
+
+        progressDiv.style.display = 'block';
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            progressText.textContent = `Uploading ${i + 1} of ${selectedFiles.length}: ${file.name}`;
+            progressBar.style.width = `${((i + 1) / selectedFiles.length) * 100}%`;
+
+            const formData = new FormData();
+            formData.append('ticketId', ticketId);
+            formData.append('userId', userId);
+            formData.append('file', file);
+
+            try {
+                await fetch(`${API_BASE_URL}/UploadAttachment`, {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (error) {
+                console.error('Error uploading file:', file.name, error);
+            }
+        }
+
+        progressDiv.style.display = 'none';
+    }
+
+    // Reset Form
+    function resetForm() {
+        document.getElementById('raiseTicketForm').reset();
+        selectedFiles = [];
+        renderFileList();
+        document.getElementById('fileInput').value = '';
+    }
+
+    // Show Alert
+    function showAlert(type, message) {
+        const alertSuccess = document.getElementById('alertSuccess');
+        const alertError = document.getElementById('alertError');
+
+        alertSuccess.style.display = 'none';
+        alertError.style.display = 'none';
+
+        if (type === 'success') {
+            document.getElementById('successMessage').textContent = message;
+            alertSuccess.style.display = 'block';
+        } else {
+            document.getElementById('errorMessage').textContent = message;
+            alertError.style.display = 'block';
+        }
+
+        setTimeout(() => {
+            alertSuccess.style.display = 'none';
+            alertError.style.display = 'none';
+        }, 5000);
+    }
+
+    // Format Date
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>

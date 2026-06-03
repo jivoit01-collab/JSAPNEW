@@ -1,0 +1,131 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<style>
+    .dashboard-container {
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 30px;
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, #0b2c4d 0%, #546b82 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+        .welcome-card h1 {
+            margin: 0 0 10px 0;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .welcome-card p {
+            margin: 0;
+            font-size: 18px;
+            opacity: 0.95;
+        }
+
+    .info-card {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .info-row {
+        display: flex;
+        padding: 15px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+    .info-label {
+        font-weight: 600;
+        color: #555;
+        width: 150px;
+        flex-shrink: 0;
+    }
+
+    .info-value {
+        color: #333;
+    }
+
+    .company-tag {
+        display: inline-block;
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 8px 16px;
+        border-radius: 20px;
+        margin: 5px 5px 5px 0;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 20px;
+        color: #999;
+        font-style: italic;
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Welcome Section -->
+    <div class="welcome-card">
+        <h1>👋 Welcome, <span id="welcomeUserName"></span>!</h1>
+        <p>Good to see you again</p>
+    </div>
+
+    <!-- User Information Card -->
+    <div class="info-card">
+        <div class="info-row">
+            <div class="info-label">User ID:</div>
+            <div class="info-value" id="userId"></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Username:</div>
+            <div class="info-value" id="userName"></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Companies:</div>
+            <div class="info-value" id="companyList"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load data from sessionStorage
+    const userId = sessionStorage.getItem("userId") || "N/A";
+    const userName = sessionStorage.getItem("userName") || "Guest";
+    const companies = JSON.parse(sessionStorage.getItem("companies") || "[]");
+
+    // Update welcome message
+    document.getElementById("welcomeUserName").textContent = userName;
+
+    // Update user info
+    document.getElementById("userId").textContent = userId;
+    document.getElementById("userName").textContent = userName;
+
+    // Update company list
+    const companyList = document.getElementById("companyList");
+    if (companies.length > 0) {
+        companies.forEach(c => {
+            const tag = document.createElement("span");
+            tag.className = "company-tag";
+            tag.textContent = c.company;
+            companyList.appendChild(tag);
+        });
+    } else {
+        companyList.innerHTML = '<span class="empty-state">No companies assigned</span>';
+    }
+</script>

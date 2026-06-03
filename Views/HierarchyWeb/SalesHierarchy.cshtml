@@ -88,6 +88,17 @@
     .name-code { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; white-space: normal; line-height: 1.25; }
     .name-code strong { color: var(--g1); font-weight: 600; }
     .name-code .mini-code { font-size: 11px; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+    .person-link { border: none; background: transparent; color: var(--g1); font: inherit; font-weight: 700; padding: 0; cursor: pointer; text-align: left; }
+    .person-link:hover { color: var(--g3); text-decoration: underline; }
+    .hier-row td { background: #f8fafc; font-weight: 700; color: var(--g1); }
+    .hier-row:hover td { background: #eef4fb; }
+    .hier-cell { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+    .hier-indent-1 { padding-left: 18px; }
+    .hier-indent-2 { padding-left: 36px; }
+    .hier-indent-3 { padding-left: 54px; }
+    .hier-indent-4 { padding-left: 72px; }
+    .hier-count { font-size: 10px; font-weight: 700; color: var(--muted); background: #e2e8f0; border-radius: 999px; padding: 2px 7px; }
+    .emp-hier-cell { padding-left: 92px; }
     .inline-edit { border: 1px solid var(--g3); border-radius: 4px; padding: 2px 6px; font-size: 12px; width: 100%; min-width: 60px; font-family: inherit; outline: none; background: #fff; }
 
     /* ── PAGINATION ── */
@@ -176,6 +187,10 @@
     .toast-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; }
     .toast-icon { font-size: 16px; }
     @@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+    .center-success { width: 360px; max-width: min(92vw, 360px); text-align: center; padding: 24px; gap: 14px; align-items: center; }
+    .center-success-icon { width: 48px; height: 48px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; }
+    .center-success h3 { font-size: 16px; color: var(--g1); }
+    .center-success p { font-size: 13px; color: var(--muted); line-height: 1.5; }
 
     /* Shift modal chain display */
     .chain-display { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
@@ -194,6 +209,14 @@
         <button type="button" onclick="document.getElementById('pageErrorBanner').style.display='none'" style="border:none;background:transparent;color:#9f1239;font-size:16px;cursor:pointer;line-height:1;">x</button>
     </div>
     <div id="pageErrorText" style="margin-top:6px;white-space:pre-wrap;"></div>
+</div>
+<div class="overlay" id="centerSuccessOverlay">
+    <div class="modal center-success">
+        <div class="center-success-icon">OK</div>
+        <h3 id="centerSuccessTitle">Success</h3>
+        <p id="centerSuccessText">Saved successfully.</p>
+        <button type="button" class="btn btn-primary" onclick="closeCenterSuccess()">OK</button>
+    </div>
 </div>
 
 <div class="page-root">
@@ -227,10 +250,6 @@
                 <button class="btn btn-ghost" onclick="openUploadModal()" title="Upload Excel">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     Upload Excel
-                </button>
-                <button class="btn btn-ghost" onclick="updateMissingCodes()" title="Update Missing Codes">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Fix Codes
                 </button>
                 <button class="btn btn-ghost" onclick="exportToExcel()" title="Export to Excel">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -353,11 +372,10 @@
                         <th class="col-sikhNonSikh" data-col="sikhNonSikh" onclick="sortBy('sikhNonSikh')">Sikh/Non-Sikh <span class="sort-icon">sort</span></th>
                         <th class="col-area" data-col="area" onclick="sortBy('area')">Area <span class="sort-icon">sort</span></th>
                         <th class="col-isActive" data-col="isActive">Status</th>
-                        <th style="width:90px; text-align:center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr class="loading-row"><td colspan="15"><span class="spinner"></span>Loading sales data…</td></tr>
+                    <tr class="loading-row"><td colspan="14"><span class="spinner"></span>Loading sales data…</td></tr>
                 </tbody>
             </table>
         </div>
@@ -390,6 +408,18 @@
                 <div class="form-group">
                     <label>Name</label>
                     <input type="text" id="edit_empName" placeholder="Employee full name" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Mobile</label>
+                    <input type="text" id="edit_mobile" placeholder="Mobile number" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="edit_email" placeholder="Email address" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Date of Joining</label>
+                    <input type="date" id="edit_dateOfJoining" />
                 </div>
                 <div class="form-group">
                     <label>State</label>
@@ -441,6 +471,22 @@
                         <span id="edit_activeLabel">Active</span>
                         <input type="hidden" id="edit_isActive" value="1" />
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>H1</label>
+                    <select id="edit_h1code"></select>
+                </div>
+                <div class="form-group">
+                    <label>H2</label>
+                    <select id="edit_h2code"></select>
+                </div>
+                <div class="form-group">
+                    <label>H3</label>
+                    <select id="edit_h3code"></select>
+                </div>
+                <div class="form-group">
+                    <label>H4</label>
+                    <select id="edit_h4code"></select>
                 </div>
             </div>
         </div>
@@ -712,7 +758,7 @@
      CREATE EMPLOYEE PANEL
 ════════════════════════════════════════ -->
 <div class="overlay" id="createEmpOverlay">
-    <div class="modal">
+    <div class="modal modal-lg">
         <div class="modal-hdr">
             <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">👤</div>
             <h3>Create New Employee</h3>
@@ -720,16 +766,88 @@
         </div>
         <div class="modal-body">
             <div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:var(--muted)">
-                Creates the employee record. Assign to a hierarchy using <strong>New Relation</strong>.
+                Creates the employee record with details. Leave H1-H4 blank to keep the employee unassigned.
             </div>
             <div class="edit-grid">
                 <div class="form-group">
                     <label>Emp Code *</label>
-                    <input type="text" id="newEmp_code" placeholder="e.g. EMP001" autocomplete="off" />
+                    <input type="text" id="newEmp_code" placeholder="e.g. JWPL0001" autocomplete="off" />
                 </div>
                 <div class="form-group">
                     <label>Full Name *</label>
                     <input type="text" id="newEmp_name" placeholder="Employee full name" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Mobile</label>
+                    <input type="text" id="newEmp_mobile" placeholder="Mobile number" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="newEmp_email" placeholder="Email address" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Date of Joining</label>
+                    <input type="date" id="newEmp_dateOfJoining" />
+                </div>
+                <div class="form-group">
+                    <label>State</label>
+                    <select id="newEmp_state"><option value="">— Select State —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Group</label>
+                    <select id="newEmp_groupName"><option value="">— Select Group —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Designation</label>
+                    <select id="newEmp_designation"><option value="">— Select Designation —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Qualification</label>
+                    <input type="text" id="newEmp_qualification" placeholder="Qualification" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select id="newEmp_gender">
+                        <option value="">— Select Gender —</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sikh/Non-Sikh</label>
+                    <select id="newEmp_sikhNonSikh">
+                        <option value="">— Select —</option>
+                        <option value="Sikh">Sikh</option>
+                        <option value="Non-Sikh">Non-Sikh</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Area</label>
+                    <input type="text" id="newEmp_area" placeholder="Area" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="newEmp_status">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>H1</label>
+                    <select id="newEmp_h1code"><option value="">— Select H1 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>H2</label>
+                    <select id="newEmp_h2code"><option value="">— Select H2 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>H3</label>
+                    <select id="newEmp_h3code"><option value="">— Select H3 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>H4</label>
+                    <select id="newEmp_h4code"><option value="">— Select H4 —</option></select>
                 </div>
             </div>
             <div id="createEmpMsg" style="margin-top:14px;display:none"></div>
@@ -930,6 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.overlay').forEach(el => document.body.appendChild(el));
     renderColManager();
     applyColumnVisibility();
+    applyExcelColumnOrder();
     hydrateInitialViewData();
     loadLookups().then(() => loadData(true));
     loadStats(true);
@@ -957,7 +1076,7 @@ async function loadData(skipIfSeeded = false) {
         populateFilterDropdowns();
     } catch(e) {
         showToast('Error loading data: ' + e.message, 'error');
-        document.getElementById('tableBody').innerHTML = '<tr><td colspan="15" style="text-align:center;padding:30px;color:var(--danger)">Failed to load data. Please refresh.</td></tr>';
+        document.getElementById('tableBody').innerHTML = '<tr><td colspan="14" style="text-align:center;padding:30px;color:var(--danger)">Failed to load data. Please refresh.</td></tr>';
     }
 }
 
@@ -1044,6 +1163,9 @@ function populateLookupSelects() {
     const nrState  = document.getElementById('newRel_state');
     const nrGroup  = document.getElementById('newRel_groupName');
     const nrDesig  = document.getElementById('newRel_designation');
+    const neState  = document.getElementById('newEmp_state');
+    const neGroup  = document.getElementById('newEmp_groupName');
+    const neDesig  = document.getElementById('newEmp_designation');
     const baState  = document.getElementById('bulk_state');
     const baGroup  = document.getElementById('bulk_groupName');
     const baDesig  = document.getElementById('bulk_designation');
@@ -1088,6 +1210,10 @@ function populateLookupSelects() {
         baDesig.insertAdjacentHTML('beforeend', opt);
     });
 
+    fillPlainSelectFromValues('newEmp_state', states, '-- Select State --');
+    fillPlainSelectFromValues('newEmp_groupName', groups, '-- Select Group --');
+    fillPlainSelectFromValues('newEmp_designation', designations, '-- Select Designation --');
+
     registerSearchableSelect('newRel_state', 'Select State', states.map(value => ({ value, label: value })));
     registerSearchableSelect('newRel_groupName', 'Select Group', groups.map(value => ({ value, label: value })));
 }
@@ -1127,11 +1253,19 @@ function buildModalOptions() {
     fillSelectOptions('shift_h2code', hierarchyOptions.h2, 'Select H2');
     fillSelectOptions('shift_h3code', hierarchyOptions.h3, 'Select H3');
     fillSelectOptions('shift_h4code', hierarchyOptions.h4, 'Select H4');
+    fillSelectOptions('edit_h1code', hierarchyOptions.h1, 'Select H1');
+    fillSelectOptions('edit_h2code', hierarchyOptions.h2, 'Select H2');
+    fillSelectOptions('edit_h3code', hierarchyOptions.h3, 'Select H3');
+    fillSelectOptions('edit_h4code', hierarchyOptions.h4, 'Select H4');
     // New relation panel
     fillSelectOptions('newRel_h1code', hierarchyOptions.h1, 'Select H1');
     fillSelectOptions('newRel_h2code', hierarchyOptions.h2, 'Select H2');
     fillSelectOptions('newRel_h3code', hierarchyOptions.h3, 'Select H3');
     fillSelectOptions('newRel_h4code', hierarchyOptions.h4, 'Select H4');
+    fillSelectOptions('newEmp_h1code', hierarchyOptions.h1, 'Select H1');
+    fillSelectOptions('newEmp_h2code', hierarchyOptions.h2, 'Select H2');
+    fillSelectOptions('newEmp_h3code', hierarchyOptions.h3, 'Select H3');
+    fillSelectOptions('newEmp_h4code', hierarchyOptions.h4, 'Select H4');
     buildEmployeeDatalist(); // merges allSalesEmployees with hierarchy-row employees
     // Bulk assign panel
     fillSelectOptions('bulk_h1code', hierarchyOptions.h1, 'Any H1');
@@ -1146,16 +1280,19 @@ function buildModalOptions() {
     const dataDesigs = getUniqueDataColumnValues('designation');
 
     fillPlainSelectFromValues('filterState',      dataStates, 'All States');
+    fillPlainSelectFromValues('newEmp_state',      dataStates, '-- Select State --');
     fillPlainSelectFromValues('edit_state',        dataStates, '— Select State —');
     fillPlainSelectFromValues('newRel_state',      dataStates, '— Select State —');
     fillPlainSelectFromValues('bulk_state',        dataStates, '— Keep existing —');
 
     fillPlainSelectFromValues('filterGroup',       dataGroups, 'All Groups');
+    fillPlainSelectFromValues('newEmp_groupName',  dataGroups, '-- Select Group --');
     fillPlainSelectFromValues('edit_groupName',    dataGroups, '— Select Group —');
     fillPlainSelectFromValues('newRel_groupName',  dataGroups, '— Select Group —');
     fillPlainSelectFromValues('bulk_groupName',    dataGroups, '— Keep existing —');
 
     fillPlainSelectFromValues('filterDesig',       dataDesigs, 'All Designations');
+    fillPlainSelectFromValues('newEmp_designation',dataDesigs, '-- Select Designation --');
     fillPlainSelectFromValues('edit_designation',  dataDesigs, '— Select Designation —');
     fillPlainSelectFromValues('newRel_designation',dataDesigs, '— Select Designation —');
     fillPlainSelectFromValues('bulk_designation',  dataDesigs, '— Keep existing —');
@@ -1380,7 +1517,7 @@ function sortBy(key) {
 // ═══════════════════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════════════════
-function renderPage() {
+function renderPageOld() {
     const fallback = document.getElementById('salesFallback');
     const main = document.getElementById('salesPageMain');
     if (main) main.style.display = '';
@@ -1391,7 +1528,7 @@ function renderPage() {
     const tbody = document.getElementById('tableBody');
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:40px;color:var(--muted)">No records found. Adjust filters or upload data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--muted)">No records found. Adjust filters or upload data.</td></tr>';
         renderPagination();
         return;
     }
@@ -1423,6 +1560,137 @@ function renderPage() {
     renderPagination();
 }
 
+function renderPage() {
+    const fallback = document.getElementById('salesFallback');
+    const main = document.getElementById('salesPageMain');
+    if (main) main.style.display = '';
+    if (fallback && filtered.length) fallback.style.display = 'none';
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page  = filtered.slice(start, start + PAGE_SIZE);
+    const tbody = document.getElementById('tableBody');
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--muted)">No records found. Adjust filters or upload data.</td></tr>';
+        renderPagination();
+        return;
+    }
+
+    tbody.innerHTML = page.map((r, i) => {
+        const rowNum = start + i + 1;
+        return `<tr data-id="${r.salesHierarchyId}">
+            <td style="color:var(--muted);font-size:11px">${rowNum}</td>
+            ${colCell('h1Name',     r, levelCell(r.h1Name, r.h1Code, 'lvl-h1'))}
+            ${colCell('h2Name',     r, levelCell(r.h2Name, r.h2Code, 'lvl-h2'))}
+            ${colCell('h3Name',     r, levelCell(r.h3Name, r.h3Code, 'lvl-h3'))}
+            ${colCell('h4Name',     r, levelCell(r.h4Name, r.h4Code, 'lvl-h4'))}
+            ${colCell('empName',    r, clickablePersonCell(r.empName, r.empCode, r.salesHierarchyId))}
+            ${colCell('state',      r, esc(r.state||'-'))}
+            ${colCell('groupName',  r, esc(r.groupName||'-'))}
+            ${colCell('designation',r, esc(r.designation||'-'))}
+            ${colCell('qualification', r, esc(r.qualification||'-'))}
+            ${colCell('gender',     r, esc(r.gender||'-'))}
+            ${colCell('sikhNonSikh',r, esc(formatSikhDisplay(r.sikhNonSikh)||'-'))}
+            ${colCell('area',       r, esc(r.area||'-'))}
+            ${colCell('isActive',   r, `<span class="badge ${r.isActive?'badge-active':'badge-inactive'}">${r.isActive?'Active':'Inactive'}</span>`)}
+        </tr>`;
+    }).join('');
+
+    renderPagination();
+}
+
+function renderHierarchyLevelRow(item) {
+    const depthKey = `h${item.depth}Name`;
+    const content = `
+        <div class="name-code" style="padding-left:${(item.depth - 1) * 18}px">
+            <span class="${esc(item.badge)}" style="display:inline-flex;margin-bottom:3px">${esc(item.label)}</span>
+            <strong style="display:block;color:var(--g1);font-size:12px">${esc(item.name || '-')}</strong>
+            <span class="mini-code">${esc(item.code || '')}</span>
+        </div>`;
+
+    return `<tr class="hierarchy-level-row" style="background:#f8fafc">
+        <td style="color:var(--muted);font-size:11px"></td>
+        ${colCell('h1Name', {}, depthKey === 'h1Name' ? content : '')}
+        ${colCell('h2Name', {}, depthKey === 'h2Name' ? content : '')}
+        ${colCell('h3Name', {}, depthKey === 'h3Name' ? content : '')}
+        ${colCell('h4Name', {}, depthKey === 'h4Name' ? content : '')}
+        ${colCell('empName', {}, `<span style="font-size:11px;color:var(--muted);font-weight:700">${item.count || 0} employee(s)</span>`)}
+        ${colCell('state', {}, '')}
+        ${colCell('groupName', {}, '')}
+        ${colCell('designation', {}, '')}
+        ${colCell('qualification', {}, '')}
+        ${colCell('gender', {}, '')}
+        ${colCell('sikhNonSikh', {}, '')}
+        ${colCell('area', {}, '')}
+        ${colCell('isActive', {}, '')}
+    </tr>`;
+}
+
+function renderHierarchyEmployeeRow(r, rowNum) {
+    const isUnassigned = isUnassignedSalesRow(r);
+    return `<tr data-id="${r.salesHierarchyId}">
+        <td style="color:var(--muted);font-size:11px">${rowNum}</td>
+        ${colCell('h1Name',     r, isUnassigned ? '<span class="mini-code">Unassigned</span>' : '')}
+        ${colCell('h2Name',     r, '')}
+        ${colCell('h3Name',     r, '')}
+        ${colCell('h4Name',     r, '')}
+        ${colCell('empName',    r, clickablePersonCell(r.empName, r.empCode, r.salesHierarchyId))}
+        ${colCell('state',      r, esc(r.state||'-'))}
+        ${colCell('groupName',  r, esc(r.groupName||'-'))}
+        ${colCell('designation',r, esc(r.designation||'-'))}
+        ${colCell('qualification', r, esc(r.qualification||'-'))}
+        ${colCell('gender',     r, esc(r.gender||'-'))}
+        ${colCell('sikhNonSikh',r, esc(formatSikhDisplay(r.sikhNonSikh)||'-'))}
+        ${colCell('area',       r, esc(r.area||'-'))}
+        ${colCell('isActive',   r, `<span class="badge ${r.isActive?'badge-active':'badge-inactive'}">${r.isActive?'Active':'Inactive'}</span>`)}
+    </tr>`;
+}
+
+function buildHierarchyRows(rows) {
+    const output = [];
+    const sortedRows = [...rows].sort((a, b) => {
+        const ak = [a.h1Name, a.h2Name, a.h3Name, a.h4Name, a.empName].join('|').toLowerCase();
+        const bk = [b.h1Name, b.h2Name, b.h3Name, b.h4Name, b.empName].join('|').toLowerCase();
+        return ak.localeCompare(bk);
+    });
+    const seen = { h1: new Set(), h2: new Set(), h3: new Set(), h4: new Set() };
+    let empIndex = 0;
+
+    const countFor = (nameField, codeField, name, code) =>
+        sortedRows.filter(r => (name && r[nameField] === name) || (code && r[codeField] === code)).length;
+
+    const addLevel = (key, depth, label, name, code, badge, countKey) => {
+        if (!(name || code) || seen[key].has(countKey)) return;
+        seen[key].add(countKey);
+        output.push({
+            type: 'level',
+            depth,
+            label,
+            name,
+            code,
+            badge,
+            count: countFor(`${key}Name`, `${key}Code`, name, code)
+        });
+    };
+
+    sortedRows.forEach(r => {
+        const h1Key = r.h1Code || r.h1Name || '';
+        const h2Key = `${h1Key}|${r.h2Code || r.h2Name || ''}`;
+        const h3Key = `${h2Key}|${r.h3Code || r.h3Name || ''}`;
+        const h4Key = `${h3Key}|${r.h4Code || r.h4Name || ''}`;
+
+        addLevel('h1', 1, 'H1', r.h1Name, r.h1Code, 'lvl-h1', h1Key);
+        addLevel('h2', 2, 'H2', r.h2Name, r.h2Code, 'lvl-h2', h2Key);
+        addLevel('h3', 3, 'H3', r.h3Name, r.h3Code, 'lvl-h3', h3Key);
+        addLevel('h4', 4, 'H4', r.h4Name, r.h4Code, 'lvl-h4', h4Key);
+
+        empIndex++;
+        output.push({ type: 'employee', index: empIndex, row: r });
+    });
+
+    return output;
+}
+
 function colCell(key, r, html) {
     const col = COLUMNS.find(c => c.key === key);
     if (!col || !col.visible) return '';
@@ -1442,7 +1710,7 @@ function levelCell(name, code, badgeClass) {
         </div>`;
 }
 
-function personCell(name, code) {
+function personCell(name, code, id) {
     const n = isDash(name) ? '' : name;
     const c = isDash(code) ? '' : code;
     return `
@@ -1450,6 +1718,21 @@ function personCell(name, code) {
             <strong>${esc(n || '—')}</strong>
             <span class="mini-code">${esc(c || '')}</span>
         </div>`;
+}
+
+function clickablePersonCell(name, code, id) {
+    const n = isDash(name) ? '' : name;
+    const c = isDash(code) ? '' : code;
+    return `
+        <div class="name-code">
+            <button type="button" class="person-link" onclick="openEditModal(${Number(id) || 0})">${esc(n || '-')}</button>
+            <span class="mini-code">${esc(c || '')}</span>
+        </div>`;
+}
+
+function renderHierarchySummary(rowCount) {
+    document.getElementById('pagInfo').textContent = `Showing hierarchy view for ${filtered.length} employees`;
+    document.getElementById('pagButtons').innerHTML = '';
 }
 
 function renderPagination() {
@@ -1486,7 +1769,7 @@ function paginationRange(current, total) {
 }
 
 function showTableLoading() {
-    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="15"><span class="spinner"></span>Loading sales data…</td></tr>';
+    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="14"><span class="spinner"></span>Loading sales data…</td></tr>';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1499,6 +1782,9 @@ function openEditModal(id) {
     document.getElementById('editEmpLabel').textContent = `${row.empName || '—'} (${row.empCode || 'no code'})`;
     document.getElementById('edit_empCode').value    = row.empCode    || '';
     document.getElementById('edit_empName').value    = row.empName    || '';
+    document.getElementById('edit_mobile').value     = row.mobile     || '';
+    document.getElementById('edit_email').value      = row.email      || '';
+    document.getElementById('edit_dateOfJoining').value = toDateInputValue(row.dateOfJoining);
     document.getElementById('edit_qualification').value = row.qualification || '';
     document.getElementById('edit_gender').value = row.gender || '';
     document.getElementById('edit_sikhNonSikh').value = normalizeSikhCode(row.sikhNonSikh);
@@ -1507,6 +1793,10 @@ function openEditModal(id) {
     setSelectVal('edit_state',       row.state);
     setSelectVal('edit_groupName',   row.groupName);
     setSelectVal('edit_designation', row.designation);
+    setSelectVal('edit_h1code', row.h1Code || row.h1Name);
+    setSelectVal('edit_h2code', row.h2Code || row.h2Name);
+    setSelectVal('edit_h3code', row.h3Code || row.h3Name);
+    setSelectVal('edit_h4code', row.h4Code || row.h4Name);
 
     const tog = document.getElementById('edit_activeToggle');
     const lbl = document.getElementById('edit_activeLabel');
@@ -1536,10 +1826,15 @@ async function saveEdit() {
     const btn = document.getElementById('btnSaveEdit');
     btn.disabled = true; btn.textContent = 'Saving…';
 
+    const row = allRows.find(r => r.salesHierarchyId === editRowId);
     const payload = {
         salesHierarchyId: editRowId,
+        personCode:  row?.empCode || null,
         empCode:     document.getElementById('edit_empCode').value.trim(),
         empName:     document.getElementById('edit_empName').value.trim(),
+        mobile:      document.getElementById('edit_mobile').value.trim(),
+        email:       document.getElementById('edit_email').value.trim(),
+        dateOfJoining: document.getElementById('edit_dateOfJoining').value || null,
         state:       document.getElementById('edit_state').value,
         groupName:   document.getElementById('edit_groupName').value,
         designation: document.getElementById('edit_designation').value,
@@ -1549,21 +1844,58 @@ async function saveEdit() {
         area:        document.getElementById('edit_area').value.trim(),
         isActive:    document.getElementById('edit_isActive').value === '1'
     };
+    const hierarchyPayload = {
+        salesHierarchyId: editRowId,
+        personCode: row?.empCode || null,
+        newH1Code: document.getElementById('edit_h1code').value.trim() || null,
+        newH1Name: getSelectedText('edit_h1code') || null,
+        newH2Code: document.getElementById('edit_h2code').value.trim() || null,
+        newH2Name: getSelectedText('edit_h2code') || null,
+        newH3Code: document.getElementById('edit_h3code').value.trim() || null,
+        newH3Name: getSelectedText('edit_h3code') || null,
+        newH4Code: document.getElementById('edit_h4code').value.trim() || null,
+        newH4Name: getSelectedText('edit_h4code') || null,
+        notes: 'Updated from employee popup'
+    };
+    const hierarchyChanged = row && (
+        (row.h1Code || null) !== hierarchyPayload.newH1Code ||
+        (row.h2Code || null) !== hierarchyPayload.newH2Code ||
+        (row.h3Code || null) !== hierarchyPayload.newH3Code ||
+        (row.h4Code || null) !== hierarchyPayload.newH4Code
+    );
 
     try {
         const res  = await fetchPost(API.updateRow, payload);
-        if (res.success) {
-            showToast('Row updated successfully', 'success');
-            const savedRowId = editRowId;
-            closeEditModal();
-            // Update in-place
-            const idx = allRows.findIndex(r => r.salesHierarchyId === savedRowId);
-            if (idx >= 0) Object.assign(allRows[idx], payload);
-            applyFilters();
-            loadStats();
-        } else {
+        if (!res.success) {
             showToast(res.message || 'Update failed', 'error');
+            return;
         }
+
+        if (hierarchyChanged) {
+            const shiftRes = await fetchPost(API.shiftEmp, hierarchyPayload);
+            if (!shiftRes.success) {
+                showToast(shiftRes.message || 'Hierarchy update failed', 'error');
+                return;
+            }
+        }
+
+        showCenterSuccess('Employee updated successfully');
+        const savedRowId = editRowId;
+        closeEditModal();
+        const idx = allRows.findIndex(r => r.salesHierarchyId === savedRowId);
+        if (idx >= 0) {
+            Object.assign(allRows[idx], payload);
+            if (hierarchyChanged) {
+                allRows[idx].h1Code = hierarchyPayload.newH1Code; allRows[idx].h1Name = hierarchyPayload.newH1Name;
+                allRows[idx].h2Code = hierarchyPayload.newH2Code; allRows[idx].h2Name = hierarchyPayload.newH2Name;
+                allRows[idx].h3Code = hierarchyPayload.newH3Code; allRows[idx].h3Name = hierarchyPayload.newH3Name;
+                allRows[idx].h4Code = hierarchyPayload.newH4Code; allRows[idx].h4Name = hierarchyPayload.newH4Name;
+            }
+        }
+        buildModalOptions();
+        applyFilters();
+        populateFilterDropdowns();
+        loadStats();
     } catch(e) { showToast('Error: ' + e.message, 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
 }
@@ -1628,6 +1960,7 @@ async function saveShift() {
 
     const payload = {
         salesHierarchyId: shiftRowId,
+        personCode: (allRows.find(r => r.salesHierarchyId === shiftRowId)?.empCode || null),
         newH1Code: document.getElementById('shift_h1code').value.trim() || null,
         newH1Name: document.getElementById('shift_h1name').value.trim() || null,
         newH2Code: document.getElementById('shift_h2code').value.trim() || null,
@@ -1707,6 +2040,7 @@ async function saveShift() {
 
     const payload = {
         salesHierarchyId: shiftRowId,
+        personCode: (allRows.find(r => r.salesHierarchyId === shiftRowId)?.empCode || null),
         newH1Code: document.getElementById('shift_h1code').value.trim() || null,
         newH1Name: getSelectedText('shift_h1code') || null,
         newH2Code: document.getElementById('shift_h2code').value.trim() || null,
@@ -2060,38 +2394,63 @@ function applyColumnVisibility() {
     });
 }
 
+function applyExcelColumnOrder() {
+    const headerRow = document.querySelector('#salesTable thead tr');
+    if (!headerRow) return;
+    const firstColumn = headerRow.querySelector('th:first-child');
+    if (!firstColumn) return;
+
+    const orderedHeaders = COLUMNS
+        .map(c => headerRow.querySelector(`th.col-${c.key}`))
+        .filter(Boolean);
+
+    headerRow.innerHTML = '';
+    headerRow.appendChild(firstColumn);
+    orderedHeaders.forEach(th => headerRow.appendChild(th));
+}
+
 // ═══════════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════════
 function exportToExcel() {
     if (!filtered.length) { showToast('No data to export', 'info'); return; }
 
-    const isBlankOrHyphen = v => isDash(v) || String(v).trim() === '';
+    const clean = v => (isDash(v) || String(v ?? '').trim() === '') ? '' : String(v).trim();
 
-    // Exclude rows where empName is blank or hyphen (unassigned employees)
-    const exportRows = filtered.filter(r => !isBlankOrHyphen(r.empName));
+    const exportRows = filtered.filter(r => clean(r.empCode) || clean(r.empName));
 
     if (!exportRows.length) { showToast('No valid records to export', 'info'); return; }
 
-    const visibleCols = COLUMNS.filter(c => c.visible);
-    const headers = ['#', ...visibleCols.map(c => c.label)];
-    const rows = exportRows.map((r, i) => {
-        const row = [i + 1];
-        visibleCols.forEach(c => {
-            let val = r[c.key];
-            if (c.key === 'isActive') val = val ? 'Active' : 'Inactive';
-            else if (c.key === 'dateOfJoining' && val) val = new Date(val).toLocaleDateString('en-IN');
-            else if (isBlankOrHyphen(val)) val = '';
-            row.push(val ?? '');
-        });
-        return row;
-    });
+    const headers = [
+        'Sr no.', 'Emp Code', 'Name', 'State', 'Designation', 'Group',
+        'EC H4', 'H4', 'EC H3', 'H3', 'EC H2', 'H2', 'EC H1', 'H1'
+    ];
+    const rows = exportRows.map((r, i) => [
+        i + 1,
+        clean(r.empCode),
+        clean(r.empName),
+        clean(r.state),
+        clean(r.designation),
+        clean(r.groupName),
+        clean(r.h4Code),
+        clean(r.h4Name),
+        clean(r.h3Code),
+        clean(r.h3Name),
+        clean(r.h2Code),
+        clean(r.h2Name),
+        clean(r.h1Code),
+        clean(r.h1Name)
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sales Hierarchy');
 
-    ws['!cols'] = Array(headers.length).fill({ wch: 18 });
+    ws['!cols'] = [
+        { wch: 8 }, { wch: 14 }, { wch: 24 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
+        { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 24 },
+        { wch: 14 }, { wch: 24 }
+    ];
 
     XLSX.writeFile(wb, `Sales_Hierarchy_${new Date().toISOString().split('T')[0]}.xlsx`);
     showToast(`Exported ${exportRows.length} record(s) successfully`, 'success');
@@ -2193,6 +2552,14 @@ function toTitleName(value) {
         .replace(/\s+/g, ' ')
         .toLowerCase()
         .replace(/\b([a-z])/g, ch => ch.toUpperCase());
+}
+
+function toDateInputValue(value) {
+    if (!value) return '';
+    const raw = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 }
 
 function normalizeUploadText(value, upper = false) {
@@ -2334,6 +2701,27 @@ function showToastPersistent(msg, type = 'info') {
 }
 
 showToast = showToastPersistent;
+
+function showCenterSuccess(message, title = 'Success') {
+    const overlay = document.getElementById('centerSuccessOverlay');
+    const titleEl = document.getElementById('centerSuccessTitle');
+    const textEl = document.getElementById('centerSuccessText');
+    if (!overlay || !titleEl || !textEl) {
+        showToast(message, 'success');
+        return;
+    }
+    titleEl.textContent = title;
+    textEl.textContent = message || 'Saved successfully.';
+    overlay.classList.add('open');
+    window.clearTimeout(showCenterSuccess.timer);
+    showCenterSuccess.timer = window.setTimeout(closeCenterSuccess, 2500);
+}
+
+function closeCenterSuccess() {
+    const overlay = document.getElementById('centerSuccessOverlay');
+    if (overlay) overlay.classList.remove('open');
+    window.clearTimeout(showCenterSuccess.timer);
+}
 
 window.addEventListener('error', function (event) {
     const message = `${event.message || 'Script error'}${event.filename ? `\n${event.filename}:${event.lineno || 0}` : ''}`;
@@ -2508,8 +2896,17 @@ async function saveBulkAssign() {
 // CREATE EMPLOYEE
 // ═══════════════════════════════════════════════════════════════
 function openCreateEmpModal() {
-    document.getElementById('newEmp_code').value = '';
-    document.getElementById('newEmp_name').value = '';
+    [
+        'newEmp_code', 'newEmp_name', 'newEmp_state', 'newEmp_groupName', 'newEmp_designation',
+        'newEmp_mobile', 'newEmp_email', 'newEmp_dateOfJoining',
+        'newEmp_qualification', 'newEmp_gender', 'newEmp_sikhNonSikh', 'newEmp_area',
+        'newEmp_h1code', 'newEmp_h2code', 'newEmp_h3code', 'newEmp_h4code'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const status = document.getElementById('newEmp_status');
+    if (status) status.value = '1';
     const msg = document.getElementById('createEmpMsg');
     msg.style.display = 'none'; msg.innerHTML = '';
     document.getElementById('btnSaveNewEmp').disabled = false;
@@ -2534,15 +2931,34 @@ async function saveNewEmployee() {
     btn.disabled = true; btn.textContent = 'Creating…';
 
     try {
-        const res = await fetchPost(API.createEmployee, { empCode: code, empName: name });
+        const payload = {
+            empCode: code,
+            empName: name,
+            mobile: document.getElementById('newEmp_mobile').value.trim(),
+            email: document.getElementById('newEmp_email').value.trim(),
+            dateOfJoining: document.getElementById('newEmp_dateOfJoining').value || null,
+            state: document.getElementById('newEmp_state').value,
+            groupName: document.getElementById('newEmp_groupName').value,
+            designation: document.getElementById('newEmp_designation').value,
+            qualification: document.getElementById('newEmp_qualification').value.trim(),
+            gender: document.getElementById('newEmp_gender').value,
+            sikhNonSikh: document.getElementById('newEmp_sikhNonSikh').value,
+            area: document.getElementById('newEmp_area').value.trim(),
+            isActive: document.getElementById('newEmp_status').value === '1',
+            h1Code: document.getElementById('newEmp_h1code').value.trim() || null,
+            h1Name: getSelectedText('newEmp_h1code') || null,
+            h2Code: document.getElementById('newEmp_h2code').value.trim() || null,
+            h2Name: getSelectedText('newEmp_h2code') || null,
+            h3Code: document.getElementById('newEmp_h3code').value.trim() || null,
+            h3Name: getSelectedText('newEmp_h3code') || null,
+            h4Code: document.getElementById('newEmp_h4code').value.trim() || null,
+            h4Name: getSelectedText('newEmp_h4code') || null
+        };
+        const res = await fetchPost(API.createEmployee, payload);
         if (res.success) {
-            showToast(`Employee "${name}" created`, 'success');
-            // Add new employee to the master list so it appears in the datalist immediately.
-            if (!allSalesEmployees.find(e => (e.employeeCode ?? e.EmployeeCode ?? '') === code)) {
-                allSalesEmployees.push({ employeeCode: code, employeeName: name });
-            }
-            buildEmployeeDatalist();
+            showCenterSuccess(res.message || `Employee "${name}" created`);
             closeCreateEmpModal();
+            await refreshData();
         } else {
             showInlineMsg(msg, '❌ ' + (res.message || 'Create failed'), 'error');
         }

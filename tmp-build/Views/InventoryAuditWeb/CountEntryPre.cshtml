@@ -1,0 +1,971 @@
+﻿@{
+    ViewData["Title"] = "Count Entry";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Audit - Count Entry</title>
+    <style>
+        :root {
+            --primary-color: #1e3a5f;
+            --primary-dark: #142839;
+            --accent-color: #5cb85c;
+            --light-bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --border-color: #dce4ec;
+            --text-primary: #060606;
+            --text-secondary: black;
+            --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--light-bg);
+            color: var(--text-primary);
+        }
+
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Info Cards */
+        .info-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .items-count-card {
+            background: var(--primary-color);
+            color: white;
+        }
+
+            .items-count-card .info-label {
+                color: rgba(255, 255, 255, 0.8);
+            }
+
+            .items-count-card .info-value {
+                color: white;
+                font-size: 1.5rem;
+            }
+
+        /* Count Parameters Section */
+        .parameters-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-select, .form-input {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            background: white;
+            transition: border-color 0.3s;
+            font-weight: 600;
+        }
+
+            .form-select:focus, .form-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+            }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237f8c8d' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2.5rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+            .form-select option:disabled {
+                color: var(--text-secondary);
+            }
+
+        /* Search Section */
+        .search-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: 1fr 200px auto;
+            gap: 1.5rem;
+            align-items: end;
+        }
+
+        .omni-search-wrapper {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            transition: border-color 0.3s;
+        }
+
+            .search-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+            }
+
+            .search-input::placeholder {
+                color: #a0aec0;
+                font-style: italic;
+            }
+
+        .omni-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            margin-top: -1px;
+        }
+
+            .omni-results.show {
+                display: block;
+            }
+
+        .omni-item {
+            padding: 0.875rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+            .omni-item:hover {
+                background: #f7fafc;
+            }
+
+            .omni-item:last-child {
+                border-bottom: none;
+            }
+
+        .omni-item-code {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 0.875rem;
+        }
+
+        .omni-item-name {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-top: 0.25rem;
+        }
+
+        .omni-item-details {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .quantity-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+            .quantity-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+            }
+
+        .btn-add {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+            .btn-add:hover {
+                background: #4cae4c;
+            }
+
+        /* Items Table Section */
+        .table-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 1rem 2rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .items-table thead {
+                background: var(--light-bg);
+            }
+
+            .items-table th {
+                padding: 1rem;
+                text-align: left;
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+            .items-table td {
+                padding: 1rem;
+                border-bottom: 1px solid var(--border-color);
+                font-size: 0.95rem;
+            }
+
+            .items-table tbody tr:hover {
+                background: var(--light-bg);
+            }
+
+        .item-code {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            display: block;
+            margin-top: 0.25rem;
+        }
+
+        .count-input {
+            width: 100px;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+            .count-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+            }
+
+        .btn-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+            .btn-remove:hover {
+                background: #c82333;
+            }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            opacity: 0.3;
+        }
+
+        .empty-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(30, 58, 95, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @@keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: white;
+            margin-top: 1rem;
+            font-size: 1rem;
+        }
+
+        /* Alert */
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @@keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Responsive */
+        @@media (max-width: 1200px) {
+            .info-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .info-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .search-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">Inventory Audit</h1>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Info Cards -->
+        <div class="info-cards">
+            <div class="info-card">
+                <div class="info-label">Current User</div>
+                <div class="info-value" id="currentUser">-</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">Lot Number</div>
+                <div class="info-value" id="lotNumber">-</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">Session Name</div>
+                <div class="info-value" id="sessionName">-</div>
+            </div>
+            <div class="info-card items-count-card">
+                <div class="info-label">Items in Table</div>
+                <div class="info-value"><span id="itemsCount">0</span> Items</div>
+            </div>
+        </div>
+
+        <!-- Count Parameters -->
+        <div class="parameters-section">
+            <h2 class="section-title">Count Parameters</h2>
+            <div class="parameters-grid">
+                <div class="form-group">
+                    <label class="form-label">Unit *</label>
+                    <select class="form-select" id="unitSelect" disabled>
+                        <option value="">Select unit...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Location *</label>
+                    <select class="form-select" id="locationSelect" disabled>
+                        <option value="">Select unit first...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Warehouse *</label>
+                    <select class="form-select" id="warehouseSelect" disabled>
+                        <option value="">Select location first...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Items Group *</label>
+                    <select class="form-select" id="itemGroupSelect" disabled>
+                        <option value="">Select item groups...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Items Sub Group *</label>
+                    <select class="form-select" id="subGroupSelect" disabled>
+                        <option value="">Select sub groups...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Add Section -->
+        <div class="search-section">
+            <div class="search-grid">
+                <div class="form-group">
+                    <label class="form-label">Search Item Code or Name</label>
+                    <div class="omni-search-wrapper">
+                        <input type="text" id="omniSearchInput" class="search-input" placeholder="Type item code or name...">
+                        <div id="omniResults" class="omni-results"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Physical Quantity</label>
+                    <input type="number" id="physicalQuantity" class="quantity-input" placeholder="0.00" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="opacity: 0;">Action</label>
+                    <button class="btn-add" onclick="addItemToTable()">
+                        <span>+</span>
+                        Add Item
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="table-section">
+            <div class="table-header">Items Table</div>
+            <div class="table-container">
+                <table class="items-table" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Warehouse</th>
+                            <th>Item Group</th>
+                            <th>Item Sub Group</th>
+                            <th>System Count</th>
+                            <th>Physical Count</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTableBody">
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <svg class="empty-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="20" y="30" width="60" height="50" rx="4" stroke="currentColor" stroke-width="3" />
+                                        <path d="M35 30V25C35 22 37 20 40 20H60C63 20 65 22 65 25V30" stroke="currentColor" stroke-width="3" />
+                                        <line x1="30" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="3" />
+                                        <line x1="30" y1="55" x2="70" y2="55" stroke="currentColor" stroke-width="3" />
+                                        <line x1="30" y1="65" x2="55" y2="65" stroke="currentColor" stroke-width="3" />
+                                    </svg>
+                                    <div class="empty-title">No items in table</div>
+                                    <div class="empty-text">Search for an item and enter quantity, then click "Add Item"</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let itemsData = [];
+        let addedItems = [];
+        let selectedItem = null;
+        let countParameters = {
+            locationCode: '',
+            unit: '',
+            warehouses: [],
+            itemGroupCodes: [],
+            subGroups: []
+        };
+
+        // Get URL parameters
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Initialize page
+        async function initializePage() {
+            const lotNumber = getUrlParameter('lotNumber');
+            const sessionId = getUrlParameter('sessionId');
+
+            if (!lotNumber) {
+                showAlert('Lot Number not provided', 'danger');
+                return;
+            }
+
+            showLoadingOverlay();
+
+            try {
+                await loadLotData(lotNumber, sessionId);
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showAlert('Failed to initialize page: ' + error.message, 'danger');
+            } finally {
+                hideLoadingOverlay();
+            }
+        }
+
+        // Load lot data
+        async function loadLotData(lotNumber, sessionId) {
+            try {
+                const response = await fetch(`/api/InventoryAudit/GetItemsUsingLotNumber?lotNumber=${lotNumber}`);
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    displayHeaderInfo(data.data, lotNumber, sessionId);
+                    setupCountParameters(data.data);
+                    await loadItemStockDetails();
+                } else {
+                    throw new Error(data.message || 'Failed to load lot data');
+                }
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Display header information
+        function displayHeaderInfo(data, lotNumber, sessionId) {
+            const header = data.headers && data.headers[0];
+            if (header) {
+                document.getElementById('currentUser').textContent = header.loginUser || '-';
+                document.getElementById('lotNumber').textContent = lotNumber;
+                document.getElementById('sessionName').textContent = sessionId || `Session-${lotNumber}`;
+            }
+        }
+
+        // Setup count parameters
+        function setupCountParameters(data) {
+            const header = data.headers && data.headers[0];
+            const items = data.items || [];
+
+            if (header) {
+                // Unit
+                const unit = header.unit || '';
+                if (unit) {
+                    const unitSelect = document.getElementById('unitSelect');
+                    unitSelect.innerHTML = `<option value="${unit}">${unit}</option>`;
+                    countParameters.unit = unit;
+                }
+
+                // Location
+                const location = header.location || '';
+                const locationCode = header.locationCode || '';
+                if (location && locationCode) {
+                     const locationSelect = document.getElementById('locationSelect');
+                     locationSelect.innerHTML = `<option value="${locationCode}">${location}</option>`;
+                     countParameters.locationCode = locationCode;
+                }
+
+            }
+
+            // Warehouses
+            const warehouses = data.warehouses || [];
+            if (warehouses.length > 0) {
+                const warehouseSelect = document.getElementById('warehouseSelect');
+                const warehouseNames = warehouses.map(w => w.warehouseName).filter(Boolean);
+                warehouseSelect.innerHTML = `<option value="">${warehouseNames.join(', ')}</option>`;
+                countParameters.warehouses = warehouseNames;
+            }
+
+            // Item Groups
+            const itemGroups = data.itemGroups || [];
+            if (itemGroups.length > 0) {
+                const itemGroupSelect = document.getElementById('itemGroupSelect');
+                const itemGroupCodes = [...new Set(items.map(item => item.ItemGroupCode).filter(Boolean))];
+                const groupNames = itemGroups.map(g => g.itemGroupName).filter(Boolean);
+                itemGroupSelect.innerHTML = `<option value="">${groupNames.join(', ')}</option>`;
+                countParameters.itemGroupCodes = itemGroupCodes;
+            }
+
+            // Sub Groups
+            const subGroups = data.itemSubGroups || [];
+            if (subGroups.length > 0) {
+                const subGroupSelect = document.getElementById('subGroupSelect');
+                const subGroupNames = subGroups.map(sg => sg.itemSubGroupName).filter(Boolean);
+                subGroupSelect.innerHTML = `<option value="">${subGroupNames.join(', ')}</option>`;
+                countParameters.subGroups = subGroupNames;
+            }
+        }
+
+        // Load item stock details
+        async function loadItemStockDetails() {
+            try {
+                const payload = {
+                    p_warehouses: countParameters.warehouses.join(','),
+                    p_units: countParameters.unit,
+                    p_itemGroups: countParameters.itemGroupCodes.join(','),
+                    p_subGroups: countParameters.subGroups.join(','),
+                    p_Locations: countParameters.locationCode.toString(),
+                    p_ItemCodes: "",
+                    company: 1
+                };
+
+                console.log('Loading items with payload:', payload);
+
+                const response = await fetch('/api/InventoryAudit/GetItemStockDetails', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    itemsData = data.data;
+                    console.log('Loaded items:', itemsData.length);
+                } else {
+                    throw new Error(data.message || 'Failed to load items');
+                }
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Omni search
+        document.getElementById('omniSearchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const resultsContainer = document.getElementById('omniResults');
+
+            if (searchTerm.length < 2) {
+                resultsContainer.classList.remove('show');
+                resultsContainer.innerHTML = '';
+                return;
+            }
+
+            const filteredItems = itemsData.filter(item =>
+                item.itemCode.toLowerCase().includes(searchTerm) ||
+                item.itemName.toLowerCase().includes(searchTerm)
+            );
+
+            if (filteredItems.length === 0) {
+                resultsContainer.innerHTML = '<div class="omni-item">No items found</div>';
+                resultsContainer.classList.add('show');
+                return;
+            }
+
+            resultsContainer.innerHTML = filteredItems.slice(0, 10).map(item => `
+                <div class="omni-item" onclick='selectItem(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+                    <div class="omni-item-code">${item.itemCode}</div>
+                    <div class="omni-item-name">${item.itemName}</div>
+                    <div class="omni-item-details">${item.warehouse} | ${item.itmsGrpNam || 'N/A'} | ${item.u_Sub_Group || 'N/A'}</div>
+                </div>
+            `).join('');
+
+            resultsContainer.classList.add('show');
+        });
+
+        // Close omni results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.omni-search-wrapper')) {
+                document.getElementById('omniResults').classList.remove('show');
+            }
+        });
+
+        // Select item
+        function selectItem(item) {
+            selectedItem = item;
+            document.getElementById('omniSearchInput').value = `${item.itemCode} - ${item.itemName}`;
+            document.getElementById('omniResults').classList.remove('show');
+            document.getElementById('physicalQuantity').focus();
+        }
+
+        // Add item to table
+        function addItemToTable() {
+            if (!selectedItem) {
+                showAlert('Please select an item first', 'danger');
+                return;
+            }
+
+            const physicalQuantity = document.getElementById('physicalQuantity').value;
+            if (!physicalQuantity || physicalQuantity < 0) {
+                showAlert('Please enter a valid physical quantity', 'danger');
+                return;
+            }
+
+            const existingIndex = addedItems.findIndex(item =>
+                item.itemCode === selectedItem.itemCode &&
+                item.warehouse === selectedItem.warehouse
+            );
+
+            if (existingIndex !== -1) {
+                addedItems[existingIndex].physicalCount = parseFloat(physicalQuantity);
+            } else {
+                addedItems.push({
+                    ...selectedItem,
+                    physicalCount: parseFloat(physicalQuantity)
+                });
+            }
+
+            renderItemsTable();
+            clearForm();
+            showAlert('Item added successfully', 'success');
+        }
+
+        // Render items table
+        function renderItemsTable() {
+            const tbody = document.getElementById('itemsTableBody');
+            document.getElementById('itemsCount').textContent = addedItems.length;
+
+            if (addedItems.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <svg class="empty-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="20" y="30" width="60" height="50" rx="4" stroke="currentColor" stroke-width="3"/>
+                                    <path d="M35 30V25C35 22 37 20 40 20H60C63 20 65 22 65 25V30" stroke="currentColor" stroke-width="3"/>
+                                    <line x1="30" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="3"/>
+                                    <line x1="30" y1="55" x2="70" y2="55" stroke="currentColor" stroke-width="3"/>
+                                    <line x1="30" y1="65" x2="55" y2="65" stroke="currentColor" stroke-width="3"/>
+                                </svg>
+                                <div class="empty-title">No items in table</div>
+                                <div class="empty-text">Search for an item and enter quantity, then click "Add Item"</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = addedItems.map((item, index) => `
+                <tr>
+                    <td>
+                        <strong>${item.itemName}</strong>
+                        <span class="item-code">${item.itemCode}</span>
+                    </td>
+                    <td>${item.warehouse}</td>
+                    <td>${item.itmsGrpNam || 'N/A'}</td>
+                    <td>${item.u_Sub_Group || 'N/A'}</td>
+                    <td>${parseFloat(item.onHand).toFixed(2)}</td>
+                    <td>
+                        <input type="number" class="count-input" value="${item.physicalCount}"
+                               onchange="updatePhysicalCount(${index}, this.value)"
+                               min="0" step="0.01">
+                    </td>
+                    <td>
+                        <button class="btn-remove" onclick="removeItem(${index})">Remove</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Update physical count
+        function updatePhysicalCount(index, value) {
+            if (value >= 0) {
+                addedItems[index].physicalCount = parseFloat(value);
+            }
+        }
+
+        // Remove item
+        function removeItem(index) {
+            addedItems.splice(index, 1);
+            renderItemsTable();
+            showAlert('Item removed', 'success');
+        }
+
+        // Clear form
+        function clearForm() {
+            document.getElementById('omniSearchInput').value = '';
+            document.getElementById('physicalQuantity').value = '';
+            selectedItem = null;
+        }
+
+        // Show/hide loading
+        function showLoadingOverlay() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoadingOverlay() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Show alert
+        function showAlert(message, type = 'success') {
+            const existingAlert = document.querySelector('.alert');
+            if (existingAlert) existingAlert.remove();
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => alertDiv.remove(), 3000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initializePage);
+    </script>
+</body>
+</html>
