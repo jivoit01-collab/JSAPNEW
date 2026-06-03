@@ -472,6 +472,11 @@ namespace JSAPNEW.Services.Implementation
             return bank == null ? string.Empty : FirstText(bank.BankName, bank.BankCode, bank.MgrBankCode);
         }
 
+        private static string ResolveBankVendorName(BPBankAccount? bank)
+        {
+            return bank == null ? string.Empty : FirstText(bank.VendorName);
+        }
+
         private static string ResolveBankCode(BPBankAccount? bank)
         {
             return bank == null ? string.Empty : FirstText(bank.BankCode, bank.MgrBankCode);
@@ -873,8 +878,9 @@ WHERE UserId = @UserId;";
                 new { Codes = codes })).ToList();
 
             var hasBankCode = await HasBpBankCodeColumnAsync(connection);
+            var vendorNameColumn = await GetBpBankVendorNameColumnAsync(connection);
             var bankRows = (await connection.QueryAsync<BpBankDetailRow>(
-                BuildBpBankDetailSql(hasBankCode, "code IN @Codes"),
+                BuildBpBankDetailSql(hasBankCode, vendorNameColumn, "code IN @Codes"),
                 new { Codes = codes })).ToList();
 
             var contactRows = (await connection.QueryAsync<BpContactDetailRow>(
@@ -1104,13 +1110,34 @@ WHERE object_id = OBJECT_ID(N'BP.jsBankDetails')
             return count > 0;
         }
 
-        private static string BuildBpBankDetailSql(bool hasBankCode, string whereClause)
+        private async Task<string> GetBpBankVendorNameColumnAsync(SqlConnection connection)
         {
+            const string sql = @"
+SELECT TOP 1 QUOTENAME(name)
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'BP.jsBankDetails')
+  AND LOWER(name) = N'vendorname'
+ORDER BY CASE WHEN name = N'VendorName' THEN 0 ELSE 1 END;";
+
+            return await connection.ExecuteScalarAsync<string>(sql) ?? string.Empty;
+        }
+
+        private static string BuildBpBankDetailSql(bool hasBankCode, string vendorNameColumn, string whereClause)
+        {
+            var hasVendorName = !string.IsNullOrWhiteSpace(vendorNameColumn);
+            var accountHolderColumn = hasVendorName ? vendorNameColumn : "name";
+            var bankNameProjection = hasBankCode
+                ? "BankCode AS bankName"
+                : hasVendorName
+                    ? "CAST(NULL AS NVARCHAR(100)) AS bankName"
+                    : "name AS bankName";
+
             return $@"
 SELECT
     code,
     {(hasBankCode ? "BankCode" : "CAST(NULL AS NVARCHAR(50)) AS BankCode")},
-    name AS bankName,
+    {bankNameProjection},
+    {accountHolderColumn} AS vendorName,
     branch AS branchName,
     accountNo AS accountNumber,
     ifscCode,
@@ -1156,8 +1183,9 @@ WHERE code = @Code
             if (bpCode <= 0 || !await HasBpBankCodeColumnAsync(connection))
                 return;
 
+            var vendorNameColumn = await GetBpBankVendorNameColumnAsync(connection);
             var rows = (await connection.QueryAsync<BpBankDetailRow>(
-                BuildBpBankDetailSql(hasBankCode: true, whereClause: "code = @Code"),
+                BuildBpBankDetailSql(true, vendorNameColumn, "code = @Code"),
                 new { Code = bpCode })).ToList();
 
             if (rows.Count > 0)
@@ -1238,7 +1266,7 @@ WHERE code = @Code
                     cmd.Parameters.AddWithValue("@msmeBType", (object?)model.MsmeBType ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstin", (object?)model.Gstin ?? DBNull.Value);
 
-                    cmd.Parameters.AddWithValue("@bankName", (object?)ResolveBankName(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@bankName", (object?)ResolveBankVendorName(primaryBank) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@branchName", (object?)ResolveBankBranch(primaryBank) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@accountNo", (object?)ResolveBankAccountNo(primaryBank) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ifscCode", (object?)ResolveBankIfsc(primaryBank) ?? DBNull.Value);
@@ -2769,7 +2797,7 @@ ORDER BY id DESC;";
                     cmd.Parameters.AddWithValue("@msmeBType", (object?)model.MsmeBType ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@gstin", (object?)model.Gstin ?? DBNull.Value);
 
-                    cmd.Parameters.AddWithValue("@bankName", (object?)ResolveBankName(primaryBank) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@bankName", (object?)ResolveBankVendorName(primaryBank) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@branchName", (object?)ResolveBankBranch(primaryBank) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@accountNo", (object?)ResolveBankAccountNo(primaryBank) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ifscCode", (object?)ResolveBankIfsc(primaryBank) ?? DBNull.Value);

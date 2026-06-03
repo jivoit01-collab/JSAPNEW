@@ -202,6 +202,7 @@ namespace JSAPNEW.Models
     public class BPBankAccount
     {
         public string BankName { get; set; } = string.Empty;
+        public string VendorName { get; set; } = string.Empty;
         public string BankCode { get; set; } = string.Empty;
         public string MgrBankCode { get; set; } = string.Empty;
         public string Branch { get; set; } = string.Empty;
@@ -373,6 +374,7 @@ namespace JSAPNEW.Models
     {
         public string BankCode { get; set; } = string.Empty;
         public string BankName { get; set; } = string.Empty;
+        public string VendorName { get; set; } = string.Empty;
         [JsonPropertyName("branch")]
         public string BranchName { get; set; } = string.Empty;
         [JsonPropertyName("accountNo")]

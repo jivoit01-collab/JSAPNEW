@@ -23,7 +23,7 @@ The working Node.js SAP portal is the source of truth for request JSON. New clie
 | Contact | `contactFirst`, `contactLast`, `contactTitle`, `mobile`, `email`, `contactEmail`, `altContact` |
 | Address | `sameAsBill`, `allBillAddresses[]`, `allShipAddresses[]`; address rows use `addrName`, `street`, `block`, `city`, `zip`, `state`, `country`, `gstin` |
 | Tax/MSME | `gstin`, `pan`, `tan`, `hasMsme`, `msmeNo`, `msmeType`, `msmeBType`, `fssaiNo` |
-| Vendor bank | `bankAccounts[]`; bank rows use `bankCode`, `bankName`, `branch`, `accNo`, `ifsc`, `swiftCode`, `accountType`, `isPrimary` |
+| Vendor bank | `bankAccounts[]`; bank rows use `bankCode`, `bankName`, `vendorName`, `branch`, `accNo`, `ifsc`, `swiftCode`, `accountType`, `isPrimary` |
 | Attachments | `multipart/form-data` files with aligned `fileTypes` |
 
 Retired request fields must not be used by new clients: `bpName`, `businessType`, nested `contact`, nested `tax`, nested `msme`, singular nested `bank`, `tax.msmeStatus`, `bankAccounts[].accountNo`, and `bankAccounts[].ifscCode`.
@@ -226,7 +226,8 @@ These fields match the working Node.js SAP portal manager approval fields. They 
 
 | Field Name | Required | Table | Column | API Field | Used In | Description |
 |---|---:|---|---|---|---|---|
-| Bank Name/Code | Vendor required | `BP.jsBankDetails` | `name` | `bankAccounts[].bankCode` / `bankAccounts[].bankName` | Details, SAP OCRB | Must resolve to SAP `ODSC.BankCode` |
+| Bank Name/Code | Vendor required | `BP.jsBankDetails` | `BankCode` | `bankAccounts[].bankCode` / `bankAccounts[].bankName` | Details, SAP OCRB | Must resolve to SAP `ODSC.BankCode` |
+| Vendor Bank Account Name | No | `BP.jsBankDetails` | `VendorName` | `bankAccounts[].vendorName` | Details, SAP OCRB | Posted to SAP bank account holder name `OCRB.AcctName` via Service Layer `AccountName`; this is not copied from `BP.jsMaster.name` |
 | Branch Name | No | `BP.jsBankDetails` | `branch` | `bankAccounts[].branch` | Details, SAP OCRB | Bank branch |
 | Account Number | Vendor required | `BP.jsBankDetails` | `accountNo` | `bankAccounts[].accNo` | Details, SAP OCRB | Bank account |
 | IFSC Code | Vendor required | `BP.jsBankDetails` | `ifscCode` | `bankAccounts[].ifsc` | Details, SAP OCRB | IFSC |
@@ -267,7 +268,7 @@ These fields are removed from active frontend and backend usage because they are
 | `contactUid` | `BP.jsContactPersons` | UID helper removed from UI | None |
 | `msmeBusinessType` | `BP.jsTaxDetails` | Old column name replaced by Node-compatible field name | `msmeBType` |
 | `countryID` | `BP.jsBankDetails` | Bank country not in new UI | None |
-| `acctName` | `BP.jsBankDetails` | Account holder not in new UI | `companyName` is used as SAP account name |
+| `acctName` | `BP.jsBankDetails` | Old column name retired | `vendorName` is used as SAP `OCRB.AcctName` |
 
 Removed helper routes:
 
@@ -600,7 +601,8 @@ BP.jsMaster.code
 | GSTIN | `gstin` | `BP.jsTaxDetails.gstin` | SAP address GSTIN fallback | Detail |
 | MSME | `msme` | `BP.jsTaxDetails.msmeNo` | SAP UDF | Detail |
 | FSSAI | `fssaiLicense` | `BP.jsTaxDetails.fssaiNo` | SAP UDF | Detail |
-| Bank Name/Code | `bankAccounts[].bankCode` / `bankAccounts[].bankName` | `BP.jsBankDetails.name` | SAP `OCRB.BankCode` after `ODSC` validation | Detail |
+| Bank Name/Code | `bankAccounts[].bankCode` / `bankAccounts[].bankName` | `BP.jsBankDetails.BankCode` | SAP `OCRB.BankCode` after `ODSC` validation | Detail |
+| Vendor Bank Account Name | `bankAccounts[].vendorName` | `BP.jsBankDetails.VendorName` | SAP `OCRB.AcctName` via Service Layer `AccountName` | Detail |
 | Branch Name | `bankAccounts[].branch` | `BP.jsBankDetails.branch` | SAP `OCRB.Branch` | Detail |
 | Account Number | `bankAccounts[].accNo` | `BP.jsBankDetails.accountNo` | SAP `OCRB.AccountNo` | Detail |
 | IFSC Code | `bankAccounts[].ifsc` | `BP.jsBankDetails.ifscCode` | SAP `BICSwiftCode`, `UserNo1` | Detail |
@@ -930,6 +932,7 @@ Vendor request example:
     {
       "bankCode": "HDFC",
       "bankName": "HDFC BANK",
+      "vendorName": "AKAL SUPPLIER BANK ACCOUNT",
       "branch": "Ludhiana",
       "accNo": "50100123456789",
       "ifsc": "HDFC0001234",
@@ -1457,7 +1460,7 @@ Required fields:
 | `pan` | Yes | Yes |
 | `currency` | Yes | Yes |
 | `allBillAddresses[]` | Yes | Yes |
-| `bankAccounts[].bankCode`, `bankAccounts[].accNo`, `bankAccounts[].ifsc` | No | Yes |
+| `bankAccounts[].bankCode`, `bankAccounts[].vendorName`, `bankAccounts[].accNo`, `bankAccounts[].ifsc` | No | Yes |
 | `isStaff` | Yes | Yes |
 
 ### Submit Flow

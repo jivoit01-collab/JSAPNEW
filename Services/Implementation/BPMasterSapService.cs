@@ -926,13 +926,14 @@ LIMIT 1";
                 }
 
                 var ifsc = (bank.IfscCode ?? string.Empty).Trim().ToUpperInvariant();
+                var accountName = (bank.VendorName ?? string.Empty).Trim();
                 var obj = new JObject
                 {
                     ["BankCode"] = bankCode.Trim().ToUpperInvariant(),
-                    ["AccountNo"] = bank.AccountNumber.Trim(),
-                    ["AccountName"] = Truncate(bp.Master.Name, 100)
+                    ["AccountNo"] = bank.AccountNumber.Trim()
                 };
 
+                AddIfNotBlank(obj, "AccountName", accountName, 100);
                 AddIfNotBlank(obj, "Branch", bank.BranchName, 50);
                 AddIfNotBlank(obj, "BICSwiftCode", ifsc, 50);
                 AddIfNotBlank(obj, "UserNo1", ifsc, 50);
