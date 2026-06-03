@@ -32,7 +32,7 @@ jobs:
         run: |
           Compress-Archive `
             -Path publish\* `
-            -DestinationPath publish.zip `
+            -DestinationPath JSAP.zip `
             -Force
 
       - name: Upload Package to Server
@@ -42,7 +42,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT }}
-          source: "publish.zip"
+          source: "JSAPNEW.zip"
           target: "C:/Temp"
 
       - name: Deploy to Server
