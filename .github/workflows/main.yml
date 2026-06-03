@@ -1,0 +1,117 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Main Branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ vars.DOTNET_VERSION }}
+
+      - name: Restore Packages
+        run: dotnet restore
+
+      - name: Build Project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish Project
+        run: dotnet publish --configuration Release --output publish
+
+      - name: Create Deployment ZIP
+        shell: powershell
+        run: |
+          Compress-Archive `
+            -Path publish\* `
+            -DestinationPath publish.zip `
+            -Force
+
+      - name: Upload Package to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT }}
+          source: "publish.zip"
+          target: "C:/Temp"
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            powershell -Command "
+
+            Import-Module WebAdministration
+
+            Write-Host 'Stopping IIS Website...'
+            Stop-Website -Name 'JSAP Test'
+
+            Write-Host 'Stopping Windows Service...'
+            Stop-Service -Name 'jsapnew' -Force
+
+            Start-Sleep -Seconds 10
+
+            Write-Host 'Creating Backup...'
+
+            \$BackupFolder = 'C:\Backup\JSAP_' + (Get-Date -Format 'yyyyMMdd_HHmmss')
+
+            New-Item -ItemType Directory `
+              -Path \$BackupFolder `
+              -Force
+
+            Copy-Item `
+              'C:\LiveProjects\JSAP\*' `
+              \$BackupFolder `
+              -Recurse `
+              -Force
+
+            Write-Host 'Cleaning Deployment Folder...'
+
+            Remove-Item `
+              'C:\LiveProjects\JSAP\*' `
+              -Recurse `
+              -Force
+
+            Write-Host 'Extracting New Build...'
+
+            if(Test-Path 'C:\Temp\Deploy')
+            {
+              Remove-Item `
+                'C:\Temp\Deploy' `
+                -Recurse `
+                -Force
+            }
+
+            Expand-Archive `
+              'C:\Temp\publish.zip' `
+              'C:\Temp\Deploy' `
+              -Force
+
+            Copy-Item `
+              'C:\Temp\Deploy\*' `
+              'C:\LiveProjects\JSAP' `
+              -Recurse `
+              -Force
+
+            Write-Host 'Starting IIS Website...'
+            Start-Website -Name 'JSAP Test'
+
+            Write-Host 'Starting Windows Service...'
+            Start-Service -Name 'jsapnew'
+
+            Write-Host 'Deployment Completed Successfully'
+            "
