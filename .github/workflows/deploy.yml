@@ -1,44 +1,70 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 jobs:
-  build-and-deploy:
-    runs-on: windows-latest
+build-and-deploy:
+runs-on: windows-latest
 
-    steps:
-      - name: Checkout Main Branch
-        uses: actions/checkout@v4
-        with:
-          ref: main
+```
+steps:
+  - name: Checkout Main Branch
+    uses: actions/checkout@v4
+    with:
+      ref: main
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ vars.DOTNET_VERSION }}
+  - name: Setup .NET
+    uses: actions/setup-dotnet@v4
+    with:
+      dotnet-version: ${{ vars.DOTNET_VERSION }}
 
-      - name: Find Project Files
-        shell: powershell
-        run: |
-          Get-ChildItem -Recurse -Filter *.csproj
+  - name: Find Project Files
+    shell: powershell
+    run: |
+      Write-Host "===== CSPROJ FILES ====="
+      Get-ChildItem -Recurse -Filter *.csproj
 
-      - name: Restore Packages
-        run: dotnet restore
+      Write-Host "===== SOLUTION FILES ====="
+      Get-ChildItem -Recurse -Filter *.sln
 
-      - name: Build Project
-        run: dotnet build --configuration Release
+      Write-Host "===== CURRENT DIRECTORY ====="
+      Get-Location
 
-      - name: Publish Project
-        run: dotnet publish --configuration Release --output JSAPNEW
+      Write-Host "===== REPOSITORY STRUCTURE ====="
+      Get-ChildItem -Recurse
 
-      - name: Verify Publish Output
-        shell: powershell
-        run: |
-          Test-Path JSAPNEW
-          Get-ChildItem -Path . -Recurse
+  - name: Restore Packages
+    run: dotnet restore
 
-      - name: Create Deployment ZIP
-        shell: powershell
-        run: |
-          Compress-Archive -Path ".\JSAPNEW\*" -DestinationPath "JSAPNEW.zip" -Force
+  - name: Build Project
+    run: dotnet build --configuration Release
+
+  - name: Publish Project
+    run: dotnet publish --configuration Release --output JSAPNEW
+
+  - name: Verify Publish
+    shell: powershell
+    run: |
+      Write-Host "Checking folders after publish"
+
+      Get-ChildItem
+
+      if(Test-Path "JSAPNEW")
+      {
+          Write-Host "JSAPNEW folder exists"
+          Get-ChildItem "JSAPNEW" -Recurse
+      }
+      else
+      {
+          Write-Host "JSAPNEW folder NOT FOUND"
+      }
+
+  - name: Create Deployment ZIP
+    shell: powershell
+    run: |
+      Compress-Archive `
+        -Path ".\JSAPNEW\*" `
+        -DestinationPath "JSAPNEW.zip" `
+        -Force
+```
