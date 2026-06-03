@@ -32,7 +32,7 @@ jobs:
         run: |
           Compress-Archive `
             -Path publish\* `
-            -DestinationPath JSAP.zip `
+            -DestinationPath JSAP `
             -Force
 
       - name: Upload Package to Server
