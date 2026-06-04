@@ -41,19 +41,7 @@ jobs:
           echo "VERIFY PUBLISH IS NOT EMPTY"
           test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
 
-      - name: Upload Publish Files To Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-          port: ${{ secrets.PORT }}
-          source: "./publish"
-          target: "C:/LiveProjects/JSAP Test"
-          strip_components: 1
-          overwrite: true
-
-      - name: Restart IIS and Windows Service
+      - name: Stop IIS Website and Windows Service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
@@ -64,15 +52,51 @@ jobs:
             powershell -Command "
             Import-Module WebAdministration
 
-            Write-Host 'Restarting IIS Website...'
+            Write-Host 'Stopping IIS Website...'
             Stop-Website -Name 'JSAP Test' -ErrorAction SilentlyContinue
+
+            Write-Host 'Stopping Windows Service...'
+            Stop-Service -Name 'jsapnew' -Force -ErrorAction SilentlyContinue
 
             Start-Sleep -Seconds 5
 
+            Write-Host 'Cleaning old publish files...'
+            if (Test-Path 'C:\LiveProjects\JSAP Test') {
+              Remove-Item 'C:\LiveProjects\JSAP Test\*' -Recurse -Force -ErrorAction SilentlyContinue
+            } else {
+              New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAP Test' -Force
+            }
+
+            Write-Host 'Server prepared for deployment'
+            "
+
+      - name: Upload Publish Files To Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          source: "./publish"
+          target: "C:/LiveProjects/JSAP Test"
+          strip_components: 1
+
+      - name: Start IIS Website and Windows Service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script: |
+            powershell -Command "
+            Import-Module WebAdministration
+
+            Write-Host 'Starting IIS Website...'
             Start-Website -Name 'JSAP Test'
 
-            Write-Host 'Restarting Windows Service...'
-            Restart-Service -Name 'jsapnew' -Force
+            Write-Host 'Starting Windows Service...'
+            Start-Service -Name 'jsapnew'
 
             Write-Host 'Deployment Completed Successfully'
             "
