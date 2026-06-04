@@ -19,13 +19,13 @@ jobs:
           dotnet-version: ${{ vars.DOTNET_VERSION }}
 
       - name: Restore Packages
-        run: dotnet restore
+        run: dotnet restore JSAPNEW.csproj
 
       - name: Build Project
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build JSAPNEW.csproj --configuration Release --no-restore
 
       - name: Publish Project
-        run: dotnet publish --configuration Release --output ./publish
+        run: dotnet publish JSAPNEW.csproj --configuration Release --output ./publish
 
       - name: Check Publish Output
         run: |
@@ -65,7 +65,7 @@ jobs:
             Import-Module WebAdministration
 
             Write-Host 'Restarting IIS Website...'
-            Stop-Website -Name 'JSAP Test'
+            Stop-Website -Name 'JSAP Test' -ErrorAction SilentlyContinue
 
             Start-Sleep -Seconds 5
 
