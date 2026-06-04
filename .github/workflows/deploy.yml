@@ -41,6 +41,18 @@ jobs:
           echo "VERIFY PUBLISH IS NOT EMPTY"
           test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
 
+      - name: Test SSH Connection
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          timeout: 60s
+          command_timeout: 2m
+          script: |
+            powershell -Command "Write-Host 'SSH connection successful'"
+
       - name: Stop IIS Website and Windows Service
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -48,6 +60,8 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
+          timeout: 60s
+          command_timeout: 10m
           script: |
             powershell -Command "
             Import-Module WebAdministration
@@ -66,6 +80,8 @@ jobs:
             } else {
               New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAPTestDeployTemp' -Force
             }
+
+            Write-Host 'Temporary deploy folder ready'
             "
 
       - name: Upload Publish Files To Temp Folder
@@ -75,6 +91,8 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
+          timeout: 60s
+          command_timeout: 10m
           source: "./publish"
           target: "C:/LiveProjects/JSAPTestDeployTemp"
           strip_components: 1
@@ -86,6 +104,8 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
+          timeout: 60s
+          command_timeout: 10m
           script: |
             powershell -Command "
             Import-Module WebAdministration
