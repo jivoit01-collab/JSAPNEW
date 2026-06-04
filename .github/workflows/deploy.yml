@@ -60,17 +60,15 @@ jobs:
 
             Start-Sleep -Seconds 5
 
-            Write-Host 'Cleaning old publish files...'
-            if (Test-Path 'C:\LiveProjects\JSAP Test') {
-              Remove-Item 'C:\LiveProjects\JSAP Test\*' -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host 'Preparing temporary deploy folder...'
+            if (Test-Path 'C:\LiveProjects\JSAPTestDeployTemp') {
+              Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue
             } else {
-              New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAP Test' -Force
+              New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAPTestDeployTemp' -Force
             }
-
-            Write-Host 'Server prepared for deployment'
             "
 
-      - name: Upload Publish Files To Server
+      - name: Upload Publish Files To Temp Folder
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
@@ -78,10 +76,10 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           source: "./publish"
-          target: "C:/LiveProjects/JSAP Test"
+          target: "C:/LiveProjects/JSAPTestDeployTemp"
           strip_components: 1
 
-      - name: Start IIS Website and Windows Service
+      - name: Move Files To Live Folder And Restart
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
@@ -91,6 +89,20 @@ jobs:
           script: |
             powershell -Command "
             Import-Module WebAdministration
+
+            Write-Host 'Preparing live folder...'
+            if (!(Test-Path 'C:\LiveProjects\JSAP Test')) {
+              New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAP Test' -Force
+            }
+
+            Write-Host 'Cleaning old live files...'
+            Remove-Item 'C:\LiveProjects\JSAP Test\*' -Recurse -Force -ErrorAction SilentlyContinue
+
+            Write-Host 'Copying new publish files...'
+            Copy-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' 'C:\LiveProjects\JSAP Test\' -Recurse -Force
+
+            Write-Host 'Cleaning temporary deploy folder...'
+            Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue
 
             Write-Host 'Starting IIS Website...'
             Start-Website -Name 'JSAP Test'
