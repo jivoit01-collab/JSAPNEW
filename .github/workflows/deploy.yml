@@ -25,7 +25,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Publish Project
-        run: dotnet publish --configuration Release --output publish
+        run: dotnet publish --configuration Release --output ./publish
 
       - name: Check Publish Output
         run: |
@@ -36,7 +36,10 @@ jobs:
           ls -la
 
           echo "PUBLISH FOLDER"
-          ls -la publish || true
+          ls -la ./publish
+
+          echo "VERIFY PUBLISH IS NOT EMPTY"
+          test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
 
       - name: Upload Publish Files To Server
         uses: appleboy/scp-action@v0.1.7
@@ -45,8 +48,10 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT }}
-          source: "publish/*"
-          target: "C:/LiveProjects/JSAPTest"
+          source: "./publish"
+          target: "C:/LiveProjects/JSAP Test"
+          strip_components: 1
+          overwrite: true
 
       - name: Restart IIS and Windows Service
         uses: appleboy/ssh-action@v1.0.3
@@ -60,7 +65,6 @@ jobs:
             Import-Module WebAdministration
 
             Write-Host 'Restarting IIS Website...'
-
             Stop-Website -Name 'JSAP Test'
 
             Start-Sleep -Seconds 5
@@ -68,7 +72,6 @@ jobs:
             Start-Website -Name 'JSAP Test'
 
             Write-Host 'Restarting Windows Service...'
-
             Restart-Service -Name 'jsapnew' -Force
 
             Write-Host 'Deployment Completed Successfully'
