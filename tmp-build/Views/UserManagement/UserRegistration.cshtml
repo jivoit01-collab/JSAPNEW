@@ -1,0 +1,619 @@
+﻿@model List<JSAPNEW.Models.UserRegistrationDTO>
+
+@{
+    ViewData["Title"] = "User Registration";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* Overall theme colors */
+    :root {
+        --primary: #2c3e50;
+        --primary-light: #34495e;
+        --accent: #3498db;
+        --text-dark: #2c3e50;
+        --text-light: #7f8c8d;
+        --bg-light: #f9fafb;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+    }
+
+    body {
+        background-color: #f5f7fa;
+    }
+
+    /* Card styling */
+    .registration-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+        .registration-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: white;
+        padding: 1.5rem 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .card-header h4 {
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        .card-header::before {
+            content: "";
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -75px;
+            right: -75px;
+        }
+
+        .card-header::after {
+            content: "";
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            bottom: -50px;
+            left: -50px;
+        }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    /* Form controls styling */
+    .form-label {
+        font-weight: 500;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        border: 1px solid #e2e8f0;
+        background-color: #fff;
+        transition: all 0.3s ease;
+    }
+
+        .form-control:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+        }
+
+        .form-control.is-invalid {
+            border-color: var(--danger);
+            box-shadow: none;
+        }
+
+        .form-control.is-valid {
+            border-color: var(--success);
+        }
+
+    /* Section headings */
+    .section-heading {
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #edf2f7;
+        position: relative;
+    }
+
+        .section-heading::after {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background: var(--accent);
+        }
+
+    /* Password field styling */
+    .password-container {
+        position: relative;
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 70%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: var(--text-light);
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+
+        .password-toggle:hover {
+            color: var(--accent);
+        }
+
+    /* Button styling */
+    .custom-btn {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        border: none;
+        color: white;
+        border-radius: 30px;
+        padding: 0.8rem 2.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2);
+        position: relative;
+        overflow: hidden;
+        font-size: 1rem;
+    }
+
+        .custom-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(44, 62, 80, 0.3);
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+        }
+
+        .custom-btn:active {
+            transform: translateY(0);
+        }
+
+        .custom-btn::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: scale(0);
+            transition: transform 0.5s ease-out;
+            pointer-events: none;
+        }
+
+        .custom-btn:active::after {
+            transform: scale(35);
+            opacity: 0;
+        }
+
+    /* Validation styling */
+    .invalid-feedback {
+        display: block;
+        font-size: 0.85rem;
+        margin-top: 0.35rem;
+        color: var(--danger);
+    }
+
+    /* Select2 custom styling */
+    .select2-container--default .select2-selection--multiple {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        min-height: 45px;
+        padding: 5px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: var(--accent);
+        color: black;
+        border: none;
+        border-radius: 20px;
+        padding: 3px 10px;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: black;
+        margin-right: 5px;
+    }
+
+    /* Alerts */
+    .alert {
+        border-radius: 10px;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    /* Separator */
+    .form-separator {
+        margin: 2rem 0;
+        position: relative;
+        height: 1px;
+        background-color: #edf2f7;
+    }
+
+    /* Simple transition for feedback messages instead of keyframes */
+    .alert, .invalid-feedback {
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        opacity: 1;
+    }
+
+    /* Floating labels effect */
+    .form-floating {
+        position: relative;
+    }
+
+        .form-floating > .form-control {
+            padding-top: 1.625rem;
+            padding-bottom: 0.625rem;
+        }
+
+        .form-floating > label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            padding: 1rem 0.75rem;
+            pointer-events: none;
+            border: 1px solid transparent;
+            transform-origin: 0 0;
+            transition: opacity .1s ease-in-out, transform .1s ease-in-out;
+            color: var(--text-light);
+        }
+
+        .form-floating > .form-control:focus ~ label,
+        .form-floating > .form-control:not(:placeholder-shown) ~ label {
+            transform: scale(.85) translateY(-0.5rem) translateX(0.15rem);
+            color: var(--accent);
+        }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="registration-card card shadow">
+                <div class="card-header text-center">
+                    <h4 class="mb-0">User Registration</h4>
+                </div>
+                <div class="card-body">
+                    <form id="userRegistrationForm">
+                        <input type="hidden" name="createdBy" value="@ViewBag.UserId" />
+
+                        <h5 class="section-heading">Personal Information</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="firstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="firstName" name="firstName" autocomplete="off" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="lastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="lastName" name="lastName" autocomplete="off" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phoneNumber" class="form-label">Phone Number</label>
+                                    <input type="text" class="form-control" id="phoneNumber" name="userPhoneNumber" autocomplete="off" required maxlength="10">
+                                    <div class="invalid-feedback" id="phoneNumberFeedback" style="display: none;">
+                                        Phone number must be exactly 10 digits.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="email" name="userEmail" autocomplete="off" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h5 class="section-heading">Account Credentials</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="loginUser" autocomplete="off" required>
+                                </div>
+                                <p id="resultMessage" style="margin-top:10px; font-weight:bold;"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 password-container">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="password" name="password" autocomplete="off" required>
+                                    <span class="password-toggle" id="togglePassword">
+                                        <i class="fa fa-eye"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-separator"></div>
+
+                        <h5 class="section-heading">Employment Details</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="empId" class="form-label">JWPL Code (Employee ID)</label>
+                                    <input type="text" class="form-control" id="empId" name="empId" autocomplete="off" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="doj" class="form-label">Date of Joining</label>
+                                    <input type="date" class="form-control" id="doj" name="doj" autocomplete="off" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-4">
+                                <label for="deptSelect" class="form-label">Department</label>
+                                <select class="form-select" id="deptSelect" name="deptIds" multiple="multiple" autocomplete="off" required style="width: 100%;">
+                                    <!-- Departments loaded via JS -->
+                                </select>
+                                <div id="deptSelectFeedback" class="invalid-feedback" style="display: none;">
+                                    Please select at least one department
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="userId" name="createdBy" value="@ViewBag.UserId" />
+                        <input type="hidden" id="companyId" name="company" value="@ViewBag.CompanyId" />
+
+                        <div class="text-center mt-4">
+                            <button type="submit" class="custom-btn">
+                                <i class="fa fa-user-plus me-2"></i>Register
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="message" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Include Select2 CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        let debounceTimeout;
+
+              document.getElementById("username").addEventListener("input", function () {
+            clearTimeout(debounceTimeout);
+            const username = this.value;
+
+            if (username.trim().length === 0) {
+                document.getElementById("resultMessage").textContent = "";
+                return;
+            }
+
+            debounceTimeout = setTimeout(() => {
+                fetch('/api/auth/validateUsername?userName='+username, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                   
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error("HTTP error " + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    const messageEl = document.getElementById("resultMessage");
+                    messageEl.style.color = data.success ? "green" : "red";
+                    messageEl.textContent = data.message;
+                })
+                .catch(error => {
+                    const messageEl = document.getElementById("resultMessage");
+                    messageEl.style.color = "red";
+                    messageEl.textContent = "Error validating username: " + error.message;
+                    console.error(error);
+                });
+            }, 500);
+        });
+
+    </script>
+
+    <script>
+        // Load departments & initialize Select2
+        window.addEventListener("DOMContentLoaded", async () => {
+            const $deptSelect = $('#deptSelect');
+            var company = $('#companyId').val();
+
+            try {
+                const response = await fetch("/api/auth/getdepartments?company"+ company);
+                const result = await response.json();
+
+                if (result.success) {
+                    result.data.forEach(dept => {
+                        const option = new Option(dept.deptName, dept.deptId, false, false);
+                        $deptSelect.append(option);
+                    });
+                } else {
+                    $deptSelect.append(new Option("Failed to load departments", "", false, false));
+                }
+
+                $deptSelect.select2({
+                    placeholder: "Select Departments",
+                    allowClear: true,
+                    width: 'resolve',
+                    theme: 'default'
+                });
+
+            } catch (error) {
+                console.error("Error loading departments:", error);
+                $deptSelect.append(new Option("Error loading departments", "", false, false));
+            }
+
+            // Password visibility toggle
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordField = document.getElementById('password');
+
+            togglePassword.addEventListener('click', function () {
+                const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordField.setAttribute('type', type);
+
+                // Toggle eye / eye-slash icon
+                this.querySelector('i').classList.toggle('fa-eye');
+                this.querySelector('i').classList.toggle('fa-eye-slash');
+            });
+
+            // Phone number validation
+            const phoneInput = document.getElementById('phoneNumber');
+            const phoneFeedback = document.getElementById('phoneNumberFeedback');
+
+            phoneInput.addEventListener('input', function(e) {
+                // Remove any non-numeric characters
+                this.value = this.value.replace(/\D/g, '');
+
+                // Check length and show/hide feedback
+                if (this.value.length !== 0 && this.value.length !== 10) {
+                    this.classList.add('is-invalid');
+                    this.classList.remove('is-valid');
+                    phoneFeedback.style.display = 'block';
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                    phoneFeedback.style.display = 'none';
+                }
+            });
+
+            // Animation for displaying messages
+            function showMessage(element, message, type) {
+                element.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+                element.style.display = 'block';
+
+                // Scroll to message
+                element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+
+        // Add validation for department select
+        function validateDepartmentSelect(isEmpty) {
+            const select = document.getElementById('deptSelect');
+            const feedback = document.getElementById('deptSelectFeedback');
+
+            if (isEmpty) {
+                select.classList.add('is-invalid');
+                select.classList.remove('is-valid');
+                feedback.style.display = 'block';
+                return false;
+            } else {
+                select.classList.add('is-valid');
+                select.classList.remove('is-invalid');
+                feedback.style.display = 'none';
+                return true;
+            }
+        }
+
+        // Submit handler with loading indicator
+        document.getElementById("userRegistrationForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            // Validate phone number before submission
+            const phoneInput = document.getElementById('phoneNumber');
+            if (phoneInput.value.length !== 10) {
+                phoneInput.classList.add('is-invalid');
+                document.getElementById('phoneNumberFeedback').style.display = 'block';
+                return false; // Prevent form submission
+            }
+
+            // Validate department selection
+            const selectedDepts = $('#deptSelect').val();
+            if (!selectedDepts || selectedDepts.length === 0) {
+                validateDepartmentSelect(true);
+                return false; // Prevent form submission
+            }
+
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Processing...';
+
+            const formData = new FormData(form);
+            const jsonData = {};
+
+            const deptIdsValue = selectedDepts.join(',') || "";
+
+            formData.forEach((value, key) => {
+                if (key !== "deptIds") {
+                    jsonData[key] = value;
+                }
+            });
+
+            jsonData["deptIds"] = deptIdsValue;
+
+            try {
+                const response = await fetch('/api/Auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const result = await response.json();
+                const msgDiv = document.getElementById("message");
+
+                if (result.success) {
+                    msgDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fa fa-check-circle me-2"></i>${result.message}
+                        </div>`;
+                    form.reset();
+                    $('#deptSelect').val(null).trigger('change');
+
+                    // Reset validation states
+                    form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid'));
+                    //setTimeout(() => {
+                    //    window.location.href = '/UserManagment/UserPermission'; // Adjust this URL to your actual user permissions page path
+                    //}, 2000);
+                } else {
+                    msgDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fa fa-exclamation-circle me-2"></i>${result.message}
+                        </div>`;
+                }
+
+                // Scroll to message
+                msgDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (error) {
+                console.error("Submission Error:", error);
+                document.getElementById("message").innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fa fa-times-circle me-2"></i>Something went wrong. Please try again later.
+                    </div>`;
+            } finally {
+                // Restore button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        });
+    </script>
+}

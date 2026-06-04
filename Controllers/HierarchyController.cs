@@ -962,6 +962,22 @@ WHERE EmployeeCode = @EmployeeCode",
             catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
         }
 
+        [HttpPost("SyncSubHODSubDepartments")]
+        public async Task<IActionResult> SyncSubHODSubDepartments([FromBody] SyncSubHodSubDepartmentsRequest request)
+        {
+            try
+            {
+                if (!IsUserLoggedIn()) return Ok(new { Success = false, Message = "Not logged in" });
+                if (!await HasHierarchyMasterPermissionAsync(GetUserId()!.Value)) return Ok(new { Success = false, Message = "Admin only" });
+                if (!ModelState.IsValid)
+                    return Ok(new { Success = false, Message = "Validation failed", Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
+
+                var result = await _hierarchyService.SyncSubHodSubDepartmentsAsync(request, GetUserId() ?? 0);
+                return Ok(new { Success = result.Success, Message = result.Message });
+            }
+            catch (Exception ex) { return Ok(new { Success = false, Message = ex.Message }); }
+        }
+
         [HttpPost("GetDepartmentChangeImpact")]
         public async Task<IActionResult> GetDepartmentChangeImpact([FromBody] DepartmentChangeImpactRequest request)
         {
@@ -1481,7 +1497,16 @@ WHERE EmployeeCode = @EmployeeCode",
 
             var sessionJson = HttpContext.Session.GetString(SalarySessionKey);
             if (string.IsNullOrEmpty(sessionJson))
-                return Ok(new { Success = false, Message = "No active salary session" });
+                return Ok(new
+                {
+                    Success = true,
+                    Active = false,
+                    Salaries = new Dictionary<string, decimal>(),
+                    Records = new List<Dictionary<string, object>>(),
+                    RecordsByAction = new Dictionary<string, List<Dictionary<string, object>>>(),
+                    Count = 0,
+                    Message = "No active salary session"
+                });
 
             try
             {
@@ -1492,7 +1517,17 @@ WHERE EmployeeCode = @EmployeeCode",
                 if (DateTime.UtcNow > expiresAt)
                 {
                     HttpContext.Session.Remove(SalarySessionKey);
-                    return Ok(new { Success = false, Message = "Salary session expired", Expired = true });
+                    return Ok(new
+                    {
+                        Success = true,
+                        Active = false,
+                        Expired = true,
+                        Salaries = new Dictionary<string, decimal>(),
+                        Records = new List<Dictionary<string, object>>(),
+                        RecordsByAction = new Dictionary<string, List<Dictionary<string, object>>>(),
+                        Count = 0,
+                        Message = "Salary session expired"
+                    });
                 }
 
                 var salariesEl  = root.GetProperty("Salaries");

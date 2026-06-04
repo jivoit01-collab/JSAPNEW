@@ -1,0 +1,326 @@
+﻿@{
+    ViewData["Title"] = "Minutes of Meeting Dashboard";
+}
+
+<!-- CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+<style>
+    :root {
+        --primary-color: #0b2c4d;
+        --primary-light: #1a4570;
+        --primary-dark: #051829;
+        --light-bg: #f8f9fa;
+    }
+
+    body {
+        background-color: var(--light-bg);
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 3px 5px rgba(0,0,0,.1);
+    }
+
+    .table-container {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 3px 5px rgba(0,0,0,.1);
+    }
+
+    .badge-status {
+        padding: 5px 12px;
+        border-radius: 20px;
+    }
+
+    .badge-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-progress {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .badge-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+</style>
+
+<div class="container-fluid mt-4">
+
+    <!-- Header -->
+    <div class="dashboard-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2>Minutes of Meeting Dashboard</h2>
+            <p>Manage and track all meeting records</p>
+        </div>
+
+        <button class="btn btn-light fw-bold" data-bs-toggle="modal" data-bs-target="#addMomModal">
+            <i class="bi bi-plus-circle"></i> Add New MoM
+        </button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+        <div class="d-flex justify-content-between mb-3">
+            <h4>Meeting Minutes List</h4>
+            <input type="text" class="form-control" id="searchBox" placeholder="Search..." style="max-width:250px;">
+        </div>
+
+        <div id="loadingSpinner" class="text-center py-4" style="display:none;">
+            <div class="spinner-border text-primary"></div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-primary">
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Attendees</th>
+                        <th>Agenda</th>
+                        <th>Notes</th>
+                        <th>Status</th>
+                        <th>Created On</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="momTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add MoM Modal -->
+<div class="modal fade" id="addMomModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5>Add New MoM</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <form id="addMomForm">
+                    <div class="mb-3">
+                        <label>Meeting Date</label>
+                        <input type="date" id="meetingDate" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Attendees</label>
+                        <textarea id="attendees" class="form-control" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Agenda</label>
+                        <textarea id="agenda" class="form-control" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Notes</label>
+                        <textarea id="notes" class="form-control" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Status</label>
+                        <select id="status" class="form-select">
+                            <option>Pending</option>
+                            <option>In Progress</option>
+                            <option>Completed</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" onclick="addMomPoint()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal fade" id="updateStatusModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5>Update Status</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="updateMomId">
+
+                <label>New Status</label>
+                <select id="updateStatus" class="form-select">
+                    <option>Pending</option>
+                    <option>In Progress</option>
+                    <option>Completed</option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="updateMomStatus()">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+
+    let allMoms = [];
+
+    // Load all MoMs
+    $(document).ready(function () {
+        loadAllMoMs();
+
+        $("#searchBox").keyup(function () {
+            filterMoms($(this).val());
+        });
+    });
+
+    // FETCH ALL MOM RECORDS (GET)
+    function loadAllMoMs() {
+
+        $("#loadingSpinner").show();
+
+        $.ajax({
+            url: "/api/Dashboard/GetAllMoM",
+            type: "GET",
+            success: function (res) {
+                allMoms = res.data || res;
+                displayMoms(allMoms);
+            },
+
+            error: () => Swal.fire("Error", "Failed to load MoMs", "error"),
+
+            complete: () => $("#loadingSpinner").hide()
+        });
+    }
+
+    // DISPLAY MOM LIST
+    function displayMoms(moms) {
+        let tbody = $("#momTableBody");
+        tbody.empty();
+
+        if (!moms.length) {
+            tbody.append(`<tr><td colspan="8" class="text-center">No records found</td></tr>`);
+            return;
+        }
+
+        moms.forEach(m => {
+            tbody.append(`
+                <tr>
+                    <td>${m.momId}</td>
+                    <td>${new Date(m.meetingDate).toLocaleDateString()}</td>
+                    <td>${m.attendees}</td>
+                    <td>${m.agenda}</td>
+                    <td>${m.notes}</td>
+                    <td>${getStatusBadge(m.status)}</td>
+                    <td>${new Date(m.createdOn).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="openUpdateModal(${m.momId}, '${m.status}')">Update</button>
+                    </td>
+                </tr>
+            `);
+        });
+    }
+
+    // STATUS BADGES
+    function getStatusBadge(status) {
+        if (status === "Pending") return `<span class="badge-status badge-pending">Pending</span>`;
+        if (status === "In Progress") return `<span class="badge-status badge-progress">In Progress</span>`;
+        return `<span class="badge-status badge-completed">Completed</span>`;
+    }
+
+    // SEARCH
+    function filterMoms(text) {
+        let s = text.toLowerCase();
+        displayMoms(allMoms.filter(m =>
+            m.attendees.toLowerCase().includes(s) ||
+            m.agenda.toLowerCase().includes(s)
+        ));
+    }
+
+    // SAVE NEW MOM (POST)
+    function addMomPoint() {
+
+        let payload = {
+            meetingDate: $("#meetingDate").val(),
+            attendees: $("#attendees").val(),
+            agenda: $("#agenda").val(),
+            notes: $("#notes").val(),
+            status: $("#status").val()
+        };
+
+        $.ajax({
+            url: "/api/Dashboard/AddMoMPoint",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(payload),
+
+            success: function () {
+                Swal.fire("Success", "MoM added successfully", "success");
+                $('#addMomModal').modal('hide');
+                loadAllMoMs();
+            },
+
+            error: () => Swal.fire("Error", "Failed to add MoM", "error")
+        });
+    }
+
+    // OPEN UPDATE MODAL
+    function openUpdateModal(id, status) {
+        $("#updateMomId").val(id);
+        $("#updateStatus").val(status);
+        $("#updateStatusModal").modal("show");
+    }
+
+    // UPDATE STATUS (POST)
+    function updateMomStatus() {
+
+        let payload = {
+            momId: $("#updateMomId").val(),
+            status: $("#updateStatus").val()
+        };
+
+        $.ajax({
+            url: "/api/Dashboard/UpdateMoMStatus",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(payload),
+
+            success: function () {
+                Swal.fire("Updated", "Status updated successfully", "success");
+                $("#updateStatusModal").modal("hide");
+                loadAllMoMs();
+            },
+
+            error: () => Swal.fire("Error", "Failed to update status", "error")
+        });
+    }
+
+</script>

@@ -3451,6 +3451,7 @@
                         $('#ehLoading').fadeOut(200);
                         $('#ehStats,#ehTabs').fadeIn(300);
                         switchTab('v1');
+                        restoreSalarySession();
                     } else {
                         $('#ehLoading').html('<div class="ld-err"><i class="bi bi-exclamation-triangle me-2"></i>No data found</div>');
                     }
@@ -5097,75 +5098,8 @@
                 3. Render ? the tree shows only the found node's chain
                 4. Scroll into view and flash the node
             ---------------------------------------------------------- */
-            var S_CMAP={hod:'#1d4ed8',dept:'#15803d',subdept:'#b45309',subhod:'#7c3aed',exec:'#0e7490',salesh2:'#d97706',salesh3:'#2563eb',salesstate:'#0f766e',salesgroup:'#9333ea',sales:'#0891b2'};
-            var S_IMAP={hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill',salesh2:'diagram-2-fill',salesh3:'diagram-3-fill',salesstate:'geo-alt-fill',salesgroup:'collection-fill',sales:'person-fill'};
-
-            function searchMatches(q){
-                for(var i=1;i<arguments.length;i++){
-                    var value=(arguments[i]||'').toString().toLowerCase();
-                    if(value && value.indexOf(q)>-1) return true;
-                }
-                return false;
-            }
-
-            function addSalesSearchResult(res, type, id, name, detail){
-                if(!name || isHiddenSalesHierarchyName(name)) return;
-                res.push({type:type,id:id,name:name,detail:detail});
-            }
-
-            function appendSalesSearchResults(q, res){
-                if(!SHOW_SALES) return;
-                RAW_DATA.forEach(function(hod){
-                    var salesTree=hod.salesTree;
-                    if(!salesTree) return;
-
-                    getDirectSalesH3Buckets(salesTree).forEach(function(h3Bucket,h3i){
-                        var h3Name=h3Bucket.h3Name||'H3';
-                        if(isMeaningfulSalesLevelName(h3Name) && searchMatches(q,h3Name,h3Bucket.h3Code)){
-                            addSalesSearchResult(res,'salesh3','sales3-'+hod.idx+'-direct-'+h3i,h3Name,'Sales H3 · '+hod.name);
-                        }
-                        appendSalesStateSearchResults(q,res,hod,'direct',h3i,h3Bucket);
-                    });
-
-                    getVisibleSalesH2List(salesTree).forEach(function(h2,h2i){
-                        var h2Name=h2.h2Name||'H2';
-                        if(searchMatches(q,h2Name,h2.h2Code)){
-                            addSalesSearchResult(res,'salesh2','sales2-'+hod.idx+'-'+h2i,h2Name,'Sales H2 · '+hod.name);
-                        }
-                        getSalesH3Buckets(h2).forEach(function(h3Bucket,h3i){
-                            var h3Name=h3Bucket.h3Name||'H3';
-                            if(isMeaningfulSalesLevelName(h3Name) && searchMatches(q,h3Name,h3Bucket.h3Code)){
-                                addSalesSearchResult(res,'salesh3','sales3-'+hod.idx+'-'+h2i+'-'+h3i,h3Name,'Sales H3 · '+h2Name+' · '+hod.name);
-                            }
-                            appendSalesStateSearchResults(q,res,hod,h2i,h3i,h3Bucket,h2Name);
-                        });
-                    });
-                });
-            }
-
-            function appendSalesStateSearchResults(q,res,hod,h2i,h3i,h3Bucket,h2Name){
-                var stateBuckets=getSalesDisplayStateBuckets(h3Bucket.stateBuckets||[],hod.salesTree);
-                stateBuckets.forEach(function(stateBucket,stateIdx){
-                    var stateName=stateBucket.state||'State';
-                    var stateId='salesstate-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx;
-                    if(searchMatches(q,stateName)){
-                        addSalesSearchResult(res,'salesstate',stateId,stateName,'Sales State · '+(h3Bucket.h3Name||h2Name||hod.name));
-                    }
-                    var buckets=getSalesDisplayBuckets(stateBucket,hod.salesTree);
-                    buckets.forEach(function(bucket,bucketIdx){
-                        var comboName=bucket.name||bucket.label||'-';
-                        var comboId='sales4-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx;
-                        if(searchMatches(q,comboName,bucket.designation,bucket.groupName)){
-                            addSalesSearchResult(res,'salesgroup',comboId,comboName,'Sales Designation + Group · '+stateName);
-                        }
-                        var employees=getSalesLeafEmployees(bucket,hod.salesTree);
-                        employees.forEach(function(emp,ei){
-                            if(!searchMatches(q,emp.empName,emp.empCode,emp.state,emp.designation,emp.groupName,emp.sikhNonSikh)) return;
-                            addSalesSearchResult(res,'sales','salese-'+hod.idx+'-'+h2i+'-'+h3i+'-'+stateIdx+'-'+bucketIdx+'-'+ei,emp.empName||emp.empCode,'Sales Employee · '+(emp.empCode||'')+' · '+stateName);
-                        });
-                    });
-                });
-            }
+            var S_CMAP={hod:'#1d4ed8',dept:'#15803d',subdept:'#b45309',subhod:'#7c3aed',exec:'#0e7490'};
+            var S_IMAP={hod:'person-badge-fill',dept:'building-fill',subdept:'buildings-fill',subhod:'people-fill',exec:'person-fill'};
 
             function ehSearchHandle(val){
                 var q=(val||'').trim().toLowerCase();
@@ -5183,10 +5117,9 @@
                         (s.execs||[]).forEach(function(ex,ei){if(ex.name.toLowerCase().indexOf(q)>-1)res.push({type:'exec',id:'exd-'+hod.idx+'-'+si+'-'+ei,name:ex.name,detail:s.sdName+' (direct)'});});
                     });
                 });
-                appendSalesSearchResults(q,res);
                 if(!res.length){$('#searchDrop').html('<div class="sd-empty"><i class="bi bi-search me-2"></i>No results</div>').show();return;}
                 var h='';
-                res.slice(0,12).forEach(function(r){
+                res.slice(0,8).forEach(function(r){
                     h+='<div class="sd-item" onclick="ehNavTo(\''+r.id+'\',\''+r.type+'\')">';
                     h+='<div class="sd-ico" style="background:'+S_CMAP[r.type]+'18;color:'+S_CMAP[r.type]+'"><i class="bi bi-'+S_IMAP[r.type]+'"></i></div>';
                     h+='<div><div class="sd-name">'+esc(r.name)+'</div><div class="sd-detail"><span class="sd-type" style="background:'+S_CMAP[r.type]+'18;color:'+S_CMAP[r.type]+'">'+r.type+'</span> '+esc(r.detail)+'</div></div></div>';
@@ -5474,20 +5407,6 @@ function v1_card(n){
                 else if(p[0]==='sd'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true; }
                 else if(p[0]==='sh'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true;v1_exp['sd-'+p[1]+'-'+p[2]]=true; }
                 else if(p[0]==='ex'||p[0]==='exd'){ var h=RAW_DATA[+p[1]];if(!h)return;var s=h.subs[+p[2]];if(!s)return;v1_exp[h.id]=true;var di=h.depts.indexOf(s.dept);if(di<0)di=0;v1_exp['dept-'+p[1]+'-'+di]=true;v1_exp['sd-'+p[1]+'-'+p[2]]=true;if(p[0]==='ex')v1_exp['sh-'+p[1]+'-'+p[2]+'-'+p[3]]=true; }
-                else if(p[0]==='sales2'||p[0]==='sales3'||p[0]==='salesstate'||p[0]==='sales4'||p[0]==='salese'){
-                    var sh=RAW_DATA[+p[1]]; if(!sh)return;
-                    var sdi=sh.depts.indexOf(SALES_DEPT_NAME); if(sdi<0)sdi=0;
-                    v1_exp[sh.id]=true;
-                    v1_exp['dept-'+p[1]+'-'+sdi]=true;
-                    if(p[0]==='sales2'){ v1_exp[nodeId]=true; return; }
-                    var h2Part=p[2], h3Part=p[3];
-                    if(h2Part && h2Part!=='direct') v1_exp['sales2-'+p[1]+'-'+h2Part]=true;
-                    if(h3Part) v1_exp['sales3-'+p[1]+'-'+h2Part+'-'+h3Part]=true;
-                    if(p[0]==='salesstate'){ v1_exp[nodeId]=true; return; }
-                    if(p[4]) v1_exp['salesstate-'+p[1]+'-'+h2Part+'-'+h3Part+'-'+p[4]]=true;
-                    if(p[0]==='sales4'){ v1_exp[nodeId]=true; return; }
-                    if(p[5]) v1_exp['sales4-'+p[1]+'-'+h2Part+'-'+h3Part+'-'+p[4]+'-'+p[5]]=true;
-                }
             }
 
             /* SVG CONNECTOR LINES */

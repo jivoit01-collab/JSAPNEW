@@ -608,6 +608,7 @@ namespace JSAPNEW.Models
         public int? ReportsToEmpId { get; set; } // optional — exec can report direct to HOD or none
         public bool IsUnassigned { get; set; }
         public bool MoveTeamWithDepartment { get; set; }
+        public bool SkipRelationshipSync { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
@@ -625,6 +626,14 @@ namespace JSAPNEW.Models
     {
         [Required] public int HodEmployeeId { get; set; }
         public List<int> DepartmentIds { get; set; } = new();
+    }
+
+    public class SyncSubHodSubDepartmentsRequest
+    {
+        [Required] public int SubHodEmployeeId { get; set; }
+        [Required] public int HodEmployeeId { get; set; }
+        [Required] public int DepartmentId { get; set; }
+        public List<int> SubDepartmentIds { get; set; } = new();
     }
 
     public class DepartmentChangeImpactDto
@@ -907,6 +916,7 @@ namespace JSAPNEW.Models
         public string? State { get; set; }
         public string? GroupName { get; set; }
         public string? Designation { get; set; }
+        public string? Area { get; set; }
     }
 
     public class SalesImportResult
@@ -955,9 +965,13 @@ namespace JSAPNEW.Models
 
     public class SalesUpdateRowRequest
     {
-        [Required] public int SalesHierarchyId { get; set; }
+        public int SalesHierarchyId { get; set; }
+        public string? PersonCode { get; set; }
         public string? EmpCode { get; set; }
         public string? EmpName { get; set; }
+        public string? Mobile { get; set; }
+        public string? Email { get; set; }
+        public DateTime? DateOfJoining { get; set; }
         public string? State { get; set; }
         public string? GroupName { get; set; }
         public string? Designation { get; set; }
@@ -970,7 +984,8 @@ namespace JSAPNEW.Models
 
     public class SalesShiftRequest
     {
-        [Required] public int SalesHierarchyId { get; set; }
+        public int SalesHierarchyId { get; set; }
+        public string? PersonCode { get; set; }
         public string? NewH1Code { get; set; }
         public string? NewH1Name { get; set; }
         public string? NewH2Code { get; set; }
@@ -986,6 +1001,25 @@ namespace JSAPNEW.Models
     {
         [Required] public string EmpCode { get; set; } = "";
         [Required] public string EmpName { get; set; } = "";
+        public string? Mobile { get; set; }
+        public string? Email { get; set; }
+        public DateTime? DateOfJoining { get; set; }
+        public string? State { get; set; }
+        public string? GroupName { get; set; }
+        public string? Designation { get; set; }
+        public string? Qualification { get; set; }
+        public string? Gender { get; set; }
+        public string? SikhNonSikh { get; set; }
+        public string? Area { get; set; }
+        public bool IsActive { get; set; } = true;
+        public string? H1Code { get; set; }
+        public string? H1Name { get; set; }
+        public string? H2Code { get; set; }
+        public string? H2Name { get; set; }
+        public string? H3Code { get; set; }
+        public string? H3Name { get; set; }
+        public string? H4Code { get; set; }
+        public string? H4Name { get; set; }
     }
 
     #endregion

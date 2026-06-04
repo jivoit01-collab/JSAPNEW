@@ -1133,6 +1133,10 @@ WHERE EmployeeId = @EmployeeId";
                     && originalScopeDeptId != req.DepartmentId
                     && originalRoleTypeId == req.RoleTypeId
                     && (req.RoleTypeId == (int)RoleTypeEnum.HOD || req.RoleTypeId == (int)RoleTypeEnum.SubHOD);
+                bool skipRelationshipSync = req.SkipRelationshipSync
+                    && !req.IsUnassigned
+                    && req.RoleTypeId == (int)RoleTypeEnum.SubHOD
+                    && originalRoleTypeId == req.RoleTypeId;
 
                 var employeeColumns = (await conn.QueryAsync<string>(
                     "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')",
@@ -1199,7 +1203,7 @@ SET EmployeeName = @EmployeeName,
 
                 // HOD has no parent relationship to sync. Keeping this SP away from HOD edits prevents
                 // existing Sub-HOD/Executive reporting links from being detached during department changes.
-                if (req.RoleTypeId != (int)RoleTypeEnum.HOD)
+                if (req.RoleTypeId != (int)RoleTypeEnum.HOD && !skipRelationshipSync)
                 {
                     await conn.ExecuteAsync(
                         "EXEC [Hie].[sp_SyncEmployeeRelationships] @EmployeeId, @RoleTypeId, @ReportsToEmpId, @DepartmentId, @SubDepartmentId",
@@ -1239,7 +1243,7 @@ WHERE EmployeeId = @EmployeeId
                     if (reassignedExecutives > 0)
                         detachInfo = $" {reassignedExecutives} executive(s) now report directly to HOD.";
                 }
-                else if (departmentChanged && req.RoleTypeId == (int)RoleTypeEnum.SubHOD)
+                else if (!skipRelationshipSync && departmentChanged && req.RoleTypeId == (int)RoleTypeEnum.SubHOD)
                 {
                     var reassignedExecutives = await ReassignSubHodExecutivesToHodForDepartmentChangeAsync(
                         conn,
@@ -1249,7 +1253,7 @@ WHERE EmployeeId = @EmployeeId
                     if (reassignedExecutives > 0)
                         detachInfo = $" {reassignedExecutives} executive(s) now report directly to HOD.";
                 }
-                else if (!req.IsUnassigned && req.RoleTypeId != (int)RoleTypeEnum.HOD && impact.RequiresMoveTeam)
+                else if (!skipRelationshipSync && !req.IsUnassigned && req.RoleTypeId != (int)RoleTypeEnum.HOD && impact.RequiresMoveTeam)
                 {
                     if (req.MoveTeamWithDepartment)
                     {
@@ -1278,7 +1282,7 @@ WHERE EmployeeId = @EmployeeId
                     if (reassigned > 0) detachInfo = $" {reassigned} executive(s) reassigned to HOD.";
                 }
 
-                if (req.RoleTypeId == (int)RoleTypeEnum.SubHOD && req.ReportsToEmpId.HasValue && req.ReportsToEmpId.Value > 0)
+                if (!skipRelationshipSync && req.RoleTypeId == (int)RoleTypeEnum.SubHOD && req.ReportsToEmpId.HasValue && req.ReportsToEmpId.Value > 0)
                 {
                     if (!departmentChanged)
                     {
@@ -1455,6 +1459,193 @@ WHERE NOT EXISTS (
                     updatedBy);
 
                 return HierarchyApiResponse<bool>.SuccessResponse(true, "HOD departments updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                return HierarchyApiResponse<bool>.ErrorResponse(ex.Message);
+            }
+        }
+
+        public async Task<HierarchyApiResponse<bool>> SyncSubHodSubDepartmentsAsync(SyncSubHodSubDepartmentsRequest request, int updatedBy)
+        {
+            var subDepartmentIds = (request.SubDepartmentIds ?? new List<int>())
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (request.SubHodEmployeeId <= 0)
+                return HierarchyApiResponse<bool>.ErrorResponse("Sub-HOD is required.");
+            if (request.HodEmployeeId <= 0)
+                return HierarchyApiResponse<bool>.ErrorResponse("HOD is required.");
+            if (request.DepartmentId <= 0)
+                return HierarchyApiResponse<bool>.ErrorResponse("Department is required.");
+            if (!subDepartmentIds.Any())
+                return HierarchyApiResponse<bool>.ErrorResponse("Select at least one sub-department.");
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                await EnsureHierarchyDepartmentForeignKeysAsync(conn);
+                using var tx = conn.BeginTransaction();
+
+                var subHod = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+SELECT TOP 1 EmployeeId, EmployeeName, EmployeeCode, RoleTypeId
+FROM [Hie].[Employees]
+WHERE EmployeeId = @SubHodEmployeeId",
+                    new { request.SubHodEmployeeId }, tx);
+
+                if (subHod == null)
+                {
+                    tx.Rollback();
+                    return HierarchyApiResponse<bool>.ErrorResponse("Sub-HOD not found.");
+                }
+
+                if ((int)subHod.RoleTypeId != (int)RoleTypeEnum.SubHOD)
+                {
+                    tx.Rollback();
+                    return HierarchyApiResponse<bool>.ErrorResponse("Sub-department multi-select is only allowed for Sub-HOD.");
+                }
+
+                var hodExists = await conn.ExecuteScalarAsync<int>(@"
+SELECT COUNT(1)
+FROM [Hie].[Employees]
+WHERE EmployeeId = @HodEmployeeId
+  AND RoleTypeId = @HodRoleTypeId",
+                    new { request.HodEmployeeId, HodRoleTypeId = (int)RoleTypeEnum.HOD }, tx);
+
+                if (hodExists == 0)
+                {
+                    tx.Rollback();
+                    return HierarchyApiResponse<bool>.ErrorResponse("HOD not found.");
+                }
+
+                var validSubDepartmentCount = await conn.ExecuteScalarAsync<int>(@"
+SELECT COUNT(DISTINCT SubDepartmentId)
+FROM [Hie].[SubDepartments]
+WHERE DepartmentId = @DepartmentId
+  AND IsActive = 1
+  AND SubDepartmentId IN @SubDepartmentIds",
+                    new { request.DepartmentId, SubDepartmentIds = subDepartmentIds }, tx);
+
+                if (validSubDepartmentCount != subDepartmentIds.Count)
+                {
+                    tx.Rollback();
+                    return HierarchyApiResponse<bool>.ErrorResponse("One or more selected sub-departments do not belong to this department.");
+                }
+
+                var oldSubDepartmentIds = (await conn.QueryAsync<int>(@"
+SELECT DISTINCT rr.SubDepartmentId
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.EmployeeId = @SubHodEmployeeId
+  AND rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+  AND rr.DepartmentId = @DepartmentId
+  AND rr.SubDepartmentId IS NOT NULL",
+                    new { request.SubHodEmployeeId, request.HodEmployeeId, request.DepartmentId }, tx)).ToList();
+
+                var removedSubDepartmentIds = oldSubDepartmentIds
+                    .Distinct()
+                    .Except(subDepartmentIds)
+                    .ToList();
+                var addedSubDepartmentIds = subDepartmentIds
+                    .Except(oldSubDepartmentIds.Distinct())
+                    .ToList();
+
+                await conn.ExecuteAsync(@"
+UPDATE [Hie].[Employees]
+SET PrimaryDepartmentId = @DepartmentId
+WHERE EmployeeId = @SubHodEmployeeId;
+
+UPDATE rr
+SET rr.IsActive = 0,
+    rr.IsPrimary = 0,
+    rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.EmployeeId = @SubHodEmployeeId
+  AND rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.IsActive = 1
+  AND rr.DepartmentId = @DepartmentId
+  AND rr.SubDepartmentId NOT IN @SubDepartmentIds;
+
+UPDATE rr
+SET rr.IsActive = 1,
+    rr.IsPrimary = 1,
+    rr.EffectiveTo = NULL
+FROM [Hie].[EmployeeReportingRelationships] rr
+WHERE rr.EmployeeId = @SubHodEmployeeId
+  AND rr.ReportsToEmployeeId = @HodEmployeeId
+  AND rr.DepartmentId = @DepartmentId
+  AND rr.SubDepartmentId IN @SubDepartmentIds
+  AND rr.IsActive = 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM [Hie].[EmployeeReportingRelationships] activeRow
+      WHERE activeRow.EmployeeId = rr.EmployeeId
+        AND activeRow.ReportsToEmployeeId = rr.ReportsToEmployeeId
+        AND activeRow.DepartmentId = rr.DepartmentId
+        AND activeRow.SubDepartmentId = rr.SubDepartmentId
+        AND activeRow.IsActive = 1
+  );
+
+INSERT INTO [Hie].[EmployeeReportingRelationships]
+    (EmployeeId, ReportsToEmployeeId, ReportingTypeId, DepartmentId, SubDepartmentId, IsPrimary, EffectiveFrom, EffectiveTo, IsActive)
+SELECT @SubHodEmployeeId, @HodEmployeeId, 1, @DepartmentId, selected.SubDepartmentId, 1, GETDATE(), NULL, 1
+FROM (
+    SELECT DISTINCT CAST(value AS INT) AS SubDepartmentId
+    FROM STRING_SPLIT(@SubDepartmentIdCsv, ',')
+    WHERE TRY_CAST(value AS INT) IS NOT NULL
+) selected
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM [Hie].[EmployeeReportingRelationships] existing
+    WHERE existing.EmployeeId = @SubHodEmployeeId
+      AND existing.ReportsToEmployeeId = @HodEmployeeId
+      AND existing.DepartmentId = @DepartmentId
+      AND existing.SubDepartmentId = selected.SubDepartmentId
+      AND existing.IsActive = 1
+);",
+                    new
+                    {
+                        request.SubHodEmployeeId,
+                        request.HodEmployeeId,
+                        request.DepartmentId,
+                        SubDepartmentIds = subDepartmentIds,
+                        SubDepartmentIdCsv = string.Join(",", subDepartmentIds)
+                    }, tx);
+
+                var movedExecutives = 0;
+                foreach (var removedSubDepartmentId in removedSubDepartmentIds)
+                {
+                    movedExecutives += await MoveSubHodExecutivesToHodForRemovedSubDepartmentAsync(
+                        conn,
+                        tx,
+                        request.SubHodEmployeeId,
+                        request.HodEmployeeId,
+                        request.DepartmentId,
+                        removedSubDepartmentId);
+                }
+                var adoptedExecutives = 0;
+                foreach (var addedSubDepartmentId in addedSubDepartmentIds)
+                {
+                    adoptedExecutives += await MoveDirectExecutivesToSubHodAsync(
+                        conn,
+                        tx,
+                        request.SubHodEmployeeId,
+                        request.HodEmployeeId,
+                        request.DepartmentId,
+                        addedSubDepartmentId);
+                }
+
+                tx.Commit();
+
+                _ = LogAuditAsync("SubHODSubDeptSync", "Employee", request.SubHodEmployeeId, request.SubHodEmployeeId,
+                    ToJson(new { SubDepartmentIds = oldSubDepartmentIds }),
+                    ToJson(new { request.HodEmployeeId, request.DepartmentId, SubDepartmentIds = subDepartmentIds }),
+                    $"Updated Sub-HOD sub-department selection. {movedExecutives} executive(s) moved direct to HOD from deselected sub-department(s); {adoptedExecutives} direct executive(s) moved under Sub-HOD for selected sub-department(s).",
+                    updatedBy);
+
+                return HierarchyApiResponse<bool>.SuccessResponse(true, "Sub-HOD sub-departments updated successfully.");
             }
             catch (Exception ex)
             {
@@ -1749,6 +1940,63 @@ WHERE NOT EXISTS (
       AND existing.IsActive = 1
       AND ISNULL(existing.DepartmentId, 0) = ISNULL(m.DepartmentId, 0)
       AND ISNULL(existing.SubDepartmentId, 0) = ISNULL(m.SubDepartmentId, 0)
+);
+
+SELECT COUNT(*) FROM @Moved;";
+
+            return await conn.ExecuteScalarAsync<int>(sql, new
+            {
+                SubHodEmployeeId = subHodEmployeeId,
+                HodEmployeeId = hodEmployeeId,
+                DepartmentId = departmentId,
+                SubDepartmentId = subDepartmentId
+            }, tx);
+        }
+
+        private async Task<int> MoveSubHodExecutivesToHodForRemovedSubDepartmentAsync(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int subHodEmployeeId,
+            int hodEmployeeId,
+            int departmentId,
+            int subDepartmentId)
+        {
+            const string sql = @"
+DECLARE @Moved TABLE (EmployeeId INT, DepartmentId INT, SubDepartmentId INT);
+
+INSERT INTO @Moved (EmployeeId, DepartmentId, SubDepartmentId)
+SELECT rr.EmployeeId, rr.DepartmentId, rr.SubDepartmentId
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN [Hie].[Employees] e ON e.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @SubHodEmployeeId
+  AND rr.IsActive = 1
+  AND e.RoleTypeId = 3
+  AND rr.DepartmentId = @DepartmentId
+  AND rr.SubDepartmentId = @SubDepartmentId;
+
+UPDATE rr
+SET rr.IsActive = 0,
+    rr.IsPrimary = 0,
+    rr.EffectiveTo = COALESCE(rr.EffectiveTo, GETDATE())
+FROM [Hie].[EmployeeReportingRelationships] rr
+INNER JOIN @Moved m ON m.EmployeeId = rr.EmployeeId
+WHERE rr.ReportsToEmployeeId = @SubHodEmployeeId
+  AND rr.IsActive = 1
+  AND rr.DepartmentId = @DepartmentId
+  AND rr.SubDepartmentId = @SubDepartmentId;
+
+INSERT INTO [Hie].[EmployeeReportingRelationships]
+    (EmployeeId, ReportsToEmployeeId, ReportingTypeId, DepartmentId, SubDepartmentId, IsPrimary, EffectiveFrom, EffectiveTo, IsActive)
+SELECT m.EmployeeId, @HodEmployeeId, 1, m.DepartmentId, m.SubDepartmentId, 1, GETDATE(), NULL, 1
+FROM @Moved m
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM [Hie].[EmployeeReportingRelationships] existing
+    WHERE existing.EmployeeId = m.EmployeeId
+      AND existing.ReportsToEmployeeId = @HodEmployeeId
+      AND existing.IsActive = 1
+      AND existing.DepartmentId = m.DepartmentId
+      AND existing.SubDepartmentId = m.SubDepartmentId
 );
 
 SELECT COUNT(*) FROM @Moved;";
@@ -3541,7 +3789,7 @@ WHERE e.RoleTypeId IN (1, 2, 3)
   (
       SELECT 1
       FROM [Hie].[SalesHierarchy] sh
-      WHERE sh.EmpCode = e.EmployeeCode
+      WHERE sh.PersonCode = e.EmployeeCode
         AND sh.IsActive = 1
   )
 ORDER BY e.EmployeeName";
@@ -3747,146 +3995,80 @@ WHERE EmployeeId = @EmployeeId";
             string? h1, string? h2, string? h3, string? h4, string? search, bool activeOnly, int companyId)
         {
             const string sql = @"
-                SELECT sh.SalesHierarchyId, sh.CompanyId,
-                       COALESCE(hodMap.EmployeeCode, NULLIF(sh.H1Code, ''), eh1.EmployeeCode, h1.H1Code) AS H1Code,
-                       COALESCE(hodMap.EmployeeName, NULLIF(sh.H1Name, ''), eh1.EmployeeName, h1.H1Name, eh1_from_code.EmployeeName) AS H1Name,
-                       COALESCE(NULLIF(sh.H2Code, ''), h2.H2Code) AS H2Code,
-                       COALESCE(NULLIF(sh.H2Name, ''), h2.H2Name, eh2_from_code.EmployeeName) AS H2Name,
-                       COALESCE(NULLIF(sh.H3Code, ''), h3.H3Code) AS H3Code,
-                       COALESCE(NULLIF(sh.H3Name, ''), h3.H3Name, eh3_from_code.EmployeeName) AS H3Name,
-                       COALESCE(NULLIF(sh.H4Code, ''), h4.H4Code) AS H4Code,
-                       COALESCE(NULLIF(sh.H4Name, ''), h4.H4Name, eh4_from_code.EmployeeName) AS H4Name,
-                       sh.EmployeeId,
-                       COALESCE(NULLIF(sh.EmpCode, ''), e.EmployeeCode) AS EmpCode,
-                       COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName) AS EmpName,
-                       sh.State, sh.GroupName, COALESCE(NULLIF(sh.Designation, ''), e.Designation) AS Designation, sh.Department,
-                       sh.Mobile, sh.Email, sh.Qualification, sh.Gender, sh.sikh_no_sikh AS SikhNonSikh, sh.Area,
-                       sh.DateOfJoining, sh.IsActive, sh.CreatedOn, sh.ModifiedOn
-                FROM [Hie].[SalesHierarchy] sh
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE e.RoleTypeId = 1
-                      AND e.IsActive = 1
-                      AND (
-                           (UPPER(LTRIM(RTRIM(ISNULL(sh.H1Name, '')))) = 'KARANPREET SINGH'
-                            AND UPPER(LTRIM(RTRIM(e.EmployeeName))) = 'KARANPREET VG')
-                        OR (UPPER(LTRIM(RTRIM(ISNULL(sh.H1Name, '')))) = 'GAGANDEEP SINGH'
-                            AND UPPER(LTRIM(RTRIM(e.EmployeeName))) = 'GAGAN VG')
-                      )
-                    ORDER BY e.EmployeeId DESC
-                ) hodMap
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H1Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H1Name
-                    ORDER BY e.IsActive DESC, e.EmployeeId DESC
-                ) eh1
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H2Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H2Name
-                ) eh2
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H3Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H3Name
-                ) eh3
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H4Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H4Name
-                ) eh4
-                OUTER APPLY (
-                    SELECT TOP 1 s.H1Code, s.H1Name
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H1Code, '') IS NOT NULL
-                      AND s.H1Name = sh.H1Name
-                ) h1
-                OUTER APPLY (
-                    SELECT TOP 1 s.H2Code, s.H2Name
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H2Code, '') IS NOT NULL
-                      AND s.H2Name = sh.H2Name
-                ) h2
-                OUTER APPLY (
-                    SELECT TOP 1 s.H3Code, s.H3Name
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H3Code, '') IS NOT NULL
-                      AND s.H3Name = sh.H3Name
-                ) h3
-                OUTER APPLY (
-                    SELECT TOP 1 s.H4Code, s.H4Name
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H4Code, '') IS NOT NULL
-                      AND s.H4Name = sh.H4Name
-                ) h4
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H1Code, '') IS NOT NULL
-                      AND NULLIF(sh.H1Name, '') IS NULL
-                      AND e.EmployeeCode = sh.H1Code
-                ) eh1_from_code
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H2Code, '') IS NOT NULL
-                      AND NULLIF(sh.H2Name, '') IS NULL
-                      AND e.EmployeeCode = sh.H2Code
-                ) eh2_from_code
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H3Code, '') IS NOT NULL
-                      AND NULLIF(sh.H3Name, '') IS NULL
-                      AND e.EmployeeCode = sh.H3Code
-                ) eh3_from_code
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H4Code, '') IS NOT NULL
-                      AND NULLIF(sh.H4Name, '') IS NULL
-                      AND e.EmployeeCode = sh.H4Code
-                ) eh4_from_code
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName, e.Designation
-                    FROM [Hie].[Employees] e
-                    WHERE (sh.EmployeeId IS NOT NULL AND e.EmployeeId = sh.EmployeeId)
-                       OR (sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NOT NULL AND e.EmployeeCode = sh.EmpCode)
-                       OR (sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NULL AND NULLIF(sh.EmpName, '') IS NOT NULL AND e.EmployeeName = sh.EmpName)
-                    ORDER BY CASE
-                        WHEN sh.EmployeeId IS NOT NULL AND e.EmployeeId = sh.EmployeeId THEN 1
-                        WHEN sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NOT NULL AND e.EmployeeCode = sh.EmpCode THEN 2
-                        WHEN sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NULL AND NULLIF(sh.EmpName, '') IS NOT NULL AND e.EmployeeName = sh.EmpName THEN 3
-                        ELSE 4
-                    END
-                ) e
-                WHERE sh.CompanyId = @CompanyId
-                  AND (@ActiveOnly = 0 OR sh.IsActive = 1)
-                  AND (@H1Code IS NULL OR COALESCE(hodMap.EmployeeCode, NULLIF(sh.H1Code, ''), eh1.EmployeeCode, h1.H1Code) = @H1Code)
-                  AND (@H2Code IS NULL OR sh.H2Code = @H2Code)
-                  AND (@H3Code IS NULL OR sh.H3Code = @H3Code)
-                  AND (@H4Code IS NULL OR sh.H4Code = @H4Code)
-                  AND (@Search IS NULL OR COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName) LIKE '%' + @Search + '%'
-                       OR COALESCE(NULLIF(sh.EmpCode, ''), e.EmployeeCode) LIKE '%' + @Search + '%'
-                       OR COALESCE(hodMap.EmployeeName, NULLIF(sh.H1Name, ''), eh1.EmployeeName, h1.H1Name, eh1_from_code.EmployeeName) LIKE '%' + @Search + '%'
-                       OR sh.H2Name LIKE '%' + @Search + '%'
-                       OR sh.H3Name LIKE '%' + @Search + '%'
-                       OR sh.H4Name LIKE '%' + @Search + '%'
-                       OR sh.State LIKE '%' + @Search + '%'
-                       OR sh.GroupName LIKE '%' + @Search + '%'
-                       OR COALESCE(NULLIF(sh.Designation, ''), e.Designation) LIKE '%' + @Search + '%')
-                ORDER BY sh.H1Name, sh.H2Name, sh.H3Name, sh.H4Name,
-                         COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName)";
+                SELECT
+                    emp.SalesHierarchyId,
+                    emp.CompanyId,
+                    h1.PersonCode AS H1Code,
+                    h1.PersonName AS H1Name,
+                    h2.PersonCode AS H2Code,
+                    h2.PersonName AS H2Name,
+                    h3.PersonCode AS H3Code,
+                    h3.PersonName AS H3Name,
+                    h4.PersonCode AS H4Code,
+                    h4.PersonName AS H4Name,
+                    CAST(NULL AS INT) AS EmployeeId,
+                    emp.PersonCode AS EmpCode,
+                    emp.PersonName AS EmpName,
+                    ss.StateName AS State,
+                    sg.GroupName,
+                    sdg.DesignationName AS Designation,
+                    d.DepartmentName AS Department,
+                    emp.Mobile,
+                    emp.Email,
+                    emp.Qualification,
+                    emp.Gender,
+                    emp.SikhNonSikh,
+                    COALESCE(map.Area, sp.Area) AS Area,
+                    emp.DateOfJoining,
+                    emp.IsActive,
+                    emp.CreatedOn,
+                    emp.ModifiedOn
+                FROM [Hie].[SalesEmployeeHierarchyMap] map
+                INNER JOIN [Hie].[SalesHierarchy] emp
+                    ON emp.CompanyId = map.CompanyId
+                   AND emp.PersonCode = map.EmpPersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h1
+                    ON h1.CompanyId = map.CompanyId
+                   AND h1.PersonCode = map.H1PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h2
+                    ON h2.CompanyId = map.CompanyId
+                   AND h2.PersonCode = map.H2PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h3
+                    ON h3.CompanyId = map.CompanyId
+                   AND h3.PersonCode = map.H3PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h4
+                    ON h4.CompanyId = map.CompanyId
+                   AND h4.PersonCode = map.H4PersonCode
+                LEFT JOIN [Hie].[SalesPersonProfile] sp
+                    ON sp.CompanyId = emp.CompanyId
+                   AND sp.SalesHierarchyId = emp.SalesHierarchyId
+                   AND sp.IsActive = 1
+                LEFT JOIN [Hie].[Departments] d
+                    ON d.DepartmentId = COALESCE(map.DepartmentId, sp.DepartmentId)
+                LEFT JOIN [Hie].[SalesStates] ss
+                    ON ss.StateId = COALESCE(map.StateId, sp.StateId)
+                LEFT JOIN [Hie].[SalesGroups] sg
+                    ON sg.GroupId = COALESCE(map.GroupId, sp.GroupId)
+                LEFT JOIN [Hie].[SalesDesignations] sdg
+                    ON sdg.DesignationId = COALESCE(map.DesignationId, sp.DesignationId)
+                WHERE map.CompanyId = @CompanyId
+                  AND map.IsActive = 1
+                  AND (@ActiveOnly = 0 OR emp.IsActive = 1)
+                  AND (@H1Code IS NULL OR h1.PersonCode = @H1Code OR h1.PersonName = @H1Code)
+                  AND (@H2Code IS NULL OR h2.PersonCode = @H2Code OR h2.PersonName = @H2Code)
+                  AND (@H3Code IS NULL OR h3.PersonCode = @H3Code OR h3.PersonName = @H3Code)
+                  AND (@H4Code IS NULL OR h4.PersonCode = @H4Code OR h4.PersonName = @H4Code)
+                  AND (@Search IS NULL
+                       OR emp.PersonCode LIKE '%' + @Search + '%'
+                       OR emp.PersonName LIKE '%' + @Search + '%'
+                       OR h1.PersonName LIKE '%' + @Search + '%'
+                       OR h2.PersonName LIKE '%' + @Search + '%'
+                       OR h3.PersonName LIKE '%' + @Search + '%'
+                       OR h4.PersonName LIKE '%' + @Search + '%'
+                       OR ss.StateName LIKE '%' + @Search + '%'
+                       OR sg.GroupName LIKE '%' + @Search + '%'
+                       OR sdg.DesignationName LIKE '%' + @Search + '%')
+                ORDER BY h1.PersonName, h2.PersonName, h3.PersonName, h4.PersonName, emp.PersonName";
 
             using var conn = new SqlConnection(_connectionString);
             return (await conn.QueryAsync<SalesHierarchyRowDto>(sql, new
@@ -3905,63 +4087,31 @@ WHERE EmployeeId = @EmployeeId";
         {
             const string sql = @"
                 SELECT
-                    COUNT(DISTINCT COALESCE(hodMap.EmployeeCode, NULLIF(sh.H1Code, ''), eh1.EmployeeCode, h1.H1Code, NULLIF(sh.H1Name, ''))) AS H1Count,
-                    COUNT(DISTINCT COALESCE(NULLIF(sh.H2Code, ''), h2.H2Code, NULLIF(sh.H2Name, ''))) AS H2Count,
-                    COUNT(DISTINCT COALESCE(NULLIF(sh.H3Name, ''), NULLIF(sh.H3Code, ''), h3.H3Code)) AS H3Count,
-                    COUNT(DISTINCT COALESCE(NULLIF(sh.H4Code, ''), h4.H4Code, NULLIF(sh.H4Name, ''))) AS H4Count,
-                    COUNT(*) AS TotalEmployees,
-                    SUM(CASE WHEN sh.IsActive = 1 THEN 1 ELSE 0 END) AS ActiveCount,
-                    SUM(CASE WHEN sh.IsActive = 0 THEN 1 ELSE 0 END) AS InactiveCount
-                FROM [Hie].[SalesHierarchy] sh
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE e.RoleTypeId = 1
-                      AND e.IsActive = 1
-                      AND (
-                           (UPPER(LTRIM(RTRIM(ISNULL(sh.H1Name, '')))) = 'KARANPREET SINGH'
-                            AND UPPER(LTRIM(RTRIM(e.EmployeeName))) = 'KARANPREET VG')
-                        OR (UPPER(LTRIM(RTRIM(ISNULL(sh.H1Name, '')))) = 'GAGANDEEP SINGH'
-                            AND UPPER(LTRIM(RTRIM(e.EmployeeName))) = 'GAGAN VG')
-                      )
-                    ORDER BY e.EmployeeId DESC
-                ) hodMap
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H1Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H1Name
-                    ORDER BY e.IsActive DESC, e.EmployeeId DESC
-                ) eh1
-                OUTER APPLY (
-                    SELECT TOP 1 s.H1Code, s.H1Name
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H1Code, '') IS NOT NULL
-                      AND s.H1Name = sh.H1Name
-                ) h1
-                OUTER APPLY (
-                    SELECT TOP 1 s.H2Code
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H2Code, '') IS NOT NULL
-                      AND s.H2Name = sh.H2Name
-                ) h2
-                OUTER APPLY (
-                    SELECT TOP 1 s.H3Code
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H3Code, '') IS NOT NULL
-                      AND s.H3Name = sh.H3Name
-                ) h3
-                OUTER APPLY (
-                    SELECT TOP 1 s.H4Code
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H4Code, '') IS NOT NULL
-                      AND s.H4Name = sh.H4Name
-                ) h4
-                WHERE sh.CompanyId = @CompanyId";
+                    COUNT(DISTINCT h1.SalesHierarchyId) AS H1Count,
+                    COUNT(DISTINCT h2.SalesHierarchyId) AS H2Count,
+                    COUNT(DISTINCT h3.SalesHierarchyId) AS H3Count,
+                    COUNT(DISTINCT h4.SalesHierarchyId) AS H4Count,
+                    COUNT(DISTINCT emp.SalesHierarchyId) AS TotalEmployees,
+                    SUM(CASE WHEN emp.IsActive = 1 THEN 1 ELSE 0 END) AS ActiveCount,
+                    SUM(CASE WHEN emp.IsActive = 0 THEN 1 ELSE 0 END) AS InactiveCount
+                FROM [Hie].[SalesEmployeeHierarchyMap] map
+                INNER JOIN [Hie].[SalesHierarchy] emp
+                    ON emp.CompanyId = map.CompanyId
+                   AND emp.PersonCode = map.EmpPersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h1
+                    ON h1.CompanyId = map.CompanyId
+                   AND h1.PersonCode = map.H1PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h2
+                    ON h2.CompanyId = map.CompanyId
+                   AND h2.PersonCode = map.H2PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h3
+                    ON h3.CompanyId = map.CompanyId
+                   AND h3.PersonCode = map.H3PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h4
+                    ON h4.CompanyId = map.CompanyId
+                   AND h4.PersonCode = map.H4PersonCode
+                WHERE map.CompanyId = @CompanyId
+                  AND map.IsActive = 1";
 
             using var conn = new SqlConnection(_connectionString);
             return await conn.QueryFirstOrDefaultAsync<SalesHierarchyStatsDto>(sql, new { CompanyId = companyId })
@@ -3975,190 +4125,56 @@ WHERE EmployeeId = @EmployeeId";
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
-            using var tx = await conn.BeginTransactionAsync();
 
             try
             {
-                var lastTempCode = await conn.QueryFirstOrDefaultAsync<string>(
-                    "SELECT TOP 1 EmployeeCode FROM [Hie].[Employees] WHERE EmployeeCode LIKE 'TEMP%' ORDER BY EmployeeCode DESC",
-                    transaction: tx);
-
-                var tempSeq = 0;
-                if (!string.IsNullOrWhiteSpace(lastTempCode))
-                {
-                    var digits = new string(lastTempCode.Where(char.IsDigit).ToArray());
-                    if (!string.IsNullOrWhiteSpace(digits))
-                        int.TryParse(digits, out tempSeq);
-                }
-
-                var tempSeqBox = new TempSeqBox { Seq = tempSeq };
-                var missingCodeCache = new Dictionary<string, (string Code, int EmployeeId)>(StringComparer.OrdinalIgnoreCase);
-
                 foreach (var row in rows)
                 {
                     try
                     {
                         NormalizeSalesImportRow(row);
 
-                        // If an upload row has a person name but no employee code, reuse an existing employee by name.
-                        // If the person is new, create a TEMP#### code so the sales hierarchy row can be matched later.
-                        int? employeeId = null;
-                        if (string.IsNullOrWhiteSpace(row.EmpCode) && !string.IsNullOrWhiteSpace(row.EmpName))
-                        {
-                            var nameKey = NormalizeImportName(row.EmpName);
-                            if (missingCodeCache.TryGetValue(nameKey, out var cached))
+                        var importResult = await conn.QueryFirstAsync<dynamic>(@"
+                            EXEC [Hie].[sp_ImportSalesHierarchyRow]
+                                @CompanyId,
+                                @H1Code,
+                                @H1Name,
+                                @H2Code,
+                                @H2Name,
+                                @H3Code,
+                                @H3Name,
+                                @H4Code,
+                                @H4Name,
+                                @EmpCode,
+                                @EmpName,
+                                @StateName,
+                                @GroupName,
+                                @DesignationName,
+                                @Area,
+                                @CreatedBy",
+                            new
                             {
-                                row.EmpCode = cached.Code;
-                                employeeId = cached.EmployeeId;
-                            }
-                            else
-                            {
-                                var existingByName = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
-                                    SELECT TOP 1 EmployeeId, EmployeeCode, EmployeeName
-                                    FROM [Hie].[Employees]
-                                    WHERE IsActive = 1
-                                      AND LTRIM(RTRIM(EmployeeName)) = @Name
-                                    ORDER BY EmployeeId DESC",
-                                    new { Name = row.EmpName }, tx);
-
-                                if (existingByName != null && !string.IsNullOrWhiteSpace((string?)existingByName.EmployeeCode))
-                                {
-                                    employeeId = (int)existingByName.EmployeeId;
-                                    row.EmpCode = ((string)existingByName.EmployeeCode).Trim();
-                                    missingCodeCache[nameKey] = (row.EmpCode, employeeId.Value);
-
-                                    await conn.ExecuteAsync(
-                                        @"UPDATE [Hie].[Employees]
-                                          SET EmployeeName = @Name, Designation = @Desig, ModifiedOn = GETDATE()
-                                          WHERE EmployeeId = @EmployeeId",
-                                        new { EmployeeId = employeeId.Value, Name = row.EmpName, Desig = row.Designation ?? "" }, tx);
-                                    result.EmployeesUpdated++;
-                                }
-                                else
-                                {
-                                    tempSeqBox.Seq++;
-                                    var tempCode = $"TEMP{tempSeqBox.Seq:D4}";
-                                    employeeId = await conn.QueryFirstOrDefaultAsync<int>(
-                                        @"INSERT INTO [Hie].[Employees]
-                                            (EmployeeCode, EmployeeName, Designation, RoleTypeId, IsActive, CreatedOn)
-                                          VALUES (@Code, @Name, @Desig, 3, 1, GETDATE());
-                                          SELECT CAST(SCOPE_IDENTITY() AS INT);",
-                                        new { Code = tempCode, Name = row.EmpName, Desig = row.Designation ?? "" }, tx);
-
-                                    row.EmpCode = tempCode;
-                                    missingCodeCache[nameKey] = (tempCode, employeeId.Value);
-                                    result.EmployeesCreated++;
-                                    result.TempCodesGenerated++;
-                                    result.TempCodes.Add($"{tempCode} -> {row.EmpName}");
-                                }
-                            }
-                        }
-
-                        // Auto-create or update employee in [Hie].[Employees] if EmpCode provided
-                        if (!string.IsNullOrWhiteSpace(row.EmpCode) && !employeeId.HasValue)
-                        {
-                            var existing = await conn.QueryFirstOrDefaultAsync<dynamic>(
-                                "SELECT EmployeeId, EmployeeName FROM [Hie].[Employees] WHERE EmployeeCode = @Code",
-                                new { Code = row.EmpCode.Trim() }, tx);
-
-                            if (existing == null)
-                            {
-                                employeeId = await conn.QueryFirstOrDefaultAsync<int>(
-                                    @"INSERT INTO [Hie].[Employees]
-                                        (EmployeeCode, EmployeeName, Designation, RoleTypeId, IsActive, CreatedOn)
-                                      VALUES (@Code, @Name, @Desig, 3, 1, GETDATE());
-                                      SELECT CAST(SCOPE_IDENTITY() AS INT);",
-                                    new
-                                    {
-                                        Code = row.EmpCode.Trim(),
-                                        Name = (row.EmpName ?? row.EmpCode).Trim(),
-                                        Desig = row.Designation ?? ""
-                                    }, tx);
-                                result.EmployeesCreated++;
-                            }
-                            else
-                            {
-                                employeeId = (int)existing.EmployeeId;
-                                if (!string.IsNullOrWhiteSpace(row.EmpName))
-                                {
-                                    await conn.ExecuteAsync(
-                                        @"UPDATE [Hie].[Employees]
-                                          SET EmployeeName = @Name, Designation = @Desig, ModifiedOn = GETDATE()
-                                          WHERE EmployeeCode = @Code",
-                                        new { Code = row.EmpCode.Trim(), Name = row.EmpName.Trim(), Desig = row.Designation ?? "" }, tx);
-                                    result.EmployeesUpdated++;
-                                }
-                            }
-                        }
-
-                        // Upsert into SalesHierarchy — match by CompanyId + EmpCode (or insert if no code)
-                        if (!string.IsNullOrWhiteSpace(row.EmpCode))
-                        {
-                            // Remove any old rows that were previously imported without a code for this same employee name.
-                            // Those NULL-EmpCode rows cannot be matched by the MERGE below (NULL ≠ any value),
-                            // so without this cleanup they remain as duplicates showing "No code".
-                            if (!string.IsNullOrWhiteSpace(row.EmpName))
-                            {
-                                await conn.ExecuteAsync(@"
-                                    DELETE FROM [Hie].[SalesHierarchy]
-                                    WHERE CompanyId = @CompanyId
-                                      AND (EmpCode IS NULL OR EmpCode = '')
-                                      AND EmpName = @EmpName",
-                                    new { CompanyId = companyId, EmpName = row.EmpName.Trim() }, tx);
-                            }
-
-                            await conn.ExecuteAsync(@"
-                                MERGE [Hie].[SalesHierarchy] AS T
-                                USING (SELECT @CompanyId AS CompanyId, @EmpCode AS EmpCode) AS S
-                                   ON T.CompanyId = S.CompanyId AND T.EmpCode = S.EmpCode
-                                WHEN MATCHED THEN UPDATE SET
-                                    H1Code=@H1Code, H1Name=@H1Name, H2Code=@H2Code, H2Name=@H2Name,
-                                    H3Code=@H3Code, H3Name=@H3Name, H4Code=@H4Code, H4Name=@H4Name,
-                                    EmployeeId=@EmployeeId, EmpName=@EmpName, State=@State,
-                                    GroupName=@GroupName, Designation=@Designation,
-                                    IsActive=1, ModifiedBy=@CreatedBy, ModifiedOn=GETDATE()
-                                WHEN NOT MATCHED THEN INSERT
-                                    (CompanyId, H1Code, H1Name, H2Code, H2Name, H3Code, H3Name, H4Code, H4Name,
-                                     EmployeeId, EmpCode, EmpName, State, GroupName, Designation,
-                                     IsActive, CreatedBy, CreatedOn)
-                                VALUES
-                                    (@CompanyId, @H1Code, @H1Name, @H2Code, @H2Name, @H3Code, @H3Name, @H4Code, @H4Name,
-                                     @EmployeeId, @EmpCode, @EmpName, @State, @GroupName, @Designation,
-                                     1, @CreatedBy, GETDATE());",
-                                BuildUpsertParams(row, employeeId, companyId, createdBy), tx);
-                        }
-                        else
-                        {
-                            // No code — always insert (leaf identified by name+chain)
-                            await conn.ExecuteAsync(@"
-                                INSERT INTO [Hie].[SalesHierarchy]
-                                    (CompanyId, H1Code, H1Name, H2Code, H2Name, H3Code, H3Name, H4Code, H4Name,
-                                     EmployeeId, EmpCode, EmpName, State, GroupName, Designation,
-                                     IsActive, CreatedBy, CreatedOn)
-                                VALUES
-                                    (@CompanyId, @H1Code, @H1Name, @H2Code, @H2Name, @H3Code, @H3Name, @H4Code, @H4Name,
-                                     @EmployeeId, @EmpCode, @EmpName, @State, @GroupName, @Designation,
-                                     1, @CreatedBy, GETDATE())",
-                                BuildUpsertParams(row, employeeId, companyId, createdBy), tx);
-                        }
+                                CompanyId = companyId,
+                                row.H1Code,
+                                row.H1Name,
+                                row.H2Code,
+                                row.H2Name,
+                                row.H3Code,
+                                row.H3Name,
+                                row.H4Code,
+                                row.H4Name,
+                                row.EmpCode,
+                                row.EmpName,
+                                StateName = row.State,
+                                row.GroupName,
+                                DesignationName = row.Designation,
+                                row.Area,
+                                CreatedBy = createdBy
+                            });
 
                         result.RowsUpserted++;
-
-                        // Auto-populate lookup master tables with new values
-                        if (!string.IsNullOrWhiteSpace(row.State))
-                            await conn.ExecuteAsync(
-                                "IF NOT EXISTS (SELECT 1 FROM [Hie].[SalesStates] WHERE StateName = @N) INSERT INTO [Hie].[SalesStates] (StateName) VALUES (@N)",
-                                new { N = row.State.Trim() }, tx);
-
-                        if (!string.IsNullOrWhiteSpace(row.GroupName))
-                            await conn.ExecuteAsync(
-                                "IF NOT EXISTS (SELECT 1 FROM [Hie].[SalesGroups] WHERE GroupName = @N) INSERT INTO [Hie].[SalesGroups] (GroupName) VALUES (@N)",
-                                new { N = row.GroupName.Trim() }, tx);
-
-                        if (!string.IsNullOrWhiteSpace(row.Designation))
-                            await conn.ExecuteAsync(
-                                "IF NOT EXISTS (SELECT 1 FROM [Hie].[SalesDesignations] WHERE DesignationName = @N) INSERT INTO [Hie].[SalesDesignations] (DesignationName) VALUES (@N)",
-                                new { N = row.Designation.Trim() }, tx);
+                        result.EmployeesCreated += Convert.ToInt32(importResult.CreatedCount ?? 0);
+                        result.EmployeesUpdated += Convert.ToInt32(importResult.UpdatedCount ?? 0);
                     }
                     catch (Exception rowEx)
                     {
@@ -4167,17 +4183,306 @@ WHERE EmployeeId = @EmployeeId";
                     }
                 }
 
-                await tx.CommitAsync();
                 _ = LogAuditAsync("BulkImport", "SalesHierarchy", null, null, null,
                     ToJson(new { result.TotalRows, result.RowsUpserted, result.EmployeesCreated }),
                     $"Sales hierarchy import: {result.RowsUpserted} rows upserted", createdBy);
                 return result;
             }
-            catch
+            catch { throw; }
+        }
+
+        private static async Task<int?> UpsertSalesHierarchyPersonAsync(
+            SqlConnection conn,
+            System.Data.Common.DbTransaction tx,
+            int companyId,
+            string? personCode,
+            string? personName,
+            int changedBy,
+            SalesImportResult result)
+        {
+            if (string.IsNullOrWhiteSpace(personCode) && string.IsNullOrWhiteSpace(personName))
+                return null;
+
+            personCode = NormalizeJwplCode(personCode);
+            personName = ToTitleCaseName(personName) ?? personCode;
+            if (string.IsNullOrWhiteSpace(personName))
+                return null;
+
+            var existing = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+                SELECT TOP 1 SalesHierarchyId, PersonCode, PersonName
+                FROM [Hie].[SalesHierarchy]
+                WHERE CompanyId = @CompanyId
+                  AND (
+                        (NULLIF(@PersonCode, '') IS NOT NULL AND PersonCode = @PersonCode)
+                     OR (NULLIF(@PersonCode, '') IS NULL AND PersonCode IS NULL AND PersonName = @PersonName)
+                  )
+                ORDER BY SalesHierarchyId DESC",
+                new { CompanyId = companyId, PersonCode = personCode, PersonName = personName }, tx);
+
+            if (existing == null)
             {
-                await tx.RollbackAsync();
-                throw;
+                var id = await conn.QueryFirstAsync<int>(@"
+                    INSERT INTO [Hie].[SalesHierarchy]
+                        (CompanyId, PersonCode, PersonName, IsActive, CreatedBy, CreatedOn)
+                    VALUES
+                        (@CompanyId, @PersonCode, @PersonName, 1, @ChangedBy, SYSDATETIME());
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                    new { CompanyId = companyId, PersonCode = personCode, PersonName = personName, ChangedBy = changedBy }, tx);
+
+                result.EmployeesCreated++;
+                return id;
             }
+
+            await conn.ExecuteAsync(@"
+                UPDATE [Hie].[SalesHierarchy]
+                SET PersonCode = COALESCE(NULLIF(@PersonCode, ''), PersonCode),
+                    PersonName = @PersonName,
+                    IsActive = 1,
+                    ModifiedBy = @ChangedBy,
+                    ModifiedOn = SYSDATETIME()
+                WHERE SalesHierarchyId = @SalesHierarchyId",
+                new
+                {
+                    SalesHierarchyId = (int)existing.SalesHierarchyId,
+                    PersonCode = personCode,
+                    PersonName = personName,
+                    ChangedBy = changedBy
+                }, tx);
+
+            result.EmployeesUpdated++;
+            return (int)existing.SalesHierarchyId;
+        }
+
+        private static async Task<int> GetSalesHierarchyLevelIdAsync(
+            SqlConnection conn,
+            System.Data.Common.DbTransaction tx,
+            int companyId,
+            string levelCode,
+            int changedBy)
+        {
+            levelCode = levelCode.Trim().ToUpperInvariant();
+            var levelId = await conn.QueryFirstOrDefaultAsync<int?>(@"
+                SELECT SalesHierarchyLevelId
+                FROM [Hie].[SalesHierarchyLevels]
+                WHERE CompanyId = @CompanyId AND LevelCode = @LevelCode",
+                new { CompanyId = companyId, LevelCode = levelCode }, tx);
+
+            if (levelId.HasValue)
+                return levelId.Value;
+
+            var levelOrder = levelCode == "EMP"
+                ? 999
+                : int.TryParse(levelCode.TrimStart('H'), out var parsed) ? parsed : 999;
+
+            return await conn.QueryFirstAsync<int>(@"
+                INSERT INTO [Hie].[SalesHierarchyLevels]
+                    (CompanyId, LevelCode, LevelName, LevelOrder, IsActive, CreatedBy, CreatedOn)
+                VALUES
+                    (@CompanyId, @LevelCode, @LevelName, @LevelOrder, 1, @ChangedBy, SYSDATETIME());
+                SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new
+                {
+                    CompanyId = companyId,
+                    LevelCode = levelCode,
+                    LevelName = levelCode == "EMP" ? "Employee/Promoter" : $"Hierarchy Level {levelOrder}",
+                    LevelOrder = levelOrder,
+                    ChangedBy = changedBy
+                }, tx);
+        }
+
+        private static async Task<int> UpsertSalesHierarchyNodeAsync(
+            SqlConnection conn,
+            System.Data.Common.DbTransaction tx,
+            int companyId,
+            int salesHierarchyId,
+            string levelCode,
+            int? parentNodeId,
+            int changedBy)
+        {
+            var levelId = await GetSalesHierarchyLevelIdAsync(conn, tx, companyId, levelCode, changedBy);
+
+            var activeNode = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+                SELECT TOP 1 SalesHierarchyNodeId, SalesHierarchyLevelId, ParentSalesHierarchyNodeId
+                FROM [Hie].[SalesHierarchyNodes]
+                WHERE CompanyId = @CompanyId
+                  AND SalesHierarchyId = @SalesHierarchyId
+                  AND IsActive = 1
+                  AND EffectiveTo IS NULL
+                ORDER BY SalesHierarchyNodeId DESC",
+                new { CompanyId = companyId, SalesHierarchyId = salesHierarchyId }, tx);
+
+            if (activeNode != null
+                && (int)activeNode.SalesHierarchyLevelId == levelId
+                && NullableIntEquals(activeNode.ParentSalesHierarchyNodeId, parentNodeId))
+            {
+                return (int)activeNode.SalesHierarchyNodeId;
+            }
+
+            if (activeNode != null)
+            {
+                await conn.ExecuteAsync(@"
+                    UPDATE [Hie].[SalesHierarchyNodes]
+                    SET IsActive = 0,
+                        EffectiveTo = CONVERT(date, GETDATE()),
+                        ModifiedBy = @ChangedBy,
+                        ModifiedOn = SYSDATETIME()
+                    WHERE SalesHierarchyNodeId = @SalesHierarchyNodeId",
+                    new { SalesHierarchyNodeId = (int)activeNode.SalesHierarchyNodeId, ChangedBy = changedBy }, tx);
+            }
+
+            return await conn.QueryFirstAsync<int>(@"
+                INSERT INTO [Hie].[SalesHierarchyNodes]
+                    (CompanyId, SalesHierarchyId, SalesHierarchyLevelId, ParentSalesHierarchyNodeId,
+                     EffectiveFrom, IsActive, CreatedBy, CreatedOn)
+                VALUES
+                    (@CompanyId, @SalesHierarchyId, @SalesHierarchyLevelId, @ParentSalesHierarchyNodeId,
+                     CONVERT(date, GETDATE()), 1, @ChangedBy, SYSDATETIME());
+                SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new
+                {
+                    CompanyId = companyId,
+                    SalesHierarchyId = salesHierarchyId,
+                    SalesHierarchyLevelId = levelId,
+                    ParentSalesHierarchyNodeId = parentNodeId,
+                    ChangedBy = changedBy
+                }, tx);
+        }
+
+        private static bool NullableIntEquals(object? dbValue, int? expected)
+        {
+            if (dbValue == null) return !expected.HasValue;
+            return Convert.ToInt32(dbValue) == expected.GetValueOrDefault();
+        }
+
+        private static async Task UpsertSalesPersonProfileAsync(
+            SqlConnection conn,
+            System.Data.Common.DbTransaction tx,
+            int companyId,
+            int salesHierarchyId,
+            SalesImportRowRequest row,
+            int changedBy)
+        {
+            var departmentId = await ResolveDepartmentIdAsync(conn, tx);
+            var stateId = await ResolveSalesStateIdAsync(conn, tx, row.State);
+            var groupId = await ResolveSalesGroupIdAsync(conn, tx, row.GroupName);
+            var designationId = await ResolveSalesDesignationIdAsync(conn, tx, row.Designation);
+
+            var existingProfileId = await conn.QueryFirstOrDefaultAsync<int?>(@"
+                SELECT TOP 1 SalesPersonProfileId
+                FROM [Hie].[SalesPersonProfile]
+                WHERE CompanyId = @CompanyId
+                  AND SalesHierarchyId = @SalesHierarchyId
+                  AND IsActive = 1
+                ORDER BY SalesPersonProfileId DESC",
+                new { CompanyId = companyId, SalesHierarchyId = salesHierarchyId }, tx);
+
+            if (existingProfileId.HasValue)
+            {
+                await conn.ExecuteAsync(@"
+                    UPDATE [Hie].[SalesPersonProfile]
+                    SET DepartmentId = @DepartmentId,
+                        StateId = @StateId,
+                        GroupId = @GroupId,
+                        DesignationId = @DesignationId,
+                        ModifiedBy = @ChangedBy,
+                        ModifiedOn = SYSDATETIME()
+                    WHERE SalesPersonProfileId = @SalesPersonProfileId",
+                    new
+                    {
+                        SalesPersonProfileId = existingProfileId.Value,
+                        DepartmentId = departmentId,
+                        StateId = stateId,
+                        GroupId = groupId,
+                        DesignationId = designationId,
+                        ChangedBy = changedBy
+                    }, tx);
+                return;
+            }
+
+            await conn.ExecuteAsync(@"
+                INSERT INTO [Hie].[SalesPersonProfile]
+                    (CompanyId, SalesHierarchyId, DepartmentId, StateId, GroupId, DesignationId,
+                     IsActive, CreatedBy, CreatedOn)
+                VALUES
+                    (@CompanyId, @SalesHierarchyId, @DepartmentId, @StateId, @GroupId, @DesignationId,
+                     1, @ChangedBy, SYSDATETIME())",
+                new
+                {
+                    CompanyId = companyId,
+                    SalesHierarchyId = salesHierarchyId,
+                    DepartmentId = departmentId,
+                    StateId = stateId,
+                    GroupId = groupId,
+                    DesignationId = designationId,
+                    ChangedBy = changedBy
+                }, tx);
+        }
+
+        private static Task<int?> ResolveDepartmentIdAsync(SqlConnection conn, System.Data.Common.DbTransaction tx) =>
+            conn.QueryFirstOrDefaultAsync<int?>(@"
+                SELECT TOP 1 DepartmentId
+                FROM [Hie].[Departments]
+                WHERE IsActive = 1 AND DepartmentName = N'Frontend Sales'
+                ORDER BY DepartmentId", transaction: tx);
+
+        private static async Task<int?> ResolveSalesStateIdAsync(SqlConnection conn, System.Data.Common.DbTransaction tx, string? stateName)
+        {
+            if (string.IsNullOrWhiteSpace(stateName)) return null;
+
+            var stateId = await conn.QueryFirstOrDefaultAsync<int?>(@"
+                SELECT TOP 1 StateId
+                FROM [Hie].[SalesStates]
+                WHERE UPPER(LTRIM(RTRIM(StateName))) = @StateName
+                ORDER BY StateId",
+                new { StateName = stateName.Trim().ToUpperInvariant() }, tx);
+
+            if (stateId.HasValue) return stateId.Value;
+
+            return await conn.QueryFirstAsync<int>(@"
+                INSERT INTO [Hie].[SalesStates] (StateName)
+                VALUES (@StateName);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new { StateName = stateName.Trim().ToUpperInvariant() }, tx);
+        }
+
+        private static async Task<int?> ResolveSalesGroupIdAsync(SqlConnection conn, System.Data.Common.DbTransaction tx, string? groupName)
+        {
+            if (string.IsNullOrWhiteSpace(groupName)) return null;
+
+            var groupId = await conn.QueryFirstOrDefaultAsync<int?>(@"
+                SELECT TOP 1 GroupId
+                FROM [Hie].[SalesGroups]
+                WHERE UPPER(LTRIM(RTRIM(GroupName))) = @GroupName
+                ORDER BY GroupId",
+                new { GroupName = groupName.Trim().ToUpperInvariant() }, tx);
+
+            if (groupId.HasValue) return groupId.Value;
+
+            return await conn.QueryFirstAsync<int>(@"
+                INSERT INTO [Hie].[SalesGroups] (GroupName)
+                VALUES (@GroupName);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new { GroupName = groupName.Trim().ToUpperInvariant() }, tx);
+        }
+
+        private static async Task<int?> ResolveSalesDesignationIdAsync(SqlConnection conn, System.Data.Common.DbTransaction tx, string? designationName)
+        {
+            if (string.IsNullOrWhiteSpace(designationName)) return null;
+
+            var designationId = await conn.QueryFirstOrDefaultAsync<int?>(@"
+                SELECT TOP 1 DesignationId
+                FROM [Hie].[SalesDesignations]
+                WHERE UPPER(LTRIM(RTRIM(DesignationName))) = @DesignationName
+                ORDER BY DesignationId",
+                new { DesignationName = designationName.Trim().ToUpperInvariant() }, tx);
+
+            if (designationId.HasValue) return designationId.Value;
+
+            return await conn.QueryFirstAsync<int>(@"
+                INSERT INTO [Hie].[SalesDesignations] (DesignationName)
+                VALUES (@DesignationName);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new { DesignationName = designationName.Trim().ToUpperInvariant() }, tx);
         }
 
         private static object BuildUpsertParams(SalesImportRowRequest row, int? employeeId, int companyId, int createdBy)
@@ -4229,6 +4534,7 @@ WHERE EmployeeId = @EmployeeId";
             row.State = NormalizeSalesText(row.State, true);
             row.GroupName = NormalizeSalesText(row.GroupName, true);
             row.Designation = NormalizeSalesText(row.Designation, true);
+            row.Area = NormalizeSalesText(row.Area, false);
         }
 
         private static string? NormalizeJwplCode(string? value)
@@ -4292,80 +4598,205 @@ WHERE EmployeeId = @EmployeeId";
                 new { CompanyId = companyId });
         }
 
-        public async Task<HierarchyApiResponse<bool>> UpdateSalesRowAsync(SalesUpdateRowRequest request, int updatedBy)
+        public async Task<HierarchyApiResponse<bool>> UpdateSalesRowAsync(SalesUpdateRowRequest request, int updatedBy, int companyId)
         {
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                int affected = await conn.ExecuteAsync(@"
-                    UPDATE [Hie].[SalesHierarchy] SET
-                        EmpCode     = @EmpCode,
-                        EmpName     = @EmpName,
-                        State       = @State,
-                        GroupName   = @GroupName,
-                        Designation = @Designation,
-                        Qualification = @Qualification,
-                        Gender      = @Gender,
-                        sikh_no_sikh = @SikhNonSikh,
-                        Area        = @Area,
-                        IsActive    = @IsActive,
-                        ModifiedBy  = @ModifiedBy,
-                        ModifiedOn  = GETDATE()
-                    WHERE SalesHierarchyId = @Id",
+                var originalPersonCode = NormalizeJwplCode(request.PersonCode) ?? NormalizeJwplCode(request.EmpCode);
+                var target = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+                    SELECT TOP (1) SalesHierarchyId, CompanyId
+                    FROM [Hie].[SalesHierarchy]
+                    WHERE CompanyId = @CompanyId
+                      AND (
+                            (NULLIF(@PersonCode, N'') IS NOT NULL AND PersonCode = @PersonCode)
+                         OR (NULLIF(@PersonCode, N'') IS NULL AND SalesHierarchyId = @SalesHierarchyId)
+                      )
+                    ORDER BY SalesHierarchyId DESC",
                     new
                     {
-                        Id = request.SalesHierarchyId,
-                        EmpCode = NormalizeJwplCode(request.EmpCode),
-                        EmpName = ToTitleCaseName(request.EmpName),
-                        State = NormalizeSalesText(request.State, true),
-                        GroupName = NormalizeSalesText(request.GroupName, true),
-                        Designation = NormalizeSalesText(request.Designation, true),
-                        Qualification = NormalizeSalesText(request.Qualification, false),
-                        Gender = NormalizeSalesText(request.Gender, false),
-                        SikhNonSikh = NormalizeSikhNonSikhCode(request.SikhNonSikh),
-                        Area = NormalizeSalesText(request.Area, false),
-                        request.IsActive, ModifiedBy = updatedBy
+                        CompanyId = companyId,
+                        PersonCode = originalPersonCode,
+                        request.SalesHierarchyId
                     });
 
+                if (target == null) return HierarchyApiResponse<bool>.ErrorResponse("Row not found");
+                int targetId = (int)target.SalesHierarchyId;
+
+                var normalized = new
+                {
+                    Id = targetId,
+                    EmpCode = NormalizeJwplCode(request.EmpCode),
+                    EmpName = ToTitleCaseName(request.EmpName),
+                    Mobile = NormalizeSalesText(request.Mobile, false),
+                    Email = NormalizeSalesText(request.Email, false),
+                    request.DateOfJoining,
+                    State = NormalizeSalesText(request.State, true),
+                    GroupName = NormalizeSalesText(request.GroupName, true),
+                    Designation = NormalizeSalesText(request.Designation, true),
+                    Qualification = NormalizeSalesText(request.Qualification, false),
+                    Gender = NormalizeSalesText(request.Gender, false),
+                    SikhNonSikh = NormalizeSikhNonSikhCode(request.SikhNonSikh),
+                    Area = NormalizeSalesText(request.Area, false),
+                    request.IsActive,
+                    ModifiedBy = updatedBy
+                };
+
+                int affected = await conn.ExecuteAsync(@"
+                    UPDATE [Hie].[SalesHierarchy] SET
+                        PersonCode    = @EmpCode,
+                        PersonName    = COALESCE(NULLIF(@EmpName, N''), PersonName),
+                        Mobile        = @Mobile,
+                        Email         = @Email,
+                        DateOfJoining = @DateOfJoining,
+                        Qualification = @Qualification,
+                        Gender        = @Gender,
+                        SikhNonSikh   = @SikhNonSikh,
+                        IsActive      = @IsActive,
+                        ModifiedBy    = @ModifiedBy,
+                        ModifiedOn    = SYSDATETIME()
+                    WHERE SalesHierarchyId = @Id",
+                    normalized);
+
                 if (affected == 0) return HierarchyApiResponse<bool>.ErrorResponse("Row not found");
-                _ = LogAuditAsync("Update", "SalesHierarchy", request.SalesHierarchyId, null, null,
-                    ToJson(request), $"Sales row {request.SalesHierarchyId} updated", updatedBy);
+
+                await conn.ExecuteAsync(@"
+                    EXEC [Hie].[sp_UpsertSalesPersonProfile]
+                        @CompanyId = @CompanyId,
+                        @SalesHierarchyId = @SalesHierarchyId,
+                        @StateName = @StateName,
+                        @GroupName = @GroupName,
+                        @DesignationName = @DesignationName,
+                        @Area = @Area,
+                        @ChangedBy = @ChangedBy",
+                    new
+                    {
+                        CompanyId = companyId,
+                        SalesHierarchyId = targetId,
+                        StateName = normalized.State,
+                        GroupName = normalized.GroupName,
+                        DesignationName = normalized.Designation,
+                        Area = normalized.Area,
+                        ChangedBy = updatedBy
+                    });
+
+                _ = LogAuditAsync("Update", "SalesHierarchy", targetId, null, null,
+                    ToJson(request), $"Sales row {targetId} updated", updatedBy);
                 return HierarchyApiResponse<bool>.SuccessResponse(true, "Row updated successfully");
             }
             catch (Exception ex) { return HierarchyApiResponse<bool>.ErrorResponse(ex.Message); }
         }
 
-        public async Task<HierarchyApiResponse<bool>> ShiftSalesEmployeeAsync(SalesShiftRequest request, int updatedBy)
+        public async Task<HierarchyApiResponse<bool>> ShiftSalesEmployeeAsync(SalesShiftRequest request, int updatedBy, int companyId)
         {
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                // Read old values for audit
-                var old = await conn.QueryFirstOrDefaultAsync<dynamic>(
-                    "SELECT H1Code, H1Name, H2Code, H2Name, H3Code, H3Name, H4Code, H4Name FROM [Hie].[SalesHierarchy] WHERE SalesHierarchyId = @Id",
-                    new { Id = request.SalesHierarchyId });
-
-                int affected = await conn.ExecuteAsync(@"
-                    UPDATE [Hie].[SalesHierarchy] SET
-                        H1Code = @H1Code, H1Name = @H1Name,
-                        H2Code = @H2Code, H2Name = @H2Name,
-                        H3Code = @H3Code, H3Name = @H3Name,
-                        H4Code = @H4Code, H4Name = @H4Name,
-                        ModifiedBy = @ModifiedBy, ModifiedOn = GETDATE()
-                    WHERE SalesHierarchyId = @Id",
+                var originalPersonCode = NormalizeJwplCode(request.PersonCode);
+                var old = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+                    WITH ActiveNodes AS
+                    (
+                        SELECT *
+                        FROM [Hie].[SalesHierarchyNodes]
+                        WHERE IsActive = 1 AND EffectiveTo IS NULL
+                    )
+                    SELECT
+                        emp.SalesHierarchyId,
+                        emp.CompanyId,
+                        h1.PersonCode AS H1Code, h1.PersonName AS H1Name,
+                        h2.PersonCode AS H2Code, h2.PersonName AS H2Name,
+                        h3.PersonCode AS H3Code, h3.PersonName AS H3Name,
+                        h4.PersonCode AS H4Code, h4.PersonName AS H4Name,
+                        emp.PersonCode AS EmpCode,
+                        emp.PersonName AS EmpName,
+                        ss.StateName AS State,
+                        sg.GroupName,
+                        sdg.DesignationName AS Designation,
+                        sp.Area
+                    FROM [Hie].[SalesHierarchy] emp
+                    LEFT JOIN ActiveNodes empNode
+                        ON empNode.CompanyId = emp.CompanyId
+                       AND empNode.SalesHierarchyId = emp.SalesHierarchyId
+                    LEFT JOIN ActiveNodes h4Node
+                        ON h4Node.SalesHierarchyNodeId = empNode.ParentSalesHierarchyNodeId
+                    LEFT JOIN [Hie].[SalesHierarchy] h4
+                        ON h4.SalesHierarchyId = h4Node.SalesHierarchyId
+                    LEFT JOIN ActiveNodes h3Node
+                        ON h3Node.SalesHierarchyNodeId = h4Node.ParentSalesHierarchyNodeId
+                    LEFT JOIN [Hie].[SalesHierarchy] h3
+                        ON h3.SalesHierarchyId = h3Node.SalesHierarchyId
+                    LEFT JOIN ActiveNodes h2Node
+                        ON h2Node.SalesHierarchyNodeId = h3Node.ParentSalesHierarchyNodeId
+                    LEFT JOIN [Hie].[SalesHierarchy] h2
+                        ON h2.SalesHierarchyId = h2Node.SalesHierarchyId
+                    LEFT JOIN ActiveNodes h1Node
+                        ON h1Node.SalesHierarchyNodeId = h2Node.ParentSalesHierarchyNodeId
+                    LEFT JOIN [Hie].[SalesHierarchy] h1
+                        ON h1.SalesHierarchyId = h1Node.SalesHierarchyId
+                    LEFT JOIN [Hie].[SalesPersonProfile] sp
+                        ON sp.CompanyId = emp.CompanyId
+                       AND sp.SalesHierarchyId = emp.SalesHierarchyId
+                       AND sp.IsActive = 1
+                    LEFT JOIN [Hie].[SalesStates] ss
+                        ON ss.StateId = sp.StateId
+                    LEFT JOIN [Hie].[SalesGroups] sg
+                        ON sg.GroupId = sp.GroupId
+                    LEFT JOIN [Hie].[SalesDesignations] sdg
+                        ON sdg.DesignationId = sp.DesignationId
+                    WHERE emp.CompanyId = @CompanyId
+                      AND (
+                            (NULLIF(@PersonCode, N'') IS NOT NULL AND emp.PersonCode = @PersonCode)
+                         OR (NULLIF(@PersonCode, N'') IS NULL AND emp.SalesHierarchyId = @Id)
+                      )",
                     new
                     {
-                        Id = request.SalesHierarchyId,
-                        H1Code = request.NewH1Code?.Trim(), H1Name = request.NewH1Name?.Trim(),
-                        H2Code = request.NewH2Code?.Trim(), H2Name = request.NewH2Name?.Trim(),
-                        H3Code = request.NewH3Code?.Trim(), H3Name = request.NewH3Name?.Trim(),
-                        H4Code = request.NewH4Code?.Trim(), H4Name = request.NewH4Name?.Trim(),
-                        ModifiedBy = updatedBy
+                        CompanyId = companyId,
+                        PersonCode = originalPersonCode,
+                        Id = request.SalesHierarchyId
                     });
 
-                if (affected == 0) return HierarchyApiResponse<bool>.ErrorResponse("Row not found");
+                if (old == null) return HierarchyApiResponse<bool>.ErrorResponse("Row not found");
+
+                var result = await conn.QueryFirstAsync<dynamic>(@"
+                    EXEC [Hie].[sp_ImportSalesHierarchyRow]
+                        @CompanyId,
+                        @H1Code,
+                        @H1Name,
+                        @H2Code,
+                        @H2Name,
+                        @H3Code,
+                        @H3Name,
+                        @H4Code,
+                        @H4Name,
+                        @EmpCode,
+                        @EmpName,
+                        @StateName,
+                        @GroupName,
+                        @DesignationName,
+                        @Area,
+                        @CreatedBy",
+                    new
+                    {
+                        CompanyId = (int)old.CompanyId,
+                        H1Code = NormalizeJwplCode(request.NewH1Code),
+                        H1Name = ToTitleCaseName(request.NewH1Name),
+                        H2Code = NormalizeJwplCode(request.NewH2Code),
+                        H2Name = ToTitleCaseName(request.NewH2Name),
+                        H3Code = NormalizeJwplCode(request.NewH3Code),
+                        H3Name = ToTitleCaseName(request.NewH3Name),
+                        H4Code = NormalizeJwplCode(request.NewH4Code),
+                        H4Name = ToTitleCaseName(request.NewH4Name),
+                        EmpCode = (string?)old.EmpCode,
+                        EmpName = (string?)old.EmpName,
+                        StateName = (string?)old.State,
+                        GroupName = (string?)old.GroupName,
+                        DesignationName = (string?)old.Designation,
+                        Area = (string?)old.Area,
+                        CreatedBy = updatedBy
+                    });
+
                 _ = LogAuditAsync("Shift", "SalesHierarchy", request.SalesHierarchyId, null,
-                    ToJson(old), ToJson(request), $"Sales employee shifted (row {request.SalesHierarchyId})", updatedBy);
+                    ToJson(old), ToJson(request), $"Sales employee shifted ({(string?)old.EmpCode ?? request.SalesHierarchyId.ToString()})", updatedBy);
                 return HierarchyApiResponse<bool>.SuccessResponse(true, "Employee shifted successfully");
             }
             catch (Exception ex) { return HierarchyApiResponse<bool>.ErrorResponse(ex.Message); }
@@ -4435,133 +4866,72 @@ WHERE EmployeeId = @EmployeeId";
         public async Task<object> GetSalesHierarchyForTreeAsync(int companyId)
         {
             using var conn = new SqlConnection(_connectionString);
-            var employeeColumns = (await conn.QueryAsync<string>(
-                "SELECT [name] FROM sys.columns WHERE object_id = OBJECT_ID(N'[Hie].[Employees]')"))
-                .ToList();
-            string? sikhNonSikhColumn = FindFirstExistingColumn(
-                employeeColumns,
-                "Sikh / Non-Sikh",
-                "Sikh/Non-Sikh",
-                "SikhNonSikh",
-                "Sikh_Non_Sikh",
-                "sikh_no_sikh");
-            string? genderColumn = FindFirstExistingColumn(employeeColumns, "Gender");
-            string? qualificationColumn = FindFirstExistingColumn(employeeColumns, "Qualification", "Qulaification");
-            string? areaColumn = FindFirstExistingColumn(employeeColumns, "Area");
-
-            string sql = $@"
+            const string sql = @"
                 SELECT
-                       COALESCE(hodMap.EmployeeCode, eh1.EmployeeCode, NULLIF(sh.H1Code, '')) AS H1Code,
-                       COALESCE(hodMap.EmployeeName, sh.H1Name) AS H1Name,
-                       COALESCE(NULLIF(sh.H2Code, ''), eh2.EmployeeCode, h2.H2Code) AS H2Code, sh.H2Name,
-                       COALESCE(NULLIF(sh.H3Code, ''), eh3.EmployeeCode, h3.H3Code) AS H3Code, sh.H3Name,
-                       COALESCE(NULLIF(sh.H4Code, ''), eh4.EmployeeCode, h4.H4Code) AS H4Code, sh.H4Name,
-                       COALESCE(NULLIF(sh.EmpCode, ''), e.EmployeeCode) AS EmpCode,
-                       COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName) AS EmpName,
-                       COALESCE(NULLIF(sh.Designation, ''), e.Designation) AS Designation,
-                       sh.State, sh.GroupName,
-                       e.EmployeeId,
-                       e.DateOfJoining,
-                       e.Gender,
-                       e.Qualification,
-                       e.Area,
-                       e.SikhNonSikh
-                FROM [Hie].[SalesHierarchy] sh
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode, e.EmployeeName
-                    FROM [Hie].[Employees] e
-                    WHERE e.RoleTypeId = 1
-                      AND e.IsActive = 1
-                      AND (
-                           (UPPER(LTRIM(RTRIM(ISNULL(sh.H1Name, '')))) = 'KARANPREET SINGH'
-                            AND UPPER(LTRIM(RTRIM(e.EmployeeName))) = 'KARANPREET VG')
-                        OR (UPPER(LTRIM(RTRIM(ISNULL(sh.H1Name, '')))) = 'GAGANDEEP SINGH'
-                            AND UPPER(LTRIM(RTRIM(e.EmployeeName))) = 'GAGAN VG')
-                      )
-                    ORDER BY e.EmployeeId DESC
-                ) hodMap
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H1Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H1Name
-                    ORDER BY e.IsActive DESC, e.EmployeeId DESC
-                ) eh1
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H2Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H2Name
-                ) eh2
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H3Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H3Name
-                ) eh3
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeCode
-                    FROM [Hie].[Employees] e
-                    WHERE NULLIF(sh.H4Name, '') IS NOT NULL
-                      AND e.EmployeeName = sh.H4Name
-                ) eh4
-                OUTER APPLY (
-                    SELECT TOP 1 s.H2Code
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H2Code, '') IS NOT NULL
-                      AND s.H2Name = sh.H2Name
-                ) h2
-                OUTER APPLY (
-                    SELECT TOP 1 s.H3Code
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H3Code, '') IS NOT NULL
-                      AND s.H3Name = sh.H3Name
-                ) h3
-                OUTER APPLY (
-                    SELECT TOP 1 s.H4Code
-                    FROM [Hie].[SalesHierarchy] s
-                    WHERE s.CompanyId = sh.CompanyId
-                      AND NULLIF(s.H4Code, '') IS NOT NULL
-                      AND s.H4Name = sh.H4Name
-                ) h4
-                OUTER APPLY (
-                    SELECT TOP 1 e.EmployeeId, e.EmployeeCode, e.EmployeeName, e.Designation, e.DateOfJoining,
-                           {BuildOptionalStringColumnExpression(genderColumn)} AS Gender,
-                           {BuildOptionalStringColumnExpression(qualificationColumn)} AS Qualification,
-                           {BuildOptionalStringColumnExpression(areaColumn)} AS Area,
-                           {BuildOptionalStringColumnExpression(sikhNonSikhColumn)} AS SikhNonSikh
-                    FROM [Hie].[Employees] e
-                    WHERE (sh.EmployeeId IS NOT NULL AND e.EmployeeId = sh.EmployeeId)
-                       OR (sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NOT NULL AND e.EmployeeCode = sh.EmpCode)
-                       OR (sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NULL AND NULLIF(sh.EmpName, '') IS NOT NULL AND e.EmployeeName = sh.EmpName)
-                    ORDER BY CASE
-                        WHEN sh.EmployeeId IS NOT NULL AND e.EmployeeId = sh.EmployeeId THEN 1
-                        WHEN sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NOT NULL AND e.EmployeeCode = sh.EmpCode THEN 2
-                        WHEN sh.EmployeeId IS NULL AND NULLIF(sh.EmpCode, '') IS NULL AND NULLIF(sh.EmpName, '') IS NOT NULL AND e.EmployeeName = sh.EmpName THEN 3
-                        ELSE 4
-                    END
-                ) e
-                WHERE sh.CompanyId = @CompanyId AND sh.IsActive = 1
-                  AND (
-                        hodMap.EmployeeCode IS NOT NULL
-                        OR NULLIF(ISNULL(sh.H1Code,''),'') IS NOT NULL
-                        OR eh1.EmployeeCode IS NOT NULL
-                        OR NULLIF(ISNULL(sh.H1Name,''),'') IS NOT NULL
-                      )
-                ORDER BY sh.H1Name, sh.H2Name, sh.H3Name, sh.H4Name, ISNULL(sh.GroupName,''),
-                         COALESCE(NULLIF(sh.EmpName, ''), e.EmployeeName)";
+                       h1.PersonCode AS H1Code,
+                       h1.PersonName AS H1Name,
+                       h2.PersonCode AS H2Code,
+                       h2.PersonName AS H2Name,
+                       h3.PersonCode AS H3Code,
+                       h3.PersonName AS H3Name,
+                       h4.PersonCode AS H4Code,
+                       h4.PersonName AS H4Name,
+                       emp.PersonCode AS EmpCode,
+                       emp.PersonName AS EmpName,
+                       sdg.DesignationName AS Designation,
+                       ss.StateName AS State,
+                       sg.GroupName,
+                       CAST(NULL AS INT) AS EmployeeId,
+                       emp.DateOfJoining,
+                       emp.Gender,
+                       emp.Qualification,
+                       COALESCE(map.Area, sp.Area) AS Area,
+                       emp.SikhNonSikh
+                FROM [Hie].[SalesEmployeeHierarchyMap] map
+                INNER JOIN [Hie].[SalesHierarchy] emp
+                    ON emp.CompanyId = map.CompanyId
+                   AND emp.PersonCode = map.EmpPersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h1
+                    ON h1.CompanyId = map.CompanyId
+                   AND h1.PersonCode = map.H1PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h2
+                    ON h2.CompanyId = map.CompanyId
+                   AND h2.PersonCode = map.H2PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h3
+                    ON h3.CompanyId = map.CompanyId
+                   AND h3.PersonCode = map.H3PersonCode
+                LEFT JOIN [Hie].[SalesHierarchy] h4
+                    ON h4.CompanyId = map.CompanyId
+                   AND h4.PersonCode = map.H4PersonCode
+                LEFT JOIN [Hie].[SalesPersonProfile] sp
+                    ON sp.CompanyId = emp.CompanyId
+                   AND sp.SalesHierarchyId = emp.SalesHierarchyId
+                   AND sp.IsActive = 1
+                LEFT JOIN [Hie].[SalesStates] ss
+                    ON ss.StateId = COALESCE(map.StateId, sp.StateId)
+                LEFT JOIN [Hie].[SalesGroups] sg
+                    ON sg.GroupId = COALESCE(map.GroupId, sp.GroupId)
+                LEFT JOIN [Hie].[SalesDesignations] sdg
+                    ON sdg.DesignationId = COALESCE(map.DesignationId, sp.DesignationId)
+                WHERE map.CompanyId = @CompanyId
+                  AND map.IsActive = 1
+                  AND emp.IsActive = 1
+                ORDER BY h1.PersonName, h2.PersonName, h3.PersonName, h4.PersonName, ISNULL(sg.GroupName, N''), emp.PersonName";
             var rows = (await conn.QueryAsync<dynamic>(sql, new { CompanyId = companyId })).ToList();
 
             var h1Map = new Dictionary<string, SalesH1Node>(StringComparer.OrdinalIgnoreCase);
+            var seenEmployees = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var r in rows)
             {
                 string h1Code  = ((string?)r.H1Code   ?? "").Trim();
                 string h1Name  = ((string?)r.H1Name   ?? "").Trim();
                 string h1Key = !string.IsNullOrEmpty(h1Code) ? h1Code : h1Name;
-                if (string.IsNullOrEmpty(h1Key)) continue;
+                if (string.IsNullOrEmpty(h1Key))
+                {
+                    h1Key = "__UNASSIGNED__";
+                    h1Name = "Unassigned Sales";
+                }
 
                 string empName = ((string?)r.EmpName  ?? "").Trim();
                 if (string.IsNullOrEmpty(empName)) continue;
@@ -4576,6 +4946,11 @@ WHERE EmployeeId = @EmployeeId";
                 string empCode = ((string?)r.EmpCode  ?? "").Trim();
                 string desig   = ((string?)r.Designation ?? "").Trim();
                 string state   = ((string?)r.State    ?? "").Trim();
+                string empKey = !string.IsNullOrEmpty(empCode)
+                    ? $"C:{empCode}"
+                    : $"N:{empName}";
+                if (!seenEmployees.Add(empKey)) continue;
+
                 string sikhNonSikh = ((string?)r.SikhNonSikh ?? "").Trim();
                 int employeeId = (int?)r.EmployeeId ?? 0;
                 DateTime? dateOfJoining = TryGetDate(r.DateOfJoining);
@@ -4583,8 +4958,25 @@ WHERE EmployeeId = @EmployeeId";
                 string qualification = ((string?)r.Qualification ?? "").Trim();
                 string area = ((string?)r.Area ?? "").Trim();
 
+                if (h1Key == "__UNASSIGNED__")
+                {
+                    if (string.IsNullOrEmpty(h2Name)) h2Name = "Unassigned";
+                    if (string.IsNullOrEmpty(h3Name)) h3Name = "Unassigned";
+                    if (string.IsNullOrEmpty(h4Name)) h4Name = string.IsNullOrEmpty(desig) ? "Unassigned" : desig;
+                }
+
                 if (!h1Map.TryGetValue(h1Key, out var h1Node))
                     h1Map[h1Key] = h1Node = new SalesH1Node(h1Name);
+
+                if (string.IsNullOrEmpty(h2Code) && string.IsNullOrEmpty(h2Name))
+                {
+                    string directH3Key = !string.IsNullOrEmpty(h3Name) ? h3Name : (string.IsNullOrEmpty(h3Code) ? "_" : h3Code);
+                    if (!h1Node.DirectH3Map.TryGetValue(directH3Key, out var directH3Node))
+                        h1Node.DirectH3Map[directH3Key] = directH3Node = new SalesH3Node(h3Code, h3Name);
+
+                    AddSalesLeaf(directH3Node, h4Code, h4Name, grpName, employeeId, empCode, empName, desig, state, sikhNonSikh, dateOfJoining, gender, qualification, area);
+                    continue;
+                }
 
                 string h2Key = !string.IsNullOrEmpty(h2Code) ? h2Code : (string.IsNullOrEmpty(h2Name) ? "_" : h2Name);
                 if (!h1Node.H2Map.TryGetValue(h2Key, out var h2Node))
@@ -4594,62 +4986,80 @@ WHERE EmployeeId = @EmployeeId";
                 if (!h2Node.H3Map.TryGetValue(h3Key, out var h3Node))
                     h2Node.H3Map[h3Key] = h3Node = new SalesH3Node(h3Code, string.IsNullOrEmpty(h3Name) ? "—" : h3Name);
 
-                string h4Key = !string.IsNullOrEmpty(h4Code) ? h4Code : (string.IsNullOrEmpty(h4Name) ? "_" : h4Name);
-                if (!h3Node.H4Map.TryGetValue(h4Key, out var h4Node))
-                    h3Node.H4Map[h4Key] = h4Node = new SalesH4Node(h4Code, string.IsNullOrEmpty(h4Name) ? "—" : h4Name);
-
-                string gKey = string.IsNullOrEmpty(grpName) ? "_" : grpName;
-                if (!h4Node.GroupMap.TryGetValue(gKey, out var gNode))
-                    h4Node.GroupMap[gKey] = gNode = new SalesGroupNode(string.IsNullOrEmpty(grpName) ? "—" : grpName);
-
-                bool dup = gNode.Employees.Any(e =>
-                    (!string.IsNullOrEmpty(empCode) && e.EmpCode == empCode) ||
-                    (string.IsNullOrEmpty(empCode)  && e.EmpName  == empName));
-                if (!dup)
-                    gNode.Employees.Add(new SalesEmpLeaf(employeeId, empCode, empName, desig, state, sikhNonSikh, dateOfJoining, gender, qualification, area));
+                AddSalesLeaf(h3Node, h4Code, h4Name, grpName, employeeId, empCode, empName, desig, state, sikhNonSikh, dateOfJoining, gender, qualification, area);
             }
 
             return h1Map.Select(kvp => new
             {
                 h1Code = kvp.Key,
                 h1Name = kvp.Value.Name,
+                directH3List = kvp.Value.DirectH3Map.Values.Select(ToSalesH3Dto).ToList(),
                 h2List = kvp.Value.H2Map.Values.Select(h2 => new
                 {
                     h2Code = h2.Code,
                     h2Name = h2.Name,
-                    h3List = h2.H3Map.Values.Select(h3 => new
-                    {
-                        h3Code = h3.Code,
-                        h3Name = h3.Name,
-                        h4List = h3.H4Map.Values.Select(h4 => new
-                        {
-                            h4Code = h4.Code,
-                            h4Name = h4.Name,
-                            groups = h4.GroupMap.Values.Select(g => new
-                            {
-                                groupName = g.Name,
-                                employees = g.Employees.Select(e => new
-                                {
-                                    employeeId  = e.EmployeeId,
-                                    empCode     = e.EmpCode,
-                                    empName     = e.EmpName,
-                                    designation = e.Desig,
-                                    state       = e.State,
-                                    sikhNonSikh = e.SikhNonSikh,
-                                    dateOfJoining = e.DateOfJoining,
-                                    gender = e.Gender,
-                                    qualification = e.Qualification,
-                                    area = e.Area
-                                }).ToList()
-                            }).ToList()
-                        }).ToList()
-                    }).ToList()
+                    h3List = h2.H3Map.Values.Select(ToSalesH3Dto).ToList()
                 }).ToList()
             }).ToList();
         }
 
         // ── private helper types for GetSalesHierarchyForTreeAsync ──────────────
-        private sealed class SalesH1Node    { public string Name; public Dictionary<string,SalesH2Node>    H2Map    = new(StringComparer.OrdinalIgnoreCase); public SalesH1Node(string n){Name=n;} }
+        private static void AddSalesLeaf(
+            SalesH3Node h3Node,
+            string h4Code,
+            string h4Name,
+            string groupName,
+            int employeeId,
+            string empCode,
+            string empName,
+            string designation,
+            string state,
+            string sikhNonSikh,
+            DateTime? dateOfJoining,
+            string gender,
+            string qualification,
+            string area)
+        {
+            string h4Key = !string.IsNullOrEmpty(h4Code) ? h4Code : (string.IsNullOrEmpty(h4Name) ? "_" : h4Name);
+            if (!h3Node.H4Map.TryGetValue(h4Key, out var h4Node))
+                h3Node.H4Map[h4Key] = h4Node = new SalesH4Node(h4Code, string.IsNullOrEmpty(h4Name) ? "—" : h4Name);
+
+            string groupKey = string.IsNullOrEmpty(groupName) ? "_" : groupName;
+            if (!h4Node.GroupMap.TryGetValue(groupKey, out var groupNode))
+                h4Node.GroupMap[groupKey] = groupNode = new SalesGroupNode(string.IsNullOrEmpty(groupName) ? "—" : groupName);
+
+            groupNode.Employees.Add(new SalesEmpLeaf(employeeId, empCode, empName, designation, state, sikhNonSikh, dateOfJoining, gender, qualification, area));
+        }
+
+        private static object ToSalesH3Dto(SalesH3Node h3) => new
+        {
+            h3Code = h3.Code,
+            h3Name = h3.Name,
+            h4List = h3.H4Map.Values.Select(h4 => new
+            {
+                h4Code = h4.Code,
+                h4Name = h4.Name,
+                groups = h4.GroupMap.Values.Select(g => new
+                {
+                    groupName = g.Name,
+                    employees = g.Employees.Select(e => new
+                    {
+                        employeeId = e.EmployeeId,
+                        empCode = e.EmpCode,
+                        empName = e.EmpName,
+                        designation = e.Desig,
+                        state = e.State,
+                        sikhNonSikh = e.SikhNonSikh,
+                        dateOfJoining = e.DateOfJoining,
+                        gender = e.Gender,
+                        qualification = e.Qualification,
+                        area = e.Area
+                    }).ToList()
+                }).ToList()
+            }).ToList()
+        };
+
+        private sealed class SalesH1Node    { public string Name; public Dictionary<string,SalesH2Node> H2Map = new(StringComparer.OrdinalIgnoreCase); public Dictionary<string,SalesH3Node> DirectH3Map = new(StringComparer.OrdinalIgnoreCase); public SalesH1Node(string n){Name=n;} }
         private sealed class SalesH2Node    { public string Code; public string Name; public Dictionary<string,SalesH3Node>    H3Map    = new(StringComparer.OrdinalIgnoreCase); public SalesH2Node(string c,string n){Code=c;Name=n;} }
         private sealed class SalesH3Node    { public string Code; public string Name; public Dictionary<string,SalesH4Node>    H4Map    = new(StringComparer.OrdinalIgnoreCase); public SalesH3Node(string c,string n){Code=c;Name=n;} }
         private sealed class SalesH4Node    { public string Code; public string Name; public Dictionary<string,SalesGroupNode> GroupMap = new(StringComparer.OrdinalIgnoreCase); public SalesH4Node(string c,string n){Code=c;Name=n;} }
@@ -4666,15 +5076,41 @@ WHERE EmployeeId = @EmployeeId";
             }
         }
 
-        public async Task<List<EmployeeDropdownDto>> GetSalesEmployeeListAsync()
+        public async Task<List<EmployeeDropdownDto>> GetSalesEmployeeListAsync(int companyId)
         {
             const string sql = @"
-                SELECT EmployeeId, EmployeeCode, EmployeeName
-                FROM [Hie].[Employees]
-                WHERE IsActive = 1
-                ORDER BY EmployeeName";
+                SELECT
+                    sh.SalesHierarchyId AS EmployeeId,
+                    sh.PersonCode AS EmployeeCode,
+                    sh.PersonName AS EmployeeName
+                FROM [Hie].[SalesHierarchy] sh
+                WHERE sh.CompanyId = @CompanyId
+                  AND sh.IsActive = 1
+                  AND NULLIF(LTRIM(RTRIM(sh.PersonCode)), '') IS NOT NULL
+                  AND (
+                        EXISTS (
+                            SELECT 1
+                            FROM [Hie].[SalesEmployeeHierarchyMap] map
+                            WHERE map.CompanyId = sh.CompanyId
+                              AND map.EmpPersonCode = sh.PersonCode
+                              AND map.IsActive = 1
+                        )
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM [Hie].[SalesEmployeeHierarchyMap] map
+                            WHERE map.CompanyId = sh.CompanyId
+                              AND map.IsActive = 1
+                              AND (
+                                  map.H1PersonCode = sh.PersonCode
+                                  OR map.H2PersonCode = sh.PersonCode
+                                  OR map.H3PersonCode = sh.PersonCode
+                                  OR map.H4PersonCode = sh.PersonCode
+                              )
+                        )
+                  )
+                ORDER BY sh.PersonName";
             using var conn = new SqlConnection(_connectionString);
-            var result = await conn.QueryAsync<EmployeeDropdownDto>(sql);
+            var result = await conn.QueryAsync<EmployeeDropdownDto>(sql, new { CompanyId = companyId });
             return result.ToList();
         }
 
@@ -4683,6 +5119,23 @@ WHERE EmployeeId = @EmployeeId";
         {
             request.EmpCode = NormalizeJwplCode(request.EmpCode) ?? "";
             request.EmpName = ToTitleCaseName(request.EmpName) ?? "";
+            request.Mobile = NormalizeSalesText(request.Mobile, false);
+            request.Email = NormalizeSalesText(request.Email, false);
+            request.State = NormalizeSalesText(request.State, true);
+            request.GroupName = NormalizeSalesText(request.GroupName, true);
+            request.Designation = NormalizeSalesText(request.Designation, true);
+            request.Qualification = NormalizeSalesText(request.Qualification, false);
+            request.Gender = NormalizeSalesText(request.Gender, false);
+            request.SikhNonSikh = NormalizeSikhNonSikhCode(request.SikhNonSikh);
+            request.Area = NormalizeSalesText(request.Area, false);
+            request.H1Code = NormalizeJwplCode(request.H1Code);
+            request.H1Name = ToTitleCaseName(request.H1Name);
+            request.H2Code = NormalizeJwplCode(request.H2Code);
+            request.H2Name = ToTitleCaseName(request.H2Name);
+            request.H3Code = NormalizeJwplCode(request.H3Code);
+            request.H3Name = ToTitleCaseName(request.H3Name);
+            request.H4Code = NormalizeJwplCode(request.H4Code);
+            request.H4Name = ToTitleCaseName(request.H4Name);
 
             if (string.IsNullOrWhiteSpace(request.EmpCode))
                 return HierarchyApiResponse<bool>.ErrorResponse("Employee code is required.");
@@ -4690,22 +5143,232 @@ WHERE EmployeeId = @EmployeeId";
                 return HierarchyApiResponse<bool>.ErrorResponse("Employee name is required.");
 
             using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var tx = await conn.BeginTransactionAsync();
 
-            var exists = await conn.ExecuteScalarAsync<int>(
-                "SELECT COUNT(1) FROM [Hie].[Employees] WHERE EmployeeCode = @Code",
-                new { Code = request.EmpCode.Trim() });
+            try
+            {
+                var id = await conn.ExecuteScalarAsync<int?>(@"
+                    SELECT SalesHierarchyId
+                    FROM [Hie].[SalesHierarchy]
+                    WHERE CompanyId = @CompanyId
+                      AND PersonCode = @Code",
+                    new { CompanyId = companyId, Code = request.EmpCode.Trim() }, tx);
 
-            if (exists > 0)
-                return HierarchyApiResponse<bool>.ErrorResponse(
-                    $"Employee with code '{request.EmpCode}' already exists.");
+                int salesHierarchyId;
+                if (id.HasValue)
+                {
+                    await conn.ExecuteAsync(@"
+                        UPDATE [Hie].[SalesHierarchy]
+                        SET PersonName = @Name,
+                            Mobile = @Mobile,
+                            Email = @Email,
+                            DateOfJoining = @DateOfJoining,
+                            Qualification = @Qualification,
+                            Gender = @Gender,
+                            SikhNonSikh = @SikhNonSikh,
+                            IsActive = @IsActive,
+                            ModifiedBy = @UserId,
+                            ModifiedOn = SYSDATETIME()
+                        WHERE SalesHierarchyId = @Id",
+                        new
+                        {
+                            Id = id.Value,
+                            Name = request.EmpName.Trim(),
+                            request.Mobile,
+                            request.Email,
+                            request.DateOfJoining,
+                            request.Qualification,
+                            request.Gender,
+                            request.SikhNonSikh,
+                            request.IsActive,
+                            UserId = createdBy
+                        }, tx);
+                    salesHierarchyId = id.Value;
+                }
+                else
+                {
+                    salesHierarchyId = await conn.ExecuteScalarAsync<int>(@"
+                        INSERT INTO [Hie].[SalesHierarchy]
+                            (CompanyId, PersonCode, PersonName, Mobile, Email, DateOfJoining,
+                             Qualification, Gender, SikhNonSikh,
+                             IsActive, CreatedBy, CreatedOn)
+                        VALUES
+                            (@CompanyId, @Code, @Name, @Mobile, @Email, @DateOfJoining,
+                             @Qualification, @Gender, @SikhNonSikh,
+                             @IsActive, @UserId, SYSDATETIME());
+                        SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                        new
+                        {
+                            CompanyId = companyId,
+                            Code = request.EmpCode.Trim(),
+                            Name = request.EmpName.Trim(),
+                            request.Mobile,
+                            request.Email,
+                            request.DateOfJoining,
+                            request.Qualification,
+                            request.Gender,
+                            request.SikhNonSikh,
+                            request.IsActive,
+                            UserId = createdBy
+                        }, tx);
+                }
 
-            await conn.ExecuteAsync(@"
-                INSERT INTO [Hie].[Employees]
-                    (EmployeeCode, EmployeeName, RoleTypeId, IsActive, CreatedOn)
-                VALUES (@Code, @Name, 3, 1, GETDATE())",
-                new { Code = request.EmpCode.Trim(), Name = request.EmpName.Trim() });
+                var departmentId = await ResolveDepartmentIdAsync(conn, tx);
+                var stateId = await ResolveSalesStateIdAsync(conn, tx, request.State);
+                var groupId = await ResolveSalesGroupIdAsync(conn, tx, request.GroupName);
+                var designationId = await ResolveSalesDesignationIdAsync(conn, tx, request.Designation);
 
-            return HierarchyApiResponse<bool>.SuccessResponse(true, "Employee created successfully.");
+                var profileId = await conn.ExecuteScalarAsync<int?>(@"
+                    SELECT TOP 1 SalesPersonProfileId
+                    FROM [Hie].[SalesPersonProfile]
+                    WHERE CompanyId = @CompanyId
+                      AND SalesHierarchyId = @SalesHierarchyId
+                      AND IsActive = 1
+                    ORDER BY SalesPersonProfileId DESC",
+                    new { CompanyId = companyId, SalesHierarchyId = salesHierarchyId }, tx);
+
+                if (profileId.HasValue)
+                {
+                    await conn.ExecuteAsync(@"
+                        UPDATE [Hie].[SalesPersonProfile]
+                        SET DepartmentId = COALESCE(@DepartmentId, DepartmentId),
+                            StateId = COALESCE(@StateId, StateId),
+                            GroupId = COALESCE(@GroupId, GroupId),
+                            DesignationId = COALESCE(@DesignationId, DesignationId),
+                            Area = COALESCE(NULLIF(@Area, N''), Area),
+                            ModifiedBy = @UserId,
+                            ModifiedOn = SYSDATETIME()
+                        WHERE SalesPersonProfileId = @ProfileId",
+                        new
+                        {
+                            ProfileId = profileId.Value,
+                            DepartmentId = departmentId,
+                            StateId = stateId,
+                            GroupId = groupId,
+                            DesignationId = designationId,
+                            request.Area,
+                            UserId = createdBy
+                        }, tx);
+                }
+                else if (departmentId.HasValue || stateId.HasValue || groupId.HasValue || designationId.HasValue || !string.IsNullOrWhiteSpace(request.Area))
+                {
+                    await conn.ExecuteAsync(@"
+                        INSERT INTO [Hie].[SalesPersonProfile]
+                            (CompanyId, SalesHierarchyId, DepartmentId, StateId, GroupId, DesignationId,
+                             Area, IsActive, CreatedBy, CreatedOn)
+                        VALUES
+                            (@CompanyId, @SalesHierarchyId, @DepartmentId, @StateId, @GroupId, @DesignationId,
+                             @Area, 1, @UserId, SYSDATETIME())",
+                        new
+                        {
+                            CompanyId = companyId,
+                            SalesHierarchyId = salesHierarchyId,
+                            DepartmentId = departmentId,
+                            StateId = stateId,
+                            GroupId = groupId,
+                            DesignationId = designationId,
+                            request.Area,
+                            UserId = createdBy
+                        }, tx);
+                }
+
+                var hasHierarchySelection =
+                    !string.IsNullOrWhiteSpace(request.H1Code) ||
+                    !string.IsNullOrWhiteSpace(request.H2Code) ||
+                    !string.IsNullOrWhiteSpace(request.H3Code) ||
+                    !string.IsNullOrWhiteSpace(request.H4Code);
+
+                var mapExists = await conn.ExecuteScalarAsync<int>(@"
+                    SELECT COUNT(1)
+                    FROM [Hie].[SalesEmployeeHierarchyMap]
+                    WHERE CompanyId = @CompanyId
+                      AND EmpPersonCode = @Code",
+                    new { CompanyId = companyId, Code = request.EmpCode.Trim() }, tx);
+
+                if (mapExists > 0)
+                {
+                    await conn.ExecuteAsync(@"
+                        UPDATE [Hie].[SalesEmployeeHierarchyMap]
+                        SET H1PersonCode = CASE WHEN @HasHierarchySelection = 1 THEN @H1Code ELSE H1PersonCode END,
+                            H2PersonCode = CASE WHEN @HasHierarchySelection = 1 THEN @H2Code ELSE H2PersonCode END,
+                            H3PersonCode = CASE WHEN @HasHierarchySelection = 1 THEN @H3Code ELSE H3PersonCode END,
+                            H4PersonCode = CASE WHEN @HasHierarchySelection = 1 THEN @H4Code ELSE H4PersonCode END,
+                            DepartmentId = COALESCE(@DepartmentId, DepartmentId),
+                            StateId = COALESCE(@StateId, StateId),
+                            Area = COALESCE(NULLIF(@Area, N''), Area),
+                            GroupId = COALESCE(@GroupId, GroupId),
+                            DesignationId = COALESCE(@DesignationId, DesignationId),
+                            IsActive = 1,
+                            ModifiedBy = @UserId,
+                            ModifiedOn = SYSDATETIME()
+                        WHERE CompanyId = @CompanyId
+                          AND EmpPersonCode = @Code",
+                        new
+                        {
+                            CompanyId = companyId,
+                            Code = request.EmpCode.Trim(),
+                            request.H1Code,
+                            request.H2Code,
+                            request.H3Code,
+                            request.H4Code,
+                            HasHierarchySelection = hasHierarchySelection ? 1 : 0,
+                            DepartmentId = departmentId,
+                            StateId = stateId,
+                            request.Area,
+                            GroupId = groupId,
+                            DesignationId = designationId,
+                            UserId = createdBy
+                        }, tx);
+                }
+                else
+                {
+                    await conn.ExecuteAsync(@"
+                        INSERT INTO [Hie].[SalesEmployeeHierarchyMap]
+                            (CompanyId, EmpPersonCode, H1PersonCode, H2PersonCode, H3PersonCode, H4PersonCode,
+                             DepartmentId, StateId, Area, GroupId, DesignationId, IsActive, CreatedBy, CreatedOn)
+                        VALUES
+                            (@CompanyId, @Code, @H1Code, @H2Code, @H3Code, @H4Code,
+                             @DepartmentId, @StateId, @Area, @GroupId, @DesignationId, 1, @UserId, SYSDATETIME())",
+                        new
+                        {
+                            CompanyId = companyId,
+                            Code = request.EmpCode.Trim(),
+                            request.H1Code,
+                            request.H2Code,
+                            request.H3Code,
+                            request.H4Code,
+                            DepartmentId = departmentId,
+                            StateId = stateId,
+                            request.Area,
+                            GroupId = groupId,
+                            DesignationId = designationId,
+                            UserId = createdBy
+                        }, tx);
+                }
+
+                var importResult = new SalesImportResult();
+                var h1Id = await UpsertSalesHierarchyPersonAsync(conn, tx, companyId, request.H1Code, request.H1Name, createdBy, importResult);
+                var h1NodeId = h1Id.HasValue ? await UpsertSalesHierarchyNodeAsync(conn, tx, companyId, h1Id.Value, "H1", null, createdBy) : (int?)null;
+                var h2Id = await UpsertSalesHierarchyPersonAsync(conn, tx, companyId, request.H2Code, request.H2Name, createdBy, importResult);
+                var h2NodeId = h2Id.HasValue ? await UpsertSalesHierarchyNodeAsync(conn, tx, companyId, h2Id.Value, "H2", h1NodeId, createdBy) : (int?)null;
+                var h3Id = await UpsertSalesHierarchyPersonAsync(conn, tx, companyId, request.H3Code, request.H3Name, createdBy, importResult);
+                var h3NodeId = h3Id.HasValue ? await UpsertSalesHierarchyNodeAsync(conn, tx, companyId, h3Id.Value, "H3", h2NodeId ?? h1NodeId, createdBy) : (int?)null;
+                var h4Id = await UpsertSalesHierarchyPersonAsync(conn, tx, companyId, request.H4Code, request.H4Name, createdBy, importResult);
+                var h4NodeId = h4Id.HasValue ? await UpsertSalesHierarchyNodeAsync(conn, tx, companyId, h4Id.Value, "H4", h3NodeId ?? h2NodeId ?? h1NodeId, createdBy) : (int?)null;
+                await UpsertSalesHierarchyNodeAsync(conn, tx, companyId, salesHierarchyId, "EMP", h4NodeId ?? h3NodeId ?? h2NodeId ?? h1NodeId, createdBy);
+
+                await tx.CommitAsync();
+                var message = mapExists > 0
+                    ? "Sales employee already exists; details activated/updated."
+                    : hasHierarchySelection ? "Sales employee created successfully." : "Sales employee created as unassigned.";
+                return HierarchyApiResponse<bool>.SuccessResponse(true, message);
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
         }
 
         #endregion

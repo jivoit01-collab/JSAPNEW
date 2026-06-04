@@ -1,0 +1,605 @@
+﻿ @model List<JSAPNEW.Models.AssignPermissionDetail>
+
+@{
+    ViewData["Title"] = "User Permissions";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* Overall theme colors */
+    :root {
+        --primary: #2c3e50;
+        --primary-light: #34495e;
+        --accent: #3498db;
+        --text-dark: #2c3e50;
+        --text-light: #7f8c8d;
+        --bg-light: #f9fafb;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+    }
+
+    body {
+        background-color: #f5f7fa;
+    }
+
+    /* Card styling */
+    .registration-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+        .registration-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: white;
+        padding: 1.5rem 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .card-header h4 {
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        .card-header::before {
+            content: "";
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -75px;
+            right: -75px;
+        }
+
+        .card-header::after {
+            content: "";
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            bottom: -50px;
+            left: -50px;
+        }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    /* Form controls styling */
+    .form-label {
+        font-weight: 500;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        border: 1px solid #e2e8f0;
+        background-color: #fff;
+        transition: all 0.3s ease;
+    }
+
+        .form-control:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+        }
+
+        .form-control.is-invalid {
+            border-color: var(--danger);
+            box-shadow: none;
+        }
+
+        .form-control.is-valid {
+            border-color: var(--success);
+        }
+
+    /* Section headings */
+    .section-heading {
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #edf2f7;
+        position: relative;
+    }
+
+        .section-heading::after {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background: var(--accent);
+        }
+
+    /* Password field styling */
+    .password-container {
+        position: relative;
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 70%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: var(--text-light);
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+
+        .password-toggle:hover {
+            color: var(--accent);
+        }
+
+    /* Button styling */
+    .custom-btn {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        border: none;
+        color: white;
+        border-radius: 30px;
+        padding: 0.8rem 2.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2);
+        position: relative;
+        overflow: hidden;
+        font-size: 1rem;
+    }
+
+        .custom-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(44, 62, 80, 0.3);
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+        }
+
+        .custom-btn:active {
+            transform: translateY(0);
+        }
+
+        .custom-btn::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: scale(0);
+            transition: transform 0.5s ease-out;
+            pointer-events: none;
+        }
+
+        .custom-btn:active::after {
+            transform: scale(35);
+            opacity: 0;
+        }
+
+    /* Validation styling */
+    .invalid-feedback {
+        display: block;
+        font-size: 0.85rem;
+        margin-top: 0.35rem;
+        color: var(--danger);
+    }
+
+    /* Select2 custom styling */
+    .select2-container--default .select2-selection--multiple {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        min-height: 45px;
+        padding: 5px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: var(--accent);
+        color: black;
+        border: none;
+        border-radius: 20px;
+        padding: 3px 10px;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+        margin-right: 5px;
+    }
+
+    /* Alerts */
+    .alert {
+        border-radius: 10px;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    /* Separator */
+    .form-separator {
+        margin: 2rem 0;
+        position: relative;
+        height: 1px;
+        background-color: #edf2f7;
+    }
+
+    /* Simple transition for feedback messages instead of keyframes */
+    .alert, .invalid-feedback {
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        opacity: 1;
+    }
+
+    /* Floating labels effect */
+    .form-floating {
+        position: relative;
+    }
+
+        .form-floating > .form-control {
+            padding-top: 1.625rem;
+            padding-bottom: 0.625rem;
+        }
+
+        .form-floating > label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            padding: 1rem 0.75rem;
+            pointer-events: none;
+            border: 1px solid transparent;
+            transform-origin: 0 0;
+            transition: opacity .1s ease-in-out, transform .1s ease-in-out;
+            color: var(--text-light);
+        }
+
+        .form-floating > .form-control:focus ~ label,
+        .form-floating > .form-control:not(:placeholder-shown) ~ label {
+            transform: scale(.85) translateY(-0.5rem) translateX(0.15rem);
+            color: var(--accent);
+        }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="registration-card card shadow">
+                <div class="card-header text-center">
+                    <h4 class="mb-0">User Permission</h4>
+                </div>
+                <div class="card-body">
+                    <form id="userPermissionForm">
+                        <input type="hidden" id="adminId" value="@ViewBag.UserId" />
+                        <input type="hidden" id="companyId" value="@ViewBag.CompanyId" />
+
+                        <div class="col-md-12 mb-4">
+                            <label for="userId" class="form-label">Select User Name</label>
+                            <select class="form-select" id="userId" name="userId" required style="width: 100%;"></select>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="roleId" class="form-label">Select Role</label>
+                                <select class="form-select" id="roleId" name="roleId" required style="width: 100%;"></select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stateIds" class="form-label">Select States</label>
+                                    <select class="form-select" id="stateIds" name="stateIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="branchIds" class="form-label">Select Branches</label>
+                                    <select class="form-select" id="branchIds" name="branchIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="budgetIds" class="form-label">Select Budgets</label>
+                                <select class="form-select" id="budgetIds" name="budgetIds" multiple="multiple" required style="width: 100%;"></select>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sBudgetIds" class="form-label">Select Sub Budgets</label>
+                                    <select class="form-select" id="sBudgetIds" name="sBudgetIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 password-container">
+                                    <label for="approvalIds" class="form-label">Select Approvals</label>
+                                    <select class="form-select" id="approvalIds" name="approvalIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="varietyIds" class="form-label">Select Item Sub Group</label>
+                                    <select class="form-select" id="varietyIds" name="varietyIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="reportIds" class="form-label">Select Reports</label>
+                                    <select class="form-select" id="reportIds" name="reportIds" multiple="multiple" required style="width: 100%;"></select> 
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fromDate" class="form-label">From</label>
+                                    <input type="date" class="form-control" id="fromDate" name="fromDate" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="toDate" class="form-label">To</label>
+                                    <input type="date" class="form-control" id="toDate" name="toDate" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+
+                        <div class="text-center mt-4">
+                            <button type="submit" class="custom-btn">
+                                Submit
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="message" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Include Select2 CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            console.log("Document ready - initializing Select2...");
+
+            // Initialize single select dropdowns
+            $('#userId,#roleId').select2({
+                placeholder: 'Select',
+                width: '100%'
+            });
+
+            // Initialize multi-select dropdowns
+            $('#stateIds, #branchIds, #budgetIds, #sBudgetIds, #approvalIds, #varietyIds, #reportIds').select2({
+                placeholder: 'Select options',
+                width: '100%'
+            });
+
+            const userId = $('#adminId').val();
+            const companyId = $('#companyId').val();
+
+            console.log("Current companyId:", companyId);
+
+            // Generic function to load dropdown data with proper error handling
+            function loadDropdown(apiUrl, elementId, valueField, textField, isMultiple = true) {
+                console.log(`Loading data for ${elementId} from ${apiUrl}`);
+
+                $.ajax({
+                    url: apiUrl,
+                    method: 'GET',
+                    data: { company: companyId },
+                    success: function (response) {
+                        console.log(`Data received for ${elementId}:`, response);
+
+                        // Clear existing options
+                        $(`#${elementId}`).empty();
+
+                        // Add placeholder option for single selects
+                        if (!isMultiple) {
+                            $(`#${elementId}`).append($('<option>', {
+                                value: '',
+                                text: `Select ${elementId.replace('Id', '').replace('Ids', '')}`
+                            }));
+                        }
+
+                        // Check if response has the expected format
+                        const items = response.data || response;
+
+                        if (!items || !Array.isArray(items) || items.length === 0) {
+                            console.warn(`No data items found for ${elementId}`);
+                            return;
+                        }
+
+                        // Add options based on the data
+                        items.forEach(function (item) {
+                            const value = item[valueField];
+                            const text = item[textField];
+
+                            if (value !== undefined && text !== undefined) {
+                                $(`#${elementId}`).append($('<option>', {
+                                    value: value,
+                                    text: text
+                                }));
+                            }
+                        });
+
+                        // Refresh Select2
+                        $(`#${elementId}`).trigger('change');
+                        console.log(`${elementId} dropdown populated with ${items.length} items`);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error(`Error loading ${elementId} from ${apiUrl}:`, error);
+                        console.log("Response:", xhr.responseText);
+                        alert(`Failed to load data for ${elementId.replace('Id', '').replace('Ids', '')}. Please try refreshing the page.`);
+                    }
+                });
+            }
+
+            // Load dropdowns with appropriate field mappings
+            loadDropdown('/api/auth/getusernotregisterincompany?company=' + companyId, 'userId', 'userId', 'userName', false);
+            loadDropdown('/api/auth/getroles?company=' + companyId, 'roleId', 'roleId', 'roleName', false);
+            loadDropdown('/api/auth/getstates?company=' + companyId, 'stateIds', 'stateId', 'stateName');
+            loadDropdown('/api/auth/getbranches?company=' + companyId, 'branchIds', 'branchId', 'branchName');
+            loadDropdown('/api/auth/getbudgets?company=' + companyId, 'budgetIds', 'budgetId', 'budgetName');
+            loadDropdown('/api/auth/getSubBudgets?company=' + companyId, 'sBudgetIds', 'sBudgetId', 'sBudgetName');
+            loadDropdown('/api/auth/getapprovals?company=' + companyId, 'approvalIds', 'id', 'approvalName');
+            loadDropdown('/api/auth/getVarieties?company=' + companyId, 'varietyIds', 'varietyId', 'varietyName');
+            loadDropdown('/api/auth/getreports?company=' + companyId, 'reportIds', 'id', 'report');
+
+            // Form validation and submission
+            $('#userPermissionForm').on('submit', function (e) {
+                e.preventDefault();
+                console.log("Form submitted, validating and collecting data...");
+
+                // Basic validation checks
+                if (!$('#userId').val()) {
+                    alert("Please select a User");
+                    return;
+                }
+                if (!$('#roleId').val()) {
+                    alert("Please select a Role");
+                    return;
+                }
+                if (!$('#fromDate').val() || !$('#toDate').val()) {
+                    alert("Please select both From Date and To Date");
+                    return;
+                }
+
+                // Validate multi-select fields
+                const multiSelects = ['stateIds', 'branchIds', 'budgetIds', 'sBudgetIds', 'approvalIds', 'varietyIds', 'reportIds'];
+
+                for (let i = 0; i < multiSelects.length; i++) {
+                    const field = multiSelects[i];
+                    const values = $('#' + field).val() || [];
+                    const validValues = values.filter(val => val !== '' && val !== '0');
+
+                    if (validValues.length === 0) {
+                        alert("Please select at least one option for " + field.replace('Ids', ''));
+                        return;
+                    }
+                }
+
+                // Prepare data for submission
+                const data = {
+                    branchIds: $('#branchIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    varietyIds: $('#varietyIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    budgetIds: $('#budgetIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    sBudgetIds: $('#sBudgetIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    stateIds: $('#stateIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    reportIds: $('#reportIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    approvalIds: $('#approvalIds').val()?.filter(v => v && v !== '0').join(',') || '',
+                    fromDate: $('#fromDate').val(),
+                    toDate: $('#toDate').val(),
+                    userId: parseInt($('#userId').val()) || 0,
+                    company: parseInt($('#companyId').val()) || 0,
+                    roleId: parseInt($('#roleId').val()) || 0,
+                    adminId: parseInt($('#adminId').val()) || 0
+                };
+
+                console.log("Data prepared for submission:", data);
+
+                // Final validation checks
+                if (data.userId === 0) {
+                    alert("Invalid User selection. Please try again.");
+                    return;
+                }
+                if (data.roleId === 0) {
+                    alert("Invalid Role selection. Please try again.");
+                    return;
+                }
+
+                // Submit data via AJAX
+                $.ajax({
+                    url: '/api/auth/addUserPermissions',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function (response) {
+                        console.log("Server response:", response);
+                        if (response.success) {
+                            alert(response.message || "Permissions assigned successfully.");
+                             window.location.reload();
+
+                            // Reset form
+                            //$('#userPermissionForm')[0].reset();
+                            //$('#userId, #roleId, #stateIds, #branchIds, #budgetIds, #sBudgetIds, #approvalIds, #varietyIds, #reportIds').val(null).trigger('change');
+                        } else {
+                            alert("Failed: " + (response.message || "Unknown error occurred"));
+                        }
+                    },
+                    error: function (xhr, status, errorThrown) {
+                        console.error("AJAX Error:", status, errorThrown);
+                        console.log("Response Text:", xhr.responseText);
+                        alert("An error occurred while saving permissions: " + (xhr.responseJSON?.message || errorThrown || "Unknown error"));
+                    }
+                });
+            });
+                    // Auto-inject "Select All" and "Clear All" buttons inside every multi-select2 dropdown
+        const multiSelectDropdowns = ['stateIds', 'branchIds', 'budgetIds', 'sBudgetIds', 'approvalIds', 'varietyIds', 'reportIds'];
+
+        multiSelectDropdowns.forEach(function (dropdownId) {
+            $('#' + dropdownId).on('select2:open', function () {
+                const select2Instance = $('#' + dropdownId).data('select2');
+
+                setTimeout(() => {
+                    const $dropdown = select2Instance?.$dropdown;
+                    if (!$dropdown || $dropdown.find('.custom-actions').length > 0) return;
+
+                    const buttonsHtml = `
+                        <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                            <button type="button" class="btn btn-sm btn-primary select-all-btn">Select All</button>
+                            <button type="button" class="btn btn-sm btn-danger clear-all-btn">Clear All</button>
+                        </div>
+                    `;
+
+                    $dropdown.prepend(buttonsHtml);
+
+                    // Select All
+                    $dropdown.find('.select-all-btn').on('click', function () {
+                        const allValues = $('#' + dropdownId + ' option').map(function () {
+                            return $(this).val();
+                        }).get();
+                        $('#' + dropdownId).val(allValues).trigger('change');
+                    });
+
+                    // Clear All
+                    $dropdown.find('.clear-all-btn').on('click', function () {
+                        $('#' + dropdownId).val(null).trigger('change');
+                    });
+                }, 0);
+            });
+        });
+
+        });
+    </script>
+}
