@@ -1,0 +1,65 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Main Branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ vars.DOTNET_VERSION }}
+
+      - name: Restore Packages
+        run: dotnet restore
+
+      - name: Build Project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish Project
+        run: |
+          dotnet publish --configuration Release --output publish
+
+      - name: Upload Publish Files To Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT }}
+          source: "publish/*"
+          target: "C:/LiveProjects/JSAPTest"
+
+      - name: Restart IIS and Windows Service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            powershell -Command "
+
+            Import-Module WebAdministration
+
+            Write-Host 'Restarting IIS Website...'
+
+            Stop-Website -Name 'JSAP Test'
+            Start-Sleep -Seconds 5
+            Start-Website -Name 'JSAP Test'
+
+            Write-Host 'Restarting Windows Service...'
+
+            Restart-Service -Name 'jsapnew' -Force
+
+            Write-Host 'Deployment Completed Successfully'
+
+            "
