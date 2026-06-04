@@ -4,45 +4,44 @@ on:
   workflow_dispatch:
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
 
-steps:
-  - name: Checkout Main Branch
-    uses: actions/checkout@v4
-    with:
-      ref: main
+    steps:
+    - name: Checkout Main Branch
+      uses: actions/checkout@v4
+      with:
+        ref: main
 
-  - name: Setup .NET
-    uses: actions/setup-dotnet@v4
-    with:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
       dotnet-version: ${{ vars.DOTNET_VERSION }}
 
-  - name: Restore Packages
-    run: dotnet restore
+     - name: Restore Packages
+       run: dotnet restore
 
-  - name: Build Project
-    run: dotnet build --configuration Release --no-restore
+    - name: Build Project
+      run: dotnet build --configuration Release --no-restore
 
-  - name: Publish Project
-    run: |
-      dotnet publish --configuration Release --output publish
+    - name: Publish Project
+      run: dotnet publish --configuration Release --output publish
 
-  - name: Check Publish Output
-    run: |
-      echo "========== CURRENT DIRECTORY =========="
-      pwd
+    - name: Check Publish Output
+      run: |
+        echo "CURRENT DIRECTORY"
+        pwd
 
-      echo "========== FILES =========="
-      ls -la
+        echo "FILES"
+        ls -la
 
-      echo "========== PUBLISH FOLDER =========="
-      ls -la publish || true
+        echo "PUBLISH FOLDER"
+        ls -la publish || true
 
-  - name: Upload Publish Files To Server
-    uses: appleboy/scp-action@v0.1.7
-    with:
+    - name: Upload Publish Files To Server
+      uses: appleboy/scp-action@v0.1.7
+      with:
       host: ${{ secrets.HOST }}
       username: ${{ secrets.USERNAME }}
       key: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -50,9 +49,9 @@ steps:
       source: "publish/*"
       target: "C:/LiveProjects/JSAPTest"
 
-  - name: Restart IIS and Windows Service
-    uses: appleboy/ssh-action@v1.0.3
-    with:
+    - name: Restart IIS and Windows Service
+      uses: appleboy/ssh-action@v1.0.3
+      with:
       host: ${{ secrets.HOST }}
       username: ${{ secrets.USERNAME }}
       key: ${{ secrets.SSH_PRIVATE_KEY }}
