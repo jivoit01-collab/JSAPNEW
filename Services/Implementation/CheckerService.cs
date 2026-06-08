@@ -140,7 +140,11 @@ namespace JSAPNEW.Services.Implementation
 
                                 MRP = reader["SellingRate"],
 
-                                Tax = reader["TaxRate"],
+                                TaxRate = reader["TaxRate"] == DBNull.Value ? 0 : reader["TaxRate"],
+
+                                TaxAmount = reader["TaxAmount"] == DBNull.Value ? 0 : reader["TaxAmount"],
+
+                                Tax = reader["TaxRate"] == DBNull.Value ? 0 : reader["TaxRate"],
 
                                 Amount = reader["ItemValue"],
 

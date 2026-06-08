@@ -1,0 +1,1267 @@
+﻿@model JSAPNEW.Models.EditUserViewModel
+
+@{
+    ViewData["Title"] = "Edit User";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+    /* Overall theme colors */
+    :root {
+        --primary: #2c3e50;
+        --primary-light: #34495e;
+        --accent: #3498db;
+        --text-dark: #2c3e50;
+        --text-light: #7f8c8d;
+        --bg-light: #f9fafb;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+    }
+    
+    body {
+        background-color: #f5f7fa;
+    }
+    
+    /* Card styling */
+    .registration-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .registration-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: white;
+        padding: 1.5rem 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .card-header h4 {
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
+        letter-spacing: 0.5px;
+    }
+    
+    .card-header::before {
+        content: "";
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        top: -75px;
+        right: -75px;
+    }
+    
+    .card-header::after {
+        content: "";
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        bottom: -50px;
+        left: -50px;
+    }
+    
+    .card-body {
+        padding: 2rem;
+    }
+    
+    /* Form controls styling */
+    .form-label {
+        font-weight: 500;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        border: 1px solid #e2e8f0;
+        background-color: #fff;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    }
+    
+    .form-control.is-invalid {
+        border-color: var(--danger);
+        box-shadow: none;
+    }
+    
+    .form-control.is-valid {
+        border-color: var(--success);
+    }
+    
+    /* Section headings */
+    .section-heading {
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #edf2f7;
+        position: relative;
+    }
+    
+    .section-heading::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 50px;
+        height: 2px;
+        background: var(--accent);
+    }
+    
+    /* Password field styling */
+    .password-container {
+        position: relative;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 70%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: var(--text-light);
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+    
+    .password-toggle:hover {
+        color: var(--accent);
+    }
+    
+    /* Button styling */
+    .custom-btn {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        border: none;
+        color: white;
+        border-radius: 30px;
+        padding: 0.8rem 2.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2);
+        position: relative;
+        overflow: hidden;
+        font-size: 1rem;
+    }
+    
+    .custom-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(44, 62, 80, 0.3);
+        background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+    }
+    
+    .custom-btn:active {
+        transform: translateY(0);
+    }
+    
+    .custom-btn::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: scale(0);
+        transition: transform 0.5s ease-out;
+        pointer-events: none;
+    }
+    
+    .custom-btn:active::after {
+        transform: scale(35);
+        opacity: 0;
+    }
+    
+    /* Validation styling */
+    .invalid-feedback {
+        display: block;
+        font-size: 0.85rem;
+        margin-top: 0.35rem;
+        color: var(--danger);
+    }
+    
+    /* Select2 custom styling */
+    .select2-container--default .select2-selection--multiple {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        min-height: 45px;
+        padding: 5px;
+    }
+    
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    }
+    
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: var(--accent);
+        color: black;
+        border: none;
+        border-radius: 20px;
+        padding: 3px 10px;
+    }
+    
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+        margin-right: 5px;
+    }
+    
+    /* Alerts */
+    .alert {
+        border-radius: 10px;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    /* Separator */
+    .form-separator {
+        margin: 2rem 0;
+        position: relative;
+        height: 1px;
+        background-color: #edf2f7;
+    }
+    
+    /* Simple transition for feedback messages instead of keyframes */
+    .alert, .invalid-feedback {
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        opacity: 1;
+    }
+    
+    /* Floating labels effect */
+    .form-floating {
+        position: relative;
+    }
+    
+    .form-floating > .form-control {
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+    }
+    
+    .form-floating > label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        padding: 1rem 0.75rem;
+        pointer-events: none;
+        border: 1px solid transparent;
+        transform-origin: 0 0;
+        transition: opacity .1s ease-in-out, transform .1s ease-in-out;
+        color: var(--text-light);
+    }
+    
+    .form-floating > .form-control:focus ~ label,
+    .form-floating > .form-control:not(:placeholder-shown) ~ label {
+        transform: scale(.85) translateY(-0.5rem) translateX(0.15rem);
+        color: var(--accent);
+    }
+
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="registration-card card shadow">
+                <div class="card-header text-center">
+                    <h4>Edit Permissions of @Model.SelectedUser?.firstName</h4>
+                </div>
+                <div class="card-body">
+                    <form id="userPermissionForm">
+                        <input type="hidden" id="adminId" value="@ViewBag.AdminId" />
+                        <input type="hidden" id="companyId" value="@ViewBag.CompanyId" />
+                        <input type="hidden" id="editingUserId" value="@Model.SelectedUser?.userId" />
+        
+                        <h5 class="section-heading">Personal Information</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="firstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="firstName" name="firstName" autocomplete="off" value="@Model.SelectedUser?.firstName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="lastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="lastName" name="lastName" autocomplete="off" value="@Model.SelectedUser?.lastName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phoneNumber" class="form-label">Phone Number</label>
+                                    <input type="text" class="form-control" id="phoneNumber" name="userPhoneNumber" autocomplete="off" value="@Model.SelectedUser?.userPhoneNumber" required maxlength="10">
+                                    <div class="invalid-feedback" id="phoneNumberFeedback" style="display: none;">
+                                        Phone number must be exactly 10 digits.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="email" name="userEmail" autocomplete="off" value="@Model.SelectedUser?.userEmail" required>
+                                </div>
+                            </div>
+                        </div>
+        
+                        <h5 class="section-heading">Account Credentials</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="loginUser" autocomplete="off" value="@Model.SelectedUser?.userName" readonly required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 password-container" style="margin-top:40px">
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">Change Password</a>
+                                </div>
+                            </div>
+                        </div>
+        
+                        <div class="form-separator"></div>
+        
+                        <h5 class="section-heading">Employment Details</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="empId" class="form-label">JWPL Code (Employee ID)</label>
+                                    <input type="text" class="form-control" id="empId" name="empId" autocomplete="off" value="@Model.SelectedUser?.empId" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="doj" class="form-label">Date of Joining</label>
+                                    @{
+                                        var dojFormatted = "";
+                                        if (!string.IsNullOrEmpty(Model.SelectedUser?.dateOfJoining))
+                                        {
+                                            dojFormatted = DateTime.ParseExact(Model.SelectedUser.dateOfJoining, "MM/dd/yyyy HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture).ToString("yyyy-MM-dd");
+                                        }
+                                    }
+                                    <input type="date" class="form-control" id="doj" name="doj" value="@dojFormatted" readonly required>
+        
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-4">
+                                <div class="mb-3">
+                                    <label for="deptIds" class="form-label">Select Department</label>
+                                    <select class="form-select" id="deptIds" name="deptIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+        
+        
+                        </div>
+                        <h5 class="section-heading">Permissions Details</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="roleId" class="form-label">Select Role</label>
+                                <select class="form-select" id="roleId" name="roleId" required style="width: 100%;"></select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stateIds" class="form-label">Select States</label>
+                                    <select class="form-select" id="stateIds" name="stateIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="branchIds" class="form-label">Select Branches</label>
+                                    <select class="form-select" id="branchIds" name="branchIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="budgetIds" class="form-label">Select Budgets</label>
+                                <select class="form-select" id="budgetIds" name="budgetIds" multiple="multiple" required style="width: 100%;"></select>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sBudgetIds" class="form-label">Select Sub Budgets</label>
+                                    <select class="form-select" id="sBudgetIds" name="sBudgetIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="approvalIds" class="form-label">Select Approvals</label>
+                                    <select class="form-select" id="approvalIds" name="approvalIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="varietyIds" class="form-label">Select Item Sub Group</label>
+                                    <select class="form-select" id="varietyIds" name="varietyIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="reportIds" class="form-label">Select Reports</label>
+                                    <select class="form-select" id="reportIds" name="reportIds" multiple="multiple" required style="width: 100%;"></select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fromDate" class="form-label">From</label>
+                                    <input type="date" class="form-control" id="fromDate" name="fromDate" autocomplete="off" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="toDate" class="form-label">To</label>
+                                    <input type="date" class="form-control" id="toDate" name="toDate" autocomplete="off" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-4">
+                            <button type="submit" class="custom-btn">
+                                Update Data
+                            </button>
+                        </div>
+                    </form>
+        
+                    <div id="message" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="changePasswordForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel">Change Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">X</button>
+                </div>
+        
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                    </div>
+                </div>
+        
+                <div class="modal-footer flex-column">
+                    <div id="passwordError" class="text-danger mb-2" style="display: none;"></div>
+                    <button type="button" class="btn btn-primary w-100" id="submitPasswordBtn">Change Password</button>
+                </div>
+        
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        $(document).ready(function () {
+            $('#submitPasswordBtn').on('click', function () {
+        
+                const newPassword = $('#newPassword').val();
+                const confirmPassword = $('#confirmPassword').val();
+        
+                $('#passwordError').hide().text(''); // Clear old error
+        
+                if (newPassword !== confirmPassword) {
+                    $('#passwordError').text('Passwords do not match.').show();
+                    return;
+                }
+        
+                const AdminId = $('#adminId').val();
+                const UserId = $('#editingUserId').val();
+        
+                const requestData = {
+                    userId: UserId, // Replace with actual userId
+                    updatedBy: AdminId, // Replace with logged-in user ID
+                    newPassword: newPassword
+                };
+        
+                $.ajax({
+                    url: '/api/auth/adminresetpassword',  // <- this must match your controller route
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(requestData),
+                    success: function (response) {
+                        if (response.success) {
+                            alert(response.message || "Password changed successfully");
+                            $('#changePasswordModal').modal('hide');
+                            $('#newPassword').val('');
+                            $('#confirmPassword').val('');
+                            $('#passwordError').hide().text('');
+                        } else {
+                            $('#passwordError').text(response.message).show();
+                        }
+                    },
+                    error: function (xhr) {
+                        let message = "An unexpected error occurred.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            message = xhr.responseJSON.message;
+                        }
+                        $('#passwordError').text(message).show();
+                    }
+                });
+            });
+        });
+    </script>
+    
+    <!-- Pass permissions data to JavaScript -->
+    <script type="text/javascript">
+        window.existingPermissions = @Html.Raw(Json.Serialize(Model.Permissions))
+        window.selectedUser = @Html.Raw(Json.Serialize(Model.SelectedUser))
+    </script>
+    
+    <!-- Include Select2 CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <script>
+        $(document).ready(function () {
+            console.log("Document ready - initializing Select2...");
+            console.log("Existing permissions:", window.existingPermissions);
+        
+            // Initialize single select dropdowns
+            $('#roleId').select2({
+                placeholder: 'Select',
+                width: '100%'
+            });
+        
+            // Initialize multi-select dropdowns
+            $('#stateIds, #branchIds, #budgetIds, #sBudgetIds,#varietyIds, #reportIds, #deptIds,#approvalIds').select2({
+                placeholder: 'Select options',
+                width: '100%',
+                closeOnSelect: false
+            });
+        
+            const AdminId = $('#adminId').val();
+            const companyId = $('#companyId').val();
+            const editingUserId = $('#editingUserId').val();
+        
+            console.log("Current companyId:", companyId);
+            console.log("Editing userId:", editingUserId);
+        
+            // Counter to track loaded dropdowns
+            let dropdownsLoaded = 0;
+            const totalDropdowns = 9; // Total number of dropdowns to load
+        
+            // Generic function to load dropdown data with proper error handling
+            function loadDropdown(apiUrl, elementId, valueField, textField, isMultiple = true) {
+                console.log(`Loading data for ${elementId} from ${apiUrl}`);
+        
+                $.ajax({
+                    url: apiUrl,
+                    method: 'GET',
+                    data: { company: companyId },
+                    success: function (response) {
+                        console.log(`Data received for ${elementId}:`, response);
+        
+                        const $element = $(`#${elementId}`);
+                        $element.empty(); // Clear old options
+        
+                        const items = response.data || response;
+                        if (!Array.isArray(items)) {
+                            console.warn(`Invalid data format for ${elementId}`);
+                            dropdownsLoaded++;
+                            checkAndPopulateExistingData();
+                            return;
+                        }
+        
+                        if (!isMultiple) {
+                            $element.append($('<option>', {
+                                value: '',
+                                text: `Select ${elementId.replace('Id', '').replace('Ids', '')}`
+                            }));
+                        }
+
+                        items.forEach(item => {
+                            const value = item[valueField];
+                            const text = item[textField];
+                            if (value !== undefined && text !== undefined) {
+                                $element.append($('<option>', {
+                                    value: value,
+                                    text: text
+                                }));
+                            }
+                        });
+        
+                        $element.trigger('change');
+                        dropdownsLoaded++;
+                        checkAndPopulateExistingData();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error(`Error loading ${elementId}:`, error);
+                        console.log("Response:", xhr.responseText);
+                        alert(`Failed to load ${elementId}`);
+                        dropdownsLoaded++;
+                        checkAndPopulateExistingData();
+                    }
+                });
+            }
+        
+            // Function to populate existing data once all dropdowns are loaded
+            function checkAndPopulateExistingData() {
+                if (dropdownsLoaded >= totalDropdowns && window.existingPermissions) {
+                     console.log("All dropdowns loaded, populating existing data...");
+                     populateExistingPermissions();
+                }
+            }
+        
+            // Function to populate existing permissions
+            function populateExistingPermissions() {
+                const permissions = window.existingPermissions;
+        
+                if (!permissions) {
+                    console.log("No existing permissions to populate");
+                    return;
+                }
+        
+                try {
+                    // Populate Role (single select)
+                    if (permissions.roles && permissions.roles.length > 0) {
+                        const roleId = permissions.roles[0].roleId;
+                        $('#roleId').val(roleId).trigger('change');
+                        console.log("Set role:", roleId);
+                    }
+        
+                    // Populate States (multi-select)
+                    if (permissions.states && permissions.states.length > 0) {
+                        const stateIds = permissions.states.map(state => state.stateId);
+                        $('#stateIds').val(stateIds).trigger('change');
+                        console.log("Set states:", stateIds);
+                    }
+        
+                    // Populate Branches (multi-select)
+                    if (permissions.branches && permissions.branches.length > 0) {
+                        const branchIds = permissions.branches.map(branch => branch.branchId);
+                        $('#branchIds').val(branchIds).trigger('change');
+                        console.log("Set branches:", branchIds);
+                    }
+        
+                    // Populate Budgets (multi-select)
+                    if (permissions.budgets && permissions.budgets.length > 0) {
+                        const budgetIds = permissions.budgets.map(budget => budget.budgetId);
+                        $('#budgetIds').val(budgetIds).trigger('change');
+                        console.log("Set budgets:", budgetIds);
+                    }
+        
+                    // Populate Sub Budgets (multi-select)
+                    if (permissions.subBudgets && permissions.subBudgets.length > 0) {
+                        const sBudgetIds = permissions.subBudgets.map(subBudget => subBudget.sBudgetId);
+                        $('#sBudgetIds').val(sBudgetIds).trigger('change');
+                        console.log("Set sub budgets:", sBudgetIds);
+                    }
+        
+                    // Populate Approvals (multi-select)
+                    if (permissions.approvals && permissions.approvals.length > 0) {
+                        const approvalIds = permissions.approvals.map(approval => approval.id);
+                        $('#approvalIds').val(approvalIds).trigger('change');
+                        console.log("Set approvals:", approvalIds);
+                    }
+        
+                    // Populate Varieties (multi-select)
+                    if (permissions.varieties && permissions.varieties.length > 0) {
+                        const varietyIds = permissions.varieties.map(variety => variety.varietyId);
+                        $('#varietyIds').val(varietyIds).trigger('change');
+                        console.log("Set varieties:", varietyIds);
+                    }
+        
+                    // Populate Reports (multi-select)
+                    if (permissions.reports && permissions.reports.length > 0) {
+                        const reportIds = permissions.reports.map(report => report.id);
+                        $('#reportIds').val(reportIds).trigger('change');
+                        console.log("Set reports:", reportIds);
+                    }
+        
+                    // FIXED: Populate Departments from selectedUser instead of permissions
+                    if (selectedUser && selectedUser.departments && selectedUser.departments.length > 0) {
+                        const deptIds = selectedUser.departments.map(department => department.deptId);
+                        $('#deptIds').val(deptIds).trigger('change');
+                        console.log("Set departments from selectedUser:", deptIds);
+                    }
+                    // Alternative: If departments are directly on selectedUser object (not in array)
+                    else if (selectedUser && selectedUser.deptId) {
+                        // If deptIds is a string like "1,2,3", split it
+                        const deptIds = typeof selectedUser.deptId === 'string'
+                            ? selectedUser.deptId.split(',').map(id => parseInt(id.trim()))
+                            : [selectedUser.deptId];
+                        $('#deptIds').val(deptIds).trigger('change');
+                        console.log("Set departments from selectedUser.deptIds:", deptIds);
+                    }
+        
+                    // Populate Dates
+                    if (permissions.dates && permissions.dates.length > 0) {
+                        const dateInfo = permissions.dates[0];
+                        if (dateInfo.fromDate) {
+                            const fromDate = formatDateLocal(dateInfo.fromDate);
+                            $('#fromDate').val(fromDate);
+                            console.log("Set from date:", fromDate);
+                        }
+        
+                        if (dateInfo.toDate) {
+                            const toDate = formatDateLocal(dateInfo.toDate);
+                            $('#toDate').val(toDate);
+                            console.log("Set to date:", toDate);
+                        }
+                    }
+        
+                    console.log("Existing permissions populated successfully");
+                } catch (error) {
+                console.error("Error populating existing permissions:", error);
+                }
+            }
+        
+            // Format date to yyyy-mm-dd without timezone offset
+            function formatDateLocal(dateString) {
+                const date = new Date(dateString);
+                const year = date.getFullYear();
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                const day = ('0' + date.getDate()).slice(-2);
+                return `${year}-${month}-${day}`;
+            }
+        
+            // Load dropdowns with appropriate field mappings
+            loadDropdown('/api/auth/getroles?company=' + companyId, 'roleId', 'roleId', 'roleName', false);
+            loadDropdown('/api/auth/getstates?company=' + companyId, 'stateIds', 'stateId', 'stateName');
+            loadDropdown('/api/auth/getbranches?company=' + companyId, 'branchIds', 'branchId', 'branchName');
+            loadDropdown('/api/auth/getbudgets?company=' + companyId, 'budgetIds', 'budgetId', 'budgetName');
+            loadDropdown('/api/auth/getSubBudgets?company=' + companyId, 'sBudgetIds', 'sBudgetId', 'sBudgetName');
+            loadDropdown('/api/auth/getapprovals?company=' + companyId, 'approvalIds', 'id', 'approvalName');
+            loadDropdown('/api/auth/getVarieties?company=' + companyId, 'varietyIds', 'varietyId', 'varietyName');
+            loadDropdown('/api/auth/getreports?company=' + companyId, 'reportIds', 'id', 'report');
+            loadDropdown('/api/auth/getdepartments?company=' + companyId, 'deptIds', 'deptId', 'deptName');
+        
+            const userId = $('#editingUserId').val();
+            const updatedBy = $('#adminId').val();
+            const company = $('#companyId').val();
+        
+            function callApi(url) {
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    success: function (response) {
+                        console.log('API success:', response);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('API error:', error);
+                    }
+        
+                });
+            }
+
+            // budget dropdown
+            $('#budgetIds').on('select2:select select2:unselect', function (e) {
+                const budgetId = e.params.data.id;
+                const isSelected = e.type === 'select2:select';
+                const url = `/api/auth/updatebudget?userId=${userId}&updatedBy=${updatedBy}&budgetId=${budgetId}&status=${isSelected}&company=${company}`;
+                callApi(url);
+                
+            });
+            // Inject buttons when dropdown opens
+            $('#budgetIds').on('select2:open', function () {
+            if ($('#budgetIds').data('select2').$dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllBudgets">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllBudgets">Clear All</button>
+                    </div>
+                `;
+                $('#budgetIds').data('select2').$dropdown.prepend(buttonsHtml);
+
+                // Attach handlers
+                $('#selectAllBudgets').on('click', function (e) {
+                    const allValues = $('#budgetIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#budgetIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatebudget?userId=${userId}&updatedBy=${updatedBy}&budgetId=${id}&status=true&company=${company}`;
+                        callApi(url);
+                    });
+                });
+
+                $('#clearAllBudgets').on('click', function (e) {
+                    const allValues = $('#budgetIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#budgetIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatebudget?userId=${userId}&updatedBy=${updatedBy}&budgetId=${id}&status=false&company=${company}`;
+                        callApi(url);
+                    });
+                });
+            }
+        });
+
+            // State dropdown
+            $('#stateIds').on('select2:select select2:unselect', function (e) {
+                const stateId = e.params.data.id;
+                const isSelected = e.type === 'select2:select';
+                const url = `/api/auth/updatestate?userId=${userId}&updatedBy=${updatedBy}&stateId=${stateId}&status=${isSelected}&company=${company}`;
+                callApi(url);
+            });
+            // Inject buttons when dropdown opens
+            $('#stateIds').on('select2:open', function () {
+            if ($('#stateIds').data('select2').$dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllStates">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllStates">Clear All</button>
+                    </div>
+                `;
+                $('#stateIds').data('select2').$dropdown.prepend(buttonsHtml);
+
+                // Attach handlers
+                $('#selectAllStates').on('click', function (e) {
+                    const allValues = $('#stateIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#stateIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatestate?userId=${userId}&updatedBy=${updatedBy}&stateId=${id}&status=true&company=${company}`;
+                        callApi(url);
+                    });
+                });
+
+                $('#clearAllStates').on('click', function (e) {
+                    const allValues = $('#stateIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#stateIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatestate?userId=${userId}&updatedBy=${updatedBy}&stateId=${id}&status=false}&company=${company}`;
+
+                        callApi(url);
+                    });
+                });
+            }
+        });
+
+            //Sub Budget dropdown
+            $('#sBudgetIds').on('select2:select select2:unselect', function (e) {
+                const subBudgetId = e.params.data.id;
+                const isSelected = e.type === 'select2:select';
+                const url = `/api/auth/updatesubbudget?userId=${userId}&updatedBy=${updatedBy}&subBudgetId=${subBudgetId}&status=${isSelected}&company=${company}`;
+                callApi(url);
+            });
+            $('#sBudgetIds').on('select2:open', function () {
+            if ($('#sBudgetIds').data('select2').$dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllsBudgets">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllsBudgets">Clear All</button>
+                    </div>
+                `;
+                $('#sBudgetIds').data('select2').$dropdown.prepend(buttonsHtml);
+
+                // Attach handlers
+                $('#selectAllsBudgets').on('click', function (e) {
+                    const allValues = $('#sBudgetIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#sBudgetIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatesubbudget?userId=${userId}&updatedBy=${updatedBy}&subBudgetId=${id}&status=true&company=${company}`;
+                        callApi(url);
+                    });
+                });
+
+                $('#clearAllsBudgets').on('click', function (e) {
+                    const allValues = $('#sBudgetIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#sBudgetIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatesubbudget?userId=${userId}&updatedBy=${updatedBy}&subBudgetId=${id}&status=false&company=${company}`;
+                        callApi(url);
+                    });
+                });
+            }
+        });
+
+            // 🔹 Variety dropdown
+            $('#varietyIds').on('select2:select select2:unselect', function (e) {
+                const varietyId = e.params.data.id;
+                const isSelected = e.type === 'select2:select';
+                const url = `/api/auth/updatevariety?userId=${userId}&updatedBy=${updatedBy}&varietyId=${varietyId}&status=${isSelected}&company=${company}`;
+                callApi(url);
+            });
+            $('#varietyIds').on('select2:open', function () {
+            if ($('#varietyIds').data('select2').$dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllVariety">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllVariety">Clear All</button>
+                    </div>
+                `;
+                $('#varietyIds').data('select2').$dropdown.prepend(buttonsHtml);
+
+                // Attach handlers
+                $('#selectAllVariety').on('click', function (e) {
+                    const allValues = $('#varietyIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#varietyIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatevariety?userId=${userId}&updatedBy=${updatedBy}&varietyId=${id}&status=true&company=${company}`;
+                        callApi(url);
+                    });
+                });
+
+                $('#clearAllVariety').on('click', function (e) {
+                    const allValues = $('#varietyIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#varietyIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatevariety?userId=${userId}&updatedBy=${updatedBy}&varietyId=${id}&status=false&company=${company}`;
+                        callApi(url);
+                    });
+                });
+            }
+        });
+
+            // 🔹 Branch dropdown
+            $('#branchIds').on('select2:select select2:unselect', function (e) {
+                const branchId = e.params.data.id;
+                const isSelected = e.type === 'select2:select';
+                const url = `/api/auth/updatebranch?userId=${userId}&updatedBy=${updatedBy}&branchId=${branchId}&status=${isSelected}&company=${company}`;
+                callApi(url);
+            });
+            $('#branchIds').on('select2:open', function () {
+            if ($('#branchIds').data('select2').$dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllBranch">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllBranch">Clear All</button>
+                    </div>
+                `;
+                $('#branchIds').data('select2').$dropdown.prepend(buttonsHtml);
+
+                // Attach handlers
+                $('#selectAllBranch').on('click', function (e) {
+                    const allValues = $('#branchIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#branchIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatebranch?userId=${userId}&updatedBy=${updatedBy}&branchId=${id}&status=true&company=${company}`;
+                        callApi(url);
+                    });
+                });
+
+                $('#clearAllBranch').on('click', function (e) {
+                    const allValues = $('#branchIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#branchIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatebranch?userId=${userId}&updatedBy=${updatedBy}&branchId=${id}&status=false&company=${company}`;
+                        callApi(url);
+                    });
+                });
+            }
+        });
+
+            // 🔹 Report dropdown
+            $('#reportIds').on('select2:select select2:unselect', function (e) {
+                const reportId = e.params.data.id;
+                const isSelected = e.type === 'select2:select';
+                const url = `/api/auth/updatereport?userId=${userId}&updatedBy=${updatedBy}&reportId=${reportId}&status=${isSelected}&company=${company}`;
+                callApi(url);
+            });
+            $('#reportIds').on('select2:open', function () {
+            if ($('#reportIds').data('select2').$dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllReport">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllReport">Clear All</button>
+                    </div>
+                `;
+                $('#reportIds').data('select2').$dropdown.prepend(buttonsHtml);
+
+                // Attach handlers
+                $('#selectAllReport').on('click', function (e) {
+                    const allValues = $('#reportIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#reportIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatereport?userId=${userId}&updatedBy=${updatedBy}&reportId=${id}&status=true&company=${company}`;
+                        callApi(url);
+                    });
+                });
+
+                $('#clearAllReport').on('click', function (e) {
+                    const allValues = $('#reportIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+                    $('#reportIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        const url = `/api/auth/updatereport?userId=${userId}&updatedBy=${updatedBy}&reportId=${id}&status=false&company=${company}`;
+                        callApi(url);
+                    });
+                });
+            }
+        });
+        
+            // Role dropdown (single select)
+            $('#roleId').on('change', function () {
+                const roleId = $(this).val();
+                const url = `/api/auth/updateuserrole?userId=${userId}&roleId=${roleId}&company=${company}`;
+                callApi(url);
+            });
+        
+            // From/To Date
+            $('#fromDate, #toDate').on('change', function () {
+                const fromDate = $('#fromDate').val();
+                const toDate = $('#toDate').val();
+                if (fromDate && toDate) {
+                    const url = `/api/auth/updatefromtodate?userId=${userId}&updatedBy=${updatedBy}&toDate=${toDate}&fromDate=${fromDate}&company=${company}`;
+                    callApi(url);
+                }
+            });
+        
+            // Approval
+            $('#approvalIds').on('select2:select select2:unselect', function (e) {
+            const approvalId = e.params.data.id;
+            const isSelected = e.type === 'select2:select';
+            const data = {
+                    userId: userId,
+                    approvalId: approvalId,
+                    company: company,
+                    view: 1,
+                    create: 1,
+                    update: 1,
+                    delete: 1,
+                    status: isSelected ? 1 : 0
+                };
+        
+                fetch('/api/auth/updateuserapproval', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(result => {
+                    console.log(`Approval ${approvalId} ${isSelected ? 'added' : 'removed'} successfully`, result);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        });
+                // Inject Select All / Clear All buttons when dropdown opens
+            $('#approvalIds').on('select2:open', function () {
+            const dropdown = $('#approvalIds').data('select2').$dropdown;
+
+            if (dropdown.find('.custom-actions').length === 0) {
+                const buttonsHtml = `
+                    <div class="custom-actions" style="padding: 5px; border-bottom: 1px solid #ccc;">
+                        <button type="button" class="btn btn-sm btn-primary" id="selectAllApproval">Select All</button>
+                        <button type="button" class="btn btn-sm btn-danger" id="clearAllApproval">Clear All</button>
+                    </div>
+                `;
+                dropdown.prepend(buttonsHtml);
+
+                // 🔹 Select All Handler
+                $('#selectAllApproval').on('click', function () {
+                    const allValues = $('#approvalIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+
+                    $('#approvalIds').val(allValues).trigger('change');
+
+                    allValues.forEach(id => {
+                        if (id === 'select_all') return; // Skip select_all itself
+                        const data = {
+                            userId: userId,
+                            approvalId: id,
+                            company: company,
+                            view: 1,
+                            create: 1,
+                            update: 1,
+                            delete: 1,
+                            status: 1
+                        };
+
+                        fetch('/api/auth/updateuserapproval', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        })
+                        .then(response => {
+                            if (!response.ok) throw new Error('Network response was not ok');
+                            return response.json();
+                        })
+                        .then(result => {
+                            console.log(`Approval ${id} added successfully`, result);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        });
+                    });
+                });
+
+                // 🔹 Clear All Handler
+                $('#clearAllApproval').on('click', function () {
+                    const allValues = $('#approvalIds option').map(function () {
+                        return $(this).val();
+                    }).get();
+
+                    $('#approvalIds').val(null).trigger('change');
+
+                    allValues.forEach(id => {
+                        if (id === 'select_all') return;
+                        const data = {
+                            userId: userId,
+                            approvalId: id,
+                            company: company,
+                            view: 1,
+                            create: 1,
+                            update: 1,
+                            delete: 1,
+                            status: 0
+                        };
+
+                        fetch('/api/auth/updateuserapproval', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        })
+                        .then(response => {
+                            if (!response.ok) throw new Error('Network response was not ok');
+                            return response.json();
+                        })
+                        .then(result => {
+                            console.log(`Approval ${id} removed successfully`, result);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        });
+                    });
+                });
+            }
+        });
+
+
+            // Password toggle functionality
+            $('#togglePassword').on('click', function() {
+                const passwordField = $('#password');
+                const icon = $(this).find('i');
+        
+                if (passwordField.attr('type') === 'password') {
+                    passwordField.attr('type', 'text');
+                    icon.removeClass('fa-eye').addClass('fa-eye-slash');
+                } else {
+                    passwordField.attr('type', 'password');
+                    icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                }
+            });
+        
+            $('#userPermissionForm').on('submit', function (e) {
+                e.preventDefault();
+        
+                const userId = $('#editingUserId').val();
+                const firstName = $('#firstName').val().trim();
+                const lastName = $('#lastName').val().trim();
+                const userPhoneNumber = $('#phoneNumber').val().trim();
+                const userEmail = $('#email').val().trim();
+                const empId = $('#empId').val().trim();
+                const deptIds = $('#deptIds').val(); // returns array of selected options
+                const updatedBy = $('#adminId').val();
+        
+                // Optional validation
+                if (userPhoneNumber.length !== 10 || !/^\d+$/.test(userPhoneNumber)) {
+                    $('#phoneNumberFeedback').show();
+                    return;
+                } else {
+                    $('#phoneNumberFeedback').hide();
+                }
+        
+                const payload = {
+                    userId: parseInt(userId),
+                    firstName: firstName,
+                    lastName: lastName,
+                    userPhoneNumber: userPhoneNumber,
+                    userEmail: userEmail,
+                    empId: empId,
+                    deptIds: deptIds ? deptIds.join(',') : '',
+                    updatedBy: parseInt(updatedBy)
+                };
+        
+                $.ajax({
+                    url: '/api/auth/UpdateUserInfo',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    success: function (response) {
+                        $('#message').html(`<div class="alert alert-success">${response.message}</div>`);
+                    },
+                    error: function (xhr) {
+                        const errMsg = xhr.responseJSON?.message || "An error occurred while saving.";
+                        $('#message').html(`<div class="alert alert-danger">${errMsg}</div>`);
+                    }
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,2559 @@
+@{
+    ViewData["Title"] = "Sales Hierarchy";
+    bool isAdmin = ViewBag.IsAdmin is bool ia && ia;
+    string empCode = ViewBag.EmpCode?.ToString() ?? "";
+    var initialRows = ViewBag.InitialSalesData as IEnumerable<JSAPNEW.Models.SalesHierarchyRowDto> ?? Enumerable.Empty<JSAPNEW.Models.SalesHierarchyRowDto>();
+    var initialStats = ViewBag.InitialSalesStats as JSAPNEW.Models.SalesHierarchyStatsDto ?? new JSAPNEW.Models.SalesHierarchyStatsDto();
+    var initialSalesDataJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSalesData ?? new List<object>());
+    var initialSalesStatsJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSalesStats ?? new object());
+    var initialSalesStatesJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSalesStates ?? new List<object>());
+    var initialSalesGroupsJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSalesGroups ?? new List<object>());
+    var initialSalesDesignationsJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSalesDesignations ?? new List<object>());
+    var initialSalesEmployeesJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSalesEmployees ?? new List<object>());
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+    :root {
+        --g1: #0b2c4d; --g2: #1a4a7a; --g3: #2563eb;
+        --bg: #ffffff; --bg2: #f8fafc; --bg3: #f1f5f9;
+        --border: #e2e8f0; --text: #0f172a; --muted: #64748b;
+        --danger: #dc2626; --warn: #d97706; --success: #16a34a;
+        --info: #2563eb; --row-h: 42px;
+        --page-font-size: 13px; --page-font-family: 'Sora', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--page-font-family); font-size: var(--page-font-size); }
+
+    /* ── TOP BAR ── */
+    .topbar { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .topbar-main { display: flex; align-items: center; gap: 10px; padding: 9px 20px; border-bottom: 1px solid var(--border); }
+    .topbar-title { font-size: 15px; font-weight: 700; color: var(--g1); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .topbar-title-icon { width: 30px; height: 30px; background: linear-gradient(135deg, var(--g1), var(--g2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; flex-shrink: 0; }
+    .topbar-actions { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-items: center; }
+    .btn-sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+
+    /* ── STATS BAR ── */
+    .stats-bar { display: flex; gap: 0; background: var(--bg); border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .stat-chip { display: flex; flex-direction: column; align-items: center; padding: 8px 20px; border-right: 1px solid var(--border); min-width: 90px; cursor: default; transition: background .15s; }
+    .stat-chip:hover { background: var(--bg2); }
+    .stat-chip:last-child { border-right: none; }
+    .stat-chip .stat-val { font-size: 18px; font-weight: 700; color: var(--g1); line-height: 1; }
+    .stat-chip .stat-label { font-size: 10px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+    .stat-chip.active .stat-val { color: var(--success); }
+    .stat-chip.inactive .stat-val { color: var(--danger); }
+
+    /* ── FILTER BAR ── */
+    .filter-bar { display: flex; gap: 8px; padding: 10px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+    .filter-bar input, .filter-bar select { height: 32px; border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; font-size: 12px; font-family: inherit; background: #fff; color: var(--text); outline: none; transition: border-color .2s; }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: var(--g3); box-shadow: 0 0 0 2px rgba(37,99,235,.08); }
+    .filter-bar input.search-box { min-width: 200px; padding-left: 30px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 8px center; }
+    .filter-bar select { min-width: 130px; cursor: pointer; }
+    .filter-clear { font-size: 11px; color: var(--g3); cursor: pointer; padding: 0 4px; white-space: nowrap; border: none; background: none; }
+    .filter-clear:hover { text-decoration: underline; }
+    .filter-badge { background: var(--g3); color: #fff; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+
+    /* ── BUTTONS ── */
+    .btn { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid transparent; transition: all .15s; white-space: nowrap; }
+    .btn-primary { background: var(--g1); color: #fff; border-color: var(--g1); }
+    .btn-primary:hover { background: var(--g2); }
+    .btn-ghost { background: none; color: var(--text); border-color: var(--border); }
+    .btn-ghost:hover { background: var(--bg2); border-color: #cbd5e1; }
+    .btn-danger { background: none; color: var(--danger); border-color: var(--danger); }
+    .btn-danger:hover { background: #fef2f2; }
+    .btn-sm { height: 26px; padding: 0 8px; font-size: 11px; }
+    .btn-icon { width: 28px; height: 28px; padding: 0; justify-content: center; border-radius: 5px; }
+
+    /* ── GRID ── */
+    .grid-wrap { overflow: auto; flex: 1; position: relative; }
+    .sales-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .sales-table thead tr { background: var(--bg2); position: sticky; top: 0; z-index: 10; }
+    .sales-table th { padding: 9px 12px; text-align: left; font-weight: 600; color: var(--g1); border-bottom: 2px solid var(--border); white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; cursor: pointer; user-select: none; }
+    .sales-table th:hover { background: #e8edf3; }
+    .sales-table th .sort-icon { opacity: .35; margin-left: 3px; font-size: 9px; }
+    .sales-table th.sorted .sort-icon { opacity: 1; }
+    .sales-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sales-table tr:hover td { background: #f0f4fa; }
+    .sales-table tr.editing td { background: #fffbeb; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .badge-active { background: #dcfce7; color: #16a34a; }
+    .badge-inactive { background: #fee2e2; color: #dc2626; }
+    .level-badge { padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+    .lvl-h1 { background: #dbeafe; color: #1d4ed8; }
+    .lvl-h2 { background: #ede9fe; color: #7c3aed; }
+    .lvl-h3 { background: #fce7f3; color: #be185d; }
+    .lvl-h4 { background: #fed7aa; color: #c2410c; }
+    .name-code { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; white-space: normal; line-height: 1.25; }
+    .name-code strong { color: var(--g1); font-weight: 600; }
+    .name-code .mini-code { font-size: 11px; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+    .inline-edit { border: 1px solid var(--g3); border-radius: 4px; padding: 2px 6px; font-size: 12px; width: 100%; min-width: 60px; font-family: inherit; outline: none; background: #fff; }
+
+    /* ── PAGINATION ── */
+    .pag-bar { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-top: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+    .pag-bar .info { font-size: 12px; color: var(--muted); margin-right: auto; }
+    .pag-btn { min-width: 30px; height: 30px; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .pag-btn:hover:not(:disabled) { background: var(--g1); color: #fff; border-color: var(--g1); }
+    .pag-btn.active { background: var(--g1); color: #fff; border-color: var(--g1); font-weight: 700; }
+    .pag-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── MODALS (centered) ── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; align-items: center; justify-content: center; padding: 20px; overflow: hidden; }
+    .overlay.open { display: flex; animation: overlayBgIn .2s ease forwards; }
+    @@keyframes overlayBgIn { from { background: rgba(0,0,0,0); } to { background: rgba(0,0,0,.45); } }
+    .modal { background: #fff; border-radius: 18px; width: 520px; max-width: min(92vw, 520px); max-height: min(92vh, 600px); display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.22); position: relative; animation: modalPopIn .22s cubic-bezier(.22,.61,.36,1); }
+    .modal-lg { width: 680px; max-height: min(92vh, 700px); }
+    @@keyframes modalPopIn { from { opacity: 0; transform: scale(.96) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .modal-hdr { padding: 16px 18px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .modal-hdr h3 { font-size: 15px; font-weight: 700; color: var(--g1); flex: 1; }
+    .modal-close { width: 28px; height: 28px; border: none; background: none; cursor: pointer; font-size: 18px; color: var(--muted); border-radius: 5px; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: var(--bg3); color: var(--text); }
+    .modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+    .modal-ftr { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
+
+    /* Edit modal grid */
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .edit-grid .full { grid-column: 1/-1; }
+    .form-group { display: flex; flex-column; gap: 5px; flex-direction: column; }
+    .form-group label { font-size: 11px; font-weight: 600; color: var(--g1); text-transform: uppercase; letter-spacing: .3px; }
+    .form-group input, .form-group select, .form-group textarea { border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; font-family: inherit; outline: none; width: 100%; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--g3); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+    .form-group .mini-search { padding-left: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; }
+    .form-row { display: flex; align-items: center; gap: 8px; }
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle { width: 38px; height: 20px; background: #cbd5e1; border-radius: 10px; position: relative; cursor: pointer; transition: background .2s; }
+    .toggle.on { background: var(--success); }
+    .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* Upload modal */
+    .drop-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 36px; text-align: center; cursor: pointer; transition: all .2s; }
+    .drop-zone:hover, .drop-zone.drag { border-color: var(--g3); background: #eff6ff; }
+    .drop-zone .dz-icon { font-size: 36px; color: var(--g3); margin-bottom: 10px; }
+    .drop-zone p { color: var(--muted); font-size: 13px; }
+    .drop-zone strong { color: var(--g1); }
+    #fileInput { display: none; }
+    .progress-bar { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-top: 12px; }
+    .progress-fill { height: 100%; background: var(--g3); transition: width .3s; }
+    .import-results { margin-top: 14px; }
+    .import-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+
+    /* Audit log panel */
+    .audit-panel { position: fixed; right: 0; top: 0; width: 520px; height: 100%; background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,.15); z-index: 900; transform: translateX(100%); transition: transform .3s; display: flex; flex-direction: column; }
+    .audit-panel.open { transform: none; }
+    .audit-panel-hdr { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .audit-panel-hdr h3 { font-size: 14px; font-weight: 700; color: var(--g1); flex: 1; }
+    .audit-body { flex: 1; overflow-y: auto; padding: 14px; }
+    .audit-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; }
+    .audit-item .audit-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 5px; }
+    .audit-action { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; margin-right: 6px; }
+    .action-update { background: #dbeafe; color: #1d4ed8; }
+    .action-shift { background: #ede9fe; color: #7c3aed; }
+    .action-bulkimport { background: #dcfce7; color: #16a34a; }
+
+    /* Column manager */
+    .col-manager { position: fixed; right: 0; top: 0; width: 280px; height: 100%; background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,.15); z-index: 900; transform: translateX(100%); transition: transform .3s; display: flex; flex-direction: column; }
+    .col-manager.open { transform: none; }
+    .col-manager-hdr { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .col-manager-hdr h4 { font-size: 13px; font-weight: 700; color: var(--g1); flex: 1; }
+    .col-manager-body { flex: 1; overflow-y: auto; padding: 10px; }
+    .col-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+    .col-item:hover { background: var(--bg2); }
+    .col-item input { width: 14px; height: 14px; cursor: pointer; }
+    .col-item label { font-size: 13px; flex: 1; cursor: pointer; }
+
+    /* Loading & empty */
+    .loading-row td { text-align: center; padding: 40px; color: var(--muted); }
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--g3); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.15); font-size: 13px; min-width: 260px; animation: slideIn .25s ease; }
+    .toast-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+    .toast-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .toast-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; }
+    .toast-icon { font-size: 16px; }
+    @@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* Shift modal chain display */
+    .chain-display { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+    .chain-node { display: inline-flex; align-items: center; gap: 4px; }
+    .chain-sep { color: var(--muted); font-size: 12px; }
+
+    /* Page layout */
+    .page-root { display: flex; flex-direction: column; height: calc(100vh - 60px); overflow: hidden; }
+    .page-main { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+</style>
+
+<div class="toast-container" id="toastContainer"></div>
+<div id="pageErrorBanner" style="display:none;position:fixed;top:16px;right:16px;z-index:10000;max-width:520px;background:#fff1f2;border:1px solid #fecdd3;color:#9f1239;padding:12px 14px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:13px;line-height:1.4;">
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+        <strong style="flex:1;">Page Error</strong>
+        <button type="button" onclick="document.getElementById('pageErrorBanner').style.display='none'" style="border:none;background:transparent;color:#9f1239;font-size:16px;cursor:pointer;line-height:1;">x</button>
+    </div>
+    <div id="pageErrorText" style="margin-top:6px;white-space:pre-wrap;"></div>
+</div>
+
+<div class="page-root">
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="topbar-main">
+            <div class="topbar-title">
+                <div class="topbar-title-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                Sales Hierarchy
+            </div>
+
+            <div class="topbar-actions">
+                <button class="btn btn-primary" onclick="openCreateEmpModal()" title="Create Employee">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="12" y1="3" x2="12" y2="3"/><path d="M16 11h6m-3-3v6"/></svg>
+                    New Employee
+                </button>
+                <button class="btn btn-ghost" onclick="openCreateRelModal()" title="Create Relation">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    New Relation
+                </button>
+                <button class="btn btn-ghost" onclick="openBulkAssignModal()" title="Bulk Assign">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="6" height="6" rx="1"/><rect x="3" y="13" width="6" height="6" rx="1"/><path d="M15 6h6M15 10h4M15 14h6M15 18h4"/></svg>
+                    Bulk Assign
+                </button>
+                <div class="btn-sep"></div>
+                <button class="btn btn-ghost" onclick="openUploadModal()" title="Upload Excel">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Excel
+                </button>
+                <button class="btn btn-ghost" onclick="updateMissingCodes()" title="Update Missing Codes">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Fix Codes
+                </button>
+                <button class="btn btn-ghost" onclick="exportToExcel()" title="Export to Excel">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export
+                </button>
+                <div class="btn-sep"></div>
+                <button class="btn btn-ghost" onclick="refreshData()" title="Refresh">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    Refresh
+                </button>
+                <button class="btn btn-ghost" onclick="toggleColManager()" title="Manage Columns">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                    Columns
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-chip"><span class="stat-val" id="statH1">—</span><span class="stat-label">H1 Levels</span></div>
+            <div class="stat-chip"><span class="stat-val" id="statH2">—</span><span class="stat-label">H2 Levels</span></div>
+            <div class="stat-chip"><span class="stat-val" id="statH3">—</span><span class="stat-label">H3 Levels</span></div>
+            <div class="stat-chip"><span class="stat-val" id="statH4">—</span><span class="stat-label">H4 Levels</span></div>
+            <div class="stat-chip"><span class="stat-val" id="statTotal">—</span><span class="stat-label">Total Employees</span></div>
+            <div class="stat-chip active"><span class="stat-val" id="statActive">—</span><span class="stat-label">Active</span></div>
+            <div class="stat-chip inactive"><span class="stat-val" id="statInactive">—</span><span class="stat-label">Inactive</span></div>
+            <div class="stat-chip" style="margin-left:auto; border-left: 1px solid var(--border); border-right: none;">
+                <span class="stat-val" id="statFiltered" style="color:var(--g3)">—</span><span class="stat-label">Showing</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+        <input type="text" class="search-box" id="searchInput" placeholder="Search name, code, state…" oninput="debouncedApplyFilters()" />
+        <select id="filterH1" onchange="applyFilters()"><option value="">All H1</option></select>
+        <select id="filterH2" onchange="applyFilters()"><option value="">All H2</option></select>
+        <select id="filterH3" onchange="applyFilters()"><option value="">All H3</option></select>
+        <select id="filterH4" onchange="applyFilters()"><option value="">All H4</option></select>
+        <select id="filterState" onchange="applyFilters()"><option value="">All States</option></select>
+        <select id="filterGroup" onchange="applyFilters()"><option value="">All Groups</option></select>
+        <select id="filterDesig" onchange="applyFilters()"><option value="">All Designations</option></select>
+        <select id="filterStatus" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+        </select>
+        <button class="filter-clear" onclick="clearFilters()">✕ Clear</button>
+        <span class="filter-badge" id="filterBadge" style="display:none">0</span>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    @if (initialRows.Any())
+    {
+        <div id="salesFallback" style="flex:1;overflow:auto;padding:16px 20px;">
+            <div style="margin-bottom:10px;font-size:12px;color:var(--muted);">Server-rendered fallback view. If this is visible, the page script did not finish loading.</div>
+            <div class="grid-wrap" style="border:1px solid var(--border);border-radius:10px;">
+                <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th>H1</th>
+                            <th>H2</th>
+                            <th>H3</th>
+                            <th>H4</th>
+                            <th>Name</th>
+                            <th>State</th>
+                            <th>Group</th>
+                            <th>Designation</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var fallbackIndex = 0;
+                        }
+                        @foreach (var row in initialRows.Take(100))
+                        {
+                            fallbackIndex++;
+                            <tr>
+                                <td>@fallbackIndex</td>
+                                <td>@(!string.IsNullOrWhiteSpace(row.H1Name) ? row.H1Name : row.H1Code)</td>
+                                <td>@(!string.IsNullOrWhiteSpace(row.H2Name) ? row.H2Name : row.H2Code)</td>
+                                <td>@(!string.IsNullOrWhiteSpace(row.H3Name) ? row.H3Name : row.H3Code)</td>
+                                <td>@(!string.IsNullOrWhiteSpace(row.H4Name) ? row.H4Name : row.H4Code)</td>
+                                <td>
+                                    <div class="name-code">
+                                        <strong>@(string.IsNullOrWhiteSpace(row.EmpName) ? "—" : row.EmpName)</strong>
+                                        <span class="mini-code">@(string.IsNullOrWhiteSpace(row.EmpCode) ? "No code" : row.EmpCode)</span>
+                                    </div>
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(row.State) ? "—" : row.State)</td>
+                                <td>@(string.IsNullOrWhiteSpace(row.GroupName) ? "—" : row.GroupName)</td>
+                                <td>@(string.IsNullOrWhiteSpace(row.Designation) ? "—" : row.Designation)</td>
+                                <td><span class="badge @(row.IsActive ? "badge-active" : "badge-inactive")">@(row.IsActive ? "Active" : "Inactive")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    <div class="page-main" id="salesPageMain" style="@(initialRows.Any() ? "display:none" : "")">
+        <div class="grid-wrap" id="gridWrap">
+            <table class="sales-table" id="salesTable">
+                <thead>
+                    <tr>
+                        <th style="width:40px">#</th>
+                        <th class="col-h1Name" data-col="h1Name" onclick="sortBy('h1Name')">H1 <span class="sort-icon">↕</span></th>
+                        <th class="col-h2Name" data-col="h2Name" onclick="sortBy('h2Name')">H2 <span class="sort-icon">↕</span></th>
+                        <th class="col-h3Name" data-col="h3Name" onclick="sortBy('h3Name')">H3 <span class="sort-icon">↕</span></th>
+                        <th class="col-h4Name" data-col="h4Name" onclick="sortBy('h4Name')">H4 <span class="sort-icon">↕</span></th>
+                        <th class="col-empName" data-col="empName" onclick="sortBy('empName')">Name <span class="sort-icon">↕</span></th>
+                        <th class="col-state" data-col="state" onclick="sortBy('state')">State <span class="sort-icon">↕</span></th>
+                        <th class="col-groupName" data-col="groupName" onclick="sortBy('groupName')">Group <span class="sort-icon">↕</span></th>
+                        <th class="col-designation" data-col="designation" onclick="sortBy('designation')">Designation <span class="sort-icon">↕</span></th>
+                        <th class="col-isActive" data-col="isActive">Status</th>
+                        <th style="width:90px; text-align:center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr class="loading-row"><td colspan="11"><span class="spinner"></span>Loading sales data…</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pag-bar" id="pagBar">
+            <span class="info" id="pagInfo"></span>
+            <div id="pagButtons"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     EDIT MODAL
+════════════════════════════════════════ -->
+<div class="overlay" id="editOverlay">
+    <div class="modal compact-modal">
+        <div class="modal-hdr">
+            <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">✏️</div>
+            <h3>Edit Employee Details</h3>
+            <button class="modal-close" onclick="closeEditModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--muted)">
+                Editing: <strong id="editEmpLabel" style="color:var(--g1)"></strong>
+            </div>
+            <div class="edit-grid">
+                <div class="form-group">
+                    <label>Emp Code</label>
+                    <input type="text" id="edit_empCode" placeholder="e.g. EMP001" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="edit_empName" placeholder="Employee full name" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>State</label>
+                    <select id="edit_state">
+                        <option value="">— Select State —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Group</label>
+                    <select id="edit_groupName">
+                        <option value="">— Select Group —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Designation</label>
+                    <select id="edit_designation">
+                        <option value="">— Select Designation —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <div class="toggle-wrap">
+                        <div class="toggle on" id="edit_activeToggle" onclick="toggleActive()"></div>
+                        <span id="edit_activeLabel">Active</span>
+                        <input type="hidden" id="edit_isActive" value="1" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-ftr">
+            <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEdit()" id="btnSaveEdit">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SHIFT MODAL
+════════════════════════════════════════ -->
+<div class="overlay" id="shiftOverlay">
+    <div class="modal modal-lg compact-modal">
+        <div class="modal-hdr">
+            <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">↕</div>
+            <h3>Shift Employee</h3>
+            <button class="modal-close" onclick="closeShiftModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:16px;">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Moving employee:</div>
+                <strong id="shiftEmpLabel" style="color:var(--g1);font-size:13px"></strong>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Current Chain</div>
+            <div class="chain-display" id="shiftCurrentChain"></div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:16px">New Hierarchy</div>
+            <div class="edit-grid">
+                <div class="form-group">
+                    <label>H1</label>
+                    <select id="shift_h1code"></select>
+                </div>
+                <div class="form-group">
+                    <label>H2</label>
+                    <select id="shift_h2code"></select>
+                </div>
+                <div class="form-group">
+                    <label>H3</label>
+                    <select id="shift_h3code"></select>
+                </div>
+                <div class="form-group">
+                    <label>H4</label>
+                    <select id="shift_h4code"></select>
+                </div>
+                <div class="form-group full">
+                    <label>Notes</label>
+                    <input type="text" id="shift_notes" placeholder="Reason for shifting (optional)" />
+                </div>
+            </div>
+        </div>
+        <div class="modal-ftr">
+            <button class="btn btn-ghost" onclick="closeShiftModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveShift()" id="btnSaveShift">Confirm Shift</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     UPLOAD MODAL
+════════════════════════════════════════ -->
+<div class="overlay" id="uploadOverlay">
+    <div class="modal modal-lg">
+        <div class="modal-hdr">
+            <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">📤</div>
+            <h3>Upload Sales Hierarchy Excel</h3>
+            <button class="modal-close" onclick="closeUploadModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event)">
+                <div class="dz-icon">📊</div>
+                <p><strong>Click to select</strong> or drag &amp; drop Excel file here</p>
+                <p style="font-size:11px;margin-top:4px">.xlsx / .xls files supported</p>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)" />
+
+            <div style="margin-top:14px;background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:12px;">
+                <strong style="color:var(--g1)">Expected Excel Columns (auto-detected):</strong>
+                <div style="margin-top:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H1</span>
+                        <span style="font-size:11px;color:var(--muted)">H1 Name</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#bfdbfe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H1</span>
+                        <span style="font-size:11px;color:var(--muted)">H1 Code</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#ede9fe;color:#7c3aed;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H2</span>
+                        <span style="font-size:11px;color:var(--muted)">H2 Name</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#ddd6fe;color:#7c3aed;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H2</span>
+                        <span style="font-size:11px;color:var(--muted)">H2 Code</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#fce7f3;color:#be185d;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H3</span>
+                        <span style="font-size:11px;color:var(--muted)">H3 Name</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#fbcfe8;color:#be185d;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H3</span>
+                        <span style="font-size:11px;color:var(--muted)">H3 Code</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#fed7aa;color:#c2410c;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">H4</span>
+                        <span style="font-size:11px;color:var(--muted)">H4 Name</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#fdba74;color:#c2410c;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">EC H4</span>
+                        <span style="font-size:11px;color:var(--muted)">H4 Code</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">Emp Code</span>
+                        <span style="font-size:11px;color:var(--muted)">Employee Code</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">Name</span>
+                        <span style="font-size:11px;color:var(--muted)">Employee Name</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">State</span>
+                        <span style="font-size:11px;color:var(--muted)">State</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">Group</span>
+                        <span style="font-size:11px;color:var(--muted)">Group (was DA)</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="background:#f1f5f9;color:#0f172a;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">Designation</span>
+                        <span style="font-size:11px;color:var(--muted)">Designation</span>
+                    </div>
+                </div>
+                <div style="margin-top:10px;color:var(--muted);font-size:11px;border-top:1px solid var(--border);padding-top:8px">
+                    ℹ️ <strong>Sr No</strong> column is ignored automatically. Column order does not matter — headers are matched by name.
+                </div>
+            </div>
+
+            <div class="progress-bar" id="uploadProgress" style="display:none">
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+            <div class="import-results" id="importResults" style="display:none"></div>
+        </div>
+        <div class="modal-ftr">
+            <button class="btn btn-ghost" onclick="closeUploadModal()">Close</button>
+            <button class="btn btn-primary" id="btnUpload" onclick="processUpload()" style="display:none">
+                <span id="uploadBtnText">Import <span id="uploadRowCount">0</span> Rows</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     AUDIT LOG PANEL
+════════════════════════════════════════ -->
+<div class="audit-panel" id="auditPanel">
+    <div class="audit-panel-hdr">
+        <h3>Audit Log — Sales Hierarchy</h3>
+        <button class="modal-close" onclick="toggleAuditPanel()">×</button>
+    </div>
+    <div style="padding:10px 14px; border-bottom:1px solid var(--border)">
+        <input type="text" id="auditSearch" placeholder="Search logs…" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;font-family:inherit;outline:none" oninput="loadAuditLogs()" />
+    </div>
+    <div class="audit-body" id="auditBody">
+        <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Click Audit to load logs</div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     COLUMN MANAGER PANEL
+════════════════════════════════════════ -->
+<div class="col-manager" id="colManager">
+    <div class="col-manager-hdr">
+        <h4>Column Visibility</h4>
+        <button class="modal-close" onclick="toggleColManager()">×</button>
+    </div>
+    <div class="col-manager-body" id="colManagerBody"></div>
+    <div style="padding:10px;border-top:1px solid var(--border);display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="showAllCols()">Show All</button>
+        <button class="btn btn-ghost btn-sm" onclick="hideOptionalCols()">Default</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     BULK ASSIGN MODAL
+════════════════════════════════════════ -->
+<div class="overlay" id="bulkAssignOverlay">
+    <div class="modal" style="width:820px;max-width:min(96vw,820px)">
+        <div class="modal-hdr">
+            <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="6" height="6" rx="1"/><rect x="3" y="13" width="6" height="6" rx="1"/><path d="M15 6h6M15 10h4M15 14h6M15 18h4"/></svg>
+            </div>
+            <h3>Bulk Assign — <span id="bulkSelCount">0</span> selected</h3>
+            <button class="modal-close" onclick="closeBulkAssignModal()">×</button>
+        </div>
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;padding:14px 16px">
+
+            <!-- Assign fields -->
+            <div style="background:var(--bg2);border-radius:10px;padding:14px 16px">
+                <div style="font-size:11px;font-weight:700;color:var(--g1);text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">Assign to hierarchy &amp; details</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">
+                    <div class="form-group">
+                        <label>H1</label>
+                        <select id="bulk_h1code" onchange="onBulkH1Change()"><option value="">— Any H1 —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>H2</label>
+                        <select id="bulk_h2code"><option value="">— Any H2 —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>H3</label>
+                        <select id="bulk_h3code"><option value="">— Any H3 —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>H4</label>
+                        <select id="bulk_h4code"><option value="">— Any H4 —</option></select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                    <div class="form-group">
+                        <label>State</label>
+                        <select id="bulk_state"><option value="">— Keep existing —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Group</label>
+                        <select id="bulk_groupName"><option value="">— Keep existing —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Designation</label>
+                        <select id="bulk_designation"><option value="">— Keep existing —</option></select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employee table -->
+            <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;max-height:340px">
+                <div style="padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                    <input type="checkbox" id="bulkSelectAll" onclick="bulkToggleAll(this.checked)" title="Select all" />
+                    <input type="text" id="bulkSearchEmp" placeholder="Filter employees…" oninput="renderBulkTable()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:12px;font-family:inherit;outline:none;flex:1" />
+                    <span style="font-size:11px;color:var(--muted)" id="bulkTableInfo"></span>
+                </div>
+                <div style="overflow-y:auto;flex:1">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead>
+                            <tr style="background:var(--bg2);position:sticky;top:0">
+                                <th style="width:36px;padding:7px 10px;border-bottom:1px solid var(--border)"></th>
+                                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--g1);font-size:11px;text-transform:uppercase;letter-spacing:.3px">Emp Code</th>
+                                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--g1);font-size:11px;text-transform:uppercase;letter-spacing:.3px">Name</th>
+                                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--g1);font-size:11px;text-transform:uppercase;letter-spacing:.3px">Current H1</th>
+                                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--g1);font-size:11px;text-transform:uppercase;letter-spacing:.3px">State</th>
+                                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--g1);font-size:11px;text-transform:uppercase;letter-spacing:.3px">Designation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkEmpTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="modal-ftr">
+            <button class="btn btn-ghost" onclick="closeBulkAssignModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveBulkAssign()" id="btnSaveBulk">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Assign Selected
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     CREATE EMPLOYEE PANEL
+════════════════════════════════════════ -->
+<div class="overlay" id="createEmpOverlay">
+    <div class="modal">
+        <div class="modal-hdr">
+            <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">👤</div>
+            <h3>Create New Employee</h3>
+            <button class="modal-close" onclick="closeCreateEmpModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:var(--muted)">
+                Creates the employee record. Assign to a hierarchy using <strong>New Relation</strong>.
+            </div>
+            <div class="edit-grid">
+                <div class="form-group">
+                    <label>Emp Code *</label>
+                    <input type="text" id="newEmp_code" placeholder="e.g. EMP001" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="newEmp_name" placeholder="Employee full name" autocomplete="off" />
+                </div>
+            </div>
+            <div id="createEmpMsg" style="margin-top:14px;display:none"></div>
+        </div>
+        <div class="modal-ftr">
+            <button class="btn btn-ghost" onclick="closeCreateEmpModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveNewEmployee()" id="btnSaveNewEmp">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Create Employee
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     CREATE RELATION PANEL
+════════════════════════════════════════ -->
+<div class="overlay" id="createRelOverlay">
+    <div class="modal modal-lg">
+        <div class="modal-hdr">
+            <div class="topbar-title-icon" style="width:26px;height:26px;font-size:12px">🔗</div>
+            <h3>Create New Relation</h3>
+            <button class="modal-close" onclick="closeCreateRelModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:var(--muted)">
+                Assign an employee to the sales hierarchy chain. Employee will be auto-created if code is new.
+            </div>
+            <div class="edit-grid">
+                <div class="form-group full">
+                    <label>Employee *</label>
+                    <input type="text" id="newRel_empCode" class="mini-search" list="newRel_empCode_list" placeholder="Select Employee" />
+                    <datalist id="newRel_empCode_list"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>H1</label>
+                    <select id="newRel_h1code" onchange="onNewRelH1Change()"><option value="">— Select H1 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>H2</label>
+                    <select id="newRel_h2code" onchange="onNewRelH2Change()"><option value="">— Select H2 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>H3</label>
+                    <select id="newRel_h3code" onchange="onNewRelH3Change()"><option value="">— Select H3 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>H4</label>
+                    <select id="newRel_h4code"><option value="">— Select H4 —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>State</label>
+                    <select id="newRel_state"><option value="">— Select State —</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Group</label>
+                    <select id="newRel_groupName"><option value="">— Select Group —</option></select>
+                </div>
+                <div class="form-group full">
+                    <label>Designation</label>
+                    <select id="newRel_designation"><option value="">— Select Designation —</option></select>
+                </div>
+            </div>
+            <div id="createRelMsg" style="margin-top:14px;display:none"></div>
+        </div>
+        <div class="modal-ftr">
+            <button class="btn btn-ghost" onclick="closeCreateRelModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveNewRelation()" id="btnSaveNewRel">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Create Relation
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const API = {
+    getData:       '/HierarchyWeb/GetSalesData',
+    getStats:      '/HierarchyWeb/GetSalesStats',
+    importExcel:   '/HierarchyWeb/ImportSalesExcel',
+    updateRow:     '/HierarchyWeb/UpdateSalesRow',
+    updateMissingCodes: '/HierarchyWeb/UpdateMissingSalesCodes',
+    shiftEmp:      '/HierarchyWeb/ShiftSalesEmployee',
+    getLookups:    '/HierarchyWeb/GetSalesLookups',
+    getAudit:      '/HierarchyWeb/GetSalesAuditLogs',
+    createEmployee:'/HierarchyWeb/CreateSalesEmployee',
+    getEmployees:  '/HierarchyWeb/GetSalesEmployeeList'
+};
+
+const INITIAL_SALES_DATA = @Html.Raw(initialSalesDataJson);
+const INITIAL_SALES_STATS = @Html.Raw(initialSalesStatsJson);
+const INITIAL_SALES_STATES = @Html.Raw(initialSalesStatesJson);
+const INITIAL_SALES_GROUPS = @Html.Raw(initialSalesGroupsJson);
+const INITIAL_SALES_DESIGNATIONS = @Html.Raw(initialSalesDesignationsJson);
+const INITIAL_SALES_EMPLOYEES = @Html.Raw(initialSalesEmployeesJson);
+
+function mapSalesRow(row) {
+    if (!row) return row;
+    return {
+        salesHierarchyId: row.salesHierarchyId ?? row.SalesHierarchyId ?? 0,
+        companyId: row.companyId ?? row.CompanyId ?? 0,
+        h1Code: row.h1Code ?? row.H1Code ?? '',
+        h1Name: row.h1Name ?? row.H1Name ?? '',
+        h2Code: row.h2Code ?? row.H2Code ?? '',
+        h2Name: row.h2Name ?? row.H2Name ?? '',
+        h3Code: row.h3Code ?? row.H3Code ?? '',
+        h3Name: row.h3Name ?? row.H3Name ?? '',
+        h4Code: row.h4Code ?? row.H4Code ?? '',
+        h4Name: row.h4Name ?? row.H4Name ?? '',
+        employeeId: row.employeeId ?? row.EmployeeId ?? null,
+        empCode: row.empCode ?? row.EmpCode ?? '',
+        empName: row.empName ?? row.EmpName ?? '',
+        state: row.state ?? row.State ?? '',
+        groupName: row.groupName ?? row.GroupName ?? '',
+        designation: row.designation ?? row.Designation ?? '',
+        department: row.department ?? row.Department ?? '',
+        mobile: row.mobile ?? row.Mobile ?? '',
+        email: row.email ?? row.Email ?? '',
+        dateOfJoining: row.dateOfJoining ?? row.DateOfJoining ?? null,
+        isActive: row.isActive ?? row.IsActive ?? false,
+        createdOn: row.createdOn ?? row.CreatedOn ?? null,
+        modifiedOn: row.modifiedOn ?? row.ModifiedOn ?? null
+    };
+}
+
+function mapSalesStats(stats) {
+    if (!stats) return stats;
+    return {
+        h1Count: stats.h1Count ?? stats.H1Count ?? 0,
+        h2Count: stats.h2Count ?? stats.H2Count ?? 0,
+        h3Count: stats.h3Count ?? stats.H3Count ?? 0,
+        h4Count: stats.h4Count ?? stats.H4Count ?? 0,
+        totalEmployees: stats.totalEmployees ?? stats.TotalEmployees ?? 0,
+        activeCount: stats.activeCount ?? stats.ActiveCount ?? 0,
+        inactiveCount: stats.inactiveCount ?? stats.InactiveCount ?? 0
+    };
+}
+
+let allRows    = [];
+let allSalesEmployees = []; // all employees from [Hie].[Employees] (independent of hierarchy rows)
+let filtered   = [];
+let lookups    = { states: [], groups: [], designations: [] };
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let sortKey    = 'h1Name';
+let sortDir    = 1; // 1=asc, -1=desc
+let editRowId  = null;
+let shiftRowId = null;
+let pendingRows = [];  // parsed Excel rows pending upload
+let hierarchyOptions = { h1: [], h2: [], h3: [], h4: [], employees: [] };
+
+const COLUMNS = [
+    { key: 'h1Name',      label: 'H1',          visible: true,  defaultVisible: true  },
+    { key: 'h2Name',      label: 'H2',          visible: true,  defaultVisible: true  },
+    { key: 'h3Name',      label: 'H3',          visible: true,  defaultVisible: true  },
+    { key: 'h4Name',      label: 'H4',          visible: true,  defaultVisible: true  },
+    { key: 'empName',     label: 'Name',        visible: true,  defaultVisible: true  },
+    { key: 'state',       label: 'State',       visible: true,  defaultVisible: true  },
+    { key: 'groupName',   label: 'Group',       visible: true,  defaultVisible: true  },
+    { key: 'designation', label: 'Designation', visible: true,  defaultVisible: true  },
+    { key: 'isActive',    label: 'Status',      visible: true,  defaultVisible: true  }
+];
+
+// Load saved column visibility
+const COL_STORE_KEY = 'salesHierarchy_cols_v1';
+(function loadColState() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(COL_STORE_KEY) || '{}');
+        COLUMNS.forEach(c => {
+            if (saved[c.key] !== undefined) c.visible = saved[c.key];
+        });
+    } catch(e) {}
+})();
+
+function saveColState() {
+    const s = {};
+    COLUMNS.forEach(c => s[c.key] = c.visible);
+    localStorage.setItem(COL_STORE_KEY, JSON.stringify(s));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    // Move all overlays to <body> so layout's overflow-x:hidden doesn't trap fixed positioning
+    document.querySelectorAll('.overlay').forEach(el => document.body.appendChild(el));
+    renderColManager();
+    applyColumnVisibility();
+    hydrateInitialViewData();
+    loadLookups().then(() => loadData(true));
+    loadStats(true);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════════════════════════
+async function loadData(skipIfSeeded = false) {
+    if (skipIfSeeded && Array.isArray(INITIAL_SALES_DATA) && INITIAL_SALES_DATA.length) {
+        allRows = INITIAL_SALES_DATA.map(mapSalesRow);
+        buildModalOptions();
+        applyFilters();
+        populateFilterDropdowns();
+        return;
+    }
+    showTableLoading();
+    try {
+        const res = await fetch(API.getData);
+        const json = normalizeApiResponse(await res.json());
+        if (!json.success) { showToast(json.message || 'Failed to load data', 'error'); return; }
+        allRows = (json.data || []).map(mapSalesRow);
+        buildModalOptions();
+        applyFilters();
+        populateFilterDropdowns();
+    } catch(e) {
+        showToast('Error loading data: ' + e.message, 'error');
+        document.getElementById('tableBody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--danger)">Failed to load data. Please refresh.</td></tr>';
+    }
+}
+
+async function loadStats(skipIfSeeded = false) {
+    if (skipIfSeeded && INITIAL_SALES_STATS) {
+        const d = mapSalesStats(INITIAL_SALES_STATS);
+        document.getElementById('statH1').textContent      = d.h1Count ?? 0;
+        document.getElementById('statH2').textContent      = d.h2Count ?? 0;
+        document.getElementById('statH3').textContent      = d.h3Count ?? 0;
+        document.getElementById('statH4').textContent      = d.h4Count ?? 0;
+        document.getElementById('statTotal').textContent   = d.totalEmployees ?? 0;
+        document.getElementById('statActive').textContent  = d.activeCount ?? 0;
+        document.getElementById('statInactive').textContent= d.inactiveCount ?? 0;
+        return;
+    }
+    try {
+        const res = await fetch(API.getStats);
+        const json = normalizeApiResponse(await res.json());
+        if (json.success) {
+            const d = mapSalesStats(json.data);
+            document.getElementById('statH1').textContent      = d.h1Count ?? 0;
+            document.getElementById('statH2').textContent      = d.h2Count ?? 0;
+            document.getElementById('statH3').textContent      = d.h3Count ?? 0;
+            document.getElementById('statH4').textContent      = d.h4Count ?? 0;
+            document.getElementById('statTotal').textContent   = d.totalEmployees ?? 0;
+            document.getElementById('statActive').textContent  = d.activeCount ?? 0;
+            document.getElementById('statInactive').textContent= d.inactiveCount ?? 0;
+        }
+    } catch(e) {}
+}
+
+async function loadLookups() {
+    if (INITIAL_SALES_STATES.length || INITIAL_SALES_GROUPS.length || INITIAL_SALES_DESIGNATIONS.length) {
+        lookups.states = INITIAL_SALES_STATES;
+        lookups.groups = INITIAL_SALES_GROUPS;
+        lookups.designations = INITIAL_SALES_DESIGNATIONS;
+        populateLookupSelects();
+    }
+    try {
+        const res = await fetch(API.getLookups);
+        const json = normalizeApiResponse(await res.json());
+        if (json.success) {
+            lookups.states       = json.states       || [];
+            lookups.groups       = json.groups       || [];
+            lookups.designations = json.designations || [];
+            populateLookupSelects();
+        }
+    } catch(e) {}
+}
+
+function hydrateInitialViewData() {
+    if (Array.isArray(INITIAL_SALES_EMPLOYEES)) {
+        allSalesEmployees = INITIAL_SALES_EMPLOYEES;
+    }
+    if (Array.isArray(INITIAL_SALES_DATA) && INITIAL_SALES_DATA.length) {
+        allRows = INITIAL_SALES_DATA.map(mapSalesRow);
+        buildModalOptions(); // calls buildEmployeeDatalist() internally
+        applyFilters();
+        populateFilterDropdowns();
+    } else {
+        // No hierarchy rows yet — still populate the employee datalist from allSalesEmployees
+        buildEmployeeDatalist();
+    }
+
+    if (INITIAL_SALES_STATS) {
+        const d = mapSalesStats(INITIAL_SALES_STATS);
+        document.getElementById('statH1').textContent      = d.h1Count ?? 0;
+        document.getElementById('statH2').textContent      = d.h2Count ?? 0;
+        document.getElementById('statH3').textContent      = d.h3Count ?? 0;
+        document.getElementById('statH4').textContent      = d.h4Count ?? 0;
+        document.getElementById('statTotal').textContent   = d.totalEmployees ?? 0;
+        document.getElementById('statActive').textContent  = d.activeCount ?? 0;
+        document.getElementById('statInactive').textContent= d.inactiveCount ?? 0;
+    }
+}
+
+function populateLookupSelects() {
+    const selState = document.getElementById('edit_state');
+    const selGroup = document.getElementById('edit_groupName');
+    const selDesig = document.getElementById('edit_designation');
+    const fsState  = document.getElementById('filterState');
+    const fsGroup  = document.getElementById('filterGroup');
+    const fsDesig  = document.getElementById('filterDesig');
+    const nrState  = document.getElementById('newRel_state');
+    const nrGroup  = document.getElementById('newRel_groupName');
+    const nrDesig  = document.getElementById('newRel_designation');
+    const baState  = document.getElementById('bulk_state');
+    const baGroup  = document.getElementById('bulk_groupName');
+    const baDesig  = document.getElementById('bulk_designation');
+    const states = getUniqueTextValues(lookups.states, 'stateName');
+    const groups = getUniqueTextValues(lookups.groups, 'groupName');
+    const designations = getUniqueTextValues(lookups.designations, 'designationName');
+
+    selState.innerHTML = '<option value="">— Select State —</option>';
+    fsState.innerHTML = '<option value="">All States</option>';
+    nrState.innerHTML = '<option value="">— Select State —</option>';
+    baState.innerHTML = '<option value="">— Keep existing —</option>';
+
+    selGroup.innerHTML = '<option value="">— Select Group —</option>';
+    fsGroup.innerHTML = '<option value="">All Groups</option>';
+    nrGroup.innerHTML = '<option value="">— Select Group —</option>';
+    baGroup.innerHTML = '<option value="">— Keep existing —</option>';
+
+    selDesig.innerHTML = '<option value="">— Select Designation —</option>';
+    fsDesig.innerHTML = '<option value="">All Designations</option>';
+    nrDesig.innerHTML = '<option value="">— Select Designation —</option>';
+    baDesig.innerHTML = '<option value="">— Keep existing —</option>';
+
+    states.forEach(value => {
+        const opt = `<option value="${esc(value)}">${esc(value)}</option>`;
+        selState.insertAdjacentHTML('beforeend', opt);
+        fsState.insertAdjacentHTML('beforeend', opt);
+        nrState.insertAdjacentHTML('beforeend', opt);
+        baState.insertAdjacentHTML('beforeend', opt);
+    });
+    groups.forEach(value => {
+        const opt = `<option value="${esc(value)}">${esc(value)}</option>`;
+        selGroup.insertAdjacentHTML('beforeend', opt);
+        fsGroup.insertAdjacentHTML('beforeend', opt);
+        nrGroup.insertAdjacentHTML('beforeend', opt);
+        baGroup.insertAdjacentHTML('beforeend', opt);
+    });
+    designations.forEach(value => {
+        const opt = `<option value="${esc(value)}">${esc(value)}</option>`;
+        selDesig.insertAdjacentHTML('beforeend', opt);
+        fsDesig.insertAdjacentHTML('beforeend', opt);
+        nrDesig.insertAdjacentHTML('beforeend', opt);
+        baDesig.insertAdjacentHTML('beforeend', opt);
+    });
+
+    registerSearchableSelect('newRel_state', 'Select State', states.map(value => ({ value, label: value })));
+    registerSearchableSelect('newRel_groupName', 'Select Group', groups.map(value => ({ value, label: value })));
+}
+
+function getUniqueDataColumnValues(field) {
+    const seen = new Set();
+    return allRows
+        .map(r => String(r[field] || '').trim())
+        .filter(v => {
+            const key = v.toLowerCase();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .sort((a, b) => a.localeCompare(b));
+}
+
+function fillPlainSelectFromValues(id, values, placeholder) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    el.innerHTML = `<option value="">${esc(placeholder)}</option>` +
+        values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if (current && values.includes(current)) el.value = current;
+}
+
+function buildModalOptions() {
+    hierarchyOptions = {
+        h1: getUniqueHierarchyOptions('h1Code', 'h1Name'),
+        h2: getUniqueHierarchyOptions('h2Code', 'h2Name'),
+        h3: getUniqueHierarchyOptions('h3Code', 'h3Name'),
+        h4: getUniqueHierarchyOptions('h4Code', 'h4Name'),
+        employees: getUniqueHierarchyOptions('empCode', 'empName', true)
+    };
+
+    fillSelectOptions('shift_h1code', hierarchyOptions.h1, 'Select H1');
+    fillSelectOptions('shift_h2code', hierarchyOptions.h2, 'Select H2');
+    fillSelectOptions('shift_h3code', hierarchyOptions.h3, 'Select H3');
+    fillSelectOptions('shift_h4code', hierarchyOptions.h4, 'Select H4');
+    // New relation panel
+    fillSelectOptions('newRel_h1code', hierarchyOptions.h1, 'Select H1');
+    fillSelectOptions('newRel_h2code', hierarchyOptions.h2, 'Select H2');
+    fillSelectOptions('newRel_h3code', hierarchyOptions.h3, 'Select H3');
+    fillSelectOptions('newRel_h4code', hierarchyOptions.h4, 'Select H4');
+    buildEmployeeDatalist(); // merges allSalesEmployees with hierarchy-row employees
+    // Bulk assign panel
+    fillSelectOptions('bulk_h1code', hierarchyOptions.h1, 'Any H1');
+    fillSelectOptions('bulk_h2code', hierarchyOptions.h2, 'Any H2');
+    fillSelectOptions('bulk_h3code', hierarchyOptions.h3, 'Any H3');
+    fillSelectOptions('bulk_h4code', hierarchyOptions.h4, 'Any H4');
+
+    // Populate State / Group / Designation dropdowns from actual data rows
+    // so they always reflect what is in the table, regardless of master-table sync.
+    const dataStates = getUniqueDataColumnValues('state');
+    const dataGroups = getUniqueDataColumnValues('groupName');
+    const dataDesigs = getUniqueDataColumnValues('designation');
+
+    fillPlainSelectFromValues('filterState',      dataStates, 'All States');
+    fillPlainSelectFromValues('edit_state',        dataStates, '— Select State —');
+    fillPlainSelectFromValues('newRel_state',      dataStates, '— Select State —');
+    fillPlainSelectFromValues('bulk_state',        dataStates, '— Keep existing —');
+
+    fillPlainSelectFromValues('filterGroup',       dataGroups, 'All Groups');
+    fillPlainSelectFromValues('edit_groupName',    dataGroups, '— Select Group —');
+    fillPlainSelectFromValues('newRel_groupName',  dataGroups, '— Select Group —');
+    fillPlainSelectFromValues('bulk_groupName',    dataGroups, '— Keep existing —');
+
+    fillPlainSelectFromValues('filterDesig',       dataDesigs, 'All Designations');
+    fillPlainSelectFromValues('edit_designation',  dataDesigs, '— Select Designation —');
+    fillPlainSelectFromValues('newRel_designation',dataDesigs, '— Select Designation —');
+    fillPlainSelectFromValues('bulk_designation',  dataDesigs, '— Keep existing —');
+}
+
+function getUniqueHierarchyOptions(codeField, nameField, includeCodeInLabel = false) {
+    const seen = new Set();
+    return allRows
+        .map(r => {
+            const rawCode = String(r[codeField] || '').trim();
+            const name = String(r[nameField] || '').trim();
+            const code = includeCodeInLabel ? rawCode : normalizeHierarchyCode(rawCode, name);
+            return {
+                value: code,
+                name: name,
+                code: code
+            };
+        })
+        .filter(x => {
+            const dedupeKey = normalizeKey(x.value || x.name);
+            if (!(x.value || x.name) || seen.has(dedupeKey)) return false;
+            seen.add(dedupeKey);
+            return true;
+        })
+        .map(x => ({
+            value: x.value || x.name,
+            label: includeCodeInLabel ? formatLevelFilterLabel(x.name, x.code) : formatLevelFilterLabel(x.name, x.code),
+            name: x.name,
+            code: x.code
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function fillSelectOptions(id, options, placeholder) {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = `<option value="">— ${esc(placeholder)} —</option>` +
+        options.map(o => `<option value="${esc(o.value)}" data-name="${esc(o.name || '')}" data-code="${esc(o.code || o.value || '')}">${esc(o.label)}</option>`).join('');
+    if (current) select.value = current;
+}
+
+function registerSearchableSelect(id, placeholder, options) {
+    const searchInput = document.getElementById(`${id}_search`);
+    if (!searchInput) return;
+    searchableSelectOptions[id] = {
+        placeholder,
+        options: Array.isArray(options) ? options.map(o => ({ ...o })) : []
+    };
+    filterSearchableSelect(id);
+}
+
+function filterSearchableSelect(id) {
+    const select = document.getElementById(id);
+    const searchInput = document.getElementById(`${id}_search`);
+    const meta = searchableSelectOptions[id];
+    if (!select || !searchInput || !meta) return;
+
+    const current = select.value;
+    const term = searchInput.value.trim().toLowerCase();
+    const filteredOptions = !term
+        ? meta.options
+        : meta.options.filter(o => {
+            const hay = `${o.label || ''} ${o.value || ''} ${o.name || ''} ${o.code || ''}`.toLowerCase();
+            return hay.includes(term);
+        });
+
+    select.innerHTML = `<option value="">â€” ${esc(meta.placeholder)} â€”</option>` +
+        filteredOptions.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+
+    if (current && filteredOptions.some(o => o.value === current)) {
+        select.value = current;
+    } else {
+        select.value = '';
+    }
+}
+
+function resetSearchableSelect(id) {
+    const searchInput = document.getElementById(`${id}_search`);
+    if (searchInput) searchInput.value = '';
+    filterSearchableSelect(id);
+}
+
+function fillEmployeeDatalist(id, options) {
+    const input = document.getElementById(id);
+    const list = document.getElementById(`${id}_list`);
+    if (!input || !list) return;
+    const current = input.value;
+    list.innerHTML = options.map(o => `<option value="${esc(o.value)}" label="${esc(o.label)}"></option>`).join('');
+    if (current) input.value = current;
+}
+
+function populateFilterDropdowns() {
+    const getLevelOptions = (nameField, codeField) => {
+        const seen = new Set();
+        return allRows
+            .map(r => ({
+                value: r[nameField] || r[codeField] || '',
+                label: formatLevelFilterLabel(r[nameField], r[codeField])
+            }))
+            .filter(x => x.value && !seen.has(x.value) && seen.add(x.value))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    };
+
+    const h1s = getLevelOptions('h1Name', 'h1Code');
+    const h2s = getLevelOptions('h2Name', 'h2Code');
+    const h3s = getLevelOptions('h3Name', 'h3Code');
+    const h4s = getLevelOptions('h4Name', 'h4Code');
+
+    const fH1 = document.getElementById('filterH1');
+    const fH2 = document.getElementById('filterH2');
+    const fH3 = document.getElementById('filterH3');
+    const fH4 = document.getElementById('filterH4');
+
+    const curH1 = fH1.value, curH2 = fH2.value, curH3 = fH3.value, curH4 = fH4.value;
+
+    fH1.innerHTML = '<option value="">All H1</option>' + h1s.map(v => `<option value="${esc(v.value)}"${v.value===curH1?' selected':''}>${esc(v.label)}</option>`).join('');
+    fH2.innerHTML = '<option value="">All H2</option>' + h2s.map(v => `<option value="${esc(v.value)}"${v.value===curH2?' selected':''}>${esc(v.label)}</option>`).join('');
+    fH3.innerHTML = '<option value="">All H3</option>' + h3s.map(v => `<option value="${esc(v.value)}"${v.value===curH3?' selected':''}>${esc(v.label)}</option>`).join('');
+    fH4.innerHTML = '<option value="">All H4</option>' + h4s.map(v => `<option value="${esc(v.value)}"${v.value===curH4?' selected':''}>${esc(v.label)}</option>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILTERS & SORT
+// ═══════════════════════════════════════════════════════════════
+const debouncedApplyFilters = debounce(applyFilters, 250);
+
+function applyFilters() {
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+    const h1     = document.getElementById('filterH1').value;
+    const h2     = document.getElementById('filterH2').value;
+    const h3     = document.getElementById('filterH3').value;
+    const h4     = document.getElementById('filterH4').value;
+    const state  = document.getElementById('filterState').value;
+    const group  = document.getElementById('filterGroup').value;
+    const desig  = document.getElementById('filterDesig').value;
+    const status = document.getElementById('filterStatus').value;
+
+    let active = 0;
+    filtered = allRows.filter(r => {
+        if (h1 && (r.h1Name || r.h1Code || '') !== h1) return false;
+        if (h2 && (r.h2Name || r.h2Code || '') !== h2) return false;
+        if (h3 && (r.h3Name || r.h3Code || '') !== h3) return false;
+        if (h4 && (r.h4Name || r.h4Code || '') !== h4) return false;
+        if (state && r.state !== state) return false;
+        if (group && r.groupName !== group) return false;
+        if (desig && r.designation !== desig) return false;
+        if (status !== '') {
+            const want = status === '1';
+            if (r.isActive !== want) return false;
+        }
+        if (search) {
+            const hay = [r.h1Name,r.h2Name,r.h3Name,r.h4Name,r.empCode,r.empName,r.state,r.groupName,r.designation,r.mobile].join(' ').toLowerCase();
+            if (!hay.includes(search)) return false;
+        }
+        return true;
+    });
+
+    // Sort
+    filtered.sort((a,b) => {
+        const va = (a[sortKey] ?? '').toString().toLowerCase();
+        const vb = (b[sortKey] ?? '').toString().toLowerCase();
+        return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+
+    // Count active filters
+    [h1,h2,h3,h4,state,group,desig,status,search].forEach(v => { if(v) active++; });
+    const badge = document.getElementById('filterBadge');
+    if (active > 0) { badge.textContent = active; badge.style.display = ''; }
+    else badge.style.display = 'none';
+
+    document.getElementById('statFiltered').textContent = filtered.length;
+    currentPage = 1;
+    renderPage();
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    ['filterH1','filterH2','filterH3','filterH4','filterState','filterGroup','filterDesig','filterStatus']
+        .forEach(id => document.getElementById(id).value = '');
+    applyFilters();
+}
+
+function sortBy(key) {
+    if (sortKey === key) sortDir = -sortDir;
+    else { sortKey = key; sortDir = 1; }
+    document.querySelectorAll('.sales-table th[data-col]').forEach(th => {
+        th.classList.toggle('sorted', th.dataset.col === key);
+        if (th.dataset.col === key) {
+            const icon = th.querySelector('.sort-icon');
+            if (icon) icon.textContent = sortDir === 1 ? '↑' : '↓';
+        } else {
+            const icon = th.querySelector('.sort-icon');
+            if (icon) icon.textContent = '↕';
+        }
+    });
+    applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderPage() {
+    const fallback = document.getElementById('salesFallback');
+    const main = document.getElementById('salesPageMain');
+    if (main) main.style.display = '';
+    if (fallback && filtered.length) fallback.style.display = 'none';
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page  = filtered.slice(start, start + PAGE_SIZE);
+    const tbody = document.getElementById('tableBody');
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted)">No records found. Adjust filters or upload data.</td></tr>';
+        renderPagination();
+        return;
+    }
+
+    tbody.innerHTML = page.map((r, i) => {
+        const rowNum = start + i + 1;
+        return `<tr data-id="${r.salesHierarchyId}">
+            <td style="color:var(--muted);font-size:11px">${rowNum}</td>
+            ${colCell('h1Name',     r, levelCell(r.h1Name, r.h1Code, 'lvl-h1'))}
+            ${colCell('h2Name',     r, levelCell(r.h2Name, r.h2Code, 'lvl-h2'))}
+            ${colCell('h3Name',     r, levelCell(r.h3Name, r.h3Code, 'lvl-h3'))}
+            ${colCell('h4Name',     r, levelCell(r.h4Name, r.h4Code, 'lvl-h4'))}
+            ${colCell('empName',    r, personCell(r.empName, r.empCode))}
+            ${colCell('state',      r, esc(r.state||'—'))}
+            ${colCell('groupName',  r, esc(r.groupName||'—'))}
+            ${colCell('designation',r, esc(r.designation||'—'))}
+            ${colCell('isActive',   r, `<span class="badge ${r.isActive?'badge-active':'badge-inactive'}">${r.isActive?'Active':'Inactive'}</span>`)}
+            <td style="text-align:center;white-space:nowrap">
+                <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditModal(${r.salesHierarchyId})" title="Edit">✏️</button>
+                <button class="btn btn-ghost btn-icon btn-sm" onclick="openShiftModal(${r.salesHierarchyId})" title="Shift">↕️</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    renderPagination();
+}
+
+function colCell(key, r, html) {
+    const col = COLUMNS.find(c => c.key === key);
+    if (!col || !col.visible) return '';
+    return `<td class="col-${key}" title="${esc((r[key]||'').toString())}">${html}</td>`;
+}
+
+function isDash(v) { return !v || v === '-' || v === '—' || v === '–' || v === '--'; }
+
+function levelCell(name, code, badgeClass) {
+    const n = isDash(name) ? '' : name;
+    const c = isDash(code) ? '' : code;
+    if (!n && !c) return `<div class="name-code"><span class="mini-code" style="color:var(--muted)"></span></div>`;
+    return `
+        <div class="name-code">
+            <span class="level-badge ${badgeClass}">${esc(n || c)}</span>
+            <span class="mini-code">${esc(c || '')}</span>
+        </div>`;
+}
+
+function personCell(name, code) {
+    const n = isDash(name) ? '' : name;
+    const c = isDash(code) ? '' : code;
+    return `
+        <div class="name-code">
+            <strong>${esc(n || '—')}</strong>
+            <span class="mini-code">${esc(c || '')}</span>
+        </div>`;
+}
+
+function renderPagination() {
+    const total  = filtered.length;
+    const pages  = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const start  = Math.min((currentPage-1)*PAGE_SIZE+1, total);
+    const end    = Math.min(currentPage*PAGE_SIZE, total);
+    document.getElementById('pagInfo').textContent = `Showing ${start}–${end} of ${total} records`;
+
+    let btns = '';
+    btns += `<button class="pag-btn" onclick="gotoPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+    const range = paginationRange(currentPage, pages);
+    range.forEach(p => {
+        if (p === '…') btns += `<span style="padding:0 4px;color:var(--muted)">…</span>`;
+        else btns += `<button class="pag-btn ${p===currentPage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+    });
+    btns += `<button class="pag-btn" onclick="gotoPage(${currentPage+1})" ${currentPage>=pages?'disabled':''}>›</button>`;
+    document.getElementById('pagButtons').innerHTML = btns;
+}
+
+function gotoPage(p) {
+    const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (p < 1 || p > pages) return;
+    currentPage = p;
+    renderPage();
+    document.getElementById('gridWrap').scrollTop = 0;
+}
+
+function paginationRange(current, total) {
+    if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+    if (current <= 4) return [1,2,3,4,5,'…',total];
+    if (current >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
+    return [1,'…',current-1,current,current+1,'…',total];
+}
+
+function showTableLoading() {
+    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="11"><span class="spinner"></span>Loading sales data…</td></tr>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EDIT MODAL
+// ═══════════════════════════════════════════════════════════════
+function openEditModal(id) {
+    const row = allRows.find(r => r.salesHierarchyId === id);
+    if (!row) return;
+    editRowId = id;
+    document.getElementById('editEmpLabel').textContent = `${row.empName || '—'} (${row.empCode || 'no code'})`;
+    document.getElementById('edit_empCode').value    = row.empCode    || '';
+    document.getElementById('edit_empName').value    = row.empName    || '';
+
+    setSelectVal('edit_state',       row.state);
+    setSelectVal('edit_groupName',   row.groupName);
+    setSelectVal('edit_designation', row.designation);
+
+    const tog = document.getElementById('edit_activeToggle');
+    const lbl = document.getElementById('edit_activeLabel');
+    const inp = document.getElementById('edit_isActive');
+    if (row.isActive) { tog.classList.add('on'); lbl.textContent='Active'; inp.value='1'; }
+    else              { tog.classList.remove('on'); lbl.textContent='Inactive'; inp.value='0'; }
+
+    document.getElementById('editOverlay').classList.add('open');
+}
+
+function closeEditModal() {
+    document.getElementById('editOverlay').classList.remove('open');
+    editRowId = null;
+}
+
+function toggleActive() {
+    const tog = document.getElementById('edit_activeToggle');
+    const lbl = document.getElementById('edit_activeLabel');
+    const inp = document.getElementById('edit_isActive');
+    const isOn = tog.classList.toggle('on');
+    lbl.textContent = isOn ? 'Active' : 'Inactive';
+    inp.value = isOn ? '1' : '0';
+}
+
+async function saveEdit() {
+    if (!editRowId) return;
+    const btn = document.getElementById('btnSaveEdit');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    const payload = {
+        salesHierarchyId: editRowId,
+        empCode:     document.getElementById('edit_empCode').value.trim(),
+        empName:     document.getElementById('edit_empName').value.trim(),
+        state:       document.getElementById('edit_state').value,
+        groupName:   document.getElementById('edit_groupName').value,
+        designation: document.getElementById('edit_designation').value,
+        isActive:    document.getElementById('edit_isActive').value === '1'
+    };
+
+    try {
+        const res  = await fetchPost(API.updateRow, payload);
+        if (res.success) {
+            showToast('Row updated successfully', 'success');
+            closeEditModal();
+            // Update in-place
+            const idx = allRows.findIndex(r => r.salesHierarchyId === editRowId);
+            if (idx >= 0) Object.assign(allRows[idx], payload);
+            applyFilters();
+            loadStats();
+        } else {
+            showToast(res.message || 'Update failed', 'error');
+        }
+    } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHIFT MODAL
+// ═══════════════════════════════════════════════════════════════
+function openShiftModal(id) {
+    const row = allRows.find(r => r.salesHierarchyId === id);
+    if (!row) return;
+    shiftRowId = id;
+    document.getElementById('shiftEmpLabel').textContent = `${row.empName || '—'} (${row.empCode || 'no code'})`;
+
+    // Show current chain
+    const chain = document.getElementById('shiftCurrentChain');
+    const levels = [
+        { label: 'H1', name: row.h1Name, badge: 'lvl-h1' },
+        { label: 'H2', name: row.h2Name, badge: 'lvl-h2' },
+        { label: 'H3', name: row.h3Name, badge: 'lvl-h3' },
+        { label: 'H4', name: row.h4Name, badge: 'lvl-h4' },
+        { label: 'Emp', name: row.empName, badge: '' }
+    ].filter(l => l.name);
+    chain.innerHTML = levels.map((l, i) =>
+        `<span class="chain-node">${i>0?'<span class="chain-sep">›</span>':''}<span class="level-badge ${l.badge}" style="font-size:11px">${esc(l.name)}</span></span>`
+    ).join('');
+
+    // Pre-fill new hierarchy with current values
+    document.getElementById('shift_h1code').value = row.h1Code || '';
+    document.getElementById('shift_h1name').value = row.h1Name || '';
+    document.getElementById('shift_h2code').value = row.h2Code || '';
+    document.getElementById('shift_h2name').value = row.h2Name || '';
+    document.getElementById('shift_h3code').value = row.h3Code || '';
+    document.getElementById('shift_h3name').value = row.h3Name || '';
+    document.getElementById('shift_h4code').value = row.h4Code || '';
+    document.getElementById('shift_h4name').value = row.h4Name || '';
+    document.getElementById('shift_notes').value  = '';
+
+    document.getElementById('shiftOverlay').classList.add('open');
+}
+
+function closeShiftModal() {
+    document.getElementById('shiftOverlay').classList.remove('open');
+    shiftRowId = null;
+}
+
+// Auto-fill H names from existing data when code is typed
+function updateShiftH1Name() { autoFillName('shift_h1code', 'shift_h1name', 'h1Code', 'h1Name'); }
+function updateShiftH2Name() { autoFillName('shift_h2code', 'shift_h2name', 'h2Code', 'h2Name'); }
+function updateShiftH3Name() { autoFillName('shift_h3code', 'shift_h3name', 'h3Code', 'h3Name'); }
+function updateShiftH4Name() { autoFillName('shift_h4code', 'shift_h4name', 'h4Code', 'h4Name'); }
+
+function autoFillName(codeId, nameId, codeField, nameField) {
+    const code = document.getElementById(codeId).value.trim().toUpperCase();
+    const match = allRows.find(r => (r[codeField]||'').toUpperCase() === code);
+    if (match) document.getElementById(nameId).value = match[nameField] || '';
+}
+
+async function saveShift() {
+    if (!shiftRowId) return;
+    const btn = document.getElementById('btnSaveShift');
+    btn.disabled = true; btn.textContent = 'Shifting…';
+
+    const payload = {
+        salesHierarchyId: shiftRowId,
+        newH1Code: document.getElementById('shift_h1code').value.trim() || null,
+        newH1Name: document.getElementById('shift_h1name').value.trim() || null,
+        newH2Code: document.getElementById('shift_h2code').value.trim() || null,
+        newH2Name: document.getElementById('shift_h2name').value.trim() || null,
+        newH3Code: document.getElementById('shift_h3code').value.trim() || null,
+        newH3Name: document.getElementById('shift_h3name').value.trim() || null,
+        newH4Code: document.getElementById('shift_h4code').value.trim() || null,
+        newH4Name: document.getElementById('shift_h4name').value.trim() || null,
+        notes: document.getElementById('shift_notes').value.trim() || null
+    };
+
+    try {
+        const res = await fetchPost(API.shiftEmp, payload);
+        if (res.success) {
+            showToast('Employee shifted successfully', 'success');
+            closeShiftModal();
+            const idx = allRows.findIndex(r => r.salesHierarchyId === shiftRowId);
+            if (idx >= 0) {
+                allRows[idx].h1Code = payload.newH1Code; allRows[idx].h1Name = payload.newH1Name;
+                allRows[idx].h2Code = payload.newH2Code; allRows[idx].h2Name = payload.newH2Name;
+                allRows[idx].h3Code = payload.newH3Code; allRows[idx].h3Name = payload.newH3Name;
+                allRows[idx].h4Code = payload.newH4Code; allRows[idx].h4Name = payload.newH4Name;
+            }
+            applyFilters();
+            populateFilterDropdowns();
+            loadStats();
+        } else {
+            showToast(res.message || 'Shift failed', 'error');
+        }
+    } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Confirm Shift'; }
+}
+
+function getSelectedText(id) {
+    const select = document.getElementById(id);
+    if (!select || select.selectedIndex < 0) return '';
+    const opt = select.options[select.selectedIndex];
+    if (!opt || !opt.value) return '';
+    return (opt.dataset.name || opt.text || '')
+        .replace(/\s+-\s+[^-]+$/, '')
+        .replace(/^—\s*/, '')
+        .replace(/\s*—$/, '')
+        .trim();
+}
+
+function openShiftModal(id) {
+    const row = allRows.find(r => r.salesHierarchyId === id);
+    if (!row) return;
+    shiftRowId = id;
+    document.getElementById('shiftEmpLabel').textContent = row.empName || '';
+
+    const chain = document.getElementById('shiftCurrentChain');
+    const levels = [
+        { name: row.h1Name, badge: 'lvl-h1' },
+        { name: row.h2Name, badge: 'lvl-h2' },
+        { name: row.h3Name, badge: 'lvl-h3' },
+        { name: row.h4Name, badge: 'lvl-h4' },
+        { name: row.empName, badge: '' }
+    ].filter(l => l.name);
+    chain.innerHTML = levels.map((l, i) =>
+        `<span class="chain-node">${i>0?'<span class="chain-sep">></span>':''}<span class="level-badge ${l.badge}" style="font-size:11px">${esc(l.name)}</span></span>`
+    ).join('');
+
+    document.getElementById('shift_h1code').value = row.h1Code || '';
+    document.getElementById('shift_h2code').value = row.h2Code || '';
+    document.getElementById('shift_h3code').value = row.h3Code || '';
+    document.getElementById('shift_h4code').value = row.h4Code || '';
+    document.getElementById('shift_notes').value = '';
+
+    document.getElementById('shiftOverlay').classList.add('open');
+}
+
+async function saveShift() {
+    if (!shiftRowId) return;
+    const btn = document.getElementById('btnSaveShift');
+    btn.disabled = true; btn.textContent = 'Shifting...';
+
+    const payload = {
+        salesHierarchyId: shiftRowId,
+        newH1Code: document.getElementById('shift_h1code').value.trim() || null,
+        newH1Name: getSelectedText('shift_h1code') || null,
+        newH2Code: document.getElementById('shift_h2code').value.trim() || null,
+        newH2Name: getSelectedText('shift_h2code') || null,
+        newH3Code: document.getElementById('shift_h3code').value.trim() || null,
+        newH3Name: getSelectedText('shift_h3code') || null,
+        newH4Code: document.getElementById('shift_h4code').value.trim() || null,
+        newH4Name: getSelectedText('shift_h4code') || null,
+        notes: document.getElementById('shift_notes').value.trim() || null
+    };
+
+    try {
+        const res = await fetchPost(API.shiftEmp, payload);
+        if (res.success) {
+            showToast('Employee shifted successfully', 'success');
+            closeShiftModal();
+            const idx = allRows.findIndex(r => r.salesHierarchyId === shiftRowId);
+            if (idx >= 0) {
+                allRows[idx].h1Code = payload.newH1Code; allRows[idx].h1Name = payload.newH1Name;
+                allRows[idx].h2Code = payload.newH2Code; allRows[idx].h2Name = payload.newH2Name;
+                allRows[idx].h3Code = payload.newH3Code; allRows[idx].h3Name = payload.newH3Name;
+                allRows[idx].h4Code = payload.newH4Code; allRows[idx].h4Name = payload.newH4Name;
+            }
+            buildModalOptions();
+            applyFilters();
+            populateFilterDropdowns();
+            loadStats();
+        } else {
+            showToast(res.message || 'Shift failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Confirm Shift';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXCEL UPLOAD
+// ═══════════════════════════════════════════════════════════════
+function openUploadModal() {
+    pendingRows = [];
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('btnUpload').style.display = 'none';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadOverlay').classList.add('open');
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadOverlay').classList.remove('open');
+}
+
+function handleFileDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file) parseExcelFile(file);
+}
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) parseExcelFile(file);
+}
+
+function parseExcelFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+            const ws   = wb.Sheets[wb.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            if (!data || data.length < 2) { showToast('Excel file appears empty', 'error'); return; }
+
+            const headers = (data[0] || []).map(h => String(h ?? '').trim());
+            const colMap  = mapColumns(headers);
+
+            pendingRows = [];
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                const allEmpty = row.every(v => v === '' || v === null || v === undefined);
+                if (allEmpty) continue;
+
+                const g = (colIdx) => {
+                    if (colIdx < 0) return '';
+                    const v = String(row[colIdx] ?? '').trim();
+                    return (v === '-' || v === '—' || v === '–' || v === '--') ? '' : v;
+                };
+
+                const parsedRow = {
+                    rowNumber:   i,
+                    h1Code:      g(colMap.h1code),
+                    h1Name:      g(colMap.h1name),
+                    h2Code:      g(colMap.h2code),
+                    h2Name:      g(colMap.h2name),
+                    h3Code:      g(colMap.h3code),
+                    h3Name:      g(colMap.h3name),
+                    h4Code:      g(colMap.h4code),
+                    h4Name:      g(colMap.h4name),
+                    empCode:     g(colMap.empcode),
+                    empName:     g(colMap.empname),
+                    state:       g(colMap.state),
+                    groupName:   g(colMap.group),
+                    designation: g(colMap.designation)
+                };
+
+                normalizeHierarchyPair(parsedRow, 'h1Code', 'h1Name');
+                normalizeHierarchyPair(parsedRow, 'h2Code', 'h2Name');
+                normalizeHierarchyPair(parsedRow, 'h3Code', 'h3Name');
+                normalizeHierarchyPair(parsedRow, 'h4Code', 'h4Name');
+
+                pendingRows.push(parsedRow);
+            }
+
+            document.getElementById('uploadRowCount').textContent = pendingRows.length;
+            document.getElementById('btnUpload').style.display = '';
+            document.getElementById('importResults').style.display = '';
+
+            // Show which Excel column was matched for each field (helps debug missing empCode)
+            const detectedEmpCodeHeader = colMap.empcode >= 0 ? headers[colMap.empcode] : null;
+            const detectedEmpNameHeader = colMap.empname >= 0 ? headers[colMap.empname] : null;
+
+            const empCodeStatus = detectedEmpCodeHeader
+                ? `<span style="color:var(--success)">✅ Detected as column <strong>"${esc(detectedEmpCodeHeader)}"</strong></span>`
+                : `<span style="color:var(--danger)">❌ NOT DETECTED — rename your column to <strong>"Emp Code"</strong></span>`;
+
+            const codesDetected = pendingRows.filter(r => r.empCode).length;
+
+            // Show all Excel headers so user can see exactly what was read
+            const allHeadersHtml = headers.map((h, idx) => {
+                const norm = normalizeExcelHeader(h);
+                const usedFor = Object.entries(colMap).find(([, v]) => v === idx)?.[0] || '';
+                const highlight = usedFor === 'empcode' ? 'background:#dcfce7;color:#16a34a;font-weight:700' :
+                                  usedFor ? 'background:#eff6ff;color:#1d4ed8' : 'color:var(--muted)';
+                return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;border:1px solid var(--border);margin:2px;${highlight}">${esc(h)}${usedFor ? ` → ${usedFor}` : ''}</span>`;
+            }).join('');
+
+            // Preview first 3 rows
+            const previewRows = pendingRows.slice(0, 3);
+            const previewHtml = previewRows.map(r => `
+                <tr>
+                    <td style="padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px;${r.empCode ? 'color:var(--success);font-weight:600' : 'color:var(--danger)'}">${esc(r.empCode || '(empty)')}</td>
+                    <td style="padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px">${esc(r.empName || '—')}</td>
+                    <td style="padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px">${esc(r.h1Name || '—')}</td>
+                    <td style="padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px">${esc(r.state || '—')}</td>
+                </tr>`).join('');
+
+            document.getElementById('importResults').innerHTML = `
+                <div style="color:var(--success);font-size:13px;font-weight:600;">✅ Parsed <strong>${pendingRows.length}</strong> rows from <em>${file.name}</em>.</div>
+
+                <div style="margin-top:10px;background:var(--bg2);border-radius:8px;padding:10px 12px;font-size:12px">
+                    <div style="font-weight:600;margin-bottom:6px;color:var(--g1)">Column Detection</div>
+                    <div style="margin-bottom:4px"><strong>Emp Code column:</strong> ${empCodeStatus}</div>
+                    <div style="margin-bottom:4px"><strong>Codes found in data:</strong> ${codesDetected} / ${pendingRows.length} rows</div>
+                    <div style="margin-top:8px;font-size:11px;color:var(--muted);font-weight:600">Your Excel headers (green = matched as Emp Code, blue = matched as other field):</div>
+                    <div style="margin-top:4px">${allHeadersHtml}</div>
+                </div>
+
+                <div style="margin-top:10px;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Preview (first ${previewRows.length} rows)</div>
+                <div style="overflow-x:auto;margin-top:4px">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead><tr style="background:var(--bg2)">
+                            <th style="padding:5px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--g1);text-transform:uppercase;border-bottom:2px solid var(--border)">Emp Code</th>
+                            <th style="padding:5px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--g1);text-transform:uppercase;border-bottom:2px solid var(--border)">Name</th>
+                            <th style="padding:5px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--g1);text-transform:uppercase;border-bottom:2px solid var(--border)">H1</th>
+                            <th style="padding:5px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--g1);text-transform:uppercase;border-bottom:2px solid var(--border)">State</th>
+                        </tr></thead>
+                        <tbody>${previewHtml}</tbody>
+                    </table>
+                </div>
+                ${!detectedEmpCodeHeader ? `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;border:1px solid #fecaca;font-size:12px;color:var(--danger)">
+                    ⚠️ Emp Code column was not found. Rename the column in your Excel to exactly <strong>Emp Code</strong> and re-select the file.
+                </div>` : '<div style="margin-top:8px;color:var(--muted);font-size:12px">Click <strong>Import</strong> to proceed.</div>'}`;
+        } catch(err) {
+            showToast('Error parsing Excel: ' + err.message, 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function mapColumns(headers) {
+    const normalizedHeaders = headers.map(normalizeExcelHeader);
+    const findAlias = (...aliases) => {
+        for (const alias of aliases) {
+            const idx = normalizedHeaders.findIndex(h => h === alias);
+            if (idx >= 0) return idx;
+        }
+        return -1;
+    };
+
+    return {
+        h1code:      findAlias('ech1', 'h1code', 'h1employeecode'),
+        h2code:      findAlias('ech2', 'h2code', 'h2employeecode'),
+        h3code:      findAlias('ech3', 'h3code', 'h3employeecode'),
+        h4code:      findAlias('ech4', 'h4code', 'h4employeecode'),
+        h1name:      findAlias('h1', 'h1name', 'hod', 'head', 'headofdepartment', 'departmenthead'),
+        h2name:      findAlias('h2', 'h2name', 'subhod', 'sub hod', 'subhead', 'sub head', 'subheadofdepartment'),
+        h3name:      findAlias('h3', 'h3name'),
+        h4name:      findAlias('h4', 'h4name'),
+        empcode:     findAlias('empcode', 'empco', 'employeecode', 'employeeid', 'empid', 'ec', 'ecode', 'staffcode', 'staffid', 'sapcode', 'sapid', 'workercode', 'workerid'),
+        empname:     findAlias('name', 'empname', 'employeename'),
+        state:       findAlias('state'),
+        group:       findAlias('group', 'groupname', 'da'),
+        designation: findAlias('designation', 'desig')
+    };
+}
+
+async function processUpload() {
+    if (!pendingRows.length) return;
+    const btn = document.getElementById('btnUpload');
+    btn.disabled = true;
+    btn.querySelector('#uploadBtnText').textContent = 'Importing…';
+
+    document.getElementById('uploadProgress').style.display = '';
+    document.getElementById('progressFill').style.width = '30%';
+
+    try {
+        const res = await fetchPost(API.importExcel, pendingRows);
+        document.getElementById('progressFill').style.width = '100%';
+
+        if (res.success) {
+            const d = res.data;
+            document.getElementById('importResults').innerHTML = `
+                <div style="background:var(--bg2);border-radius:8px;padding:14px;margin-top:4px">
+                    <div style="font-weight:700;color:var(--success);margin-bottom:8px;font-size:13px">✅ Import Successful</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px">
+                        <div><span style="color:var(--muted)">Total Rows:</span> <strong>${d.totalRows}</strong></div>
+                        <div><span style="color:var(--muted)">Upserted:</span> <strong style="color:var(--success)">${d.rowsUpserted}</strong></div>
+                        <div><span style="color:var(--muted)">Errors:</span> <strong style="color:${d.errors>0?'var(--danger)':'var(--muted)'}">${d.errors}</strong></div>
+                        <div><span style="color:var(--muted)">Emp Created:</span> <strong>${d.employeesCreated}</strong></div>
+                        <div><span style="color:var(--muted)">Emp Updated:</span> <strong>${d.employeesUpdated}</strong></div>
+                        <div><span style="color:var(--muted)">Temp Codes:</span> <strong>${d.tempCodesGenerated || 0}</strong></div>
+                    </div>
+                    ${d.tempCodes && d.tempCodes.length ? `
+                        <div style="margin-top:10px;color:var(--text);font-size:11px">
+                            <strong>Temp Codes:</strong><br>${d.tempCodes.slice(0,5).map(e=>`&bull; ${e}`).join('<br>')}
+                            ${d.tempCodes.length>5?`<br>...and ${d.tempCodes.length-5} more`:''}
+                        </div>` : ''}
+                    ${d.errorDetails && d.errorDetails.length ? `
+                        <div style="margin-top:10px;color:var(--danger);font-size:11px">
+                            <strong>Errors:</strong><br>${d.errorDetails.slice(0,5).map(e=>`• ${e}`).join('<br>')}
+                            ${d.errorDetails.length>5?`<br>…and ${d.errorDetails.length-5} more`:''}
+                        </div>` : ''}
+                </div>`;
+            btn.style.display = 'none';
+            refreshData();
+        } else {
+            document.getElementById('importResults').innerHTML =
+                `<div style="color:var(--danger);font-size:13px">❌ ${res.message || 'Import failed'}</div>`;
+        }
+    } catch(e) {
+        document.getElementById('importResults').innerHTML =
+            `<div style="color:var(--danger);font-size:13px">❌ Error: ${e.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('#uploadBtnText').textContent = `Import ${pendingRows.length} Rows`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIT LOG
+// ═══════════════════════════════════════════════════════════════
+let auditPanelOpen = false;
+
+function toggleAuditPanel() {
+    auditPanelOpen = !auditPanelOpen;
+    document.getElementById('auditPanel').classList.toggle('open', auditPanelOpen);
+    if (auditPanelOpen) loadAuditLogs();
+}
+
+async function loadAuditLogs() {
+    const search = document.getElementById('auditSearch').value.trim();
+    const body   = document.getElementById('auditBody');
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)"><span class="spinner"></span>Loading…</div>';
+    try {
+        const url = `${API.getAudit}?pageSize=100&search=${encodeURIComponent(search || 'SalesHierarchy')}`;
+        const res  = await fetch(url);
+        const json = await res.json();
+        if (!json.success || !json.data.length) {
+            body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">No audit logs found.</div>';
+            return;
+        }
+        body.innerHTML = json.data.map(l => {
+            const cls = { 'Update':'action-update','Shift':'action-shift','BulkImport':'action-bulkimport' }[l.actionType] || 'action-update';
+            const dt  = new Date(l.createdOn).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+            return `<div class="audit-item">
+                <span class="audit-action ${cls}">${esc(l.actionType)}</span>
+                ${esc(l.description || l.entityType + ' #' + (l.entityId||''))}
+                <div class="audit-meta">
+                    <span>By: ${esc(l.changedByName || 'System')}</span>
+                    <span>${dt}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        body.innerHTML = `<div style="color:var(--danger);padding:16px">Error: ${e.message}</div>`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLUMN MANAGER
+// ═══════════════════════════════════════════════════════════════
+let colManagerOpen = false;
+
+function toggleColManager() {
+    colManagerOpen = !colManagerOpen;
+    document.getElementById('colManager').classList.toggle('open', colManagerOpen);
+}
+
+function renderColManager() {
+    const body = document.getElementById('colManagerBody');
+    body.innerHTML = COLUMNS.map(c =>
+        `<div class="col-item" onclick="toggleCol('${c.key}')">
+            <input type="checkbox" id="cm_${c.key}" ${c.visible?'checked':''} onclick="event.stopPropagation();toggleCol('${c.key}')" />
+            <label for="cm_${c.key}">${c.label}</label>
+        </div>`
+    ).join('');
+}
+
+function toggleCol(key) {
+    const col = COLUMNS.find(c => c.key === key);
+    if (!col) return;
+    col.visible = !col.visible;
+    document.getElementById('cm_' + key).checked = col.visible;
+    saveColState();
+    applyColumnVisibility();
+    renderPage();
+}
+
+function showAllCols() {
+    COLUMNS.forEach(c => { c.visible = true; });
+    renderColManager();
+    saveColState();
+    applyColumnVisibility();
+    renderPage();
+}
+
+function hideOptionalCols() {
+    COLUMNS.forEach(c => { c.visible = c.defaultVisible; });
+    renderColManager();
+    saveColState();
+    applyColumnVisibility();
+    renderPage();
+}
+
+function applyColumnVisibility() {
+    COLUMNS.forEach(c => {
+        document.querySelectorAll(`.col-${c.key}`).forEach(el => {
+            el.style.display = c.visible ? '' : 'none';
+        });
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════
+function exportToExcel() {
+    if (!filtered.length) { showToast('No data to export', 'info'); return; }
+
+    const isBlankOrHyphen = v => isDash(v) || String(v).trim() === '';
+
+    // Exclude rows where empName is blank or hyphen (unassigned employees)
+    const exportRows = filtered.filter(r => !isBlankOrHyphen(r.empName));
+
+    if (!exportRows.length) { showToast('No valid records to export', 'info'); return; }
+
+    const visibleCols = COLUMNS.filter(c => c.visible);
+    const headers = ['#', ...visibleCols.map(c => c.label)];
+    const rows = exportRows.map((r, i) => {
+        const row = [i + 1];
+        visibleCols.forEach(c => {
+            let val = r[c.key];
+            if (c.key === 'isActive') val = val ? 'Active' : 'Inactive';
+            else if (c.key === 'dateOfJoining' && val) val = new Date(val).toLocaleDateString('en-IN');
+            else if (isBlankOrHyphen(val)) val = '';
+            row.push(val ?? '');
+        });
+        return row;
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Hierarchy');
+
+    ws['!cols'] = Array(headers.length).fill({ wch: 18 });
+
+    XLSX.writeFile(wb, `Sales_Hierarchy_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast(`Exported ${exportRows.length} record(s) successfully`, 'success');
+}
+
+async function loadEmployees() {
+    try {
+        const res = await fetch(API.getEmployees);
+        const json = normalizeApiResponse(await res.json());
+        if (json.success) {
+            allSalesEmployees = json.data || [];
+            buildEmployeeDatalist();
+        }
+    } catch(e) {}
+}
+
+function buildEmployeeDatalist() {
+    const seen = new Set();
+    const fromRows = (hierarchyOptions.employees || []).filter(e => {
+        const k = normalizeKey(e.value);
+        if (!k || seen.has(k)) return false;
+        seen.add(k); return true;
+    });
+    const extra = allSalesEmployees
+        .map(e => ({
+            value: (e.employeeCode ?? e.EmployeeCode ?? '').trim(),
+            name:  (e.employeeName ?? e.EmployeeName ?? '').trim()
+        }))
+        .filter(e => {
+            const k = normalizeKey(e.value || e.name);
+            if (!k || seen.has(k)) return false;
+            seen.add(k); return true;
+        })
+        .map(e => ({
+            value: e.value || e.name,
+            label: formatLevelFilterLabel(e.name, e.value),
+            name:  e.name,
+            code:  e.value
+        }));
+    hierarchyOptions.employees = [...fromRows, ...extra].sort((a, b) => a.label.localeCompare(b.label));
+    fillEmployeeDatalist('newRel_empCode', hierarchyOptions.employees);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REFRESH
+// ═══════════════════════════════════════════════════════════════
+async function refreshData() {
+    await Promise.all([loadData(), loadStats(), loadLookups(), loadEmployees()]);
+    showToast('Data refreshed', 'info');
+}
+
+async function updateMissingCodes() {
+    if (!confirm('This will generate codes for any hierarchy levels that have names but missing codes. Continue?')) return;
+
+    try {
+        const res = await fetchPost(API.updateMissingCodes, {});
+        if (res.success) {
+            showToast(res.message, 'success');
+            refreshData();
+        } else {
+            showToast(res.message || 'Failed to update codes', 'error');
+        }
+    } catch(e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function normalizeExcelHeader(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+function looksLikeEmployeeCode(value) {
+    return /^[a-z]{2,}\d{2,}$/i.test(String(value || '').trim());
+}
+
+function normalizeHierarchyPair(row, codeKey, nameKey) {
+    const codeVal = String(row[codeKey] || '').trim();
+    const nameVal = String(row[nameKey] || '').trim();
+
+    if (!codeVal && looksLikeEmployeeCode(nameVal)) {
+        row[codeKey] = nameVal;
+        row[nameKey] = '';
+    }
+}
+
+function formatLevelFilterLabel(name, code) {
+    if (name && normalizeKey(name) === normalizeKey(code)) return name;
+    if (name && code) return `${name} - ${code}`;
+    return name || code || '';
+}
+
+function normalizeHierarchyCode(code, name) {
+    const rawCode = String(code || '').trim();
+    const rawName = String(name || '').trim();
+    if (!rawName) return rawCode;
+    if (!rawCode || normalizeKey(rawCode) === normalizeKey(rawName) || /\s/.test(rawCode)) {
+        return rawName
+            .replace(/[^a-zA-Z0-9\s]/g, '')
+            .trim()
+            .replace(/\s+/g, '_')
+            .toUpperCase();
+    }
+    return rawCode;
+}
+
+function normalizeKey(value) {
+    return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getUniqueTextValues(items, textKey) {
+    const seen = new Set();
+    return (items || [])
+        .map(item => String(item?.[textKey] || '').trim())
+        .filter(value => {
+            const key = normalizeKey(value);
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .sort((a, b) => a.localeCompare(b));
+}
+
+function getEmployeeNameByCode(code) {
+    const match = hierarchyOptions.employees.find(e => e.value === code);
+    return match ? (match.name || '') : '';
+}
+
+function normalizeApiResponse(json) {
+    const obj = json || {};
+    return {
+        ...obj,
+        success: obj.success ?? obj.Success ?? false,
+        data: obj.data ?? obj.Data ?? null,
+        message: obj.message ?? obj.Message ?? '',
+        states: obj.states ?? obj.States ?? [],
+        groups: obj.groups ?? obj.Groups ?? [],
+        designations: obj.designations ?? obj.Designations ?? []
+    };
+}
+
+function setSelectVal(id, val) {
+    const sel = document.getElementById(id);
+    for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
+    }
+    sel.selectedIndex = 0;
+}
+
+async function fetchPost(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    return normalizeApiResponse(await res.json());
+}
+
+function debounce(fn, ms) {
+    let t;
+    return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+}
+
+function showToast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+    const div = document.createElement('div');
+    div.className = `toast toast-${type}`;
+    div.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span>${esc(msg)}</span>`;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BULK ASSIGN
+// ═══════════════════════════════════════════════════════════════
+function showToastPersistent(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const icons = { success: 'OK', error: 'ERR', info: 'INFO' };
+    const div = document.createElement('div');
+    div.className = `toast toast-${type}`;
+    div.innerHTML = `<span class="toast-icon">${icons[type]||'INFO'}</span><span>${esc(msg)}</span>`;
+    container.appendChild(div);
+    if (type === 'error') {
+        const banner = document.getElementById('pageErrorBanner');
+        const text = document.getElementById('pageErrorText');
+        if (banner && text) {
+            text.textContent = String(msg ?? '');
+            banner.style.display = 'block';
+        }
+        return;
+    }
+    setTimeout(() => div.remove(), 4000);
+}
+
+showToast = showToastPersistent;
+
+window.addEventListener('error', function (event) {
+    const message = `${event.message || 'Script error'}${event.filename ? `\n${event.filename}:${event.lineno || 0}` : ''}`;
+    showToast(message, 'error');
+});
+
+window.addEventListener('unhandledrejection', function (event) {
+    const reason = event.reason && event.reason.message ? event.reason.message : String(event.reason || 'Unhandled promise rejection');
+    showToast(reason, 'error');
+});
+
+let bulkSelected = new Set(); // salesHierarchyIds
+
+function openBulkAssignModal() {
+    bulkSelected.clear();
+    document.getElementById('bulkSearchEmp').value = '';
+    document.getElementById('bulk_h1code').value = '';
+    document.getElementById('bulk_h2code').value = '';
+    document.getElementById('bulk_h3code').value = '';
+    document.getElementById('bulk_h4code').value = '';
+    document.getElementById('bulk_state').value = '';
+    document.getElementById('bulk_groupName').value = '';
+    document.getElementById('bulk_designation').value = '';
+    document.getElementById('bulkSelectAll').checked = false;
+    updateBulkHeader();
+    renderBulkTable();
+    document.getElementById('bulkAssignOverlay').classList.add('open');
+}
+
+function closeBulkAssignModal() {
+    document.getElementById('bulkAssignOverlay').classList.remove('open');
+    bulkSelected.clear();
+}
+
+function onBulkH1Change() { /* future: cascade filter */ }
+
+function renderBulkTable() {
+    const q = document.getElementById('bulkSearchEmp').value.toLowerCase().trim();
+    const rows = allRows.filter(r => {
+        if (!q) return true;
+        return (r.empCode||'').toLowerCase().includes(q)
+            || (r.empName||'').toLowerCase().includes(q)
+            || (r.h1Name||'').toLowerCase().includes(q)
+            || (r.state||'').toLowerCase().includes(q);
+    });
+
+    document.getElementById('bulkTableInfo').textContent = `${rows.length} of ${allRows.length} employees`;
+
+    const tbody = document.getElementById('bulkEmpTableBody');
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No employees found</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(r => {
+        const checked = bulkSelected.has(r.salesHierarchyId) ? 'checked' : '';
+        return `<tr style="${checked ? 'background:#eff6ff' : ''}">
+            <td style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--border)">
+                <input type="checkbox" ${checked} onchange="bulkToggleRow(${r.salesHierarchyId},this.checked)" />
+            </td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)">${esc(r.empCode||'—')}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-weight:500">${esc(r.empName||'—')}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border)">${r.h1Name ? `<span class="level-badge lvl-h1" style="font-size:10px">${esc(r.h1Name)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border)">${esc(r.state||'—')}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border)">${esc(r.designation||'—')}</td>
+        </tr>`;
+    }).join('');
+}
+
+function bulkToggleRow(id, checked) {
+    if (checked) bulkSelected.add(id);
+    else bulkSelected.delete(id);
+    updateBulkHeader();
+    // update row highlight
+    const rows = document.getElementById('bulkEmpTableBody').querySelectorAll('tr');
+    rows.forEach(tr => {
+        const cb = tr.querySelector('input[type=checkbox]');
+        if (cb) tr.style.background = cb.checked ? '#eff6ff' : '';
+    });
+}
+
+function bulkToggleAll(checked) {
+    const q = document.getElementById('bulkSearchEmp').value.toLowerCase().trim();
+    const visible = allRows.filter(r => {
+        if (!q) return true;
+        return (r.empCode||'').toLowerCase().includes(q) || (r.empName||'').toLowerCase().includes(q)
+            || (r.h1Name||'').toLowerCase().includes(q) || (r.state||'').toLowerCase().includes(q);
+    });
+    visible.forEach(r => {
+        if (checked) bulkSelected.add(r.salesHierarchyId);
+        else bulkSelected.delete(r.salesHierarchyId);
+    });
+    updateBulkHeader();
+    renderBulkTable();
+}
+
+function updateBulkHeader() {
+    document.getElementById('bulkSelCount').textContent = bulkSelected.size;
+    const btn = document.getElementById('btnSaveBulk');
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Assign ${bulkSelected.size} Employee${bulkSelected.size !== 1 ? 's' : ''}`;
+    btn.disabled = bulkSelected.size === 0;
+}
+
+function getBulkHierarchyName(selectId, codeField, nameField) {
+    const select = document.getElementById(selectId);
+    const val = select.value;
+    if (!val) return '';
+    const opt = select.options[select.selectedIndex];
+    if (opt?.dataset?.name) return opt.dataset.name;
+    const match = allRows.find(r => (r[codeField]||'') === val);
+    return match ? (match[nameField]||val) : val;
+}
+
+async function saveBulkAssign() {
+    if (!bulkSelected.size) return;
+
+    const h1Code = document.getElementById('bulk_h1code').value;
+    const h2Code = document.getElementById('bulk_h2code').value;
+    const h3Code = document.getElementById('bulk_h3code').value;
+    const h4Code = document.getElementById('bulk_h4code').value;
+    const state  = document.getElementById('bulk_state').value;
+    const group  = document.getElementById('bulk_groupName').value;
+    const desig  = document.getElementById('bulk_designation').value;
+
+    const h1Name = getBulkHierarchyName('bulk_h1code', 'h1Code', 'h1Name');
+    const h2Name = getBulkHierarchyName('bulk_h2code', 'h2Code', 'h2Name');
+    const h3Name = getBulkHierarchyName('bulk_h3code', 'h3Code', 'h3Name');
+    const h4Name = getBulkHierarchyName('bulk_h4code', 'h4Code', 'h4Name');
+
+    const payload = [...bulkSelected].map((id, i) => {
+        const row = allRows.find(r => r.salesHierarchyId === id);
+        if (!row) return null;
+        return {
+            rowNumber:   i + 1,
+            empCode:     row.empCode,
+            empName:     row.empName,
+            h1Code:      h1Code || row.h1Code,
+            h1Name:      h1Name || row.h1Name,
+            h2Code:      h2Code || row.h2Code,
+            h2Name:      h2Name || row.h2Name,
+            h3Code:      h3Code || row.h3Code,
+            h3Name:      h3Name || row.h3Name,
+            h4Code:      h4Code || row.h4Code,
+            h4Name:      h4Name || row.h4Name,
+            state:       state  || row.state,
+            groupName:   group  || row.groupName,
+            designation: desig  || row.designation
+        };
+    }).filter(Boolean);
+
+    const btn = document.getElementById('btnSaveBulk');
+    btn.disabled = true; btn.textContent = 'Assigning…';
+
+    try {
+        const res = await fetchPost(API.importExcel, payload);
+        if (res.success) {
+            const d = res.data || {};
+            showToast(`Bulk assign done — ${d.rowsUpserted ?? payload.length} rows updated`, 'success');
+            closeBulkAssignModal();
+            refreshData();
+        } else {
+            showToast(res.message || 'Bulk assign failed', 'error');
+        }
+    } catch(e) {
+        showToast('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = bulkSelected.size === 0;
+        updateBulkHeader();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CREATE EMPLOYEE
+// ═══════════════════════════════════════════════════════════════
+function openCreateEmpModal() {
+    document.getElementById('newEmp_code').value = '';
+    document.getElementById('newEmp_name').value = '';
+    const msg = document.getElementById('createEmpMsg');
+    msg.style.display = 'none'; msg.innerHTML = '';
+    document.getElementById('btnSaveNewEmp').disabled = false;
+    document.getElementById('btnSaveNewEmp').textContent = 'Create Employee';
+    document.getElementById('createEmpOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('newEmp_code').focus(), 100);
+}
+
+function closeCreateEmpModal() {
+    document.getElementById('createEmpOverlay').classList.remove('open');
+}
+
+async function saveNewEmployee() {
+    const code = document.getElementById('newEmp_code').value.trim();
+    const name = document.getElementById('newEmp_name').value.trim();
+    const msg  = document.getElementById('createEmpMsg');
+
+    if (!code) { showInlineMsg(msg, '❌ Employee code is required', 'error'); return; }
+    if (!name) { showInlineMsg(msg, '❌ Employee name is required', 'error'); return; }
+
+    const btn = document.getElementById('btnSaveNewEmp');
+    btn.disabled = true; btn.textContent = 'Creating…';
+
+    try {
+        const res = await fetchPost(API.createEmployee, { empCode: code, empName: name });
+        if (res.success) {
+            showToast(`Employee "${name}" created`, 'success');
+            // Add new employee to the master list so it appears in the datalist immediately.
+            if (!allSalesEmployees.find(e => (e.employeeCode ?? e.EmployeeCode ?? '') === code)) {
+                allSalesEmployees.push({ employeeCode: code, employeeName: name });
+            }
+            buildEmployeeDatalist();
+            closeCreateEmpModal();
+        } else {
+            showInlineMsg(msg, '❌ ' + (res.message || 'Create failed'), 'error');
+        }
+    } catch(e) {
+        showInlineMsg(msg, '❌ Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Create Employee';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CREATE RELATION
+// ═══════════════════════════════════════════════════════════════
+function openCreateRelModal() {
+    document.getElementById('newRel_empCode').value  = '';
+    document.getElementById('newRel_h1code').value   = '';
+    document.getElementById('newRel_h2code').value   = '';
+    document.getElementById('newRel_h3code').value   = '';
+    document.getElementById('newRel_h4code').value   = '';
+    document.getElementById('newRel_state').value    = '';
+    document.getElementById('newRel_groupName').value = '';
+    document.getElementById('newRel_designation').value = '';
+    const msg = document.getElementById('createRelMsg');
+    msg.style.display = 'none'; msg.innerHTML = '';
+    document.getElementById('btnSaveNewRel').disabled = false;
+    document.getElementById('createRelOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('newRel_empCode')?.focus(), 100);
+}
+
+function closeCreateRelModal() {
+    document.getElementById('createRelOverlay').classList.remove('open');
+}
+
+function getNewRelSelectedName(selectId, codeField, nameField) {
+    const select = document.getElementById(selectId);
+    const val = select.value;
+    if (!val) return null;
+    const opt = select.options[select.selectedIndex];
+    if (opt?.dataset?.name) return opt.dataset.name;
+    const match = allRows.find(r => (r[codeField] || '') === val);
+    return match ? (match[nameField] || val) : val;
+}
+
+function onNewRelH1Change() { /* future: filter H2 options based on H1 */ }
+function onNewRelH2Change() { /* future: filter H3 options based on H2 */ }
+function onNewRelH3Change() { /* future: filter H4 options based on H3 */ }
+
+async function saveNewRelation() {
+    const empCode = document.getElementById('newRel_empCode').value.trim();
+    const empName = getEmployeeNameByCode(empCode).trim();
+    const msg = document.getElementById('createRelMsg');
+
+    if (!empCode) { showInlineMsg(msg, '❌ Employee code is required', 'error'); return; }
+    if (!empName) { showInlineMsg(msg, '❌ Employee name is required', 'error'); return; }
+
+    const btn = document.getElementById('btnSaveNewRel');
+    btn.disabled = true; btn.textContent = 'Creating…';
+
+    const h1Code = document.getElementById('newRel_h1code').value;
+    const h2Code = document.getElementById('newRel_h2code').value;
+    const h3Code = document.getElementById('newRel_h3code').value;
+    const h4Code = document.getElementById('newRel_h4code').value;
+
+    const payload = [{
+        rowNumber:   1,
+        empCode:     empCode,
+        empName:     empName,
+        h1Code:      h1Code,
+        h1Name:      getNewRelSelectedName('newRel_h1code', 'h1Code', 'h1Name') || '',
+        h2Code:      h2Code,
+        h2Name:      getNewRelSelectedName('newRel_h2code', 'h2Code', 'h2Name') || '',
+        h3Code:      h3Code,
+        h3Name:      getNewRelSelectedName('newRel_h3code', 'h3Code', 'h3Name') || '',
+        h4Code:      h4Code,
+        h4Name:      getNewRelSelectedName('newRel_h4code', 'h4Code', 'h4Name') || '',
+        state:       document.getElementById('newRel_state').value,
+        groupName:   document.getElementById('newRel_groupName').value,
+        designation: document.getElementById('newRel_designation').value
+    }];
+
+    try {
+        const res = await fetchPost(API.importExcel, payload);
+        if (res.success) {
+            showToast(`Relation for "${empName}" created`, 'success');
+            closeCreateRelModal();
+            refreshData();
+        } else {
+            showInlineMsg(msg, '❌ ' + (res.message || 'Create failed'), 'error');
+        }
+    } catch(e) {
+        showInlineMsg(msg, '❌ Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Create Relation';
+    }
+}
+
+function showInlineMsg(el, html, type) {
+    const colors = { error: '#fef2f2', success: '#f0fdf4', info: '#eff6ff' };
+    const borders = { error: '#fecaca', success: '#bbf7d0', info: '#bfdbfe' };
+    const texts = { error: '#991b1b', success: '#166534', info: '#1e3a8a' };
+    el.style.display = '';
+    el.innerHTML = `<div style="background:${colors[type]};border:1px solid ${borders[type]};color:${texts[type]};border-radius:6px;padding:8px 12px;font-size:12px">${html}</div>`;
+}
+
+// Close panels when clicking outside
+document.addEventListener('click', e => {
+    if (auditPanelOpen && !document.getElementById('auditPanel').contains(e.target) && !e.target.closest('[onclick*="toggleAuditPanel"]')) {
+        auditPanelOpen = false;
+        document.getElementById('auditPanel').classList.remove('open');
+    }
+    if (colManagerOpen && !document.getElementById('colManager').contains(e.target) && !e.target.closest('[onclick*="toggleColManager"]')) {
+        colManagerOpen = false;
+        document.getElementById('colManager').classList.remove('open');
+    }
+});
+
+// Close overlays on backdrop click
+document.querySelectorAll('.overlay').forEach(ov => {
+    ov.addEventListener('click', e => {
+        if (e.target === ov) ov.classList.remove('open');
+    });
+});
+</script>

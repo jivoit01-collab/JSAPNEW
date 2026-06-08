@@ -1,3 +1,7 @@
+
+using System.Data;
+using Microsoft.Data.SqlClient;
+using Dapper;
 using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
 
@@ -5,169 +9,171 @@ namespace JSAPNEW.Services.Implementation
 {
     public class DocumentHubService : IDocumentHubService
     {
-        private static readonly object StoreLock = new();
+
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".pdf", ".docx", ".xlsx", ".pptx", ".png", ".jpg", ".jpeg", ".csv"
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".png", ".jpg", ".jpeg"
         };
 
-        private static readonly List<DocumentHubFolderDto> Folders = new();
-        private static readonly List<DocumentHubFileDto> Files = new();
-        private static readonly List<DocumentHubVersionDto> Versions = new();
-        private static readonly List<DocumentHubActivityDto> Activities = new();
-        private static int _nextFolderId = 1;
-        private static int _nextFileId = 1;
-        private static int _nextVersionId = 1;
-        private static int _nextActivityId = 1;
-        private static bool _isSeeded;
-
+        private readonly string _connectionString;
+        private readonly string _identityConnectionString;
         private readonly IWebHostEnvironment _environment;
 
-        public DocumentHubService(IConfiguration config, IWebHostEnvironment environment)
+        public DocumentHubService(
+    IConfiguration config,
+    IWebHostEnvironment environment)
         {
             _environment = environment;
-            SeedIfNeeded();
+            _connectionString =
+                config.GetConnectionString("FHConnection") ?? string.Empty;
+            _identityConnectionString =
+                config.GetConnectionString("DefaultConnection") ?? string.Empty;
         }
-
-        public Task<DocumentHubPermissionDto> GetPermissionsAsync(int userId, int companyId)
+        public async Task<DocumentHubPermissionDto> GetPermissionsAsync(int userId, int companyId)
         {
-            return Task.FromResult(new DocumentHubPermissionDto
+            var role = await GetUserRoleAsync(userId);
+            var permissions = new DocumentHubPermissionDto { RoleName = role };
+
+            if (IsAdminRole(role))
             {
-                CanView = userId > 0,
-                CanUpload = userId > 0,
-                CanDelete = userId > 0,
-                CanManageFolders = userId > 0
-            });
-        }
-
-        public Task<DocumentHubSnapshotDto> GetSnapshotAsync(int? folderId, string? filter, string? search)
-        {
-            lock (StoreLock)
-            {
-                var normalizedFilter = (filter ?? string.Empty).Trim().ToLowerInvariant();
-                var normalizedSearch = (search ?? string.Empty).Trim();
-
-                var visibleFolders = Folders.Where(x => !x.IsDeleted).ToList();
-                var visibleFiles = Files.Where(x => !x.IsDeleted).ToList();
-
-                var childFolders = visibleFolders
-                    .Where(x => folderId == null ? x.ParentFolderId == null : x.ParentFolderId == folderId)
-                    .ToList();
-
-                var files = folderId == null
-                    ? new List<DocumentHubFileDto>()
-                    : visibleFiles.Where(x => x.FolderId == folderId).ToList();
-
-                if (normalizedFilter == "recent")
-                {
-                    childFolders = new List<DocumentHubFolderDto>();
-                    files = visibleFiles.Where(x => x.UploadedDate >= DateTime.Now.AddDays(-7)).ToList();
-                }
-                else if (normalizedFilter == "favorites")
-                {
-                    childFolders = new List<DocumentHubFolderDto>();
-                    files = visibleFiles.Where(x => x.IsFavorite).ToList();
-                }
-
-                if (!string.IsNullOrWhiteSpace(normalizedSearch))
-                {
-                    childFolders = visibleFolders
-                        .Where(x => Matches(x.FolderName, normalizedSearch) || Matches(x.Department, normalizedSearch))
-                        .ToList();
-
-                    files = visibleFiles
-                        .Where(x => Matches(x.FileName, normalizedSearch) || Matches(x.FileType, normalizedSearch) || Matches(x.UploadedBy, normalizedSearch))
-                        .ToList();
-                }
-
-                HydrateFolderCounts(childFolders, visibleFolders, visibleFiles);
-
-                var snapshot = new DocumentHubSnapshotDto
-                {
-                    Folders = childFolders.OrderBy(x => x.FolderName).Select(CloneFolder).ToList(),
-                    Files = files.OrderByDescending(x => x.UploadedDate).Select(CloneFile).ToList(),
-                    Breadcrumb = GetBreadcrumb(folderId, visibleFolders),
-                    Stats = BuildStats(visibleFolders, visibleFiles)
-                };
-
-                return Task.FromResult(snapshot);
+                permissions.CanView = true;
+                permissions.CanUpload = true;
+                permissions.CanDownload = true;
+                permissions.CanDelete = true;
+                permissions.CanManageFolders = true;
+                permissions.CanRename = true;
+                permissions.CanShare = true;
             }
-        }
-
-        public Task<List<DocumentHubFolderDto>> GetFoldersAsync()
-        {
-            lock (StoreLock)
+            else if (IsPaymentMakerRole(role))
             {
-                var visibleFolders = Folders.Where(x => !x.IsDeleted).ToList();
-                var visibleFiles = Files.Where(x => !x.IsDeleted).ToList();
-                HydrateFolderCounts(visibleFolders, visibleFolders, visibleFiles);
-                return Task.FromResult(visibleFolders.OrderBy(x => x.ParentFolderId.HasValue).ThenBy(x => x.FolderName).Select(CloneFolder).ToList());
+                permissions.CanView = true;
+                permissions.CanUpload = true;
+                permissions.CanDownload = true;
+                permissions.CanDelete = false;
+                permissions.CanManageFolders = false;
+                permissions.CanRename = false;
+                permissions.CanShare = false;
             }
+            //else
+            //{
+            //    permissions.CanView = true;
+            //    permissions.CanUpload = false;
+            //    permissions.CanDownload = false;
+            //    permissions.CanDelete = false;
+            //    permissions.CanManageFolders = false;
+            //    permissions.CanRename = false;
+            //    permissions.CanShare = false;
+            //}
+            else
+            {
+                permissions.CanView = true;
+                permissions.CanUpload = true;
+                permissions.CanDownload = true;
+                permissions.CanDelete = true;
+                permissions.CanManageFolders = true;
+                permissions.CanRename = false;
+                permissions.CanShare = false;
+            }
+
+            return permissions;
         }
 
-        public Task<DocumentHubFolderDto?> CreateFolderAsync(DocumentHubFolderRequest request, int userId, string userName)
+        public async Task<List<DocumentHubFolderDto>> GetFoldersAsync()
         {
-            lock (StoreLock)
+            using var con =
+                new SqlConnection(_connectionString);
+
+            var data =
+                await con.QueryAsync<DocumentHubFolderDto>(
+                    "DocumentHub_GetFolders",
+                    commandType:
+                    CommandType.StoredProcedure);
+
+            return data.ToList();
+        }
+
+        public async Task<DocumentHubFolderDto?> CreateFolderAsync(
+     DocumentHubFolderRequest request,
+     int userId,
+     string userName)
+        {
+            using var con =
+                new SqlConnection(_connectionString);
+
+            var folderId =
+                await con.ExecuteScalarAsync<int>(
+                    "DocumentHub_CreateFolder",
+                    new
+                    {
+                        FolderName = request.FolderName,
+                        ParentFolderId = request.ParentFolderId,
+                        Department = request.Department,
+                        CreatedByUserId = userId,
+                        CreatedBy = userName
+                    },
+                    commandType:
+                    CommandType.StoredProcedure);
+
+            return new DocumentHubFolderDto
             {
-                var folderName = NormalizeName(request.FolderName);
-                if (string.IsNullOrWhiteSpace(folderName))
-                    return Task.FromResult<DocumentHubFolderDto?>(null);
+                FolderId = folderId,
+                FolderName = request.FolderName,
+                ParentFolderId = request.ParentFolderId,
+                Department = request.Department,
+                CreatedDate = DateTime.Now
+            };
+        }
 
-                var parent = request.ParentFolderId.HasValue
-                    ? Folders.FirstOrDefault(x => x.FolderId == request.ParentFolderId && !x.IsDeleted)
-                    : null;
+        public async Task<bool> RenameFolderAsync(
+    int folderId,
+    string folderName,
+    int userId,
+    string userName)
+        {
+            using var con =
+                new SqlConnection(_connectionString);
 
-                var folder = new DocumentHubFolderDto
+            await con.ExecuteAsync(
+                "DocumentHub_RenameFolder",
+                new
                 {
-                    FolderId = _nextFolderId++,
-                    ParentFolderId = request.ParentFolderId,
-                    FolderName = folderName,
-                    Department = request.Department ?? parent?.Department ?? parent?.FolderName ?? folderName,
-                    CreatedDate = DateTime.Now,
-                    LastUpdated = DateTime.Now
-                };
+                    FolderId = folderId,
+                    FolderName = folderName
+                },
+                commandType:
+                CommandType.StoredProcedure);
 
-                Folders.Add(folder);
-                AddActivity(null, folder.FolderId, userId, userName, "Folder Created", folder.FolderName);
-                return Task.FromResult<DocumentHubFolderDto?>(CloneFolder(folder));
-            }
+            var renamed = await con.ExecuteScalarAsync<int>(@"
+SELECT COUNT(1)
+FROM DocumentHubFolders
+WHERE FolderId = @FolderId
+  AND ISNULL(IsDeleted, 0) = 0
+  AND FolderName = LTRIM(RTRIM(@FolderName));",
+                new { FolderId = folderId, FolderName = folderName });
+
+            if (renamed > 0)
+                await LogActivityAsync(null, folderId, userId, userName, "Rename Folder", folderName, null);
+
+            return renamed > 0;
         }
-
-        public Task<bool> RenameFolderAsync(int folderId, string folderName, int userId, string userName)
+        public async Task<bool> DeleteFolderAsync(
+    int folderId,
+    int userId,
+    string userName)
         {
-            lock (StoreLock)
-            {
-                var folder = Folders.FirstOrDefault(x => x.FolderId == folderId && !x.IsDeleted);
-                var cleanName = NormalizeName(folderName);
-                if (folder == null || string.IsNullOrWhiteSpace(cleanName))
-                    return Task.FromResult(false);
+            using var con =
+                new SqlConnection(_connectionString);
 
-                var oldName = folder.FolderName;
-                folder.FolderName = cleanName;
-                folder.LastUpdated = DateTime.Now;
-                AddActivity(null, folder.FolderId, userId, userName, "Folder Renamed", $"{oldName} to {cleanName}");
-                return Task.FromResult(true);
-            }
-        }
+            await con.ExecuteAsync(
+                "DocumentHub_DeleteFolder",
+                new
+                {
+                    FolderId = folderId
+                },
+                commandType:
+                CommandType.StoredProcedure);
 
-        public Task<bool> DeleteFolderAsync(int folderId, int userId, string userName)
-        {
-            lock (StoreLock)
-            {
-                var folder = Folders.FirstOrDefault(x => x.FolderId == folderId && !x.IsDeleted);
-                if (folder == null)
-                    return Task.FromResult(false);
-
-                var folderIds = GetDescendantFolderIds(folderId).Append(folderId).ToHashSet();
-                foreach (var item in Folders.Where(x => folderIds.Contains(x.FolderId)))
-                    item.IsDeleted = true;
-
-                foreach (var file in Files.Where(x => folderIds.Contains(x.FolderId)))
-                    file.IsDeleted = true;
-
-                AddActivity(null, folderId, userId, userName, "Folder Deleted", folder.FolderName);
-                return Task.FromResult(true);
-            }
+            return true;
         }
 
         public async Task<DocumentHubUploadResultDto> UploadFilesAsync(DocumentHubUploadRequest request, int userId, string userName)
@@ -177,6 +183,18 @@ namespace JSAPNEW.Services.Implementation
                 return new DocumentHubUploadResultDto { Success = false, Message = "No files were selected." };
 
             Directory.CreateDirectory(GetUploadRoot());
+            using var con = new SqlConnection(_connectionString);
+
+            var folderExists = await con.ExecuteScalarAsync<int>(@"
+SELECT COUNT(1)
+FROM DocumentHubFolders
+WHERE FolderId = @FolderId AND ISNULL(IsDeleted, 0) = 0;",
+                new { request.FolderId });
+
+            if (folderExists == 0)
+                return new DocumentHubUploadResultDto { Success = false, Message = "Select a valid folder before uploading." };
+
+            var uploadFileParameterNames = await GetProcedureParameterNamesAsync(con, "DocumentHub_UploadFile");
 
             foreach (var formFile in request.Files)
             {
@@ -192,64 +210,46 @@ namespace JSAPNEW.Services.Implementation
                 var fullPath = Path.Combine(GetUploadRoot(), storedFileName);
                 await using (var stream = new FileStream(fullPath, FileMode.CreateNew))
                     await formFile.CopyToAsync(stream);
+                var contentType =
+    string.IsNullOrWhiteSpace(formFile.ContentType)
+        ? GetContentType(extension)
+        : formFile.ContentType;
 
-                lock (StoreLock)
+                var fileId =
+                   await con.ExecuteScalarAsync<int>(
+    "DocumentHub_UploadFile",
+    BuildUploadFileParameters(
+        uploadFileParameterNames,
+        request,
+        originalName,
+        storedFileName,
+        contentType,
+        extension.TrimStart('.').ToUpper(),
+        formFile.Length,
+        userId,
+        userName),
+    commandType: CommandType.StoredProcedure);
+
+                result.Files.Add(new DocumentHubFileDto
                 {
-                    var existing = Files.FirstOrDefault(x => !x.IsDeleted && x.FolderId == request.FolderId && x.FileName.Equals(originalName, StringComparison.OrdinalIgnoreCase));
-                    if (existing != null && request.ConflictAction.Equals("ask", StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.Conflicts.Add(originalName);
-                        result.Success = false;
-                        result.Message = "One or more files already exist.";
-                        continue;
-                    }
+                    FileId = fileId,
+                    FolderId = request.FolderId,
+                    FileName = originalName,
+                    StoredFileName = storedFileName,
+                    ContentType = contentType,
+                    FileType = extension.TrimStart('.').ToUpper(),
+                    UploadedBy = userName,
+                    UploadedByUserId = userId,
+                    UploadedDate = DateTime.Now,
+                    FileSize = formFile.Length,
+                    VersionNumber = 1,
+                    IsConfidential = request.IsConfidential,
+                    PermissionGroup = request.PermissionGroup,
+                    AccessLevel = request.AccessLevel,
+                    Tags = request.Tags
+                });
 
-                    var version = existing == null ? 1 : existing.VersionNumber + 1;
-                    var contentType = string.IsNullOrWhiteSpace(formFile.ContentType) ? GetContentType(extension) : formFile.ContentType;
 
-                    if (existing != null)
-                    {
-                        existing.StoredFileName = storedFileName;
-                        existing.ContentType = contentType;
-                        existing.FileSize = formFile.Length;
-                        existing.UploadedBy = userName;
-                        existing.UploadedByUserId = userId;
-                        existing.UploadedDate = DateTime.Now;
-                        existing.VersionNumber = request.ConflictAction.Equals("replace", StringComparison.OrdinalIgnoreCase) ? existing.VersionNumber : version;
-                        existing.IsConfidential = request.IsConfidential;
-                        existing.FileUrl = $"/uploads/documenthub/{storedFileName}";
-                        AddVersion(existing.FileId, existing.VersionNumber, storedFileName, formFile.Length, userId, userName);
-                        TouchFolder(existing.FolderId);
-                        AddActivity(existing.FileId, existing.FolderId, userId, userName, request.ConflictAction.Equals("replace", StringComparison.OrdinalIgnoreCase) ? "File Replaced" : "File Uploaded", originalName);
-                        result.Files.Add(CloneFile(existing));
-                    }
-                    else
-                    {
-                        var file = new DocumentHubFileDto
-                        {
-                            FileId = _nextFileId++,
-                            FolderId = request.FolderId,
-                            FileName = originalName,
-                            StoredFileName = storedFileName,
-                            ContentType = contentType,
-                            FileType = extension.TrimStart('.').ToUpperInvariant(),
-                            UploadedBy = userName,
-                            UploadedByUserId = userId,
-                            UploadedDate = DateTime.Now,
-                            FileSize = formFile.Length,
-                            VersionNumber = 1,
-                            IsConfidential = request.IsConfidential,
-                            IsFavorite = false,
-                            FileUrl = $"/uploads/documenthub/{storedFileName}"
-                        };
-
-                        Files.Add(file);
-                        AddVersion(file.FileId, 1, storedFileName, formFile.Length, userId, userName);
-                        TouchFolder(file.FolderId);
-                        AddActivity(file.FileId, file.FolderId, userId, userName, "File Uploaded", file.FileName);
-                        result.Files.Add(CloneFile(file));
-                    }
-                }
             }
 
             if (!result.Files.Any() && result.Conflicts.Any())
@@ -258,266 +258,172 @@ namespace JSAPNEW.Services.Implementation
             return result;
         }
 
-        public Task<DocumentHubFileDto?> GetFileAsync(int fileId)
+        private static async Task<HashSet<string>> GetProcedureParameterNamesAsync(SqlConnection con, string procedureName)
         {
-            lock (StoreLock)
+            var names = await con.QueryAsync<string>(@"
+SELECT REPLACE(p.name, '@', '')
+FROM sys.parameters p
+WHERE p.object_id = OBJECT_ID(@ProcedureName);",
+                new { ProcedureName = procedureName });
+
+            return names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static DynamicParameters BuildUploadFileParameters(
+            HashSet<string> procedureParameterNames,
+            DocumentHubUploadRequest request,
+            string fileName,
+            string storedFileName,
+            string contentType,
+            string fileType,
+            long fileSize,
+            int userId,
+            string userName)
+        {
+            var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
             {
-                return Task.FromResult(Files.Where(x => !x.IsDeleted).Select(CloneFile).FirstOrDefault(x => x.FileId == fileId));
-            }
-        }
-
-        public Task<bool> RenameFileAsync(int fileId, string fileName, int userId, string userName)
-        {
-            lock (StoreLock)
-            {
-                var file = Files.FirstOrDefault(x => x.FileId == fileId && !x.IsDeleted);
-                var cleanName = NormalizeFileName(fileName);
-                if (file == null || string.IsNullOrWhiteSpace(cleanName))
-                    return Task.FromResult(false);
-
-                var oldName = file.FileName;
-                file.FileName = cleanName;
-                file.FileType = Path.GetExtension(cleanName).TrimStart('.').ToUpperInvariant();
-                file.UploadedDate = DateTime.Now;
-                TouchFolder(file.FolderId);
-                AddActivity(file.FileId, file.FolderId, userId, userName, "File Renamed", $"{oldName} to {cleanName}");
-                return Task.FromResult(true);
-            }
-        }
-
-        public Task<bool> DeleteFileAsync(int fileId, int userId, string userName)
-        {
-            lock (StoreLock)
-            {
-                var file = Files.FirstOrDefault(x => x.FileId == fileId && !x.IsDeleted);
-                if (file == null)
-                    return Task.FromResult(false);
-
-                file.IsDeleted = true;
-                TouchFolder(file.FolderId);
-                AddActivity(file.FileId, file.FolderId, userId, userName, "File Deleted", file.FileName);
-                return Task.FromResult(true);
-            }
-        }
-
-        public Task<List<DocumentHubVersionDto>> GetVersionHistoryAsync(int fileId)
-        {
-            lock (StoreLock)
-            {
-                return Task.FromResult(Versions.Where(x => x.FileId == fileId).OrderByDescending(x => x.VersionNumber).Select(CloneVersion).ToList());
-            }
-        }
-
-        public Task<List<DocumentHubActivityDto>> GetActivityLogAsync(int? fileId = null)
-        {
-            lock (StoreLock)
-            {
-                var rows = Activities
-                    .Where(x => fileId == null || x.FileId == fileId)
-                    .OrderByDescending(x => x.ActivityDate)
-                    .Take(100)
-                    .Select(CloneActivity)
-                    .ToList();
-
-                return Task.FromResult(rows);
-            }
-        }
-
-        public Task<bool> ValidateConfidentialAccessAsync(int fileId, int userId, string userName, string? usernameConfirmation, string? pin)
-        {
-            var isValid = !string.IsNullOrWhiteSpace(usernameConfirmation) && usernameConfirmation.Trim().Equals(userName, StringComparison.OrdinalIgnoreCase);
-            isValid = isValid || (pin ?? string.Empty).Trim() == "1234";
-
-            lock (StoreLock)
-                AddActivity(fileId, null, userId, userName, isValid ? "Confidential Access Granted" : "Confidential Access Failed", $"File #{fileId}");
-
-            return Task.FromResult(isValid);
-        }
-
-        public Task LogActivityAsync(int? fileId, int? folderId, int userId, string userName, string action, string? details = null)
-        {
-            lock (StoreLock)
-                AddActivity(fileId, folderId, userId, userName, action, details);
-
-            return Task.CompletedTask;
-        }
-
-        private static void SeedIfNeeded()
-        {
-            lock (StoreLock)
-            {
-                if (_isSeeded)
-                    return;
-
-                var invoice = AddFolder(null, "Invoice Department", "Invoice Department", DateTime.Now.AddDays(-6));
-                var payment = AddFolder(null, "Payment Department", "Payment Department", DateTime.Now.AddDays(-4));
-                var accounts = AddFolder(null, "Accounts", "Accounts", DateTime.Now.AddDays(-5));
-                var audit = AddFolder(null, "Audit", "Audit", DateTime.Now.AddDays(-2));
-                var shared = AddFolder(null, "Shared Documents", "Shared Documents", DateTime.Now.AddDays(-1));
-
-                var invoiceSops = AddFolder(invoice.FolderId, "Invoice SOPs", "Invoice Department", DateTime.Now.AddDays(-1));
-                var vendorFormats = AddFolder(invoice.FolderId, "Vendor Formats", "Invoice Department", DateTime.Now.AddDays(-2));
-                var gstGuidelines = AddFolder(accounts.FolderId, "GST Guidelines", "Accounts", DateTime.Now.AddDays(-3));
-                var bankFormats = AddFolder(payment.FolderId, "Bank Formats", "Payment Department", DateTime.Now.AddDays(-1));
-                var auditReports = AddFolder(audit.FolderId, "Audit Reports", "Audit", DateTime.Now.AddHours(-18));
-
-                AddFile(invoiceSops.FolderId, "Invoice_SOP_v3.pdf", "PDF", 1864200, "Priya Sharma", DateTime.Now.AddHours(-8), 3, true, true);
-                AddFile(vendorFormats.FolderId, "Vendor_Master.xlsx", "XLSX", 842120, "Rohit Mehta", DateTime.Now.AddDays(-2), 1, false, true);
-                AddFile(gstGuidelines.FolderId, "GST_Guidelines.pdf", "PDF", 1298890, "Accounts Team", DateTime.Now.AddDays(-3), 2, false, false);
-                AddFile(bankFormats.FolderId, "Payment_Policy.docx", "DOCX", 523440, "Payment Desk", DateTime.Now.AddDays(-1), 4, false, false);
-                AddFile(auditReports.FolderId, "Audit_Report_Q1.pdf", "PDF", 2391000, "Audit Team", DateTime.Now.AddHours(-18), 1, true, false);
-                AddFile(shared.FolderId, "Reference_Checklist.csv", "CSV", 42040, "System", DateTime.Now.AddDays(-5), 1, false, false);
-
-                AddActivity(null, invoice.FolderId, 0, "System", "Folder Created", "Invoice Department");
-                AddActivity(null, payment.FolderId, 0, "System", "Folder Created", "Payment Department");
-                AddActivity(null, shared.FolderId, 0, "System", "Folder Created", "Shared Documents");
-                AddActivity(1, invoiceSops.FolderId, 0, "Priya Sharma", "File Uploaded", "Invoice_SOP_v3.pdf");
-                AddActivity(5, auditReports.FolderId, 0, "Audit Team", "File Uploaded", "Audit_Report_Q1.pdf");
-
-                HydrateFolderCounts(Folders, Folders, Files);
-                _isSeeded = true;
-            }
-        }
-
-        private static DocumentHubFolderDto AddFolder(int? parentFolderId, string folderName, string department, DateTime updated)
-        {
-            var folder = new DocumentHubFolderDto
-            {
-                FolderId = _nextFolderId++,
-                ParentFolderId = parentFolderId,
-                FolderName = folderName,
-                Department = department,
-                CreatedDate = updated.AddDays(-5),
-                LastUpdated = updated
-            };
-            Folders.Add(folder);
-            return folder;
-        }
-
-        private static void AddFile(int folderId, string fileName, string fileType, long fileSize, string uploadedBy, DateTime uploadedDate, int version, bool confidential, bool favorite)
-        {
-            var fileId = _nextFileId++;
-            var extension = "." + fileType.ToLowerInvariant();
-            var file = new DocumentHubFileDto
-            {
-                FileId = fileId,
-                FolderId = folderId,
-                FileName = fileName,
-                StoredFileName = $"mock-{fileId}{extension}",
-                ContentType = GetContentType(extension),
-                FileType = fileType,
-                UploadedBy = uploadedBy,
-                UploadedByUserId = 0,
-                UploadedDate = uploadedDate,
-                FileSize = fileSize,
-                VersionNumber = version,
-                IsConfidential = confidential,
-                IsFavorite = favorite,
-                FileUrl = $"/DocumentHub/Preview?fileId={fileId}"
+                ["FolderId"] = request.FolderId,
+                ["FileName"] = fileName,
+                ["StoredFileName"] = storedFileName,
+                ["ContentType"] = contentType,
+                ["FileType"] = fileType,
+                ["FileSize"] = fileSize,
+                ["UploadedByUserId"] = userId,
+                ["UploadedBy"] = userName,
+                ["IsConfidential"] = request.IsConfidential,
+                ["PermissionGroup"] = request.PermissionGroup,
+                ["AccessLevel"] = request.AccessLevel,
+                ["Tags"] = request.Tags,
+                ["ConflictAction"] = request.ConflictAction
             };
 
-            Files.Add(file);
-            for (var i = 1; i <= version; i++)
-                AddVersion(fileId, i, file.StoredFileName, fileSize - ((version - i) * 12400), 0, uploadedBy);
-        }
-
-        private static void AddVersion(int fileId, int versionNumber, string storedFileName, long fileSize, int userId, string userName)
-        {
-            Versions.Add(new DocumentHubVersionDto
+            var parameters = new DynamicParameters();
+            foreach (var name in procedureParameterNames)
             {
-                VersionId = _nextVersionId++,
-                FileId = fileId,
-                VersionNumber = versionNumber,
-                StoredFileName = storedFileName,
-                UploadedBy = userName,
-                UploadedDate = DateTime.Now.AddDays(-(versionNumber == 1 ? 5 : 0)),
-                FileSize = Math.Max(fileSize, 0)
-            });
-        }
-
-        private static void AddActivity(int? fileId, int? folderId, int userId, string userName, string action, string? details)
-        {
-            Activities.Add(new DocumentHubActivityDto
-            {
-                ActivityId = _nextActivityId++,
-                FileId = fileId,
-                FolderId = folderId,
-                UserName = string.IsNullOrWhiteSpace(userName) ? "System" : userName,
-                ActivityDate = DateTime.Now,
-                Action = action,
-                Details = details
-            });
-        }
-
-        private static List<int> GetDescendantFolderIds(int parentFolderId)
-        {
-            var directChildren = Folders.Where(x => x.ParentFolderId == parentFolderId && !x.IsDeleted).Select(x => x.FolderId).ToList();
-            return directChildren.Concat(directChildren.SelectMany(GetDescendantFolderIds)).ToList();
-        }
-
-        private static List<DocumentHubBreadcrumbDto> GetBreadcrumb(int? folderId, List<DocumentHubFolderDto> visibleFolders)
-        {
-            var crumbs = new List<DocumentHubBreadcrumbDto> { new() { FolderId = null, FolderName = "Document Hub" } };
-            if (folderId == null)
-                return crumbs;
-
-            var path = new Stack<DocumentHubBreadcrumbDto>();
-            var current = visibleFolders.FirstOrDefault(x => x.FolderId == folderId);
-            while (current != null)
-            {
-                path.Push(new DocumentHubBreadcrumbDto { FolderId = current.FolderId, FolderName = current.FolderName });
-                current = current.ParentFolderId.HasValue ? visibleFolders.FirstOrDefault(x => x.FolderId == current.ParentFolderId) : null;
+                if (values.TryGetValue(name, out var value))
+                    parameters.Add(name, value);
             }
 
-            crumbs.AddRange(path);
-            return crumbs;
+            return parameters;
         }
 
-        private static DocumentHubStatsDto BuildStats(List<DocumentHubFolderDto> visibleFolders, List<DocumentHubFileDto> visibleFiles)
+        public async Task<DocumentHubFileDto?> GetFileAsync(int fileId)
         {
-            return new DocumentHubStatsDto
-            {
-                TotalFiles = visibleFiles.Count,
-                TotalFolders = visibleFolders.Count,
-                RecentFiles = visibleFiles.Count(x => x.UploadedDate >= DateTime.Now.AddDays(-7)),
-                FavoriteFiles = visibleFiles.Count(x => x.IsFavorite)
-            };
+            using var con = new SqlConnection(_connectionString);
+
+            return await con.QueryFirstOrDefaultAsync<DocumentHubFileDto>(@"
+        SELECT *
+        FROM DocumentHubFiles
+        WHERE FileId = @FileId
+          AND ISNULL(IsDeleted,0) = 0",
+                new { FileId = fileId });
         }
 
-        private static void HydrateFolderCounts(IEnumerable<DocumentHubFolderDto> targetFolders, List<DocumentHubFolderDto> visibleFolders, List<DocumentHubFileDto> visibleFiles)
+        public async Task<bool> RenameFileAsync(
+    int fileId,
+    string fileName,
+    int userId,
+    string userName)
         {
-            foreach (var folder in targetFolders)
-            {
-                folder.ChildFolderCount = visibleFolders.Count(x => x.ParentFolderId == folder.FolderId);
-                var scopedFolderIds = GetDescendantFolderIds(folder.FolderId).Append(folder.FolderId).ToHashSet();
-                folder.FileCount = visibleFiles.Count(x => scopedFolderIds.Contains(x.FolderId));
-                folder.ItemCount = folder.ChildFolderCount + folder.FileCount;
-                var lastFileDate = visibleFiles.Where(x => scopedFolderIds.Contains(x.FolderId)).Select(x => (DateTime?)x.UploadedDate).Max();
-                folder.LastUpdated = new[] { folder.LastUpdated, lastFileDate }.Where(x => x.HasValue).Max();
-            }
+            using var con =
+                new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_RenameFile",
+                new
+                {
+                    FileId = fileId,
+                    FileName = fileName
+                },
+                commandType: CommandType.StoredProcedure);
+
+            var renamed = await con.ExecuteScalarAsync<int>(@"
+SELECT COUNT(1)
+FROM DocumentHubFiles
+WHERE FileId = @FileId
+  AND ISNULL(IsDeleted, 0) = 0
+  AND FileName = LTRIM(RTRIM(@FileName));",
+                new { FileId = fileId, FileName = fileName });
+
+            if (renamed > 0)
+                await LogActivityAsync(fileId, null, userId, userName, "Rename File", fileName, null);
+
+            return renamed > 0;
         }
 
-        private static void TouchFolder(int folderId)
+        public async Task<bool> DeleteFileAsync(
+     int fileId,
+     int userId,
+     string userName)
         {
-            var folder = Folders.FirstOrDefault(x => x.FolderId == folderId);
-            if (folder != null)
-                folder.LastUpdated = DateTime.Now;
+            using var con =
+                new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_DeleteFile",
+                new { FileId = fileId },
+                commandType: CommandType.StoredProcedure);
+
+            return true;
         }
+
+        public async Task<bool> MoveFileAsync(int fileId, int targetFolderId, int userId, string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_MoveFile",
+                new { FileId = fileId, TargetFolderId = targetFolderId },
+                commandType: CommandType.StoredProcedure);
+
+            var moved = await con.ExecuteScalarAsync<int>(@"
+SELECT COUNT(1)
+FROM DocumentHubFiles f
+INNER JOIN DocumentHubFolders d ON d.FolderId = f.FolderId AND ISNULL(d.IsDeleted, 0) = 0
+WHERE f.FileId = @FileId
+  AND f.FolderId = @TargetFolderId
+  AND ISNULL(f.IsDeleted, 0) = 0;",
+                new { FileId = fileId, TargetFolderId = targetFolderId });
+
+            if (moved > 0)
+                await LogActivityAsync(fileId, targetFolderId, userId, userName, "Move File", null, null);
+
+            return moved > 0;
+        }
+
+        public async Task<bool> MoveFolderAsync(int folderId, int? targetParentFolderId, int userId, string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_MoveFolder",
+                new { FolderId = folderId, TargetParentFolderId = targetParentFolderId },
+                commandType: CommandType.StoredProcedure);
+
+            return true;
+        }
+
+        public async Task<bool> ToggleFavoriteAsync(int fileId, int userId, string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            var affected = await con.ExecuteAsync(@"
+UPDATE DocumentHubFiles
+SET IsFavorite = CASE WHEN ISNULL(IsFavorite, 0) = 1 THEN 0 ELSE 1 END
+WHERE FileId = @FileId AND ISNULL(IsDeleted, 0) = 0;",
+                new { FileId = fileId });
+
+            if (affected > 0)
+                await LogActivityAsync(fileId, null, userId, userName, "Toggle Favorite", null, null);
+
+            return affected > 0;
+        }
+
 
         private string GetUploadRoot()
         {
-            var webRoot = string.IsNullOrWhiteSpace(_environment.WebRootPath)
-                ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
-                : _environment.WebRootPath;
-
-            return Path.Combine(webRoot, "uploads", "documenthub");
+            return Path.Combine(_environment.ContentRootPath, "App_Data", "uploads", "documenthub");
         }
-
-        private static bool Matches(string? value, string search) => !string.IsNullOrWhiteSpace(value) && value.Contains(search, StringComparison.OrdinalIgnoreCase);
-
-        private static string NormalizeName(string value) => (value ?? string.Empty).Trim().Replace("  ", " ");
-
-        private static string NormalizeFileName(string value) => Path.GetFileName((value ?? string.Empty).Trim());
 
         private static string GetContentType(string extension)
         {
@@ -525,68 +431,848 @@ namespace JSAPNEW.Services.Implementation
             {
                 ".pdf" => "application/pdf",
                 ".png" => "image/png",
-                ".jpg" or ".jpeg" => "image/jpeg",
+                ".jpg" => "image/jpeg",
+                ".jpeg" => "image/jpeg",
+                ".doc" => "application/msword",
                 ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".xls" => "application/vnd.ms-excel",
                 ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                ".pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
                 ".csv" => "text/csv",
                 _ => "application/octet-stream"
             };
         }
 
-        private static DocumentHubFolderDto CloneFolder(DocumentHubFolderDto folder) => new()
+        private async Task<string> GetUserRoleAsync(int userId)
         {
-            FolderId = folder.FolderId,
-            ParentFolderId = folder.ParentFolderId,
-            FolderName = folder.FolderName,
-            Department = folder.Department,
-            ItemCount = folder.ItemCount,
-            ChildFolderCount = folder.ChildFolderCount,
-            FileCount = folder.FileCount,
-            CreatedDate = folder.CreatedDate,
+            using var con = new SqlConnection(_identityConnectionString);
+
+            var role = await con.QueryFirstOrDefaultAsync<string>(@"
+SELECT TOP 1 r.roleName
+FROM jsUserRole ur
+INNER JOIN jsRole r ON ur.roleId = r.roleId
+WHERE ur.userId = @UserId
+ORDER BY CASE
+    WHEN r.roleName IN ('Admin', 'Super User', 'Super Admin') THEN 0
+    WHEN r.roleName IN ('Payment Maker', 'Maker') THEN 1
+    ELSE 2
+END, r.roleName;",
+                new { UserId = userId });
+
+            return string.IsNullOrWhiteSpace(role) ? "User" : role.Trim();
+        }
+
+        public async Task<DocumentHubSnapshotDto> GetSnapshotAsync(
+            int? folderId,
+            string? filter,
+            string? search)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            var normalizedFilter = (filter ?? string.Empty).Trim().ToLowerInvariant();
+            var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
+
+            var folders = await con.QueryAsync<DocumentHubFolderDto>(@"
+SELECT
+    f.FolderId,
+    f.ParentFolderId,
+    f.FolderName,
+    f.Department,
+    f.CreatedDate,
+      f.ModifiedDate as LastUpdated,
+    ISNULL(f.IsDeleted, 0) AS IsDeleted,
+    ISNULL(f.IsConfidential, 0) AS IsConfidential,
+    ISNULL(f.PinCode, '') AS PinCode,
+    (SELECT COUNT(1) FROM DocumentHubFolders c WHERE c.ParentFolderId = f.FolderId AND ISNULL(c.IsDeleted, 0) = 0) AS ChildFolderCount,
+    (SELECT COUNT(1) FROM DocumentHubFiles x WHERE x.FolderId = f.FolderId AND ISNULL(x.IsDeleted, 0) = 0) AS FileCount
+FROM DocumentHubFolders f
+WHERE ISNULL(f.IsDeleted, 0) = CASE WHEN @Filter = 'trash' THEN 1 ELSE 0 END
+  AND (@Search IS NOT NULL OR ((@FolderId IS NULL AND f.ParentFolderId IS NULL) OR f.ParentFolderId = @FolderId))
+  AND (@Search IS NULL OR f.FolderName LIKE @Search OR ISNULL(f.Department, '') LIKE @Search)
+ORDER BY f.FolderName;",
+                new { FolderId = folderId, Filter = normalizedFilter, Search = normalizedSearch });
+
+            var files = await con.QueryAsync<DocumentHubFileDto>(@"
+SELECT
+    f.FileId,
+    f.FolderId,
+    f.FileName,
+    f.StoredFileName,
+    f.ContentType,
+    f.FileType,
+    f.FileSize,
+    f.UploadedBy,
+    f.UploadedByUserId,
+    f.UploadedDate,
+    f.VersionNumber,
+    ISNULL(f.IsConfidential, 0) AS IsConfidential,
+    ISNULL(f.IsDeleted, 0) AS IsDeleted,
+    ISNULL(f.IsFavorite, 0) AS IsFavorite,
+    ISNULL(f.Owner, f.UploadedBy) AS Owner,
+    ISNULL(f.PermissionGroup, 'All') AS PermissionGroup,
+    ISNULL(f.AccessLevel, 'Public') AS AccessLevel,
+    ISNULL(f.Tags, '') AS Tags,
+    ISNULL(d.FolderName, 'Root') AS Department
+FROM DocumentHubFiles f
+LEFT JOIN DocumentHubFolders d ON d.FolderId = f.FolderId
+WHERE ISNULL(f.IsDeleted, 0) = CASE WHEN @Filter = 'trash' THEN 1 ELSE 0 END
+  AND (@Filter <> 'recent' OR f.UploadedDate >= DATEADD(DAY, -30, GETDATE()))
+  AND (@Search IS NOT NULL OR @Filter IN ('recent', 'trash') OR @FolderId IS NULL OR f.FolderId = @FolderId)
+  AND (@Search IS NULL OR f.FileName LIKE @Search OR ISNULL(f.UploadedBy, '') LIKE @Search OR ISNULL(f.Tags, '') LIKE @Search)
+ORDER BY f.UploadedDate DESC;",
+                new { FolderId = folderId, Filter = normalizedFilter, Search = normalizedSearch });
+
+            var breadcrumb = await GetBreadcrumbAsync(con, folderId);
+            var stats = await con.QueryFirstAsync<DocumentHubStatsDto>(@"
+SELECT
+    (SELECT COUNT(1) FROM DocumentHubFiles WHERE ISNULL(IsDeleted, 0) = 0) AS TotalFiles,
+    (SELECT COUNT(1) FROM DocumentHubFolders WHERE ISNULL(IsDeleted, 0) = 0) AS TotalFolders,
+    (SELECT COUNT(1) FROM DocumentHubFiles WHERE ISNULL(IsDeleted, 0) = 0 AND UploadedDate >= DATEADD(DAY, -30, GETDATE())) AS RecentFiles,
+    (SELECT COUNT(1) FROM DocumentHubFiles WHERE ISNULL(IsDeleted, 0) = 0 AND ISNULL(IsFavorite, 0) = 1) AS FavoriteFiles,
+    CAST((SELECT ISNULL(SUM(FileSize), 0) FROM DocumentHubFiles WHERE ISNULL(IsDeleted, 0) = 0) AS varchar(30)) AS StorageUsed;");
+
+            stats.StorageUsed = FormatBytes(stats.StorageUsed);
+
+            return new DocumentHubSnapshotDto
+            {
+                Folders = folders.ToList(),
+                Files = files.ToList(),
+                Breadcrumb = breadcrumb,
+                Stats = stats
+            };
+        }
+
+        public async Task<List<DocumentHubVersionDto>> GetVersionHistoryAsync(int fileId)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            var data = await con.QueryAsync<DocumentHubVersionDto>(@"
+SELECT
+    v.VersionId,
+    v.FileId,
+    v.VersionNumber,
+    f.FileName,
+    v.StoredFileName,
+    f.ContentType,
+    f.FileType,
+    v.FileSize,
+    v.UploadedBy,
+    f.UploadedByUserId,
+    v.UploadedDate
+FROM DocumentHubFileVersions v
+LEFT JOIN DocumentHubFiles f ON f.FileId = v.FileId
+WHERE v.FileId = @FileId
+ORDER BY v.VersionNumber DESC;",
+                new { FileId = fileId });
+
+            return data.ToList();
+        }
+
+        public async Task<bool> RestoreVersionAsync(int fileId, int versionNumber, int userId, string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_RestoreVersion",
+                new { FileId = fileId, VersionNumber = versionNumber, UserId = userId, UserName = userName },
+                commandType: CommandType.StoredProcedure);
+
+            return true;
+        }
+
+        public async Task<List<DocumentHubActivityDto>> GetActivityLogAsync(int? fileId = null)
+        {
+            using var con = new SqlConnection(_connectionString);
+            await con.OpenAsync();
+
+            var columns = await GetTableColumnNamesAsync(con, null, "DocumentHubActivityLog");
+            var userIdSelect = columns.Contains("UserId") ? "UserId" : "CAST(0 AS int) AS UserId";
+            var ipAddressSelect = columns.Contains("IpAddress") ? "IpAddress" : "CAST('' AS nvarchar(100)) AS IpAddress";
+
+            var data = await con.QueryAsync<DocumentHubActivityDto>($@"
+SELECT TOP 100 ActivityId, FileId, FolderId, {userIdSelect}, UserName, Action, Details, {ipAddressSelect}, ActivityDate
+FROM DocumentHubActivityLog
+WHERE @FileId IS NULL OR FileId = @FileId
+ORDER BY ActivityDate DESC;",
+                new { FileId = fileId });
+
+            return data.ToList();
+        }
+
+        public async Task<bool> ValidateConfidentialAccessAsync(
+            int fileId,
+            int userId,
+            string userName,
+            string? usernameConfirmation,
+            string? pin)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            var file = await con.QueryFirstOrDefaultAsync<DocumentHubFileDto>(
+                "SELECT FileId, FolderId, UploadedBy, ISNULL(IsConfidential, 0) AS IsConfidential FROM DocumentHubFiles WHERE FileId = @FileId",
+                new { FileId = fileId });
+
+            if (file == null)
+                return false;
+
+            if (!file.IsConfidential)
+                return true;
+
+            if (!string.IsNullOrWhiteSpace(usernameConfirmation)
+                && usernameConfirmation.Trim().Equals(userName.Trim(), StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!string.IsNullOrWhiteSpace(pin))
+            {
+                var folderPin = await con.QueryFirstOrDefaultAsync<string>(
+                    "SELECT PinCode FROM DocumentHubFolders WHERE FolderId = @FolderId AND ISNULL(IsDeleted, 0) = 0",
+                    new { file.FolderId });
+
+                return !string.IsNullOrWhiteSpace(folderPin) && folderPin == pin.Trim();
+            }
+
+            return false;
+        }
+
+        public async Task<bool> ValidateFolderPinAsync(int folderId, string? pin)
+        {
+            using var con = new SqlConnection(_connectionString);
+            var savedPin = await con.QueryFirstOrDefaultAsync<string>(
+                "SELECT PinCode FROM DocumentHubFolders WHERE FolderId = @FolderId AND ISNULL(IsDeleted, 0) = 0",
+                new { FolderId = folderId });
+
+            return !string.IsNullOrWhiteSpace(savedPin) && savedPin == pin;
+        }
+
+        public async Task<bool> SetFolderPinAsync(int folderId, string pin, int userId, string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+            await con.ExecuteAsync(
+                "DocumentHub_SetFolderPin",
+                new { FolderId = folderId, Pin = pin },
+                commandType: CommandType.StoredProcedure);
+            return true;
+        }
+
+        public async Task<bool> ChangeFolderPinAsync(int folderId, string currentPin, string newPin, int userId, string userName)
+        {
+            if (!await ValidateFolderPinAsync(folderId, currentPin))
+                return false;
+
+            return await SetFolderPinAsync(folderId, newPin, userId, userName);
+        }
+
+        public async Task<bool> RemoveFolderPinAsync(int folderId, string currentPin, int userId, string userName)
+        {
+            if (!await ValidateFolderPinAsync(folderId, currentPin))
+                return false;
+
+            using var con = new SqlConnection(_connectionString);
+            await con.ExecuteAsync(
+                "DocumentHub_RemoveFolderPin",
+                new { FolderId = folderId },
+                commandType: CommandType.StoredProcedure);
+            return true;
+        }
+
+        public async Task LogActivityAsync(
+            int? fileId,
+            int? folderId,
+            int userId,
+            string userName,
+            string action,
+            string? details = null,
+            string? ipAddress = null)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_LogActivity",
+                new { FileId = fileId, FolderId = folderId, UserId = userId, UserName = userName, Action = action, Details = details, IpAddress = ipAddress },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        private static bool IsAdminRole(string role)
+        {
+            return role.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                || role.Equals("Super User", StringComparison.OrdinalIgnoreCase)
+                || role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsPaymentMakerRole(string role)
+        {
+            return role.Equals("Payment Maker", StringComparison.OrdinalIgnoreCase)
+                || role.Equals("Maker", StringComparison.OrdinalIgnoreCase);
+        }
+
+
+        private async Task<List<DocumentHubBreadcrumbDto>> GetBreadcrumbAsync(SqlConnection con, int? folderId)
+        {
+            var folders = (await con.QueryAsync<DocumentHubFolderDto>(@"
+SELECT FolderId, ParentFolderId, FolderName
+FROM DocumentHubFolders
+WHERE ISNULL(IsDeleted, 0) = 0;")).ToDictionary(x => x.FolderId);
+
+            var stack = new Stack<DocumentHubBreadcrumbDto>();
+            var current = folderId;
+            while (current.HasValue && folders.TryGetValue(current.Value, out var folder))
+            {
+                stack.Push(new DocumentHubBreadcrumbDto { FolderId = folder.FolderId, FolderName = folder.FolderName });
+                current = folder.ParentFolderId;
+            }
+
+            var result = new List<DocumentHubBreadcrumbDto> { new DocumentHubBreadcrumbDto { FolderId = null, FolderName = "Home" } };
+            result.AddRange(stack);
+            return result;
+        }
+
+        private static string FormatBytes(string value)
+        {
+            if (!long.TryParse(value, out var bytes))
+                return "0 B";
+            if (bytes < 1024)
+                return bytes + " B";
+            if (bytes < 1048576)
+                return (bytes / 1024d).ToString("0.0") + " KB";
+            if (bytes < 1073741824)
+                return (bytes / 1048576d).ToString("0.0") + " MB";
+            return (bytes / 1073741824d).ToString("0.0") + " GB";
+        }
+        public async Task<bool> ResetFolderPinAsync(
+    int folderId,
+    int userId,
+    string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DocumentHub_RemoveFolderPin",
+                new { FolderId = folderId },
+                commandType: CommandType.StoredProcedure);
+
+            var reset = await con.ExecuteScalarAsync<int>(@"
+SELECT COUNT(1)
+FROM DocumentHubFolders
+WHERE FolderId = @FolderId
+  AND ISNULL(IsDeleted, 0) = 0
+  AND ISNULL(IsConfidential, 0) = 0
+  AND ISNULL(PinCode, '') = '';",
+                new { FolderId = folderId });
+
+            if (reset > 0)
+                await LogActivityAsync(null, folderId, userId, userName, "Reset Folder PIN", null, null);
+
+            return reset > 0;
+        }
+
+        public async Task<bool> RestoreBackupAsync(DocumentHubBackupDto backup, int userId, string userName)
+        {
+            if (backup == null)
+                return false;
+
+            using var con = new SqlConnection(_connectionString);
+            await con.OpenAsync();
+            using var tx = con.BeginTransaction();
+
+            try
+            {
+                await con.ExecuteAsync("DELETE FROM DocumentHubActivityLog;", transaction: tx);
+                await con.ExecuteAsync("DELETE FROM DocumentHubFileVersions;", transaction: tx);
+                await con.ExecuteAsync("DELETE FROM DocumentHubFiles;", transaction: tx);
+                await con.ExecuteAsync("UPDATE DocumentHubFolders SET ParentFolderId = NULL;", transaction: tx);
+                await con.ExecuteAsync("DELETE FROM DocumentHubFolders;", transaction: tx);
+
+                await InsertFoldersAsync(con, tx, backup.Folders);
+                await InsertFilesAsync(con, tx, backup.Files);
+                await InsertVersionsAsync(con, tx, backup.Versions, backup.Files, userId, userName, preserveVersionIds: true);
+                await InsertActivitiesAsync(con, tx, backup.Activities, userId, userName);
+
+                await con.ExecuteAsync(
+                    "DocumentHub_LogActivity",
+                    new { FileId = (int?)null, FolderId = (int?)null, UserId = userId, UserName = userName, Action = "Restore Backup", Details = backup.BackupId, IpAddress = (string?)null },
+                    tx,
+                    commandType: CommandType.StoredProcedure);
+
+                tx.Commit();
+                return true;
+            }
+            catch
+            {
+                tx.Rollback();
+                return false;
+            }
+        }
+
+        public async Task<bool> RestoreBackupFolderAsync(DocumentHubBackupDto backup, int folderId, int userId, string userName)
+        {
+            if (backup == null || !backup.Folders.Any(x => x.FolderId == folderId))
+                return false;
+
+            var folderIds = GetFolderRestoreScope(backup.Folders, folderId);
+            var files = backup.Files.Where(x => folderIds.Contains(x.FolderId)).ToList();
+            var fileIds = files.Select(x => x.FileId).ToHashSet();
+            var versions = backup.Versions.Where(x => fileIds.Contains(x.FileId)).ToList();
+            var folders = backup.Folders.Where(x => folderIds.Contains(x.FolderId)).ToList();
+
+            using var con = new SqlConnection(_connectionString);
+            await con.OpenAsync();
+            using var tx = con.BeginTransaction();
+
+            try
+            {
+                await UpsertFoldersAsync(con, tx, folders);
+                await UpsertFilesAsync(con, tx, files);
+                await ReplaceVersionsAsync(con, tx, versions, files, userId, userName);
+
+                await con.ExecuteAsync(
+                    "DocumentHub_LogActivity",
+                    new { FileId = (int?)null, FolderId = folderId, UserId = userId, UserName = userName, Action = "Restore Folder", Details = backup.BackupId, IpAddress = (string?)null },
+                    tx,
+                    commandType: CommandType.StoredProcedure);
+
+                tx.Commit();
+                return true;
+            }
+            catch
+            {
+                tx.Rollback();
+                return false;
+            }
+        }
+
+        public async Task<bool> RestoreBackupFileAsync(DocumentHubBackupDto backup, int fileId, int userId, string userName)
+        {
+            if (backup == null)
+                return false;
+
+            var file = backup.Files.FirstOrDefault(x => x.FileId == fileId);
+            if (file == null)
+                return false;
+
+            var folderIds = GetFolderAncestorScope(backup.Folders, file.FolderId);
+            var folders = backup.Folders.Where(x => folderIds.Contains(x.FolderId)).ToList();
+            var versions = backup.Versions.Where(x => x.FileId == fileId).ToList();
+
+            using var con = new SqlConnection(_connectionString);
+            await con.OpenAsync();
+            using var tx = con.BeginTransaction();
+
+            try
+            {
+                await UpsertFoldersAsync(con, tx, folders);
+                await UpsertFilesAsync(con, tx, new[] { file });
+                await ReplaceVersionsAsync(con, tx, versions, new[] { file }, userId, userName);
+
+                await con.ExecuteAsync(
+                    "DocumentHub_LogActivity",
+                    new { FileId = fileId, FolderId = file.FolderId, UserId = userId, UserName = userName, Action = "Restore File", Details = backup.BackupId, IpAddress = (string?)null },
+                    tx,
+                    commandType: CommandType.StoredProcedure);
+
+                tx.Commit();
+                return true;
+            }
+            catch
+            {
+                tx.Rollback();
+                return false;
+            }
+        }
+
+        private static async Task InsertFoldersAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubFolderDto> folders)
+        {
+            var orderedFolders = OrderFoldersForInsert(folders).ToList();
+            if (!orderedFolders.Any())
+                return;
+
+            await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFolders ON;", transaction: tx);
+            foreach (var folder in orderedFolders)
+            {
+                await con.ExecuteAsync(@"
+INSERT INTO DocumentHubFolders
+    (FolderId, ParentFolderId, FolderName, Department, CreatedDate, LastUpdated, IsDeleted, IsConfidential, PinCode)
+VALUES
+    (@FolderId, @ParentFolderId, @FolderName, @Department, @CreatedDate, @LastUpdated, @IsDeleted, @IsConfidential, @PinCode);",
+                    NormalizeFolder(folder), tx);
+            }
+            await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFolders OFF;", transaction: tx);
+        }
+
+        private static async Task UpsertFoldersAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubFolderDto> folders)
+        {
+            foreach (var folder in OrderFoldersForInsert(folders))
+            {
+                var exists = await con.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(1) FROM DocumentHubFolders WHERE FolderId = @FolderId;",
+                    new { folder.FolderId },
+                    tx);
+
+                if (exists > 0)
+                {
+                    await con.ExecuteAsync(@"
+UPDATE DocumentHubFolders
+SET ParentFolderId = @ParentFolderId,
+    FolderName = @FolderName,
+    Department = @Department,
+    LastUpdated = @LastUpdated,
+    IsDeleted = @IsDeleted,
+    IsConfidential = @IsConfidential,
+    PinCode = @PinCode
+WHERE FolderId = @FolderId;",
+                        NormalizeFolder(folder), tx);
+                }
+                else
+                {
+                    await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFolders ON;", transaction: tx);
+                    await con.ExecuteAsync(@"
+INSERT INTO DocumentHubFolders
+    (FolderId, ParentFolderId, FolderName, Department, CreatedDate, LastUpdated, IsDeleted, IsConfidential, PinCode)
+VALUES
+    (@FolderId, @ParentFolderId, @FolderName, @Department, @CreatedDate, @LastUpdated, @IsDeleted, @IsConfidential, @PinCode);",
+                        NormalizeFolder(folder), tx);
+                    await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFolders OFF;", transaction: tx);
+                }
+            }
+        }
+
+        private static async Task InsertFilesAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubFileDto> files)
+        {
+            var targetFiles = files.ToList();
+            if (!targetFiles.Any())
+                return;
+
+            await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFiles ON;", transaction: tx);
+            foreach (var file in targetFiles)
+                await con.ExecuteAsync(FileInsertSql, NormalizeFile(file), tx);
+            await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFiles OFF;", transaction: tx);
+        }
+
+        private static async Task UpsertFilesAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubFileDto> files)
+        {
+            foreach (var file in files)
+            {
+                var exists = await con.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(1) FROM DocumentHubFiles WHERE FileId = @FileId;",
+                    new { file.FileId },
+                    tx);
+
+                if (exists > 0)
+                    await con.ExecuteAsync(FileUpdateSql, NormalizeFile(file), tx);
+                else
+                {
+                    await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFiles ON;", transaction: tx);
+                    await con.ExecuteAsync(FileInsertSql, NormalizeFile(file), tx);
+                    await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFiles OFF;", transaction: tx);
+                }
+            }
+        }
+
+        private static async Task InsertVersionsAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubVersionDto> versions, IEnumerable<DocumentHubFileDto> files, int userId, string userName, bool preserveVersionIds = false)
+        {
+            var targetVersions = versions.ToList();
+            if (!targetVersions.Any())
+                return;
+
+            var fileMap = files.ToDictionary(x => x.FileId);
+            var columns = await GetTableColumnNamesAsync(con, tx, "DocumentHubFileVersions");
+            var insertVersionId = preserveVersionIds && columns.Contains("VersionId");
+
+            if (insertVersionId)
+                await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFileVersions ON;", transaction: tx);
+
+            foreach (var version in targetVersions)
+                await InsertVersionAsync(con, tx, columns, NormalizeVersion(version, fileMap, userId, userName), insertVersionId);
+
+            if (insertVersionId)
+                await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubFileVersions OFF;", transaction: tx);
+        }
+
+        private static async Task ReplaceVersionsAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubVersionDto> versions, IEnumerable<DocumentHubFileDto> files, int userId, string userName)
+        {
+            var fileList = files.ToList();
+            if (!fileList.Any())
+                return;
+
+            var fileIds = fileList.Select(x => x.FileId).ToArray();
+            await con.ExecuteAsync("DELETE FROM DocumentHubFileVersions WHERE FileId IN @FileIds;", new { FileIds = fileIds }, tx);
+            await InsertVersionsAsync(con, tx, versions, fileList, userId, userName);
+        }
+
+        private static async Task InsertActivitiesAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubActivityDto> activities, int userId, string userName)
+        {
+            var targetActivities = activities.ToList();
+            if (!targetActivities.Any())
+                return;
+
+            var tableColumns = await GetTableColumnNamesAsync(con, tx, "DocumentHubActivityLog");
+            var insertActivityId = tableColumns.Contains("ActivityId");
+
+            if (insertActivityId)
+                await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubActivityLog ON;", transaction: tx);
+
+            foreach (var activity in targetActivities)
+                await InsertActivityAsync(con, tx, tableColumns, new
+                {
+                    activity.ActivityId,
+                    activity.FileId,
+                    activity.FolderId,
+                    UserId = activity.UserId > 0 ? activity.UserId : userId,
+                    UserName = string.IsNullOrWhiteSpace(activity.UserName) ? userName : activity.UserName,
+                    Action = string.IsNullOrWhiteSpace(activity.Action) ? "Restored Activity" : activity.Action,
+                    activity.Details,
+                    activity.IpAddress,
+                    ActivityDate = activity.ActivityDate == default ? DateTime.UtcNow : activity.ActivityDate
+                }, insertActivityId);
+
+            if (insertActivityId)
+                await con.ExecuteAsync("SET IDENTITY_INSERT DocumentHubActivityLog OFF;", transaction: tx);
+        }
+
+        private static object NormalizeFolder(DocumentHubFolderDto folder) => new
+        {
+            folder.FolderId,
+            folder.ParentFolderId,
+            FolderName = string.IsNullOrWhiteSpace(folder.FolderName) ? "Restored Folder" : folder.FolderName,
+            folder.Department,
+            CreatedDate = folder.CreatedDate == default ? DateTime.UtcNow : folder.CreatedDate,
             LastUpdated = folder.LastUpdated,
-            IsDeleted = folder.IsDeleted
+            folder.IsDeleted,
+            folder.IsConfidential,
+            PinCode = folder.PinCode ?? string.Empty
         };
 
-        private static DocumentHubFileDto CloneFile(DocumentHubFileDto file) => new()
+        private static object NormalizeFile(DocumentHubFileDto file) => new
         {
-            FileId = file.FileId,
-            FolderId = file.FolderId,
-            FileName = file.FileName,
-            StoredFileName = file.StoredFileName,
-            ContentType = file.ContentType,
-            FileType = file.FileType,
-            UploadedBy = file.UploadedBy,
-            UploadedByUserId = file.UploadedByUserId,
-            UploadedDate = file.UploadedDate,
-            FileSize = file.FileSize,
-            VersionNumber = file.VersionNumber,
-            IsConfidential = file.IsConfidential,
-            IsFavorite = file.IsFavorite,
-            FileUrl = file.FileUrl,
-            IsDeleted = file.IsDeleted
+            file.FileId,
+            file.FolderId,
+            FileName = string.IsNullOrWhiteSpace(file.FileName) ? Path.GetFileName(file.StoredFileName) : file.FileName,
+            file.StoredFileName,
+            ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+            FileType = string.IsNullOrWhiteSpace(file.FileType) ? Path.GetExtension(file.FileName).TrimStart('.').ToUpperInvariant() : file.FileType,
+            file.FileSize,
+            UploadedBy = string.IsNullOrWhiteSpace(file.UploadedBy) ? "Restored" : file.UploadedBy,
+            UploadedByUserId = file.UploadedByUserId > 0 ? file.UploadedByUserId : 0,
+            UploadedDate = file.UploadedDate == default ? DateTime.UtcNow : file.UploadedDate,
+            VersionNumber = file.VersionNumber > 0 ? file.VersionNumber : 1,
+            file.IsConfidential,
+            file.IsDeleted,
+            file.IsFavorite,
+            Owner = string.IsNullOrWhiteSpace(file.Owner) ? file.UploadedBy : file.Owner,
+            PermissionGroup = string.IsNullOrWhiteSpace(file.PermissionGroup) ? "All" : file.PermissionGroup,
+            AccessLevel = string.IsNullOrWhiteSpace(file.AccessLevel) ? "Public" : file.AccessLevel,
+            Tags = file.Tags ?? string.Empty
         };
 
-        private static DocumentHubVersionDto CloneVersion(DocumentHubVersionDto version) => new()
+        private static object NormalizeVersion(DocumentHubVersionDto version, Dictionary<int, DocumentHubFileDto> fileMap, int userId, string userName)
         {
-            VersionId = version.VersionId,
-            FileId = version.FileId,
-            VersionNumber = version.VersionNumber,
-            StoredFileName = version.StoredFileName,
-            UploadedBy = version.UploadedBy,
-            UploadedDate = version.UploadedDate,
-            FileSize = version.FileSize
-        };
+            fileMap.TryGetValue(version.FileId, out var file);
+            var fileName = string.IsNullOrWhiteSpace(version.FileName) ? file?.FileName : version.FileName;
+            var contentType = string.IsNullOrWhiteSpace(version.ContentType) ? file?.ContentType : version.ContentType;
+            var fileType = string.IsNullOrWhiteSpace(version.FileType) ? file?.FileType : version.FileType;
 
-        private static DocumentHubActivityDto CloneActivity(DocumentHubActivityDto activity) => new()
+            return new
+            {
+                version.VersionId,
+                version.FileId,
+                VersionNumber = version.VersionNumber > 0 ? version.VersionNumber : 1,
+                FileName = string.IsNullOrWhiteSpace(fileName) ? "Restored File" : fileName,
+                version.StoredFileName,
+                ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
+                FileType = string.IsNullOrWhiteSpace(fileType) ? Path.GetExtension(fileName ?? string.Empty).TrimStart('.').ToUpperInvariant() : fileType,
+                version.FileSize,
+                UploadedBy = string.IsNullOrWhiteSpace(version.UploadedBy) ? userName : version.UploadedBy,
+                UploadedByUserId = version.UploadedByUserId > 0 ? version.UploadedByUserId : userId,
+                UploadedDate = version.UploadedDate == default ? DateTime.UtcNow : version.UploadedDate
+            };
+        }
+
+        private static HashSet<int> GetFolderRestoreScope(IEnumerable<DocumentHubFolderDto> folders, int folderId)
         {
-            ActivityId = activity.ActivityId,
-            FileId = activity.FileId,
-            FolderId = activity.FolderId,
-            UserName = activity.UserName,
-            ActivityDate = activity.ActivityDate,
-            Action = activity.Action,
-            Details = activity.Details
-        };
+            var folderList = folders.ToList();
+            var result = GetFolderAncestorScope(folderList, folderId);
+            var added = true;
+            while (added)
+            {
+                added = false;
+                foreach (var folder in folderList)
+                {
+                    if (folder.ParentFolderId.HasValue && result.Contains(folder.ParentFolderId.Value) && result.Add(folder.FolderId))
+                        added = true;
+                }
+            }
+            return result;
+        }
+
+        private static HashSet<int> GetFolderAncestorScope(IEnumerable<DocumentHubFolderDto> folders, int folderId)
+        {
+            var map = folders.ToDictionary(x => x.FolderId);
+            var result = new HashSet<int>();
+            var current = folderId;
+            while (map.TryGetValue(current, out var folder) && result.Add(folder.FolderId))
+            {
+                if (!folder.ParentFolderId.HasValue)
+                    break;
+                current = folder.ParentFolderId.Value;
+            }
+            return result;
+        }
+
+        private static IEnumerable<DocumentHubFolderDto> OrderFoldersForInsert(IEnumerable<DocumentHubFolderDto> folders)
+        {
+            var folderList = folders.ToList();
+            var map = folderList.ToDictionary(x => x.FolderId);
+            var emitted = new HashSet<int>();
+
+            foreach (var folder in folderList)
+                foreach (var orderedFolder in EmitFolder(folder, map, emitted))
+                    yield return orderedFolder;
+        }
+
+        private static IEnumerable<DocumentHubFolderDto> EmitFolder(DocumentHubFolderDto folder, Dictionary<int, DocumentHubFolderDto> map, HashSet<int> emitted)
+        {
+            if (emitted.Contains(folder.FolderId))
+                yield break;
+
+            if (folder.ParentFolderId.HasValue && map.TryGetValue(folder.ParentFolderId.Value, out var parent))
+            {
+                foreach (var parentFolder in EmitFolder(parent, map, emitted))
+                    yield return parentFolder;
+            }
+
+            if (emitted.Add(folder.FolderId))
+                yield return folder;
+        }
+
+        private static async Task<HashSet<string>> GetTableColumnNamesAsync(SqlConnection con, SqlTransaction? tx, string tableName)
+        {
+            var names = await con.QueryAsync<string>(@"
+SELECT c.name
+FROM sys.columns c
+WHERE c.object_id = OBJECT_ID(@TableName);",
+                new { TableName = tableName },
+                tx);
+
+            return names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static async Task InsertActivityAsync(SqlConnection con, SqlTransaction tx, HashSet<string> tableColumns, object activityValues, bool insertActivityId)
+        {
+            var preferredColumns = new[]
+            {
+                "ActivityId",
+                "FileId",
+                "FolderId",
+                "UserId",
+                "UserName",
+                "Action",
+                "Details",
+                "IpAddress",
+                "ActivityDate"
+            };
+
+            var valueType = activityValues.GetType();
+            var columns = new List<string>();
+            var parameters = new DynamicParameters();
+
+            foreach (var column in preferredColumns)
+            {
+                if (!tableColumns.Contains(column))
+                    continue;
+
+                if (column.Equals("ActivityId", StringComparison.OrdinalIgnoreCase) && !insertActivityId)
+                    continue;
+
+                var property = valueType.GetProperty(column);
+                if (property == null)
+                    continue;
+
+                columns.Add(column);
+                parameters.Add(column, property.GetValue(activityValues));
+            }
+
+            if (!columns.Any())
+                return;
+
+            var columnList = string.Join(", ", columns);
+            var valueList = string.Join(", ", columns.Select(x => "@" + x));
+            await con.ExecuteAsync(
+                $"INSERT INTO DocumentHubActivityLog ({columnList}) VALUES ({valueList});",
+                parameters,
+                tx);
+        }
+
+        private static async Task InsertVersionAsync(SqlConnection con, SqlTransaction tx, HashSet<string> tableColumns, object versionValues, bool insertVersionId)
+        {
+            var preferredColumns = new[]
+            {
+                "VersionId",
+                "FileId",
+                "VersionNumber",
+                "FileName",
+                "StoredFileName",
+                "ContentType",
+                "FileType",
+                "FileSize",
+                "UploadedBy",
+                "UploadedByUserId",
+                "UploadedDate"
+            };
+
+            var valueType = versionValues.GetType();
+            var columns = new List<string>();
+            var parameters = new DynamicParameters();
+
+            foreach (var column in preferredColumns)
+            {
+                if (!tableColumns.Contains(column))
+                    continue;
+
+                if (column.Equals("VersionId", StringComparison.OrdinalIgnoreCase) && !insertVersionId)
+                    continue;
+
+                var property = valueType.GetProperty(column);
+                if (property == null)
+                    continue;
+
+                columns.Add(column);
+                parameters.Add(column, property.GetValue(versionValues));
+            }
+
+            if (!columns.Any())
+                return;
+
+            var columnList = string.Join(", ", columns);
+            var valueList = string.Join(", ", columns.Select(x => "@" + x));
+            await con.ExecuteAsync(
+                $"INSERT INTO DocumentHubFileVersions ({columnList}) VALUES ({valueList});",
+                parameters,
+                tx);
+        }
+
+        private const string FileInsertSql = @"
+INSERT INTO DocumentHubFiles
+    (FileId, FolderId, FileName, StoredFileName, ContentType, FileType, FileSize, UploadedBy, UploadedByUserId, UploadedDate, VersionNumber, IsConfidential, IsDeleted, IsFavorite, Owner, PermissionGroup, AccessLevel, Tags)
+VALUES
+    (@FileId, @FolderId, @FileName, @StoredFileName, @ContentType, @FileType, @FileSize, @UploadedBy, @UploadedByUserId, @UploadedDate, @VersionNumber, @IsConfidential, @IsDeleted, @IsFavorite, @Owner, @PermissionGroup, @AccessLevel, @Tags);";
+
+        private const string FileUpdateSql = @"
+UPDATE DocumentHubFiles
+SET FolderId = @FolderId,
+    FileName = @FileName,
+    StoredFileName = @StoredFileName,
+    ContentType = @ContentType,
+    FileType = @FileType,
+    FileSize = @FileSize,
+    UploadedBy = @UploadedBy,
+    UploadedByUserId = @UploadedByUserId,
+    UploadedDate = @UploadedDate,
+    VersionNumber = @VersionNumber,
+    IsConfidential = @IsConfidential,
+    IsDeleted = @IsDeleted,
+    IsFavorite = @IsFavorite,
+    Owner = @Owner,
+    PermissionGroup = @PermissionGroup,
+    AccessLevel = @AccessLevel,
+    Tags = @Tags
+WHERE FileId = @FileId;";
     }
 }

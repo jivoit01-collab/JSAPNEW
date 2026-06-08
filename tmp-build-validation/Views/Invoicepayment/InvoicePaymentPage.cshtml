@@ -1,0 +1,903 @@
+﻿
+@{
+    ViewData["Title"] = "InvoicePaymentPage";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="~/css/bill-verification.css" />
+<link rel="stylesheet" href="~/css/admin-premium.css" />
+
+<!-- ═══════════════════════════════════
+     PREMIUM CONTENT
+═══════════════════════════════════ -->
+<div class="admin-dashboard-shell invoice-payment-shell">
+<nav class="premium-nav">
+    <div class="nav-glass">
+        <div class="nav-left-section">
+            <div class="brand-logo-wrap">
+                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+            </div>
+            <div class="brand-content">
+                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                <div class="brand-title">Invoice Payment Desk</div>
+                <div class="brand-subtitle">Approved bills • Vendor payments • Due tracking</div>
+            </div>
+        </div>
+
+        <div class="product-slider" aria-label="Product showcase">
+            <div class="product-track">
+                <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" alt="Juice product" />
+                <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" alt="Pomace oil" />
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                    <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
+            </div>
+        </div>
+
+        <div class="module-box invoice">
+            <span class="module-dot"></span>
+            <i class="fa-solid fa-money-check-dollar"></i>
+            <span>Invoice Payment</span>
+        </div>
+    </div>
+</nav>
+
+<!-- PRODUCT MODAL -->
+<div id="productModal" class="product-modal">
+
+    <span class="close-modal">&times;</span>
+
+    <img id="modalProductImage"
+         class="modal-product-image" />
+
+</div>
+
+<div class="body admin-dashboard-body">
+
+    <!-- KPI -->
+    <div class="kpi-grid">
+
+        <div class="kpi-card k-blue">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-total">0</div>
+                    <div class="kpi-label">Total Unpaid Bills</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-list-check fa-xs"></i> Ready</div>
+            </div>
+        </div>
+
+        <div class="kpi-card k-amber">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-unpaid">0</div>
+                    <div class="kpi-label">
+                        Pending Amount
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-clock fa-xs"></i> Pending</div>
+            </div>
+        </div>
+
+        <div class="kpi-card k-green">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-paid">0</div>
+                    <div class="kpi-label"> Vendors Pending </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-building"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-users fa-xs"></i> Vendors</div>
+            </div>
+        </div>
+
+        <div class="kpi-card k-purple">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="kpi-amount">0</div>
+                    <div class="kpi-label"> Overdue Bills </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-triangle-exclamation fa-xs"></i> Overdue</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- PDF -->
+    <div id="pdfContainer" class="pdf-modal">
+
+        <div class="pdf-box">
+
+            <button onclick="closePdf()"
+                    class="pdf-close">
+
+                ×
+
+            </button>
+
+            <iframe id="pdfFrame"></iframe>
+
+        </div>
+
+    </div>
+
+    <!-- FILTER -->
+    <div class="filter-card invoice-filter-card">
+
+        <div class="f-group">
+
+            <span class="f-label">
+                From Date
+            </span>
+
+            <input type="date"
+                   id="fromDate"
+                   class="f-input" />
+
+        </div>
+
+        <div class="f-group">
+
+            <span class="f-label">
+                To Date
+            </span>
+
+            <input type="date"
+                   id="toDate"
+                   class="f-input" />
+
+        </div>
+
+        <div class="f-group grow">
+
+            <span class="f-label">
+                Account Name
+            </span>
+
+            <input type="text"
+                   id="accountName"
+                   class="f-input"
+                   placeholder="Search account..." />
+
+        </div>
+
+        <button class="btn btn-dark admin-search-btn"
+                id="searchBtn">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            Search
+
+        </button>
+            <button class="btn btn-export"
+                    onclick="exportToExcel()">
+
+                <i class="fa-solid fa-file-excel"></i>
+
+                Export
+
+            </button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="t-card invoice-table-card">
+
+        <div class="t-header">
+
+            <span class="t-title">
+
+                <i class="fa-solid fa-money-check-dollar"></i>
+
+                Invoice Monitoring
+
+            </span>
+
+            <span class="t-count"
+                  id="rowCount">
+
+                0 records
+
+            </span>
+
+        </div>
+
+        <!-- HINT -->
+        <div class="table-slide-hint">
+
+            <i class="fa-solid fa-arrows-left-right"></i>
+
+            Slide horizontally to inspect all columns
+
+        </div>
+
+        <!-- TOP SCROLL -->
+        <div class="top-scroll"
+             id="topScroll">
+
+            <div class="top-scroll-inner"
+                 id="topScrollInner">
+            </div>
+
+        </div>
+
+        <!-- TABLE -->
+        <div class="t-wrap"
+             id="tableWrap">
+
+            <table class="dt invoice-payment-table"
+                   id="mainTable">
+
+                <colgroup>
+                    <col class="col-account" />
+                    <col class="col-voucher" />
+                    <col class="col-date" />
+                    <col class="col-amount" />
+                    <col class="col-supplier" />
+                    <col class="col-date" />
+                    <col class="col-date" />
+                    <col class="col-attachment" />
+                    <col class="col-checker-status" />
+                    <col class="col-payment-status" />
+                    <col class="col-maker-remark" />
+                    <col class="col-checker-remark" />
+                </colgroup>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Account</th>
+                        <th>Voucher</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Supplier Ref</th>
+                        <th>Ref Date</th>
+                        <th>Due Date</th>
+                        <th>Attachment</th>
+             
+                        <th>Checker Status</th>
+                        <th>Payment Status</th>
+                        <th>Maker Remark</th>
+                        <th>Checker Remark</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="PaymentTable">
+
+                    <tr>
+
+                        <td colspan="12"
+                            class="empty-row">
+
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+</div><!-- /.invoice-payment-shell -->
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+
+    /* ═══════════════════════════════════════
+    PRODUCT IMAGE MODAL
+    ═══════════════════════════════════════ */
+    let _invoiceDataCache = [];
+
+    $(document).on("click", ".clickable-product", function () {
+
+    $("#modalProductImage")
+    .attr("src", $(this).attr("src"));
+
+    $("#productModal")
+    .css("display", "flex");
+
+    });
+
+    $(".close-modal, #productModal").on("click", function (e) {
+
+    if (
+    e.target.id === "productModal"
+    ||
+    $(e.target).hasClass("close-modal")
+    ) {
+
+    $("#productModal").hide();
+
+    }
+
+    });
+
+    /* ═══════════════════════════════════════
+    KPI
+    ═══════════════════════════════════════ */
+
+    function updateKPIs(data) {
+
+    if (!data || data.length === 0) {
+
+    $("#kpi-total").text("0");
+
+    $("#kpi-unpaid").text("₹0");
+
+    $("#kpi-paid").text("0");
+
+    $("#kpi-amount").text("0");
+
+    return;
+    }
+
+    /* approved + unpaid from selected range */
+
+    const unpaidBills = data.filter(x =>
+
+    x.checkerStatus === "Approved"
+    &&
+    x.paymentStatus === "UnPaid"
+
+    );
+
+    /* unique vouchers */
+
+    const uniqueBills = [
+    ...new Map(
+    unpaidBills.map(x => [x.vchNumber, x])
+    ).values()
+    ];
+
+    /* total pending amount */
+
+    const totalAmount =
+    uniqueBills.reduce((sum, x) =>
+
+    sum + (parseFloat(x.billAmount) || 0)
+
+    , 0);
+
+    /* unique vendors */
+
+    const vendors =
+    new Set(
+    uniqueBills.map(x => x.accountName)
+    ).size;
+
+    /* overdue bills */
+
+    const today = new Date();
+
+    today.setHours(0,0,0,0);
+
+    const overdue =
+    uniqueBills.filter(x => {
+
+    if (!x.dueDate) return false;
+
+    const due = new Date(x.dueDate);
+
+    due.setHours(0,0,0,0);
+
+    return due < today;
+
+    }).length;
+
+    $("#kpi-total").text(
+    uniqueBills.length
+    );
+
+    $("#kpi-unpaid").text(
+    "₹" +
+    totalAmount.toLocaleString("en-IN")
+    );
+
+    $("#kpi-paid").text(
+    vendors
+    );
+
+    $("#kpi-amount").text(
+    overdue
+    );
+
+    }
+
+    /* ═══════════════════════════════════════
+    LOAD DATA
+    ═══════════════════════════════════════ */
+
+    function loadData() {
+
+    let fromDate = $("#fromDate").val();
+
+    let toDate = $("#toDate").val();
+
+    let accountName =
+    $("#accountName").val().trim() || null;
+
+    $("#PaymentTable").html(`
+    <tr>
+    <td colspan="12"
+    class="empty-row">
+
+    <i class="fa-solid fa-spinner fa-spin"></i>
+
+    </td>
+    </tr>
+    `);
+
+    $.get("/InvoicePayment/GetBillDetails", {
+
+    fromDate: fromDate,
+    toDate: toDate,
+    accountName: accountName
+
+    }, function (data) {
+
+    let d = data || [];
+
+    updateKPIs(d);
+
+    renderTable(d);
+
+    }).fail(function () {
+
+    $("#PaymentTable").html(`
+    <tr>
+    <td colspan="12"
+    class="empty-row"
+    style="color:#EF4444">
+
+    Error loading data
+
+    </td>
+    </tr>
+    `);
+
+    }).always(function () {
+
+    $("#searchBtn")
+    .prop("disabled", false)
+    .html(`
+    <i class="fa-solid fa-magnifying-glass"></i>
+    Search
+    `);
+
+    });
+
+    }
+
+    function safeText(value) {
+
+    if (value === null || value === undefined || value === "") return "-";
+
+    return $("<div>").text(value).html();
+
+    }
+
+    function safeAttr(value) {
+
+    return safeText(value).replace(/"/g, "&quot;");
+
+    }
+
+    function safeValueAttr(value) {
+
+    if (value === null || value === undefined) return "";
+
+    return $("<div>").text(value).html().replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+    }
+
+    function safeJsString(value) {
+
+    return JSON.stringify(value || "").replace(/"/g, "&quot;");
+
+    }
+
+    /* ═══════════════════════════════════════
+    TABLE
+    ═══════════════════════════════════════ */
+
+    function renderTable(data) {
+
+    if (!data || data.length === 0) {
+
+
+    $("#rowCount").text("0 records");
+
+    $("#PaymentTable").html(`
+    <tr>
+    <td colspan="12"
+    class="empty-row">
+
+    No Data Found
+
+    </td>
+    </tr>
+    `);
+
+    syncTopScroll();
+
+    return;
+    }
+    _invoiceDataCache = data || [];
+
+    let approvedData = data.filter(item =>
+
+    item.checkerStatus === "Approved"
+    &&
+    item.paymentStatus === "UnPaid"
+
+    );
+
+    if (approvedData.length === 0) {
+
+    $("#rowCount").text("0 records");
+
+    $("#PaymentTable").html(`
+    <tr>
+    <td colspan="12"
+    class="empty-row">
+
+    No Approved Records
+
+    </td>
+    </tr>
+    `);
+
+    syncTopScroll();
+
+    return;
+    }
+
+    $("#rowCount").text(
+    approvedData.length + " records"
+    );
+
+    let html = "";
+
+    approvedData.forEach(item => {
+
+    let checkerBadge =
+    `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Approved</span>`;
+
+    let paymentBadge =
+    item.paymentStatus === "Paid"
+    ?
+    `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
+    :
+    `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> UnPaid</span>`;
+
+    let attachHtml =
+    item.attachmentPath
+    ?
+    `<a href="#"
+    onclick="openPdf(${safeJsString(item.attachmentPath)});return false;"
+    class="attach-view">
+
+    <i class="fa-solid fa-eye"></i>
+
+    View
+
+    </a>`
+    :
+    `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
+
+    html += `
+
+    <tr>
+
+    <td class="td-account" title="${safeAttr(item.accountName ?? '')}">
+    <span class="cell-text">${safeText(item.accountName ?? "")}</span>
+    </td>
+
+    <td class="td-voucher">
+    <span class="cell-text">${safeText(item.vchNumber ?? "")}</span>
+    </td>
+
+    <td class="td-date">
+    <span class="cell-text">${safeText(formatDate(item.voucherDate))}</span>
+    </td>
+
+    <td class="td-amount">
+    <span class="cell-text">&#8377;${safeText(item.billAmount ?? "")}</span>
+    </td>
+
+    <td class="td-supplier" title="${safeAttr(item.supplierRef || '-')}">
+    <span class="cell-text">${safeText(item.supplierRef || "-")}</span>
+    </td>
+
+    <td class="td-date">
+    <span class="cell-text">${safeText(formatDate(item.supplierRefDate))}</span>
+    </td>
+
+    <td class="td-date">
+    <span class="cell-text">${safeText(formatDate(item.dueDate))}</span>
+    </td>
+
+    <td class="td-attachment">
+    ${attachHtml}
+    </td>
+
+    <td class="td-status">
+    ${checkerBadge}
+    </td>
+
+    <td class="td-status">
+    ${paymentBadge}
+    </td>
+    <td class="td-remark" title="${safeAttr(item.makerRemark ?? '-')}">
+    <span class="cell-text clamp-text">${safeText(item.makerRemark ?? "-")}</span>
+    </td>
+
+    <td class="td-remark" title="${safeAttr(item.checkerRemark ?? '-')}">
+    <span class="cell-text clamp-text">${safeText(item.checkerRemark ?? "-")}</span>
+    </td>
+
+    </tr>
+    `;
+    });
+
+    $("#PaymentTable").html(html);
+
+    syncTopScroll();
+
+    }
+
+    /* ═══════════════════════════════════════
+    DATE FORMAT
+    ═══════════════════════════════════════ */
+
+    function formatDate(ds) {
+
+    if (!ds) return "";
+
+    const d = new Date(ds);
+
+    if (isNaN(d)) return ds;
+
+    return d.toISOString().split("T")[0];
+
+    }
+
+    /* ═══════════════════════════════════════
+    PDF
+    ═══════════════════════════════════════ */
+
+    function openPdf(path) {
+
+    document.getElementById("pdfFrame").src = path;
+
+    document.getElementById("pdfContainer")
+    .style.display = "flex";
+
+    }
+
+    function closePdf() {
+
+    document.getElementById("pdfContainer")
+    .style.display = "none";
+
+    document.getElementById("pdfFrame").src = "";
+
+    }
+
+    /* ═══════════════════════════════════════
+    TOP SCROLL
+    ═══════════════════════════════════════ */
+
+    function initScrollSync() {
+
+    const top =
+    document.getElementById("topScroll");
+
+    const wrap =
+    document.getElementById("tableWrap");
+
+    if (!top || !wrap) return;
+
+    let lockTop = false;
+    let lockWrap = false;
+
+    top.addEventListener("scroll", function () {
+
+    if (lockWrap) return;
+
+    lockTop = true;
+
+    wrap.scrollLeft = top.scrollLeft;
+
+    lockTop = false;
+
+    });
+
+    wrap.addEventListener("scroll", function () {
+
+    if (lockTop) return;
+
+    lockWrap = true;
+
+    top.scrollLeft = wrap.scrollLeft;
+
+    lockWrap = false;
+
+    });
+
+    }
+
+    function syncTopScroll() {
+
+    requestAnimationFrame(function () {
+
+    const table =
+    document.getElementById("mainTable");
+
+    const inner =
+    document.getElementById("topScrollInner");
+
+    if (!table || !inner) return;
+
+    inner.style.width =
+    table.scrollWidth + "px";
+
+    });
+
+    }
+
+    /* ═══════════════════════════════════════
+    SEARCH BUTTON
+    ═══════════════════════════════════════ */
+
+    $("#searchBtn").click(function () {
+
+    let btn = $(this);
+
+    btn.prop("disabled", true);
+
+    btn.html(`
+    <i class="fa-solid fa-spinner fa-spin"></i>
+    Loading...
+    `);
+
+    loadData();
+
+    });
+
+    /* ═══════════════════════════════════════
+    INIT
+    ═══════════════════════════════════════ */
+
+    $(document).ready(function () {
+
+    initScrollSync();
+
+    loadData();
+
+    });
+    function exportToExcel() {
+
+    var data = (_invoiceDataCache || []).filter(function(item) {
+    return item.checkerStatus === "Approved" && item.paymentStatus === "UnPaid";
+    });
+
+    if (!data.length) { alert("No data to export"); return; }
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "invoice-payment_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
+    "Account Name","Voucher No","Voucher Date","Bill Amount",
+    "Supplier Ref","Ref Date","Due Date",
+    "Checker Status","Payment Status",
+    "Maker Remark","Checker Remark"
+    ]);
+
+    data.forEach(function(item) {
+    rows.push([
+    item.accountName   || "",
+    item.vchNumber     || "",
+    formatDate(item.voucherDate)      || "",
+    item.billAmount    || "",
+    item.supplierRef   || "",
+    formatDate(item.supplierRefDate)  || "",
+    formatDate(item.dueDate)          || "",
+    item.checkerStatus || "",
+    item.paymentStatus || "",
+    item.makerRemark   || "",
+    item.checkerRemark || ""
+    ]);
+    });
+
+    var totalAmt    = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
+    var overdue     = 0;
+    var today       = new Date(); today.setHours(0,0,0,0);
+    data.forEach(function(x) {
+    if (x.dueDate) { var d = new Date(x.dueDate); d.setHours(0,0,0,0); if(d<today) overdue++; }
+    });
+    var vendors = new Set(data.map(function(x){ return x.accountName; })).size;
+
+    rows.push([]);
+    rows.push(["TOTALS","","","₹" + totalAmt.toLocaleString("en-IN"),"","","","","","",""]);
+    rows.push(["Unique Vendors","" + vendors,"Overdue Bills","" + overdue,"","","","","","",""]);
+
+    downloadCSV(rows, filename);
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
+
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    }
+
+</script>

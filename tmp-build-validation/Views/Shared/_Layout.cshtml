@@ -1,0 +1,1852 @@
+﻿@using Newtonsoft.Json
+@using JSAPNEW.Controllers
+@{
+    Layout = null;
+
+    // Safe access to session values with null checks
+    var companyJson = Context.Session.GetString("companyList");
+    var selectedCompanyId = Context.Session.GetInt32("selectedCompanyId");
+    var username = Context.Session.GetString("username") ?? "Guest";
+    var userId = Context.Session.GetInt32("userId"); // Get userId from session
+
+    List<CompanyDto> companies = new List<CompanyDto>();
+    if (!string.IsNullOrEmpty(companyJson))
+    {
+        try
+        {
+            companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companyJson);
+        }
+        catch (Exception ex)
+        {
+            // Could log the error here
+            // For now, just ensure companies is initialized
+            companies = new List<CompanyDto>();
+        }
+    }
+
+    // If companies list is empty or session is invalid, you might want to redirect
+    if (companies.Count == 0)
+    {
+        // Option 1: Redirect to login
+        // return Redirect("/Login/Index");
+
+        // Option 2: Just display a message (we'll handle with JS later)
+    }
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
+
+    <style>
+        /* ============================================
+                                                           ROOT VARIABLES
+                                                           ============================================ */
+        :root {
+            --primary-color: #0b2c4d;
+            --primary-light: #1c3f5d;
+            --primary-dark: #051626;
+            --sidebar-width: 280px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 60px;
+        }
+
+        /* ============================================
+                                                           COMPANY DROPDOWN STYLING
+                                                           ============================================ */
+        #companyDropdown {
+            color: var(--primary-color);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding: 2px 30px 8px 12px;
+            background-image: url("data:image/svg+xml;utf8,<svg fill='%230b2c4d' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 18px;
+            border: 2px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+            #companyDropdown:focus {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(11, 44, 77, 0.1);
+            }
+
+            #companyDropdown option {
+                color: var(--primary-color);
+                font-weight: 600;
+                padding: 10px;
+            }
+
+        .company-section {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ============================================
+                                                           BASE STYLES
+                                                           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        /* ============================================
+                                                           HEADER STYLING
+                                                           ============================================ */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: var(--header-height);
+            background-color: #ffffff;
+            border-bottom: 2px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(11, 44, 77, 0.08);
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+        }
+
+            .header h4 {
+                color: var(--primary-color);
+                margin: 0;
+                font-size: 20px;
+                font-weight: 700;
+            }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-settings-btn {
+            border: 2px solid #e2e8f0;
+            background: #fff;
+            color: var(--primary-color);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+        }
+
+            .page-settings-btn:hover {
+                border-color: var(--primary-color);
+                box-shadow: 0 6px 18px rgba(11, 44, 77, 0.12);
+                transform: translateY(-1px);
+            }
+
+        /* ============================================
+                                                           HAMBURGER MENU BUTTON
+                                                           ============================================ */
+        .hamburger-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--primary-color);
+            margin-right: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 28px;
+            height: 22px;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+
+            .hamburger-btn:hover {
+                opacity: 0.7;
+            }
+
+            .hamburger-btn span {
+                display: block;
+                height: 3px;
+                width: 100%;
+                background-color: var(--primary-color);
+                border-radius: 2px;
+                transition: all 0.3s ease;
+            }
+
+            .hamburger-btn:hover span {
+                background-color: var(--primary-light);
+            }
+
+        /* ============================================
+                                                           SIDEBAR STYLING - FIXED VERSION
+                                                           ============================================ */
+        .sidebar {
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            width: var(--sidebar-width);
+            height: calc(100vh - var(--header-height));
+            background-color: var(--primary-color);
+            color: white;
+            z-index: 1000;
+            padding: 0;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+            /* Collapsed sidebar */
+            .sidebar.collapsed {
+                width: var(--sidebar-collapsed-width);
+            }
+
+        /* Sidebar Content Container */
+        .sidebar-content {
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            padding: 10px 0;
+        }
+
+        /* ============================================
+                                                           MENU ITEM STYLING - ENLARGED
+                                                           ============================================ */
+        .sidebar .menu-item {
+            padding: 16px 20px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 15px;
+            font-weight: 500;
+            border-left: 4px solid transparent;
+        }
+
+            .sidebar .menu-item:hover {
+                background-color: var(--primary-light);
+                border-left-color: #3498db;
+                padding-left: 25px;
+            }
+
+            .sidebar .menu-item.active {
+                background-color: var(--primary-light);
+                border-left-color: #3498db;
+                color: white;
+                font-weight: 600;
+            }
+
+            /* Menu Icons - LARGER SIZE */
+            .sidebar .menu-item i {
+                font-size: 20px;
+                min-width: 30px;
+                width: 30px;
+                margin-right: 15px;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Menu Text - LARGER FONT */
+            .sidebar .menu-item .menu-text {
+                flex: 1;
+                font-size: 15px;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+        /* Arrow Icon */
+        .arrow {
+            position: absolute;
+            right: 20px;
+            font-size: 12px;
+            transition: transform 0.3s ease;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .menu-item.active .arrow {
+            transform: rotate(90deg);
+            color: white;
+        }
+
+        /* ============================================
+                                                           SUBMENU STYLING - ENLARGED
+                                                           ============================================ */
+        .submenu {
+            display: none;
+            background-color: rgba(0, 0, 0, 0.2);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .menu-item.active + .submenu {
+            display: block;
+            max-height: 500px;
+        }
+
+        .submenu a {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px 14px 60px;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 400;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+            .submenu a:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                color: white;
+                padding-left: 65px;
+                border-left-color: rgba(255, 255, 255, 0.3);
+            }
+
+            .submenu a:active,
+            .submenu a.active {
+                background-color: rgba(255, 255, 255, 0.15);
+                color: white;
+                font-weight: 500;
+            }
+
+        /* Badge Styling */
+        .badge {
+            background-color: #e74c3c;
+            border-radius: 12px;
+            padding: 3px 9px;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            margin-left: auto;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* ============================================
+                                                           COLLAPSED SIDEBAR STYLES
+                                                           ============================================ */
+        .sidebar.collapsed .menu-text,
+        .sidebar.collapsed .arrow,
+        .sidebar.collapsed .submenu,
+        .sidebar.collapsed .badge {
+            display: none;
+        }
+
+        .sidebar.collapsed .menu-item {
+            padding: 18px 0;
+            text-align: center;
+            justify-content: center;
+            border-left: none;
+        }
+
+            .sidebar.collapsed .menu-item:hover {
+                padding-left: 0;
+            }
+
+            .sidebar.collapsed .menu-item i {
+                margin-right: 0;
+                font-size: 24px;
+            }
+
+        /* ============================================
+                                                           SIDEBAR USER SECTION
+                                                           ============================================ */
+        .sidebar-user {
+            margin-top: auto;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .sidebar-user i {
+                font-size: 24px;
+                color: rgba(255, 255, 255, 0.9);
+            }
+
+            .sidebar-user h6 {
+                margin: 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: white;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+        .sidebar.collapsed .sidebar-user {
+            padding: 20px 10px;
+            justify-content: center;
+        }
+
+            .sidebar.collapsed .sidebar-user h6 {
+                display: none;
+            }
+
+            .sidebar.collapsed .sidebar-user i {
+                font-size: 28px;
+            }
+
+        /* ============================================
+                                                           MAIN CONTENT AREA
+                                                           ============================================ */
+        .main-body {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 25px;
+            transition: margin-left 0.3s ease;
+            min-height: calc(100vh - var(--header-height));
+        }
+
+            .main-body.collapsed {
+                margin-left: var(--sidebar-collapsed-width);
+            }
+
+        /* ============================================
+                                                           CARDS AND INFO SECTIONS
+                                                           ============================================ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .info-card {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(11, 44, 77, 0.08);
+            transition: all 0.3s ease;
+        }
+
+            .info-card:hover {
+                box-shadow: 0 4px 12px rgba(11, 44, 77, 0.15);
+                transform: translateY(-3px);
+            }
+
+            .info-card h3 {
+                margin: 0 0 12px 0;
+                color: var(--primary-color);
+                font-size: 18px;
+                font-weight: 700;
+            }
+
+            .info-card p {
+                margin: 8px 0;
+                color: #64748b;
+                font-size: 14px;
+            }
+
+        /* ============================================
+                                                           FOOTER
+                                                           ============================================ */
+        footer {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 15px;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-body.collapsed ~ footer {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        /* ============================================
+                                                           BOOTSTRAP OVERRIDES
+                                                           ============================================ */
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(11, 44, 77, 0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            color: white;
+            font-weight: 600;
+            border-radius: 10px 10px 0 0 !important;
+        }
+
+        .alert {
+            border-radius: 8px;
+        }
+
+        .btn-outline-danger {
+            border-width: 2px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+            .btn-outline-danger:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+            }
+
+        /* ============================================
+                                                           LOADING STATES
+                                                           ============================================ */
+        .menu-loading {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+            .menu-loading p {
+                margin-top: 15px;
+                font-size: 14px;
+            }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @@keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ============================================
+                                                           PERMISSION DENIED OVERLAY
+                                                           ============================================ */
+        .permission-denied-overlay {
+            display: none;
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .permission-denied-content {
+            background: white;
+            padding: 50px 40px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(11, 44, 77, 0.3);
+            text-align: center;
+            max-width: 500px;
+            margin: 0 20px;
+            animation: slideUp 0.4s ease;
+        }
+
+        @@keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .permission-denied-icon {
+            font-size: 72px;
+            color: #e74c3c;
+            margin-bottom: 25px;
+            animation: shake 0.5s ease;
+        }
+
+        @@keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        .permission-denied-content h2 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .permission-denied-content p {
+            color: #64748b;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .permission-denied-content .company-name {
+            color: #3498db;
+            font-weight: 700;
+        }
+
+        .btn-back-dashboard {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .btn-back-dashboard:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(11, 44, 77, 0.3);
+            }
+
+            .btn-back-dashboard i {
+                font-size: 18px;
+            }
+
+        /* ============================================
+                                                           SCROLLBAR STYLING
+                                                           ============================================ */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+            .sidebar::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+
+        /* ============================================
+                                                           RESPONSIVE DESIGN
+                                                           ============================================ */
+        @@media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+                .sidebar.open {
+                    transform: translateX(0);
+                }
+
+            .main-body,
+            footer {
+                margin-left: 0 !important;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .header {
+                padding: 0 15px;
+            }
+
+                .header h4 {
+                    font-size: 16px;
+                }
+
+            #companyDropdown {
+                width: 180px !important;
+                font-size: 12px;
+            }
+
+            .header-actions {
+                gap: 8px;
+            }
+
+            .page-settings-btn {
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+
+            .main-body {
+                padding: 15px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 768px) {
+
+            .bill-ui table {
+                font-size: 12px;
+            }
+
+            .bill-ui .btn {
+                font-size: 12px;
+                padding: 4px 6px;
+            }
+
+            .bill-ui input,
+            .bill-ui select {
+                font-size: 12px;
+            }
+
+            .bill-ui iframe {
+                height: 70vh !important;
+            }
+        }
+
+        .global-settings-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 22, 38, 0.45);
+            backdrop-filter: blur(4px);
+            z-index: 1200;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+            .global-settings-modal.open {
+                display: flex;
+            }
+
+        .global-settings-box {
+            width: min(560px, 100%);
+            max-height: 88vh;
+            overflow: auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 30px 80px rgba(11, 44, 77, 0.28);
+            padding: 22px;
+        }
+
+        .global-settings-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .global-settings-title {
+            color: var(--primary-color);
+            font-size: 22px;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .global-settings-note {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+
+        .global-settings-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .gs-row {
+            display: grid;
+            grid-template-columns: 150px 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .gs-label {
+            color: var(--primary-color);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .gs-slider {
+            width: 100%;
+            accent-color: var(--primary-color);
+        }
+
+        .gs-value {
+            min-width: 72px;
+            text-align: right;
+            color: var(--primary-color);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .gs-color {
+            width: 50px;
+            height: 36px;
+            border: 1px solid #dbe4ef;
+            border-radius: 10px;
+            background: transparent;
+            padding: 3px;
+            cursor: pointer;
+        }
+
+        .gs-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .gs-check {
+            border: 1px solid #dbe4ef;
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fbff;
+        }
+
+            .gs-check input {
+                accent-color: var(--primary-color);
+                width: 15px;
+                height: 15px;
+            }
+
+        .gs-preview {
+            margin-top: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+            padding: 16px;
+        }
+
+            .gs-preview h6 {
+                margin: 0 0 8px 0;
+                color: var(--primary-color);
+                font-size: 16px;
+                font-weight: 800;
+            }
+
+            .gs-preview p {
+                margin: 0;
+                color: #64748b;
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+        .gs-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .page-custom-scope {
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="wrapper">
+        <!-- HEADER -->
+        <div class="header">
+            <div style="display: flex; align-items: center;">
+                <button class="hamburger-btn" id="sidebarToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <img src="~/images/JSAP-LOGO.png" height="35" width="35" style="margin-right:10px" alt="Logo">
+                <h4><strong>JSAP</strong></h4>
+            </div>
+
+            <div id="sessionError" class="alert alert-danger" style="display:none; margin:0; padding:10px;">
+                Session expired or invalid. Please <a href="/Login/Index">login again</a>.
+            </div>
+
+            <div class="header-actions">
+                <div>
+                    <div style="display: flex; align-items: center;">
+                        <label for="companyDropdown" style="margin-right: 10px; font-weight: 650; font-size: 15px; color: var(--primary-color);">Company:</label>
+                        <select id="companyDropdown" class="form-control form-control-sm" style="width: 250px;">
+                            @if (companies != null && companies.Count > 0)
+                            {
+                                foreach (var company in companies)
+                                {
+                                    if (company.id == selectedCompanyId)
+                                    {
+                                        <option value="@company.id" data-name="@company.company" selected>@company.company</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@company.id" data-name="@company.company">@company.company</option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option value="">No companies available</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button type="button" class="page-settings-btn" onclick="openGlobalPageSettings()">
+                    <i class="fas fa-sliders-h"></i> Page Settings
+                </button>
+                <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-menu" id="dynamicMenu">
+                    <!-- Loading indicator -->
+                    <div class="menu-loading" id="menuLoading">
+                        <div class="spinner"></div>
+                        <p>Loading menu...</p>
+                    </div>
+                    <!-- Menu will be generated here dynamically -->
+                </div>
+
+                <!-- User section at bottom -->
+                <div class="sidebar-user">
+                    <i class="fas fa-user-circle"></i>
+                    <h6>@username</h6>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permission Denied Overlay -->
+        <div class="permission-denied-overlay" id="permissionDeniedOverlay">
+            <div class="permission-denied-content">
+                <div class="permission-denied-icon">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2>Access Denied</h2>
+                <p>You don't have permission to access this page in <span class="company-name" id="deniedCompanyName"></span></p>
+                <button class="btn-back-dashboard" onclick="redirectToDashboard()">
+                    <i class="fas fa-home"></i> Go to Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="global-settings-modal" id="globalPageSettingsModal">
+            <div class="global-settings-box">
+                <div class="global-settings-head">
+                    <h3 class="global-settings-title">Page Settings</h3>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeGlobalPageSettings()">Close</button>
+                </div>
+                <div class="global-settings-note">
+                    Current page ke liye text size, style, color aur formatting change kar sakte ho. Yeh setting isi page ke liye browser me save rahegi.
+                </div>
+
+                <div class="global-settings-grid">
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalFontSize">Text Size</label>
+                        <input class="gs-slider" id="globalFontSize" type="range" min="11" max="22" step="1" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalFontSizeValue">13px</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalFontFamily">Text Style</label>
+                        <select id="globalFontFamily" class="form-control form-control-sm" onchange="previewGlobalPageSettings()">
+                            <option value="">Default</option>
+                            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                            <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                        </select>
+                        <span class="gs-value" id="globalFontFamilyValue">Default</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalTextColor">Text Color</label>
+                        <input class="gs-color" id="globalTextColor" type="color" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalTextColorValue">Default</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalAccentColor">Accent</label>
+                        <input class="gs-color" id="globalAccentColor" type="color" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalAccentColorValue">Default</span>
+                    </div>
+
+                    <div class="gs-row">
+                        <label class="gs-label" for="globalBgColor">Page Background</label>
+                        <input class="gs-color" id="globalBgColor" type="color" oninput="previewGlobalPageSettings()" />
+                        <span class="gs-value" id="globalBgColorValue">Default</span>
+                    </div>
+
+                    <div>
+                        <div class="gs-label" style="margin-bottom:10px;">Formatting</div>
+                        <div class="gs-checks">
+                            <label class="gs-check"><input type="checkbox" id="globalBoldToggle" onchange="previewGlobalPageSettings()" /> Bold</label>
+                            <label class="gs-check"><input type="checkbox" id="globalUnderlineToggle" onchange="previewGlobalPageSettings()" /> Underline</label>
+                            <label class="gs-check"><input type="checkbox" id="globalHighlightToggle" onchange="previewGlobalPageSettings()" /> Highlight</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gs-preview">
+                    <h6>Live Preview</h6>
+                    <p>Open page ke content par ye changes lagenge. Har page apni alag setting use kar sakta hai.</p>
+                </div>
+
+                <div class="gs-actions">
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetGlobalPageSettings()">Reset Default</button>
+                    <button type="button" class="btn btn-primary" onclick="applyGlobalPageSettings()">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-body page-custom-scope" id="mainBody">
+            @RenderBody()
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- At the end of body -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const GLOBAL_PAGE_SETTINGS_BASE = 13;
+        const GLOBAL_PAGE_SETTINGS_PREFIX = 'jsap_page_settings::';
+        const GLOBAL_PAGE_SETTINGS_DEFAULTS = {
+            fontSize: GLOBAL_PAGE_SETTINGS_BASE,
+            fontFamily: '',
+            textColor: '',
+            accentColor: '',
+            bgColor: '',
+            bold: false,
+            underline: false,
+            highlight: false
+        };
+        let globalPageSettingsObserver = null;
+
+        function getGlobalPageSettingsKey() {
+            return `${GLOBAL_PAGE_SETTINGS_PREFIX}${window.location.pathname.toLowerCase()}`;
+        }
+
+        function getStoredGlobalPageSettings() {
+            try {
+                const raw = localStorage.getItem(getGlobalPageSettingsKey());
+                if (!raw) return { ...GLOBAL_PAGE_SETTINGS_DEFAULTS };
+                return { ...GLOBAL_PAGE_SETTINGS_DEFAULTS, ...JSON.parse(raw) };
+            } catch (e) {
+                return { ...GLOBAL_PAGE_SETTINGS_DEFAULTS };
+            }
+        }
+
+        function openGlobalPageSettings() {
+            const settings = getStoredGlobalPageSettings();
+            document.getElementById('globalFontSize').value = settings.fontSize || GLOBAL_PAGE_SETTINGS_BASE;
+            document.getElementById('globalFontFamily').value = settings.fontFamily || '';
+            document.getElementById('globalTextColor').value = settings.textColor || '#0f172a';
+            document.getElementById('globalAccentColor').value = settings.accentColor || '#0b2c4d';
+            document.getElementById('globalBgColor').value = settings.bgColor || '#f8f9fa';
+            document.getElementById('globalBoldToggle').checked = !!settings.bold;
+            document.getElementById('globalUnderlineToggle').checked = !!settings.underline;
+            document.getElementById('globalHighlightToggle').checked = !!settings.highlight;
+            previewGlobalPageSettings();
+            document.getElementById('globalPageSettingsModal').classList.add('open');
+        }
+
+        function closeGlobalPageSettings() {
+            document.getElementById('globalPageSettingsModal').classList.remove('open');
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), getStoredGlobalPageSettings());
+        }
+
+        function getGlobalPageSettingsFromInputs() {
+            return {
+                fontSize: parseInt(document.getElementById('globalFontSize').value, 10) || GLOBAL_PAGE_SETTINGS_BASE,
+                fontFamily: document.getElementById('globalFontFamily').value || '',
+                textColor: document.getElementById('globalTextColor').value || '',
+                accentColor: document.getElementById('globalAccentColor').value || '',
+                bgColor: document.getElementById('globalBgColor').value || '',
+                bold: document.getElementById('globalBoldToggle').checked,
+                underline: document.getElementById('globalUnderlineToggle').checked,
+                highlight: document.getElementById('globalHighlightToggle').checked
+            };
+        }
+
+        function previewGlobalPageSettings() {
+            const settings = getGlobalPageSettingsFromInputs();
+            document.getElementById('globalFontSizeValue').textContent = `${settings.fontSize}px`;
+            document.getElementById('globalFontFamilyValue').textContent = getGlobalFontFamilyLabel(settings.fontFamily);
+            document.getElementById('globalTextColorValue').textContent = settings.textColor ? settings.textColor.toUpperCase() : 'Default';
+            document.getElementById('globalAccentColorValue').textContent = settings.accentColor ? settings.accentColor.toUpperCase() : 'Default';
+            document.getElementById('globalBgColorValue').textContent = settings.bgColor ? settings.bgColor.toUpperCase() : 'Default';
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), settings);
+        }
+
+        function applyGlobalPageSettings() {
+            const settings = getGlobalPageSettingsFromInputs();
+            localStorage.setItem(getGlobalPageSettingsKey(), JSON.stringify(settings));
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), settings);
+            closeGlobalPageSettings();
+        }
+
+        function resetGlobalPageSettings() {
+            localStorage.removeItem(getGlobalPageSettingsKey());
+            document.getElementById('globalFontSize').value = GLOBAL_PAGE_SETTINGS_BASE;
+            document.getElementById('globalFontFamily').value = '';
+            document.getElementById('globalTextColor').value = '#0f172a';
+            document.getElementById('globalAccentColor').value = '#0b2c4d';
+            document.getElementById('globalBgColor').value = '#f8f9fa';
+            document.getElementById('globalBoldToggle').checked = false;
+            document.getElementById('globalUnderlineToggle').checked = false;
+            document.getElementById('globalHighlightToggle').checked = false;
+            previewGlobalPageSettings();
+        }
+
+        function applyGlobalPageSettingsToScope(scope, settings) {
+            if (!(scope instanceof HTMLElement)) return;
+
+            scope.style.backgroundColor = settings.bgColor || '';
+            scope.style.color = settings.textColor || '';
+            scope.style.setProperty('--primary-color', settings.accentColor || '#0b2c4d');
+            scope.style.setProperty('--primary-light', settings.accentColor ? mixGlobalColors(settings.accentColor, '#ffffff', 0.18) : '#1c3f5d');
+            scope.style.setProperty('--primary-dark', settings.accentColor ? mixGlobalColors(settings.accentColor, '#051626', 0.35) : '#051626');
+
+            applyGlobalFontScale(scope, settings);
+            applyGlobalFormatting(scope, settings);
+        }
+
+        function applyGlobalFontScale(scope, settings) {
+            const scale = (parseInt(settings.fontSize, 10) || GLOBAL_PAGE_SETTINGS_BASE) / GLOBAL_PAGE_SETTINGS_BASE;
+            const nodes = [scope, ...scope.querySelectorAll('*')];
+
+            nodes.forEach(el => {
+                if (!(el instanceof HTMLElement) || !isScalableGlobalElement(el)) return;
+
+                const baseSize = getGlobalBaseFontSize(el);
+                if (!baseSize) return;
+
+                el.style.fontSize = `${Math.round(baseSize * scale * 100) / 100}px`;
+            });
+        }
+
+        function applyGlobalFormatting(scope, settings) {
+            const nodes = [scope, ...scope.querySelectorAll('*')];
+
+            nodes.forEach(el => {
+                if (!(el instanceof HTMLElement) || !isScalableGlobalElement(el)) return;
+
+                const hasText = hasDirectTextContent(el);
+                el.style.fontFamily = settings.fontFamily || '';
+
+                if (hasText) {
+                    el.style.color = settings.textColor || '';
+                    el.style.fontWeight = settings.bold ? '700' : '';
+                    el.style.textDecoration = settings.underline ? 'underline' : '';
+                    el.style.textDecorationThickness = settings.underline ? '1.5px' : '';
+                    el.style.textUnderlineOffset = settings.underline ? '2px' : '';
+                    el.style.backgroundColor = settings.highlight ? 'rgba(255, 235, 59, 0.35)' : '';
+                    el.style.boxShadow = settings.highlight ? 'inset 0 -0.55em 0 rgba(255, 235, 59, 0.35)' : '';
+                } else {
+                    el.style.fontWeight = '';
+                    el.style.textDecoration = '';
+                    el.style.textDecorationThickness = '';
+                    el.style.textUnderlineOffset = '';
+                    if (!isContainerElement(el)) {
+                        el.style.backgroundColor = '';
+                        el.style.boxShadow = '';
+                    }
+                }
+            });
+        }
+
+        function isScalableGlobalElement(el) {
+            if (el.closest('svg')) return false;
+            return !['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'NOSCRIPT', 'BR'].includes(el.tagName);
+        }
+
+        function isContainerElement(el) {
+            return ['DIV', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE', 'NAV'].includes(el.tagName);
+        }
+
+        function hasDirectTextContent(el) {
+            return Array.from(el.childNodes || []).some(node => node.nodeType === Node.TEXT_NODE && String(node.textContent || '').trim().length > 0);
+        }
+
+        function getGlobalBaseFontSize(el) {
+            const cached = parseFloat(el.dataset.globalBaseFontSize || '');
+            if (Number.isFinite(cached) && cached > 0) return cached;
+
+            const computed = parseFloat(window.getComputedStyle(el).fontSize || '');
+            if (!Number.isFinite(computed) || computed <= 0) return null;
+
+            el.dataset.globalBaseFontSize = `${computed}`;
+            return computed;
+        }
+
+        function initGlobalPageSettingsObserver() {
+            const scope = document.getElementById('mainBody');
+            if (!scope || globalPageSettingsObserver || typeof MutationObserver === 'undefined') return;
+
+            globalPageSettingsObserver = new MutationObserver(mutations => {
+                const settings = getStoredGlobalPageSettings();
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node instanceof HTMLElement) {
+                            applyGlobalPageSettingsToScope(node, settings);
+                        }
+                    });
+                });
+            });
+
+            globalPageSettingsObserver.observe(scope, { childList: true, subtree: true });
+        }
+
+        function mixGlobalColors(primary, secondary, ratio) {
+            const a = hexToRgbGlobal(primary);
+            const b = hexToRgbGlobal(secondary);
+            const mix = (x, y) => Math.round((x * (1 - ratio)) + (y * ratio));
+            return `rgb(${mix(a.r, b.r)}, ${mix(a.g, b.g)}, ${mix(a.b, b.b)})`;
+        }
+
+        function hexToRgbGlobal(hex) {
+            const clean = String(hex || '').replace('#', '');
+            const normalized = clean.length === 3 ? clean.split('').map(x => x + x).join('') : clean.padEnd(6, '0').slice(0, 6);
+            return {
+                r: parseInt(normalized.slice(0, 2), 16) || 0,
+                g: parseInt(normalized.slice(2, 4), 16) || 0,
+                b: parseInt(normalized.slice(4, 6), 16) || 0
+            };
+        }
+
+        function getGlobalFontFamilyLabel(fontFamily) {
+            switch (fontFamily) {
+                case "'Segoe UI', sans-serif": return 'Segoe UI';
+                case "'Trebuchet MS', sans-serif": return 'Trebuchet';
+                case 'Georgia, serif': return 'Georgia';
+                case "'JetBrains Mono', monospace": return 'JetBrains Mono';
+                default: return 'Default';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initGlobalPageSettingsObserver();
+            applyGlobalPageSettingsToScope(document.getElementById('mainBody'), getStoredGlobalPageSettings());
+        });
+    </script>
+
+    <script>
+        // ============================================================
+        // MENU CONFIGURATION - CUSTOMIZE THIS SECTION
+        // ============================================================
+        const menuConfig = {
+            // Map API module names to your custom menu configuration
+            // Format: 'API_MODULE_NAME': { displayName: 'Your Menu Name', icon: 'icon-class', permissions: {...} }
+
+            'Inventory Audit(Web)': {
+                displayName: 'Inventory Audit',  // Custom display name
+                icon: 'fas fa-clipboard-check',
+                permissions: {
+                    // Map API permission types to your custom submenu items
+                    'Inventory_admin': {
+                        displayName: 'All Session',  // Your custom submenu name
+                        url: '@Url.Action("MyAllSession", "InventoryAuditWeb")'
+                    },
+                    'Inventory_creator': {
+                        displayName: 'Add Session',
+                        url: '@Url.Action("AddSession", "InventoryAuditWeb")'
+                    },
+                    'Inventory_viewer': {
+                        displayName: 'Assigned Session',
+                        url: '@Url.Action("SessionList", "InventoryAuditWeb")'
+                    }
+                }
+            },
+
+            'Document Dispatch': {
+                displayName: 'Document Management',  // Custom display name
+                icon: 'fa fa-file-alt',
+                permissions: {
+                    'Document_admin': {
+                        displayName: 'Rejected Document',
+                        url: '@Url.Action("RejectDocument", "UserManagement")'
+                    },
+                    'Document_creator': {
+                        displayName: 'Document Dispatch',
+                        url: '@Url.Action("DocumentDispatch", "UserManagement")'
+                    },
+                    'Document_viewer': {
+                        displayName: 'Document Receive',
+                        url: '@Url.Action("DocumentRecieve", "UserManagement")'
+                    }
+                }
+            },
+
+            'Dashboard': {
+                displayName: 'Dashboard',
+                icon: 'fas fa-tachometer-alt',
+                permissions: {
+                    'Dashboard_admin': {
+                        displayName: 'Overview',
+                        url: '@Url.Action("Index", "Dashboard")'
+                    },
+                    'Dashboard_creator': {
+                        displayName: 'Notifications',
+                        url: '@Url.Action("Index", "Dashboard")'
+                    },
+                    'Dashboard_viewer': {
+                        displayName: 'Daily Stats',
+                        url: '@Url.Action("Index", "Dashboard")'
+                    },
+                    'Dashboard_IT': {
+                        displayName: 'IT Dashboard',
+                        url: '@Url.Action("ITdashboard", "DashboardWeb")'
+                    },
+                    // 'Dashboard_Task': {
+                    //     displayName: 'Task Dashboard',
+                    //     url: '@Url.Action("TaskDashboard", "DashboardWeb")'
+                    // },
+                    'Dashboard_Client': {
+                        displayName: 'Client Dashboard',
+                        url: '@Url.Action("ClientDashboard", "DashboardWeb")'
+                    },
+                    'Dashboard_Mom': {
+                        displayName: 'Minute of Meeting Dashboard',
+                        url: '@Url.Action("MomDashboard", "DashboardWeb")'
+                    },
+                    'Dashboard_Avtar': {
+                        displayName: 'Budget Dashboard',
+                        url: '@Url.Action("AvtarDashboard", "DashboardWeb")'
+                    }
+                }
+            },
+
+            'User Management': {
+                displayName: 'User Management',
+                icon: 'fas fa-users',
+                permissions: {
+                    'User_admin': {
+                        displayName: 'All Users',
+                        url: '@Url.Action("AllUsers", "UserManagement")'
+                    },
+                    'User_creator': {
+                        displayName: 'User Registration',
+                        url: '@Url.Action("UserRegistration", "UserManagement")'
+                    },
+                    'User_viewer': {
+                        displayName: 'User Permission',
+                        url: '@Url.Action("UserPermission", "UserManagement")'
+                    }
+                }
+            },
+
+            'Approval Management': {
+                displayName: 'Approval Management',
+                icon: 'fas fa-tasks',
+                permissions: {
+                    'Approval_admin': {
+                        displayName: 'Template Manager',
+                        url: '@Url.Action("TemplateManager", "ApprovalManagement")'
+                    },
+                    'Approval_creator': {
+                        displayName: 'Stage Manager',
+                        url: '@Url.Action("StageManager", "ApprovalManagement")'
+                    },
+                    'Approval_viewer': {
+                        displayName: 'Query Generator',
+                        url: '@Url.Action("QueryGenerator", "ApprovalManagement")'
+                    }
+                }
+            },
+
+            'Approval Status Report': {
+                displayName: 'Reports',
+                icon: 'fas fa-chart-line',
+                permissions: {
+                    'approval_budget': {
+                        displayName: 'Approval Status Report',
+                        url: '@Url.Action("ApprovalStatusReport", "ReportsWeb")'
+                    }
+                }
+            },
+
+            'BP Master': {
+                displayName: 'BP Master',
+                icon: 'fas fa-building',
+                permissions: {
+                    'BP_admin': {
+                        displayName: 'BP Creation',
+                        url: '@Url.Action("Index", "BPmasterweb")'
+                    },
+                    'BP_creator': {
+                        displayName: 'BP Creation',
+                        url: '@Url.Action("Index", "BPmasterweb")'
+                    }
+                }
+            },
+
+            'Gate In/Out': {
+                displayName: 'Gate In/Out',
+                icon: 'fas fa-warehouse',
+                permissions: {
+                    'Gate_admin': {
+                        displayName: 'Gate In',
+                        url: '@Url.Action("Index", "Giopweb")'
+                    },
+                    'Gate_creator': {
+                        displayName: 'Gate In',
+                        url: '@Url.Action("Index", "Giopweb")'
+                    }
+                }
+            },
+
+            'Quality Check(Web)': {
+                displayName: 'Quality Check',
+                icon: 'fas fa-check',
+                permissions: {
+                    'QC_web': {
+                        displayName: 'Parameter Quality Check',
+                        url: '@Url.Action("QualityCheck", "QcWeb")'
+                    }
+                }
+            },
+
+             'Daily Task': {
+                displayName: 'Task Manager',
+                icon: 'fas fa-list-check',
+                permissions: {
+                    'Admin_task': {
+                        displayName: 'Task',
+                        url: '@Url.Action("Dashboard", "TaskWeb")'
+                    },
+                    'HOD_task': {
+                        displayName: 'Task',
+                        url: '@Url.Action("Dashboard", "TaskWeb")'
+                    }
+                }
+            },
+            'Tickets': {
+                displayName: 'Tickets',
+                icon: 'fas fa-ticket-alt',
+                permissions: {
+                    'Raise_Ticket': {
+                        displayName: 'Raise Ticket',
+                        url: '@Url.Action("RaiseTicket", "TicketsWeb")'
+                    },
+                    'My_Tickets': {
+                        displayName: 'My Tickets',
+                        url: '@Url.Action("MyTickets", "TicketsWeb")'
+                    },
+                    'Admin_Dashboard': {
+                        displayName: 'Admin Dashboard',
+                        url: '@Url.Action("AdminDashboard", "TicketsWeb")'
+                    },
+                    'Assigned_Tickets': {
+                        displayName: 'Assigned Tickets',
+                        url: '@Url.Action("AssignedTickets", "TicketsWeb")'
+                    }
+                }
+            },
+
+            // NEW: EMPLOYEE HIERARCHY MODULE
+            'Employee Hierarchy': {
+                displayName: 'Employee Hierarchy',
+                icon: 'fas fa-sitemap',
+                permissions: {
+                    'Hierarchy_Admin': {
+                        displayName: 'Hierarchy View',
+                        url: '@Url.Action("Index", "HierarchyWeb")'
+                    },
+                    'Hierarchy_Master': {
+                        displayName: 'HO Hierarchy Master',
+                        url: '@Url.Action("HierarchyMaster", "HierarchyWeb")',
+                        links: [
+                            { displayName: 'HO Hierarchy Master', url: '@Url.Action("HierarchyMaster", "HierarchyWeb")' },
+                            { displayName: 'Sales Hierarchy Master', url: '@Url.Action("SalesHierarchy", "HierarchyWeb")' }
+                        ]
+                    },
+                    'Employee_Master': {
+                        displayName: 'Employee Hierarchy',
+                        url: '@Url.Action("EmployeeHierarchy", "HierarchyWeb")'
+                    },
+                    'Hierarchy_HOD': {
+                        displayName: 'Hierarchy View',
+                        url: '@Url.Action("Index", "HierarchyWeb")'
+                    },
+                    'Hierarchy_SubHOD': {
+                        displayName: 'Hierarchy View',
+                        url: '@Url.Action("Index", "HierarchyWeb")'
+                    }
+                }
+            },
+
+            'Bill Verification': {
+                displayName: 'Bill Verification',
+                icon: 'fas fa-file-invoice',
+                permissions: {
+                    'Maker': {
+                        displayName: ' Invoice Maker',
+                        url: '/Maker/MakerPage'
+                    },
+                    'Checker': {
+                        displayName: ' Invoice Checker',
+                        url: '/Checker/CheckerPage'
+                    },
+                    'InvoicePayment': {
+                        displayName: ' Payment Maker',
+                        url: '/InvoicePayment/InvoicePaymentPage'
+                    },
+        'PaymentChecker': {
+        displayName: ' Payment Checker',
+        url: '/PaymentChecker/PaymentCheckerPage'
+        },
+                    'Admin': {
+                        displayName: 'Admin',
+                        url: '/Admin/AdminPage'
+                    },// ✅ FIXED
+        'DocumentHub': {
+        displayName: 'Document Hub',
+        url: '/DocumentHub/DocumentHubPage'
+        }
+        
+                }
+            }
+        };
+      
+     
+
+
+        // ============================================================
+        // PERMISSION CHECK FUNCTIONS
+        // ============================================================
+        let userPermissions = [];
+
+        function checkPagePermission() {
+            const currentPath = window.location.pathname.toLowerCase();
+
+            // Skip permission check for dashboard page
+            if (currentPath.includes('/dashboard')) {
+                return true;
+            }
+
+            // Check if user has permission to access current page
+            for (const apiModuleName in menuConfig) {
+                const config = menuConfig[apiModuleName];
+
+                for (const permType in config.permissions) {
+                    const permConfig = config.permissions[permType];
+                    const permissionLinks = permConfig.links || [{ url: permConfig.url }];
+
+                    for (const link of permissionLinks) {
+                        const permUrl = link.url.toLowerCase();
+
+                        if (currentPath.includes(permUrl) || permUrl.includes(currentPath)) {
+                            // Check if user has this permission
+                            const hasPermission = userPermissions.some(p =>
+                                p.moduleName === apiModuleName && p.permissionType === permType
+                            );
+
+                            return hasPermission;
+                        }
+                    }
+                }
+            }
+
+            // If page not found in config, allow access (for safety)
+            return true;
+        }
+
+        function showPermissionDenied(companyName) {
+            $('#deniedCompanyName').text(companyName);
+            $('#permissionDeniedOverlay').css('display', 'flex');
+            $('#mainBody').hide();
+        }
+
+        function hidePermissionDenied() {
+            $('#permissionDeniedOverlay').hide();
+            $('#mainBody').show();
+        }
+
+        function redirectToDashboard() {
+            window.location.href = '@Url.Action("Index", "Dashboard")';
+        }
+
+        // ============================================================
+        // MAIN SCRIPT - NO NEED TO MODIFY BELOW THIS LINE
+        // ============================================================
+
+        $(document).ready(function() {
+            // Get userId and companyId from session
+            const userId = @userId;
+            const companyId = @(selectedCompanyId ?? 1);
+
+            // Load dynamic menu
+            loadDynamicMenu(userId, companyId);
+
+            // Check if session is valid
+            if (@(companies.Count == 0 ? "true" : "false")) {
+                $("#sessionError").show();
+                $("#dashboard-content").hide();
+            }
+
+            // Company dropdown change handler
+            $('#companyDropdown').on('change', function () {
+                const selectedCompanyId = $(this).val();
+                const selectedCompanyName = $(this).find('option:selected').data('name');
+
+                if (!selectedCompanyId) return;
+
+                // Show loading state
+                const originalHtml = $('#mainBody').html();
+                $('#mainBody').html('<div style="text-align: center; padding: 50px;"><div class="spinner"></div><p>Changing company...</p></div>');
+
+                $.ajax({
+                    url: '/websession/updateSelectedCompany',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ companyId: parseInt(selectedCompanyId) }),
+                    success: function (res) {
+                        if (res.success) {
+                            // Reload permissions for new company
+                            $.ajax({
+                                url: `/api/Permission/GetUserEffectivePermissions?UserId=${userId}&CompanyId=${selectedCompanyId}`,
+                                method: 'GET',
+                                success: function(permResponse) {
+                                    if (permResponse.success && permResponse.data) {
+                                        userPermissions = permResponse.data;
+
+                                        // Check if user has permission for current page
+                                        const hasPermission = checkPagePermission();
+
+                                        if (hasPermission) {
+                                            // User has permission, reload the page
+                                            location.reload();
+                                        } else {
+                                            // User doesn't have permission, show denied message
+                                            showPermissionDenied(selectedCompanyName);
+                                        }
+                                    } else {
+                                        location.reload();
+                                    }
+                                },
+                                error: function() {
+                                    // If permission check fails, reload anyway
+                                    location.reload();
+                                }
+                            });
+                        } else {
+                            alert('Failed to update company selection.');
+                            $('#mainBody').html(originalHtml);
+                        }
+                    },
+                    error: function () {
+                        alert('Failed to update company selection.');
+                        $('#mainBody').html(originalHtml);
+                    }
+                });
+            });
+
+            // Sidebar toggle functionality
+            $('#sidebarToggle').on('click', function() {
+                const sidebar = $('#sidebar');
+                const mainBody = $('#mainBody');
+
+                sidebar.toggleClass('collapsed');
+                mainBody.toggleClass('collapsed');
+
+                const isCollapsed = sidebar.hasClass('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+            });
+
+            // Restore sidebar state on page load
+            const wasCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (wasCollapsed) {
+                $('#sidebar').addClass('collapsed');
+                $('#mainBody').addClass('collapsed');
+            }
+        });
+
+        function loadDynamicMenu(userId, companyId) {
+            $.ajax({
+                url: `/api/Permission/GetUserEffectivePermissions?UserId=${userId}&CompanyId=${companyId}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.success && response.data) {
+                        userPermissions = response.data;
+                        generateMenuFromPermissions(response.data);
+                    } else {
+                        $('#menuLoading').html('<p style="color: #ff6b6b;">Failed to load menu permissions</p>');
+                    }
+                },
+                error: function(error) {
+                    console.error('Error loading permissions:', error);
+                    $('#menuLoading').html('<p style="color: #ff6b6b;">Error loading menu. Please refresh the page.</p>');
+                }
+            });
+        }
+
+        function generateMenuFromPermissions(permissions) {
+           // Group permissions by moduleName
+           const groupedPermissions = {};
+
+            permissions.forEach(perm => {
+               if (!groupedPermissions[perm.moduleName]) {
+                   groupedPermissions[perm.moduleName] = [];
+                }
+                groupedPermissions[perm.moduleName].push(perm);
+            });
+
+
+            // Generate HTML
+            let menuHtml = '';
+
+            for (const apiModuleName in groupedPermissions) {
+                const modulePermissions = groupedPermissions[apiModuleName];
+
+                // Get configuration for this module
+                const config = menuConfig[apiModuleName];
+
+                // Skip if no configuration found
+                if (!config) {
+                    console.warn(`No configuration found for module: ${apiModuleName}`);
+                    continue;
+                }
+
+                // Use custom display name or fallback to API name
+                const displayName = config.displayName || apiModuleName;
+                const icon = config.icon || 'fas fa-folder';
+
+                // Create menu item (parent)
+                menuHtml += `
+                    <div class="menu-item" onclick="toggleMenu(this)">
+                        <i class="${icon}"></i>
+                        <span class="menu-text">${displayName}</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <div class="submenu">
+                `;
+
+                // Create submenu items based on permissions
+                modulePermissions.forEach(perm => {
+                    //const permConfig = config.permissions[perm.permissionType];
+            const permKey = Object.keys(config.permissions).find(key =>
+            key.toLowerCase().trim() === perm.permissionType.toLowerCase().trim()
+            );
+
+                    const permConfig = config.permissions[permKey];
+
+                    if (permConfig) {
+                        // Use configured submenu
+                        const permissionLinks = permConfig.links || [{ displayName: permConfig.displayName, url: permConfig.url }];
+                        permissionLinks.forEach(link => {
+                            menuHtml += `<a href="${link.url}">${link.displayName}</a>`;
+                        });
+                    } else {
+                        // Fallback: create a menu item with formatted permission name
+                        console.warn(`No configuration found for permission: ${perm.permissionType} in module ${apiModuleName}`);
+                        const fallbackName = formatPermissionName(perm.permissionType);
+                        menuHtml += `<a href="#">${fallbackName}</a>`;
+                    }
+                });
+
+                menuHtml += `</div>`;
+            }
+
+            // Replace loading indicator with generated menu
+            $('#dynamicMenu').html(menuHtml);
+        }
+
+        function formatPermissionName(permissionType) {
+            // Convert "Inventory_admin" to "Admin"
+            // This is a fallback function in case no configuration is found
+            return permissionType
+                .split('_')
+                .slice(1)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+
+        function toggleMenu(element) {
+            // Don't toggle menu if sidebar is collapsed
+            if ($('#sidebar').hasClass('collapsed')) {
+                return;
+            }
+            element.classList.toggle("active");
+        }
+    </script>
+    <script>
+        $('#logoutBtn').on('click', function () {
+            if (confirm('Are you sure you want to logout?')) {
+                $.ajax({
+                    url: '/api/Auth/Logout',
+                    method: 'POST',
+                    success: function (res) {
+                        if (res.success) {
+                            window.location.href = '/Login/Index';
+                        } else {
+                            alert('Logout failed: ' + res.message);
+                        }
+                    },
+                    error: function () {
+                        alert('Logout failed. Please try again.');
+                    }
+                });
+            }
+        });
+    </script>
+
+    @RenderSection("scripts", required: false)
+</body>
+</html>
