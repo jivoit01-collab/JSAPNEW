@@ -1,0 +1,976 @@
+﻿@{
+    ViewBag.Title = "Define Parameter for Quality Check";
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-header {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #0b2c4d;
+        }
+
+        .form-header-title {
+            color: #0b2c4d;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .form-header-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+            .form-field label {
+                font-weight: 500;
+                color: #555;
+                margin-bottom: 5px;
+                font-size: 14px;
+            }
+
+                .form-field label.required::after {
+                    content: " *";
+                    color: #dc3545;
+                    font-weight: bold;
+                }
+
+            .form-field input,
+            .form-field select {
+                padding: 8px 12px;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+                .form-field input:focus,
+                .form-field select:focus {
+                    outline: none;
+                    border-color: #0b2c4d;
+                    box-shadow: 0 0 0 2px rgba(11, 44, 77, 0.1);
+                }
+
+                .form-field input.error,
+                .form-field select.error {
+                    border-color: #dc3545;
+                }
+
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .left-section {
+            flex: 0 0 70%;
+        }
+
+        .right-section {
+            flex: 0 0 calc(30% - 20px);
+        }
+
+        .section {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+            background-color: #fafafa;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            color: #0b2c4d;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #0b2c4d;
+        }
+
+        .parameter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .parameter-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+        }
+
+        .parameter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .parameter-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .btn {
+            padding: 6px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background-color: #0b2c4d;
+            color: white;
+        }
+
+            .btn-primary:hover:not(:disabled) {
+                background-color: #0a2340;
+            }
+
+            .btn-primary:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+            .btn-secondary:hover {
+                background-color: #5a6268;
+            }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+            margin-right: 10px;
+        }
+
+            .btn-success:hover:not(:disabled) {
+                background-color: #218838;
+            }
+
+            .btn-success:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+
+        .sub-parameter {
+            margin-left: 20px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 3px solid #0b2c4d;
+            border-radius: 3px;
+        }
+
+        .sub-parameter-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .form-control {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+            .form-control:focus {
+                outline: none;
+                border-color: #0b2c4d;
+                box-shadow: 0 0 0 2px rgba(11, 44, 77, 0.1);
+            }
+
+            .form-control.error {
+                border-color: #dc3545;
+            }
+
+        .checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+            .checkbox-item:hover {
+                border-color: #0b2c4d;
+                background-color: #f8f9fa;
+            }
+
+            .checkbox-item input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                margin-right: 10px;
+                cursor: pointer;
+                accent-color: #0b2c4d;
+            }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+            .input-group label {
+                min-width: 150px;
+                font-weight: 500;
+                color: #555;
+            }
+
+                .input-group label.required::after {
+                    content: " *";
+                    color: #dc3545;
+                    font-weight: bold;
+                }
+
+            .input-group input[type="number"] {
+                flex: 1;
+                padding: 8px 12px;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+                .input-group input[type="number"]:focus {
+                    outline: none;
+                    border-color: #0b2c4d;
+                    box-shadow: 0 0 0 2px rgba(11, 44, 77, 0.1);
+                }
+
+                .input-group input[type="number"].error {
+                    border-color: #dc3545;
+                }
+
+        .input-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-box {
+            flex: 1;
+        }
+
+            .input-box label {
+                display: block;
+                font-weight: 500;
+                color: #555;
+                margin-bottom: 5px;
+            }
+
+            .input-box input {
+                width: 100%;
+                padding: 8px 12px;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+                .input-box input:focus {
+                    outline: none;
+                    border-color: #0b2c4d;
+                    box-shadow: 0 0 0 2px rgba(11, 44, 77, 0.1);
+                }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            justify-content: flex-end;
+        }
+
+        .mandatory-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+            .mandatory-checkbox input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+                cursor: pointer;
+                accent-color: #0b2c4d;
+            }
+
+            .mandatory-checkbox label {
+                font-size: 14px;
+                color: #555;
+                cursor: pointer;
+            }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+            .loading-overlay.active {
+                display: flex;
+            }
+
+        .loading-spinner {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0b2c4d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @@keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @@media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .left-section,
+            .right-section {
+                flex: 0 0 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Saving data, please wait...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="content">
+
+            <input type="hidden" id="createdBy" value="@ViewBag.userId" />
+            <input type="hidden" id="formNumber" value="@ViewBag.LotNumber.ToString().ToUpper()" />
+            <div class="main-layout">
+                <!-- Left Section - Define Parameter (70%) -->
+                <div class="left-section">
+                    <div class="section">
+                        <div class="section-title">Define Parameter</div>
+
+                        <div class="parameter-list" id="parameterList">
+                            <!-- Dynamic parameters will be added here -->
+                        </div>
+
+                        <button type="button" class="btn btn-primary" id="addParameterBtn" onclick="addParameter()" style="margin-top: 15px;">
+                            + Add Parameter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Section - Mandatory Document & Quality Settings (30%) -->
+                <div class="right-section">
+                    <!-- Mandatory Document Section -->
+                    <div class="section">
+                        <div class="section-title">Mandatory Document</div>
+
+                        <div class="checkbox-list">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_202" name="mandatoryDocs" value="202" data-name="Production">
+                                <label class="checkbox-label" for="doc_202">Production</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_15" name="mandatoryDocs" value="15" data-name="Delivery">
+                                <label class="checkbox-label" for="doc_15">Delivery</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_13" name="mandatoryDocs" value="13" data-name="A/R Invoice">
+                                <label class="checkbox-label" for="doc_13">A/R Invoice</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_20" name="mandatoryDocs" value="20" data-name="GRPO">
+                                <label class="checkbox-label" for="doc_20">GRPO</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_18" name="mandatoryDocs" value="18" data-name="A/P Invoice">
+                                <label class="checkbox-label" for="doc_18">A/P Invoice</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_7" name="mandatoryDocs" value="7" data-name="Stock Transfer">
+                                <label class="checkbox-label" for="doc_7">Stock Transfer</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="doc_59" name="mandatoryDocs" value="59" data-name="Receipt from Production">
+                                <label class="checkbox-label" for="doc_59">Receipt from Production</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quality Settings Section -->
+                    <div class="section">
+                        <div class="section-title">Quality Settings</div>
+
+                        <!-- Row 1: Quality Check Min/Max -->
+                        <div class="input-row">
+                            <div class="input-box">
+                                <label>Quality Check Min:</label>
+                                <input type="number" id="qualityMin" min="0" value="0" placeholder="Enter min value">
+                            </div>
+                            <div class="input-box">
+                                <label>Quality Check Max:</label>
+                                <input type="number" id="qualityMax" min="0" value="0" placeholder="Enter max value">
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Min Value to Pass QC (Mandatory) -->
+                        <div class="input-group">
+                            <label class="required">Min Value to Pass QC:</label>
+                            <input type="number" id="minPassQC" min="0" placeholder="Enter value" required>
+                        </div>
+                        <div class="error-message" id="minPassQCError">This field is required</div>
+
+                        <!-- Row 3: Random Box Check -->
+                        <div class="input-group">
+                            <label>Random Box Check:</label>
+                            <input type="number" id="randomBoxCheck" min="5" value="5" placeholder="Enter value (min: 5)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="actions">
+                <button type="button" class="btn btn-success" id="saveBtn" onclick="saveParameters()">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="cancelForm()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let parameterCounter = 0;
+        let subParameterCounters = {};
+
+        // API Base URL - Update this with your actual API base URL
+        const API_BASE_URL = '/api/QC'; // Adjust according to your API route
+
+        function addParameter() {
+            // Check if all existing sub-parameters are filled
+            if (!validateAllSubParameters()) {
+                alert('Please fill in all sub-parameter names before adding a new parameter.');
+                return;
+            }
+
+            parameterCounter++;
+            const parameterId = 'param_' + parameterCounter;
+            subParameterCounters[parameterId] = 0;
+
+            const parameterHtml = `
+                <div class="parameter-item" id="${parameterId}">
+                    <div class="parameter-header">
+                        <input type="text" class="form-control parameter-name"
+                               placeholder="Enter Parameter Name"
+                               oninput="toggleSubParameterButton('${parameterId}')" />
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn btn-primary"
+                                    id="${parameterId}_addSubBtn"
+                                    onclick="addSubParameter('${parameterId}')"
+                                    disabled>+ Add Sub Parameter</button>
+                            <button type="button" class="btn btn-secondary"
+                                    onclick="removeParameter('${parameterId}')">Remove</button>
+                        </div>
+                    </div>
+                    <div class="sub-parameters" id="${parameterId}_subs"></div>
+                </div>
+            `;
+
+            document.getElementById('parameterList').insertAdjacentHTML('beforeend', parameterHtml);
+        }
+
+        function toggleSubParameterButton(parameterId) {
+            const paramNameInput = document.querySelector(`#${parameterId} .parameter-name`);
+            const addSubBtn = document.getElementById(`${parameterId}_addSubBtn`);
+
+            if (paramNameInput.value.trim() !== '') {
+                addSubBtn.disabled = false;
+            } else {
+                addSubBtn.disabled = true;
+            }
+        }
+
+        function addSubParameter(parameterId) {
+            // Check if all existing sub-parameters in this parameter are filled
+            if (!validateSubParametersForParameter(parameterId)) {
+                alert('Please fill in all existing sub-parameter names before adding a new one.');
+                return;
+            }
+
+            // Disable "Add Parameter" button while sub-parameter is being filled
+            document.getElementById('addParameterBtn').disabled = true;
+
+            subParameterCounters[parameterId]++;
+            const subParamId = parameterId + '_sub_' + subParameterCounters[parameterId];
+
+            const subParameterHtml = `
+                <div class="sub-parameter" id="${subParamId}">
+                    <div class="sub-parameter-row">
+                        <input type="text" class="form-control"
+                               placeholder="Enter Sub Parameter Name"
+                               oninput="checkSubParametersFilled()" />
+                        <div class="mandatory-checkbox">
+                            <input type="checkbox" id="${subParamId}_mandatory" />
+                            <label for="${subParamId}_mandatory">Image is Mandatory</label>
+                        </div>
+                        <button type="button" class="btn btn-secondary"
+                                onclick="removeSubParameter('${subParamId}')">Remove</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById(parameterId + '_subs').insertAdjacentHTML('beforeend', subParameterHtml);
+        }
+
+        function validateSubParametersForParameter(parameterId) {
+            const subParams = document.querySelectorAll(`#${parameterId}_subs .sub-parameter input[type="text"]`);
+            for (let input of subParams) {
+                if (input.value.trim() === '') {
+                    input.classList.add('error');
+                    setTimeout(() => input.classList.remove('error'), 2000);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function validateAllSubParameters() {
+            const allSubParams = document.querySelectorAll('.sub-parameter input[type="text"]');
+            for (let input of allSubParams) {
+                if (input.value.trim() === '') {
+                    input.classList.add('error');
+                    setTimeout(() => input.classList.remove('error'), 2000);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function checkSubParametersFilled() {
+            // Check if all sub-parameters are filled
+            const allFilled = validateAllSubParameters();
+            document.getElementById('addParameterBtn').disabled = !allFilled;
+        }
+
+        function removeParameter(parameterId) {
+            document.getElementById(parameterId).remove();
+            // Re-check if Add Parameter button should be enabled
+            checkSubParametersFilled();
+        }
+
+        function removeSubParameter(subParamId) {
+            document.getElementById(subParamId).remove();
+            // Re-check if Add Parameter button should be enabled
+            checkSubParametersFilled();
+        }
+
+        function validateFormHeader() {
+            let isValid = true;
+            const formNumber = document.getElementById('formNumber');
+            const createdBy = document.getElementById('createdBy');
+
+            if (!formNumber.value.trim()) {
+                formNumber.classList.add('error');
+                isValid = false;
+            } else {
+                formNumber.classList.remove('error');
+            }
+
+            if (!createdBy.value.trim()) {
+                createdBy.classList.add('error');
+                isValid = false;
+            } else {
+                createdBy.classList.remove('error');
+            }
+
+            if (!isValid) {
+                alert('Please fill in all required fields in the form header.');
+            }
+
+            return isValid;
+        }
+
+        async function saveParameters() {
+            // Validate form header
+            if (!validateFormHeader()) {
+                return;
+            }
+
+            // Validate Min Value to Pass QC (Mandatory)
+            const minPassQC = document.getElementById('minPassQC').value;
+            const minPassQCInput = document.getElementById('minPassQC');
+            const minPassQCError = document.getElementById('minPassQCError');
+
+            if (!minPassQC || minPassQC.trim() === '') {
+                minPassQCInput.classList.add('error');
+                minPassQCError.style.display = 'block';
+                minPassQCInput.focus();
+                alert('Min Value to Pass QC is mandatory. Please enter a value.');
+                return;
+            } else {
+                minPassQCInput.classList.remove('error');
+                minPassQCError.style.display = 'none';
+            }
+
+            // Validate all sub-parameters are filled
+            if (!validateAllSubParameters()) {
+                alert('Please fill in all sub-parameter names before saving.');
+                return;
+            }
+
+            // Validate Quality Check Min/Max
+            const qualityMin = parseInt(document.getElementById('qualityMin').value);
+            const qualityMax = parseInt(document.getElementById('qualityMax').value);
+
+            if (qualityMin < 0 || qualityMax < 0) {
+                alert('Quality Check values cannot be negative');
+                return;
+            }
+
+            if (qualityMax > 0 && qualityMin > qualityMax) {
+                alert('Quality Check Min cannot be greater than Max');
+                return;
+            }
+
+            // Validate Min Value to Pass QC
+            const minPassQCValue = parseInt(minPassQC);
+            if (minPassQCValue < 0) {
+                alert('Min Value to Pass QC cannot be negative');
+                return;
+            }
+
+            // Validate Random Box Check
+            const randomBoxCheck = parseInt(document.getElementById('randomBoxCheck').value);
+            if (randomBoxCheck < 5) {
+                alert('Random Box Check value cannot be less than 5');
+                return;
+            }
+
+            // Show loading overlay
+            document.getElementById('loadingOverlay').classList.add('active');
+            document.getElementById('saveBtn').disabled = true;
+
+            try {
+                // Step 1: Create Form with Quality Settings and Mandatory Documents
+                const response = await createForm();
+                const formData = response.data || response;
+                if (!formData.success) {
+                    throw new Error(formData.message || 'Failed to create form');
+                }
+
+                const formId = formData.newFormId;
+
+                if (!formId || formId === 0) {
+                    console.error('Full response:', response);
+                    throw new Error('Form ID not returned from server');
+                }
+                console.log('Form created with ID:', formId);
+
+                // Step 2: Create Parameters and Sub-Parameters
+                await createParametersAndSubParameters(formId);
+
+                // Success
+                alert('All data saved successfully!');
+                console.log('Complete data saved successfully');
+                location.reload();
+                // Optionally redirect to another page
+                // window.location.href = '@Url.Action("Index", "QualityCheck")';
+
+            } catch (error) {
+                console.error('Error saving data:', error);
+                alert('Error saving data: ' + error.message);
+            } finally {
+                // Hide loading overlay
+                document.getElementById('loadingOverlay').classList.remove('active');
+                document.getElementById('saveBtn').disabled = false;
+            }
+        }
+
+        async function createForm() {
+            // Collect mandatory documents
+            const documents = [];
+            document.querySelectorAll('input[name="mandatoryDocs"]:checked').forEach(checkbox => {
+                documents.push({
+                    documentTypeName: checkbox.getAttribute('data-name'),
+                    hanaId: parseInt(checkbox.value),
+                    isMandatory: true,
+                    documentPath: '' // Add path if needed
+                });
+            });
+
+
+            function getCurrentDate() {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0'); // months are 0-based
+                const day = String(today.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            const formDate = getCurrentDate();
+
+            const formRequest = {
+                formNumber: document.getElementById('formNumber').value.trim(),
+                formDate: formDate,
+                status: 'Active',
+                remarks: null,
+                createdBy: document.getElementById('createdBy').value.trim(),
+                qualityCheckMin: parseInt(document.getElementById('qualityMin').value),
+                qualityCheckMax: parseInt(document.getElementById('qualityMax').value),
+                minValueToPassQC: parseInt(document.getElementById('minPassQC').value),
+                randomBoxCheck: parseInt(document.getElementById('randomBoxCheck').value),
+                documents: documents
+            };
+
+            console.log('Creating form with data:', formRequest);
+
+            const response = await fetch(`${API_BASE_URL}/CreateForm`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formRequest)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`
+
+                ${response.status}: ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
+        async function createParametersAndSubParameters(formId) {
+            let displayOrder = 1;
+
+            // Get all parameters
+            const parameterItems = document.querySelectorAll('.parameter-item');
+
+            for (const paramItem of parameterItems) {
+                const paramName = paramItem.querySelector('.parameter-name').value.trim();
+
+                if (!paramName) continue;
+
+                // Create Parameter
+                const parameterRequest = {
+                    parameterName: paramName,
+                    formId: parseInt(formId),
+                    displayOrder: displayOrder++,
+                    isActive: true
+                };
+
+                console.log('Creating parameter:', parameterRequest);
+
+                const paramResponse = await fetch(`${API_BASE_URL}/CreateParameter`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(parameterRequest)
+                });
+
+                if (!paramResponse.ok) {
+                    const errorText = await paramResponse.text();
+                    throw new Error(`Failed to create parameter "${paramName}": ${errorText}`);
+                }
+
+                const paramResult = await paramResponse.json();
+                const paramData = paramResult.data || paramResult;
+
+                if (!paramData.success) {
+                    throw new Error(paramData.message || `Failed to create parameter "${paramName}"`);
+                }
+
+                const parameterId = paramData.newParameterId || paramData.NewParameterId;
+                console.log(`Parameter "${paramName}" created with ID:`, parameterId);
+
+                // Create Sub-Parameters for this parameter
+                const subParams = paramItem.querySelectorAll('.sub-parameter');
+                let subDisplayOrder = 1;
+
+                for (const subParam of subParams) {
+                    const subParamName = subParam.querySelector('input[type="text"]').value.trim();
+                    const isImageMandatory = subParam.querySelector('input[type="checkbox"]').checked;
+
+                    if (!subParamName) continue;
+
+                    const subParameterRequest = {
+                        parameterId: parameterId,
+                        subParameterName: subParamName,
+                        isImageMandatory: isImageMandatory,
+                        displayOrder: subDisplayOrder++,
+                        isActive: true
+                    };
+
+                    console.log('Creating sub-parameter:', subParameterRequest);
+
+                    const subParamResponse = await fetch(`${API_BASE_URL}/CreateSubParameter`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(subParameterRequest)
+                    });
+
+                    if (!subParamResponse.ok) {
+                        const errorText = await subParamResponse.text();
+                        throw new Error(`Failed to create sub-parameter "${subParamName}": ${errorText}`);
+                    }
+
+                    const subParamResult = await subParamResponse.json();
+
+                    if (!subParamResult.success) {
+                        throw new Error(subParamResult.message || `Failed to create sub-parameter "${subParamName}"`);
+                    }
+
+                    console.log(`Sub-parameter "${subParamName}" created with ID:`, subParamResult.newSubParameterId);
+                }
+            }
+        }
+
+        function cancelForm() {
+            if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
+                window.history.back();
+            }
+        }
+
+        // Prevent negative values in quality inputs
+        document.getElementById('qualityMin').addEventListener('input', function() {
+            if (this.value < 0) {
+                this.value = 0;
+                this.style.borderColor = 'red';
+                setTimeout(() => this.style.borderColor = '#ced4da', 1000);
+            }
+        });
+
+        document.getElementById('qualityMax').addEventListener('input', function() {
+            if (this.value < 0) {
+                this.value = 0;
+                this.style.borderColor = 'red';
+                setTimeout(() => this.style.borderColor = '#ced4da', 1000);
+            }
+        });
+
+        document.getElementById('minPassQC').addEventListener('input', function() {
+            const errorMsg = document.getElementById('minPassQCError');
+            if (this.value.trim() !== '') {
+                this.classList.remove('error');
+                errorMsg.style.display = 'none';
+            }
+
+            if (this.value < 0) {
+                this.value = 0;
+                this.style.borderColor = 'red';
+                setTimeout(() => this.style.borderColor = '#ced4da', 1000);
+            }
+        });
+
+        document.getElementById('randomBoxCheck').addEventListener('input', function() {
+            if (this.value < 5) {
+                this.value = 5;
+                this.style.borderColor = 'red';
+                setTimeout(() => this.style.borderColor = '#ced4da', 1000);
+            }
+        });
+
+    </script>
+</body>
+</html>

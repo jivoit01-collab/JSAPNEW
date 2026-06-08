@@ -123,6 +123,7 @@ namespace JSAPNEW.Controllers
                     billAmount = reader["BillAmount"] == DBNull.Value ? "" : reader["BillAmount"].ToString(),
                     supplierRef = reader["SupplierRef"] == DBNull.Value ? "-" : reader["SupplierRef"].ToString(),
                     dueDate = reader["DueDate"] == DBNull.Value ? "-" : Convert.ToDateTime(reader["DueDate"]).ToString("yyyy-MM-dd"),
+                    serialNumber = reader["SerialNumber"] == DBNull.Value ? "" : reader["SerialNumber"].ToString(),
                     makerRemark = reader["MakerRemark"] == DBNull.Value ? "-" : reader["MakerRemark"].ToString(),
                     makerStatus = reader["Status"] == DBNull.Value ? "Pending" : reader["Status"].ToString(),
                     checkerRemark = reader["CheckerRemark"] == DBNull.Value ? "-" : reader["CheckerRemark"].ToString(),
@@ -151,21 +152,7 @@ namespace JSAPNEW.Controllers
         public IActionResult GetMakerActivity(string accountName, string fromDate, string toDate)
         {
             var data = FetchBillDetails(accountName, fromDate, toDate);
-
-            var filtered = data.Where(x =>
-            {
-                dynamic item = x;
-
-                string checkerStatus = item.checkerStatus?.ToString() ?? "";
-                string attachmentPath = item.attachmentPath?.ToString();
-
-                return
-                    checkerStatus.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
-                    ||
-                    string.IsNullOrEmpty(attachmentPath);
-            });
-
-            return Json(filtered);
+            return Json(data);
         }
         //// ✅ Checker Activity Tab
         //[HttpGet]
@@ -178,18 +165,7 @@ namespace JSAPNEW.Controllers
         public IActionResult GetCheckerActivity(string accountName, string fromDate, string toDate)
         {
             var data = FetchBillDetails(accountName, fromDate, toDate);
-
-            var filtered = data.Where(x =>
-            {
-                dynamic item = x;
-
-                string checkerStatus = item.checkerStatus?.ToString() ?? "Pending";
-
-                return string.IsNullOrEmpty(checkerStatus)
-                    || checkerStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase);
-            });
-
-            return Json(filtered);
+            return Json(data);
         }
         // ✅ Invoice Payment Tab
         [HttpGet]
@@ -201,12 +177,34 @@ namespace JSAPNEW.Controllers
         [HttpGet]
         public IActionResult GetPaymentCheckerActivity(string accountName, string fromDate, string toDate)
         {
-            DateTime? from = string.IsNullOrEmpty(fromDate) ? null : DateTime.Parse(fromDate);
-            DateTime? to = string.IsNullOrEmpty(toDate) ? null : DateTime.Parse(toDate);
-
-            var data = _paymentService.GetPaidBillDetails(from, to, accountName);
-
+            var data = FetchBillDetails(accountName, fromDate, toDate);
             return Json(data);
+        }
+        [HttpPost]
+        public IActionResult RejectCheckerEntry([FromBody] AdminCheckerRejectRequest req)
+        {
+            if (req == null || req.VchNumber <= 0)
+                return Json(new { success = false, message = "Invalid voucher number." });
+
+            using var conn = new SqlConnection(_connStr);
+            conn.Open();
+
+            var cmd = new SqlCommand(@"
+                UPDATE AttachmentUpload
+                SET CheckerStatus = 'Rejected',
+                    CheckerRemark = @Remark,
+                    CheckerDate = GETDATE()
+                WHERE VchNumber = @VchNumber", conn);
+
+            cmd.Parameters.AddWithValue("@VchNumber", req.VchNumber);
+            cmd.Parameters.AddWithValue("@Remark",
+                string.IsNullOrWhiteSpace(req.Remark) ? DBNull.Value : req.Remark.Trim());
+
+            var affected = cmd.ExecuteNonQuery();
+            if (affected == 0)
+                return Json(new { success = false, message = "No uploaded attachment record found for this voucher." });
+
+            return Json(new { success = true, message = "Checker entry rejected successfully." });
         }
         // ✅ Delete Attachment — Admin Only
         [HttpPost]
@@ -242,6 +240,12 @@ namespace JSAPNEW.Controllers
         }
     }
 
+}
+
+public class AdminCheckerRejectRequest
+{
+    public int VchNumber { get; set; }
+    public string Remark { get; set; }
 }
 
    // ✅ Request model for Delete

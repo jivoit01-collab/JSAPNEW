@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -50,6 +50,7 @@
 
   <ItemGroup>
     <Content Update="Views\**\*.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Remove="wwwroot\images\71W7ZcPkvRL._AC_UF894,1000_QL80_.jpg" />
   </ItemGroup>
     
 
