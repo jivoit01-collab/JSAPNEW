@@ -29,6 +29,36 @@ namespace JSAPNEW.Controllers
             _BPlogger = logger;
         }
 
+        private static object BuildSapQueryErrorResponse(Exception ex)
+        {
+            var sapError = ExtractSapQueryError(ex);
+            return new
+            {
+                Success = false,
+                Message = "SAP query failed",
+                ErrorCode = "SAP_QUERY_FAILED",
+                SapError = new
+                {
+                    code = sapError.SapCode,
+                    message = sapError.Message
+                }
+            };
+        }
+
+        private static BpSapError ExtractSapQueryError(Exception ex)
+        {
+            var current = ex;
+            while (current != null)
+            {
+                if (current is BpSapException sapException)
+                    return sapException.SapError;
+
+                current = current.InnerException;
+            }
+
+            return BpSapErrorMapper.ExtractSapError(ex);
+        }
+
         [HttpPost("InsertBPmasterData")]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<object>> InsertBPMaster()
@@ -147,7 +177,22 @@ namespace JSAPNEW.Controllers
             catch (Exception ex)
             {
                 _BPlogger.LogError(ex, "Error fetching distinct bank names.");
-                return StatusCode(500, new { message = "Internal server error." });
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
+        [HttpGet("GetBankCodes")]
+        public async Task<IActionResult> GetBankCodes(int company, string countryCode = "IN")
+        {
+            try
+            {
+                var result = await _BPService.GetBankCodesAsync(company, countryCode);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching SAP bank codes. Company={Company}, CountryCode={CountryCode}", company, countryCode);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
             }
         }
 
@@ -236,6 +281,97 @@ namespace JSAPNEW.Controllers
                 return StatusCode(500, new { message = "Internal server error." });
             }
         }
+
+        [HttpGet("GetBPGroups")]
+        public async Task<IActionResult> GetBPGroups(int company, string bpType = "C")
+        {
+            try
+            {
+                var result = await _BPService.GetBPGroupsAsync(company, bpType);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching BP groups. Company={Company}, BpType={BpType}", company, bpType);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
+        [HttpGet("GetARAccounts")]
+        public async Task<IActionResult> GetARAccounts(int company)
+        {
+            try
+            {
+                var result = await _BPService.GetARAccountsAsync(company);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching AR accounts. Company={Company}", company);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
+        [HttpGet("GetAPAccounts")]
+        public async Task<IActionResult> GetAPAccounts(int company)
+        {
+            try
+            {
+                var result = await _BPService.GetAPAccountsAsync(company);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching AP accounts. Company={Company}", company);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
+        [HttpGet("GetPaymentTerms")]
+        public async Task<IActionResult> GetPaymentTerms(int company)
+        {
+            try
+            {
+                var result = await _BPService.GetPaymentTermsAsync(company);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching payment terms. Company={Company}", company);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
+        [HttpGet("GetSalesEmployees")]
+        public async Task<IActionResult> GetSalesEmployees(int company)
+        {
+            try
+            {
+                var result = await _BPService.GetSalesEmployeesAsync(company);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching sales employees. Company={Company}", company);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
+        [HttpGet("GetTerritories")]
+        public async Task<IActionResult> GetTerritories(int company)
+        {
+            try
+            {
+                var result = await _BPService.GetTerritoriesAsync(company);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _BPlogger.LogError(ex, "Error fetching territories. Company={Company}", company);
+                return StatusCode(500, BuildSapQueryErrorResponse(ex));
+            }
+        }
+
         [HttpGet("GetDistinctPaymentGroups")]
         public async Task<IActionResult> GetDistinctPaymentGroups(int company)
         {

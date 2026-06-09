@@ -49,7 +49,10 @@ namespace JSAPNEW.Services.Implementation
             var session = await GetSessionAsync(request.Company);
             var cardType = IsVendor(request.BpType) ? "cSupplier" : "cCustomer";
             var bpType = cardType == "cSupplier" ? "V" : "C";
-            var accountResolution = await ResolveControlAccountAsync(request.Company, bpType, cancellationToken);
+            var selectedControlAccount = bpType == "V"
+                ? FirstText(request.SapData?.apAccountCode, request.SapData?.debPayAcct)
+                : FirstText(request.SapData?.arAccountCode, request.SapData?.debPayAcct);
+            var accountResolution = await ResolveControlAccountAsync(request.Company, bpType, selectedControlAccount, cancellationToken);
             if (!accountResolution.Success)
             {
                 _logger.LogWarning(
@@ -259,10 +262,22 @@ namespace JSAPNEW.Services.Implementation
             return settings;
         }
 
-        private async Task<BpControlAccountResolution> ResolveControlAccountAsync(int companyId, string bpType, CancellationToken cancellationToken)
+        private async Task<BpControlAccountResolution> ResolveControlAccountAsync(
+            int companyId,
+            string bpType,
+            string? selectedAccountCode,
+            CancellationToken cancellationToken)
         {
             var normalizedBpType = NormalizeControlAccountBpType(bpType);
             var label = GetBpTypeLabel(normalizedBpType);
+
+            if (!string.IsNullOrWhiteSpace(selectedAccountCode))
+            {
+                return BpControlAccountResolution.Ok(
+                    selectedAccountCode.Trim(),
+                    string.Empty,
+                    "BP.jsSAPData");
+            }
 
             var configRow = await GetControlAccountConfigRowAsync(companyId, normalizedBpType, cancellationToken);
             if (!string.IsNullOrWhiteSpace(configRow?.AccountCode))
@@ -453,6 +468,71 @@ LIMIT 1";
                     $"{label} control account validation failed.",
                     "CONTROL_ACCOUNT_VALIDATION_FAILED");
             }
+        }
+
+        public async Task<IEnumerable<GroupNameResponse>> GetBusinessPartnerGroupsAsync(
+            int companyId,
+            string bpType,
+            CancellationToken cancellationToken = default)
+        {
+            var session = await GetSessionAsync(companyId);
+            var groupType = NormalizeControlAccountBpType(bpType) == "V"
+                ? "bbpgt_VendorGroup"
+                : "bbpgt_CustomerGroup";
+            var endpoint = $"BusinessPartnerGroups?$filter=Type eq '{groupType}'&$select=Code,Name&$orderby=Name";
+            var response = await SendSapRequestAsync(HttpMethod.Get, endpoint, session, null, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                throw new BpSapException("SAP BP group lookup failed", MapSapError(body));
+
+            var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+            return (json["value"] ?? new JArray())
+                .OfType<JObject>()
+                .Select(row =>
+                {
+                    var codeText = row["Code"]?.ToString() ?? string.Empty;
+                    int.TryParse(codeText, out var code);
+                    var name = row["Name"]?.ToString() ?? string.Empty;
+
+                    return new GroupNameResponse
+                    {
+                        GroupCode = code == 0 && codeText != "0" ? null : code,
+                        GroupName = name
+                    };
+                })
+                .ToList();
+        }
+
+        public async Task<IEnumerable<DistinctBankNameModel>> GetBankCodesAsync(
+            int companyId,
+            string countryCode = "IN",
+            CancellationToken cancellationToken = default)
+        {
+            var session = await GetSessionAsync(companyId);
+            var country = string.IsNullOrWhiteSpace(countryCode)
+                ? "IN"
+                : countryCode.Trim().ToUpperInvariant();
+            var filter = Uri.EscapeDataString($"CountryCode eq '{country.Replace("'", "''")}'");
+            var endpoint = $"Banks?$filter={filter}&$select=BankCode,BankName,SwiftNo,CountryCode&$orderby=BankName";
+            var response = await SendSapRequestAsync(HttpMethod.Get, endpoint, session, null, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                throw new BpSapException("SAP bank code lookup failed", MapSapError(body));
+
+            var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+            return (json["value"] ?? new JArray())
+                .OfType<JObject>()
+                .Select(row => new DistinctBankNameModel
+                {
+                    BankCode = row["BankCode"]?.ToString() ?? string.Empty,
+                    BankName = row["BankName"]?.ToString() ?? string.Empty,
+                    SwiftNo = row["SwiftNo"]?.ToString() ?? string.Empty,
+                    CountryCode = row["CountryCode"]?.ToString() ?? country
+                })
+                .Where(row => !string.IsNullOrWhiteSpace(row.BankCode))
+                .ToList();
         }
 
         private BpControlAccountValidationResult ControlAccountInvalid(
@@ -753,9 +833,6 @@ LIMIT 1";
                 ["DebitorAccount"] = controlAccountCode.Trim()
             };
 
-            var sapData = request.SapData;
-            if (int.TryParse(sapData?.grpCode, out var groupCode) && groupCode > 0)
-                payload["GroupCode"] = groupCode;
             if (!string.IsNullOrWhiteSpace(master.ForeignName))
                 payload["CardForeignName"] = master.ForeignName.Trim();
             if (!string.IsNullOrWhiteSpace(master.MobileNumber))
@@ -766,6 +843,14 @@ LIMIT 1";
                 payload["Notes"] = master.Remarks.Trim();
             if (master.CreditLimit > 0)
                 payload["CreditLimit"] = master.CreditLimit;
+            if (request.SapData?.bpGroupCode.HasValue == true && request.SapData.bpGroupCode.Value > 0)
+                payload["GroupCode"] = request.SapData.bpGroupCode.Value;
+            if (request.SapData?.paymentTermCode.HasValue == true && request.SapData.paymentTermCode.Value >= 0)
+                payload["PayTermsGrpCode"] = request.SapData.paymentTermCode.Value;
+            if (!isVendor && request.SapData?.salesEmployeeCode.HasValue == true && request.SapData.salesEmployeeCode.Value > 0)
+                payload["SalesPersonCode"] = request.SapData.salesEmployeeCode.Value;
+            if (!isVendor && request.SapData?.territoryId.HasValue == true && request.SapData.territoryId.Value > 0)
+                payload["Territory"] = request.SapData.territoryId.Value;
             if (!string.IsNullOrWhiteSpace(master.MainGroup))
                 payload["U_Main_Group"] = master.MainGroup.Trim();
             if (!string.IsNullOrWhiteSpace(master.Chain))
@@ -1043,8 +1128,8 @@ LIMIT 1";
 
         private static string ResolveCardCodePrefix(BpSapPostRequest request, string cardType)
         {
-            if (!string.IsNullOrWhiteSpace(request.CardCodePrefix))
-                return request.CardCodePrefix.Trim().ToUpperInvariant();
+            if (!string.IsNullOrWhiteSpace(request.SapData?.cardCodePrefix))
+                return request.SapData.cardCodePrefix.Trim().ToUpperInvariant();
 
             var series = request.SapData?.series;
             if (!string.IsNullOrWhiteSpace(series) && !series.All(char.IsDigit))

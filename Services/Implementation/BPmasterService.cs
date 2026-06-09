@@ -976,7 +976,10 @@ WHERE UserId = @UserId;";
 SELECT name
 FROM sys.columns
 WHERE object_id = OBJECT_ID(N'BP.jsMaster')
-  AND name IN (N'mainGroupID', N'chain', N'creditLimit', N'createDate', N'updationDate', N'action');";
+  AND name IN (
+      N'mainGroupID', N'chain', N'creditLimit',
+      N'createDate', N'updationDate', N'action'
+  );";
 
             var names = (await connection.QueryAsync<string>(sql)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return new BpMasterOptionalColumns
@@ -988,6 +991,41 @@ WHERE object_id = OBJECT_ID(N'BP.jsMaster')
                 HasUpdationDate = names.Contains("updationDate"),
                 HasAction = names.Contains("action")
             };
+        }
+
+        private static async Task<HashSet<string>> GetStoredProcedureParameterNamesAsync(
+            SqlConnection connection,
+            string schemaName,
+            string procedureName)
+        {
+            const string sql = @"
+SELECT p.name
+FROM sys.parameters p
+INNER JOIN sys.objects o ON o.object_id = p.object_id
+INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+WHERE s.name = @SchemaName
+  AND o.name = @ProcedureName
+  AND o.type IN ('P', 'PC');";
+
+            var names = await connection.QueryAsync<string>(sql, new
+            {
+                SchemaName = schemaName,
+                ProcedureName = procedureName
+            });
+
+            return names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static void AddProcedureParameterIfPresent(
+            SqlCommand command,
+            IReadOnlySet<string> procedureParameters,
+            string parameterName,
+            object? value)
+        {
+            if (!procedureParameters.Contains(parameterName))
+                return;
+
+            command.Parameters.AddWithValue(parameterName, value ?? DBNull.Value);
         }
 
         private async Task SaveBpManagerFieldsAsync(
@@ -1235,6 +1273,7 @@ WHERE code = @Code
             try
             {
                 var companyId = ResolveCompanyId(model);
+                var bpType = ResolveBpType(model);
                 var primaryBank = ResolvePrimaryBank(model);
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -1242,7 +1281,7 @@ WHERE code = @Code
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
+                    cmd.Parameters.AddWithValue("@type", bpType);
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
                     cmd.Parameters.AddWithValue("@name", ResolveCompanyName(model));
                     cmd.Parameters.AddWithValue("@company", companyId);
@@ -1483,21 +1522,77 @@ WHERE ar.UserId IS NOT NULL
 
         public async Task<IEnumerable<DistinctBankNameModel>> GetDistinctBankNameAsync(int company)
         {
+            return await GetBankCodesAsync(company, "IN");
+        }
+
+        public async Task<IEnumerable<DistinctBankNameModel>> GetBankCodesAsync(int company, string countryCode = "IN")
+        {
+            var normalizedCountry = NormalizeCountryCode(countryCode);
+            Exception? serviceLayerException = null;
+            var serviceLayerFailureMessage = string.Empty;
+
+            try
+            {
+                var serviceLayerBanks = (await _bpMasterSapService.GetBankCodesAsync(company, normalizedCountry)).ToList();
+                if (serviceLayerBanks.Count > 0)
+                    return serviceLayerBanks;
+
+                serviceLayerFailureMessage = "SAP Service Layer Banks returned 0 rows.";
+                _logger.LogWarning(
+                    "SAP Service Layer bank code lookup returned 0 rows. Falling back to HANA ODSC. Company={Company}, CountryCode={CountryCode}",
+                    company,
+                    normalizedCountry);
+            }
+            catch (Exception ex)
+            {
+                serviceLayerException = ex;
+                serviceLayerFailureMessage = ex.Message;
+                _logger.LogWarning(
+                    ex,
+                    "SAP Service Layer bank code lookup failed. Falling back to HANA ODSC. Company={Company}, CountryCode={CountryCode}",
+                    company,
+                    normalizedCountry);
+            }
+
+            try
+            {
+                return await GetBankCodesFromHanaAsync(company, normalizedCountry);
+            }
+            catch (Exception hanaEx)
+            {
+                throw new InvalidOperationException(
+                    $"Bank code lookup failed. Service Layer error: {serviceLayerFailureMessage}. HANA ODSC error: {hanaEx.Message}",
+                    serviceLayerException ?? hanaEx);
+            }
+        }
+
+        private async Task<IEnumerable<DistinctBankNameModel>> GetBankCodesFromHanaAsync(int company, string countryCode)
+        {
             var settings = GetHanaSettings(company);
-
-            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBANKNAME\"()";
-            var fallbackSql = $@"
+            var sql = $@"
                 SELECT
-                    ""BankCode"",
-                    ""BankName""
+                    ""BankCode"" AS ""BankCode"",
+                    ""BankName"" AS ""BankName"",
+                    ""SwiftNo"" AS ""SwiftNo"",
+                    ""CountryCode"" AS ""CountryCode""
                 FROM ""{settings.Schema}"".""ODSC""
+                WHERE ""CountryCode"" = ?
                 ORDER BY ""BankName""";
+            var parameters = new DynamicParameters();
+            parameters.Add("CountryCode", countryCode);
 
-            return await QueryHanaWithFallbackAsync<DistinctBankNameModel>(
-                company,
-                "Bank options",
-                primarySql,
-                fallbackSql: fallbackSql);
+            using var connection = new HanaConnection(settings.ConnectionString);
+            var rows = (await connection.QueryAsync<DistinctBankNameModel>(sql, parameters)).ToList();
+            if (rows.Count == 0)
+            {
+                _logger.LogWarning(
+                    "HANA ODSC bank code lookup returned 0 rows. Company={Company}, CountryCode={CountryCode}, Schema={Schema}",
+                    company,
+                    countryCode,
+                    settings.Schema);
+            }
+
+            return rows;
         }
         public async Task<IEnumerable<SLPnameModel>> GetSLPnameAsync(int company)
         {
@@ -1642,6 +1737,95 @@ WHERE ar.UserId IS NOT NULL
 
             return result;
         }
+
+        public async Task<IEnumerable<GroupNameResponse>> GetBPGroupsAsync(int company, string bpType)
+        {
+            return await _bpMasterSapService.GetBusinessPartnerGroupsAsync(company, bpType);
+        }
+
+        public async Task<IEnumerable<BpAccountOptionModel>> GetARAccountsAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""AcctCode"",
+                    ""AcctName""
+                FROM ""{settings.Schema}"".""OACT""
+                WHERE ""FatherNum"" = '1101000'
+                ORDER BY ""AcctCode""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return await connection.QueryAsync<BpAccountOptionModel>(sql);
+        }
+
+        public async Task<IEnumerable<BpAccountOptionModel>> GetAPAccountsAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""AcctCode"",
+                    ""AcctName""
+                FROM ""{settings.Schema}"".""OACT""
+                WHERE (""FatherNum"" = '2101000' OR ""AcctCode"" LIKE '211%')
+                  AND ""Finanse"" = 'N'
+                ORDER BY ""AcctCode""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            var rows = (await connection.QueryAsync<BpAccountOptionModel>(sql)).ToList();
+            if (rows.Count == 0)
+            {
+                _logger.LogWarning(
+                    "AP account query returned 0 rows. Company={Company}, Schema={Schema}, Filter={Filter}",
+                    company,
+                    settings.Schema,
+                    "(FatherNum='2101000' OR AcctCode LIKE '211%') AND Finanse='N'");
+            }
+
+            return rows;
+        }
+
+        public async Task<IEnumerable<PaymentGroupModel>> GetPaymentTermsAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""GroupNum"",
+                    ""PymntGroup""
+                FROM ""{settings.Schema}"".""OCTG""
+                ORDER BY ""PymntGroup""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return NormalizePaymentGroups(await connection.QueryAsync<PaymentGroupModel>(sql));
+        }
+
+        public async Task<IEnumerable<SLPnameModel>> GetSalesEmployeesAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT ""SlpCode"", ""SlpName""
+                FROM ""{settings.Schema}"".""OSLP""
+                WHERE ""SlpCode"" > 0
+                  AND IFNULL(""Locked"", 'N') = 'N'
+                ORDER BY ""SlpName""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return await connection.QueryAsync<SLPnameModel>(sql);
+        }
+
+        public async Task<IEnumerable<BpTerritoryOptionModel>> GetTerritoriesAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""territryID"" AS ""TerritoryId"",
+                    ""descript"" AS ""TerritoryName""
+                FROM ""{settings.Schema}"".""OTER""
+                ORDER BY ""descript""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return await connection.QueryAsync<BpTerritoryOptionModel>(sql);
+        }
+
         public async Task<IEnumerable<PaymentGroupModel>> GetDistinctPaymentGroupsAsync(int company)
         {
             var settings = GetHanaSettings(company);
@@ -1956,6 +2140,8 @@ WHERE ar.UserId IS NOT NULL
 
                 try
                 {
+                    var bpData = await GetSingleBPDataForSapAsync(flow.BpCode);
+                    var sapData = await GetSPADataAsync(flow.BpCode);
                     var previousTag = await UpdateBpApiStatusAsync(flow.BpCode, "Processing SAP BP creation", "P", null, null, null, request.UserId);
                     if (string.Equals(previousTag.PreviousTag, "Y", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1989,8 +2175,6 @@ WHERE ar.UserId IS NOT NULL
                     BpSapPostResult sapResult;
                     try
                     {
-                        var bpData = await GetSingleBPDataForSapAsync(flow.BpCode);
-                        var sapData = await GetSPADataAsync(flow.BpCode);
                         sapResult = await _bpMasterSapService.PostBusinessPartnerAsync(new BpSapPostRequest
                         {
                             FlowId = flow.FlowId,
@@ -2345,6 +2529,21 @@ WHERE f.id = @flowId;";
             return await connection.QueryFirstOrDefaultAsync<BpFlowRuntimeModel>(sql, new { flowId });
         }
 
+        private static async Task<string> GetBpUpdateBlockMessageAsync(SqlConnection connection, int bpCode)
+        {
+            const string sql = @"
+SELECT TOP (1) f.status
+FROM BP.jsFlow AS f
+WHERE f.bpCode = @bpCode
+  AND f.status = 'A'
+ORDER BY f.id DESC;";
+
+            var status = await connection.QueryFirstOrDefaultAsync<string?>(sql, new { bpCode });
+            return string.Equals(status?.Trim(), "A", StringComparison.OrdinalIgnoreCase)
+                ? "BP update is blocked because workflow is already approved."
+                : string.Empty;
+        }
+
         private async Task<bool> IsUserAssignedToCurrentStageAsync(int userId, int stageId)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -2690,7 +2889,7 @@ ORDER BY id DESC;";
                     commandType: CommandType.StoredProcedure
                 );
 
-                return result;
+                return result ?? new SPAData { masterId = masterId };
             }
 
         }
@@ -2763,6 +2962,7 @@ ORDER BY id DESC;";
             try
             {
                 var companyId = ResolveCompanyId(model);
+                var bpType = ResolveBpType(model);
                 var primaryBank = ResolvePrimaryBank(model);
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -2771,7 +2971,7 @@ ORDER BY id DESC;";
                     cmd.CommandType = CommandType.StoredProcedure;
 
                     cmd.Parameters.AddWithValue("@Code", model.Code);
-                    cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
+                    cmd.Parameters.AddWithValue("@type", bpType);
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
                     cmd.Parameters.AddWithValue("@name", ResolveCompanyName(model));
                     cmd.Parameters.AddWithValue("@company", companyId);
@@ -2824,6 +3024,14 @@ ORDER BY id DESC;";
                     attachParam.SqlDbType = SqlDbType.Structured;
 
                     await conn.OpenAsync();
+                    var updateBlockMessage = await GetBpUpdateBlockMessageAsync(conn, model.Code);
+                    if (!string.IsNullOrWhiteSpace(updateBlockMessage))
+                    {
+                        response.Success = false;
+                        response.Message = updateBlockMessage;
+                        return response;
+                    }
+
                     var creatorUserId = await GetBpCreatorUserIdAsync(conn, model.Code);
                     await cmd.ExecuteNonQueryAsync();
 
@@ -2879,6 +3087,24 @@ ORDER BY id DESC;";
                     cmd.Parameters.AddWithValue("@grpCode", model.GrpCode);
 
                     await conn.OpenAsync();
+                    var updateProcedureParameters = await GetStoredProcedureParameterNamesAsync(conn, "BP", "jsUpdateSAPData");
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@cardCodePrefix", NullIfBlank(model.CardCodePrefix));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupCode", model.BpGroupCode);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupName", NullIfBlank(model.BpGroupName));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@arAccountCode", NullIfBlank(model.ArAccountCode));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@apAccountCode", NullIfBlank(model.ApAccountCode));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@paymentTermCode", model.PaymentTermCode);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@salesEmployeeCode", model.SalesEmployeeCode);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@territoryId", model.TerritoryId);
+
+                    var updateBlockMessage = await GetBpUpdateBlockMessageAsync(conn, model.MasterId);
+                    if (!string.IsNullOrWhiteSpace(updateBlockMessage))
+                    {
+                        result.Success = false;
+                        result.Message = updateBlockMessage;
+                        return result;
+                    }
+
                     await cmd.ExecuteNonQueryAsync();
 
                     result.Success = true;
