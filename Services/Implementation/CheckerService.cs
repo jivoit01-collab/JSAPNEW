@@ -71,7 +71,8 @@ namespace JSAPNEW.Services.Implementation
             using (SqlConnection conn = new SqlConnection(connStr))
             {
                 string query = @"
-                    UPDATE AttachmentUpload
+                    UPDATE 
+
                     SET
                         CheckerStatus = @Status,
                         CheckerRemark = @Remark,

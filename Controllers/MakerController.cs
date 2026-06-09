@@ -1,4 +1,6 @@
-﻿//using Microsoft.AspNetCore.Mvc;
+﻿
+
+//using Microsoft.AspNetCore.Mvc;
 //using Microsoft.Data.SqlClient;
 //using System.Data;
 
@@ -184,6 +186,10 @@ namespace JSAPNEW.Controllers
 
                 using (var stream = new FileStream(fullPath, FileMode.Create))
                     await file.CopyToAsync(stream);
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    throw new Exception("File upload failed");
+                }
 
                 string filePath = "/uploads/maker/" + uniqueFileName;
                 string connStr = _configuration.GetConnectionString("FHConnection");
