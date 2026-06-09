@@ -834,15 +834,17 @@
     /* ═══════════════════════════════════════
     PDF
     ═══════════════════════════════════════ */
+    // function openPdf(path) {
+    // document.getElementById("pdfFrame").src = path;
+    // document.getElementById("pdfContainer").style.display = "flex";
+    // }
+    // function closePdf() {
+    // document.getElementById("pdfContainer").style.display = "none";
+    // document.getElementById("pdfFrame").src = "";
+    // }
     function openPdf(path) {
-    document.getElementById("pdfFrame").src = path;
-    document.getElementById("pdfContainer").style.display = "flex";
+    window.open(path, '_blank');
     }
-    function closePdf() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("pdfFrame").src = "";
-    }
-
     /* ═══════════════════════════════════════
     FORMAT DATE
     ═══════════════════════════════════════ */

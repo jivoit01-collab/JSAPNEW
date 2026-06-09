@@ -534,7 +534,11 @@ namespace JSAPNEW.Controllers
         }
 
 
-        private string BackupRoot() => Path.Combine(_environment.ContentRootPath, "App_Data", "backups", "documenthub");
+        private string BackupRoot() =>
+      Path.Combine(
+          _environment.WebRootPath,
+          "uploads",
+          "documenthub-backups");
 
         private string BackupPath(string backupId) => Path.Combine(BackupRoot(), $"{Path.GetFileNameWithoutExtension(backupId)}.json");
 
@@ -584,7 +588,11 @@ namespace JSAPNEW.Controllers
         }
 
 
-        private string UploadRoot() => Path.Combine(_environment.ContentRootPath, "App_Data", "uploads", "documenthub");
+        private string UploadRoot() =>
+    Path.Combine(
+        _environment.WebRootPath,
+        "uploads",
+        "documenthub");
 
         private string PhysicalPath(string storedFileName) => Path.Combine(UploadRoot(), Path.GetFileName(storedFileName ?? string.Empty));
 

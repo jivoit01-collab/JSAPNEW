@@ -422,7 +422,10 @@ WHERE FileId = @FileId AND ISNULL(IsDeleted, 0) = 0;",
 
         private string GetUploadRoot()
         {
-            return Path.Combine(_environment.ContentRootPath, "App_Data", "uploads", "documenthub");
+            return Path.Combine(
+       _environment.WebRootPath,
+       "uploads",
+       "documenthub");
         }
 
         private static string GetContentType(string extension)
@@ -848,6 +851,7 @@ WHERE FolderId = @FolderId
             if (file == null)
                 return false;
 
+
             var folderIds = GetFolderAncestorScope(backup.Folders, file.FolderId);
             var folders = backup.Folders.Where(x => folderIds.Contains(x.FolderId)).ToList();
             var versions = backup.Versions.Where(x => x.FileId == fileId).ToList();
@@ -856,15 +860,63 @@ WHERE FolderId = @FolderId
             await con.OpenAsync();
             using var tx = con.BeginTransaction();
 
+            //    try
+            //    {
+            //        await UpsertFoldersAsync(con, tx, folders);
+            //        await UpsertFilesAsync(con, tx, new[] { file });
+            //        await ReplaceVersionsAsync(con, tx, versions, new[] { file }, userId, userName);
+
+            //        await con.ExecuteAsync(
+            //            "DocumentHub_LogActivity",
+            //            new { FileId = fileId, FolderId = file.FolderId, UserId = userId, UserName = userName, Action = "Restore File", Details = backup.BackupId, IpAddress = (string?)null },
+            //            tx,
+            //            commandType: CommandType.StoredProcedure);
+
+            //        tx.Commit();
+            //        return true;
+            //    }
+            //    catch
+            //    {
+            //        //tx.Rollback();
+            //        //return false;
+            //        tx.Rollback();
+            //        throw;
+            //    }
+            //}
             try
             {
+                var exists = await con.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(1) FROM DocumentHubFiles WHERE FileId = @FileId",
+                    new { FileId = fileId },
+                    tx);
+
+                if (exists > 0)
+                {
+                    await con.ExecuteAsync(
+                        "UPDATE DocumentHubFiles SET IsDeleted = 0 WHERE FileId = @FileId",
+                        new { FileId = fileId },
+                        tx);
+
+                    tx.Commit();
+                    return true;
+                }
+
                 await UpsertFoldersAsync(con, tx, folders);
                 await UpsertFilesAsync(con, tx, new[] { file });
                 await ReplaceVersionsAsync(con, tx, versions, new[] { file }, userId, userName);
 
                 await con.ExecuteAsync(
                     "DocumentHub_LogActivity",
-                    new { FileId = fileId, FolderId = file.FolderId, UserId = userId, UserName = userName, Action = "Restore File", Details = backup.BackupId, IpAddress = (string?)null },
+                    new
+                    {
+                        FileId = fileId,
+                        FolderId = file.FolderId,
+                        UserId = userId,
+                        UserName = userName,
+                        Action = "Restore File",
+                        Details = backup.BackupId,
+                        IpAddress = (string?)null
+                    },
                     tx,
                     commandType: CommandType.StoredProcedure);
 
@@ -876,6 +928,7 @@ WHERE FolderId = @FolderId
                 tx.Rollback();
                 return false;
             }
+
         }
 
         private static async Task InsertFoldersAsync(SqlConnection con, SqlTransaction tx, IEnumerable<DocumentHubFolderDto> folders)

@@ -44,6 +44,7 @@
     <Folder Include="wwwroot\TempDownloads\" />
     <Folder Include="wwwroot\uploads\BOM\" />
     <Folder Include="wwwroot\uploads\BPmaster\" />
+    <Folder Include="wwwroot\uploads\documenthub\" />
     <Folder Include="wwwroot\uploads\maker\" />
     <Folder Include="wwwroot\uploads\Ticket\" />
   </ItemGroup>
