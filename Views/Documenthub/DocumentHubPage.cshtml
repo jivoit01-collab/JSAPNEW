@@ -559,7 +559,8 @@
                         <div class="section-label">Quick Access</div>
                         <button class="nav-item-btn active" onclick="selectNavFilter('', this)"><i class="fa-solid fa-layer-group"></i> All Documents</button>
                         <button class="nav-item-btn" onclick="selectNavFilter('recent', this)"><i class="fa-solid fa-clock-rotate-left"></i> Recent Files</button>
-                        <button class="nav-item-btn" onclick="selectNavFilter('trash', this)"><i class="fa-solid fa-trash-can"></i> Trash / Deleted</button>
+                         <button class="nav-item-btn" onclick="selectNavFilter('trash', this)"><i class="fa-solid fa-trash-can"></i> Trash / Deleted</button> 
+    
                     </div>
                     <div class="sidebar-section">
                         <div class="section-label">Folder Hierarchy</div>
@@ -608,7 +609,8 @@
                             <button class="btn btn-sm active-toggle" id="toggleGridBtn" onclick="setViewMode('grid')"><i class="fa-solid fa-grip"></i> Grid</button>
                             <button class="btn btn-sm" id="toggleListBtn" onclick="setViewMode('list')"><i class="fa-solid fa-list"></i> List</button>
                         </div>
-                    </div>
+                    </div> 
+                  
 
                     <!-- Folders -->
                     <div id="folderSection" class="mt-3 mb-4">
@@ -1405,7 +1407,8 @@
         $(el).addClass("active");
         hub.folderId = null;
         hub.filter = filter;
-        $("#folderSection").toggle(!filter);
+        // $("#folderSection").toggle(!filter);
+        $("#folderSection").toggle(!filter || filter === "trash");
         $("#contentTitle").text(filter ? (filter.charAt(0).toUpperCase() + filter.slice(1) + " Items") : "Files and Folders");
         requestLoadHub("selectNavFilter", { filter });
     }
@@ -1557,6 +1560,28 @@
     }
 
     function buildFolderMenu(f) {
+
+
+          if (hub.filter === "trash") {
+        return `
+            <li>
+                <a class="dropdown-item text-success"
+                   onclick="restoreFolder(${f.folderId})">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    Recover
+                </a>
+            </li>
+
+            <li>
+                <a class="dropdown-item text-danger"
+                   onclick="permanentDeleteFolder(${f.folderId})">
+                    <i class="fa-solid fa-trash"></i>
+                    Delete Permanently
+                </a>
+            </li>
+        `;
+    }
+
         let m = `<li><a class="dropdown-item" onclick="goFolder(${f.folderId})"><i class="fa-solid fa-folder-open text-primary"></i> Open</a></li>`;
         if (canCreateFolders())
             m += `<li><a class="dropdown-item" onclick="openFolderModal('subfolder',${f.folderId})"><i class="fa-solid fa-folder-plus text-success"></i> Create Subfolder</a></li>`;
@@ -1656,6 +1681,28 @@
     }
 
     function buildFileMenu(f) {
+
+          // Trash view
+    if (hub.filter === "trash") {
+
+        return `
+            <li>
+                <a class="dropdown-item text-success"
+                   onclick="restoreFile(${f.fileId})">
+                   <i class="fa-solid fa-rotate-left"></i>
+                   Recover
+                </a>
+            </li>
+
+            <li>
+                <a class="dropdown-item text-danger"
+                   onclick="permanentDeleteFile(${f.fileId})">
+                   <i class="fa-solid fa-trash"></i>
+                   Delete Permanently
+                </a>
+            </li>
+        `;
+    }
         let m = `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'view')"><i class="fa-solid fa-eye text-primary"></i> Preview</a></li>`;
         if (hasDocumentHubPermission("download"))
             m += `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'download')"><i class="fa-solid fa-download text-success"></i> Download</a></li>`;
@@ -2546,6 +2593,79 @@ function saveFolder() {
         showToast(res.message, res.success ? "success" : "error");
         requestLoadHub("onMutate", { success: !!res?.success, message: res?.message });
     }
+    function permanentDeleteFile(fileId) {
 
+    if (!confirm("Permanently delete this file? This cannot be undone.")) {
+        return;
+    }
+
+    $.post("/DocumentHub/PermanentDeleteFile", {
+        fileId: fileId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("permanentDelete");
+        }
+    });
+}
+function restoreFile(fileId) {
+
+    $.post("/DocumentHub/RestoreFile", {
+        fileId: fileId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("restore");
+        }
+    });
+}
+    function restoreFolder(folderId) {
+
+    $.post("/DocumentHub/RestoreFolder", {
+        folderId: folderId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("restoreFolder");
+        }
+    });
+
+    }
+
+    function permanentDeleteFolder(folderId) {
+
+    if (!confirm("Permanently delete this folder? This cannot be undone.")) {
+        return;
+    }
+
+    $.post("/DocumentHub/PermanentDeleteFolder", {
+        folderId: folderId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("permanentDeleteFolder");
+        }
+    });
+}
 </script>
 }

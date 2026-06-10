@@ -15,6 +15,9 @@ namespace JSAPNEW.Services.Interfaces
         Task<DocumentHubFileDto?> GetFileAsync(int fileId);
         Task<bool> RenameFileAsync(int fileId, string fileName, int userId, string userName);
         Task<bool> DeleteFileAsync(int fileId, int userId, string userName);
+        Task<bool> RestoreFileAsync(int fileId, int userId, string userName);
+        Task<bool> PermanentDeleteFileAsync(int fileId, int userId, string userName);
+        Task<bool> PermanentDeleteFolderAsync(int folderId,  int userId, string userName);
         Task<bool> MoveFileAsync(int fileId, int targetFolderId, int userId, string userName);
         Task<bool> MoveFolderAsync(int folderId, int? targetParentFolderId, int userId, string userName);
         Task<bool> ToggleFavoriteAsync(int fileId, int userId, string userName);
@@ -30,6 +33,7 @@ namespace JSAPNEW.Services.Interfaces
         Task<bool> RestoreBackupAsync(DocumentHubBackupDto backup, int userId, string userName);
         Task<bool> RestoreBackupFolderAsync(DocumentHubBackupDto backup, int folderId, int userId, string userName);
         Task<bool> RestoreBackupFileAsync(DocumentHubBackupDto backup, int fileId, int userId, string userName);
+        Task<bool> RestoreFolderAsync(int folderId, int userId, string userName);
 
         Task LogActivityAsync( int? fileId,int? folderId,int userId, string userName, string action, string? details = null,string? ipAddress = null);
     }

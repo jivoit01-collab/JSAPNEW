@@ -248,6 +248,70 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> RestoreFile(int fileId)
+        {
+            var ok = await _service.RestoreFileAsync(
+                fileId,
+                CurrentUserId(),
+                CurrentUserName());
+
+            return Json(new
+            {
+                success = ok,
+                message = ok ? "File restored." : "Restore failed."
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RestoreFolder(int folderId)
+        {
+            var ok = await _service.RestoreFolderAsync(
+                folderId,
+                CurrentUserId(),
+                CurrentUserName());
+
+            return Json(new
+            {
+                success = ok,
+                message = ok ? "Folder restored." : "Restore failed."
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PermanentDeleteFile(int fileId)
+        {
+            var ok = await _service.PermanentDeleteFileAsync(
+                fileId,
+                CurrentUserId(),
+                CurrentUserName());
+
+            return Json(new
+            {
+                success = ok,
+                message = ok ? "File permanently deleted." : "Delete failed."
+            });
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> PermanentDeleteFolder(int folderId)
+        {
+            var ok = await _service.PermanentDeleteFolderAsync(
+                folderId,
+                CurrentUserId(),
+                CurrentUserName());
+
+            return Json(new
+            {
+                success = ok,
+                message = ok
+                    ? "Folder permanently deleted."
+                    : "Delete failed."
+            });
+        }
+
+
+        [HttpPost]
         public async Task<IActionResult> MoveFile(int fileId, int targetFolderId)
         {
             if (!await CanManageFoldersAsync())

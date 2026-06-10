@@ -69,7 +69,8 @@ namespace JSAPNEW.Services.Implementation
                 permissions.CanView = true;
                 permissions.CanUpload = true;
                 permissions.CanDownload = true;
-                permissions.CanDelete = true;
+                permissions.CanDelete = (userId == 84 || userId == 135);
+
                 permissions.CanManageFolders = true;
                 permissions.CanRename = false;
                 permissions.CanShare = false;
@@ -367,6 +368,82 @@ WHERE FileId = @FileId
             return true;
         }
 
+
+        public async Task<bool> RestoreFileAsync(
+    int fileId,
+    int userId,
+    string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(@"
+        UPDATE DocumentHubFiles
+        SET IsDeleted = 0
+        WHERE FileId = @FileId",
+                new { FileId = fileId });
+
+            return true;
+        }
+
+        public async Task<bool> RestoreFolderAsync(
+    int folderId,
+    int userId,
+    string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(@"
+        UPDATE dbo.DocumentHubFolders
+        SET
+            IsDeleted = 0,
+            ModifiedDate = GETDATE()
+        WHERE FolderId = @FolderId",
+                new
+                {
+                    FolderId = folderId
+                });
+
+            await LogActivityAsync(
+                null,
+                folderId,
+                userId,
+                userName,
+                "Restore Folder",
+                "Folder restored from trash");
+
+            return true;
+        }
+        public async Task<bool> PermanentDeleteFileAsync(
+            int fileId,
+            int userId,
+            string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            await con.ExecuteAsync(
+                "DELETE FROM DocumentHubFileVersions WHERE FileId=@FileId",
+                new { FileId = fileId });
+
+            await con.ExecuteAsync(
+                "DELETE FROM DocumentHubFiles WHERE FileId=@FileId",
+                new { FileId = fileId });
+
+            return true;
+        }
+        public async Task<bool> PermanentDeleteFolderAsync(
+    int folderId,
+    int userId,
+    string userName)
+        {
+            using var con = new SqlConnection(_connectionString);
+
+            var rows = await con.ExecuteAsync(@"
+        DELETE FROM DocumentHubFolders
+        WHERE FolderId = @FolderId",
+                new { FolderId = folderId });
+
+            return rows > 0;
+        }
         public async Task<bool> MoveFileAsync(int fileId, int targetFolderId, int userId, string userName)
         {
             using var con = new SqlConnection(_connectionString);
