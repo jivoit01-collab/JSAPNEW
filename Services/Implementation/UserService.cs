@@ -2404,7 +2404,7 @@ namespace JSAPNEW.Services.Implementation
                     decimal approvedAmount = SafeParseDecimal(item.ApprovedAmount);
                     decimal pendingAmount = SafeParseDecimal(item.PendingAmount);
 
-                    item.AvailableBalance = totalBudget - approvedAmount;
+                    item.AvailableBalance = Math.Max(0, totalBudget - approvedAmount);
                     item.ApprovedPercentage = totalBudget > 0 ? Math.Round((approvedAmount / totalBudget) * 100, 2) : 0;
                     item.PendingPercentage = totalBudget > 0 ? Math.Round((pendingAmount / totalBudget) * 100, 2) : 0;
                     item.AvailablePercentage = totalBudget > 0 ? Math.Round((item.AvailableBalance.Value / totalBudget) * 100, 2) : 0;
