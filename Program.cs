@@ -99,6 +99,7 @@ builder.Services.AddScoped<IInvoicePaymentService, InvoicePaymentService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IPaymentCheckerService, PaymentCheckerService>();
 builder.Services.AddScoped<IHierarchyService, HierarchyService>();
+builder.Services.AddScoped<IDocumentHubService, DocumentHubService>();
 
 // Add CORS
 builder.Services.AddCors(options =>

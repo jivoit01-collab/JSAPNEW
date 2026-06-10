@@ -655,7 +655,7 @@ body {
 }
 
 .admin-dashboard-shell .dt-checker {
-    min-width: 1140px;
+    min-width: 1660px;
 }
 
 .admin-dashboard-shell .dt-invoice,
@@ -742,8 +742,12 @@ body {
     width: 140px;
 }
 
+.admin-dashboard-shell .dt-checker .col-supplier {
+    width: 170px;
+}
+
 .admin-dashboard-shell .dt-checker .col-remark {
-    width: 60px;
+    width: 150px;
 }
 
 .admin-dashboard-shell .dt-checker .col-status {
@@ -752,6 +756,18 @@ body {
 
 .admin-dashboard-shell .dt-checker .col-attachment {
     width: 120px;
+}
+
+.admin-dashboard-shell .dt-checker .col-checker-remark {
+    width: 190px;
+}
+
+.admin-dashboard-shell .dt-checker .col-action {
+    width: 120px;
+}
+
+.admin-dashboard-shell .dt-checker .col-serial {
+    width: 110px;
 }
 
 .admin-dashboard-shell .dt-invoice .col-account,
@@ -1549,13 +1565,15 @@ body {
         background: rgba(239, 246, 255, .82);
     }
 
-    .checker-dashboard-shell .checker-table-card table.dt tbody tr.row-selected td {
+    .checker-dashboard-shell .checker-table-card table.dt tbody tr.row-selected td,
+    .admin-dashboard-shell .dt-checker tbody tr.row-selected td {
         background: rgba(239, 246, 255, .92) !important;
         border-left: 0;
         box-shadow: inset 3px 0 0 var(--admin-blue);
     }
 
-.checker-dashboard-shell .account-drill-link {
+.checker-dashboard-shell .account-drill-link,
+.admin-dashboard-shell .account-drill-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1565,12 +1583,14 @@ body {
     text-decoration: none;
 }
 
-    .checker-dashboard-shell .account-drill-link:hover {
+    .checker-dashboard-shell .account-drill-link:hover,
+    .admin-dashboard-shell .account-drill-link:hover {
         color: var(--admin-primary);
         text-decoration: none;
     }
 
-    .checker-dashboard-shell .account-drill-link i {
+    .checker-dashboard-shell .account-drill-link i,
+    .admin-dashboard-shell .account-drill-link i {
         flex: 0 0 auto;
         color: #94a3b8;
         font-size: 10px;
@@ -2454,6 +2474,10 @@ body {
         width: 132px;
     }
 
+    .payment-checker-shell .payment-checker-table .col-action {
+        width: 180px;
+    }
+
     .payment-checker-shell .payment-checker-table .col-checker-remark {
         width: 275px;
     }
@@ -3203,7 +3227,8 @@ body {
    Checker expanded invoice detail table
 ========================================= */
 
-.checker-dashboard-shell .erp-detail-cell {
+.checker-dashboard-shell .erp-detail-cell,
+.admin-dashboard-shell .erp-detail-cell {
     padding: 4px !important;
     background: #f3f6fb !important;
     border-left: 2px solid #7aa7d9;
@@ -3212,7 +3237,8 @@ body {
     height: auto !important;
 }
 
-.checker-dashboard-shell .erp-detail-wrap {
+.checker-dashboard-shell .erp-detail-wrap,
+.admin-dashboard-shell .erp-detail-wrap {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
@@ -3224,20 +3250,24 @@ body {
     scrollbar-color: #93c5fd #e2e8f0;
 }
 
-.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar {
+.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar,
+.admin-dashboard-shell .erp-detail-wrap::-webkit-scrollbar {
     height: 8px;
 }
 
-.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-track {
+.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-track,
+.admin-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-track {
     background: #e2e8f0;
 }
 
-.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-thumb {
+.checker-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-thumb,
+.admin-dashboard-shell .erp-detail-wrap::-webkit-scrollbar-thumb {
     background: #93c5fd;
     border-radius: 999px;
 }
 
-.checker-dashboard-shell .erp-detail-table {
+.checker-dashboard-shell .erp-detail-table,
+.admin-dashboard-shell .erp-detail-table {
     width: max-content;
     min-width: min(100%, 860px);
     table-layout: auto;
@@ -3248,41 +3278,67 @@ body {
     line-height: 1;
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-sno {
+.checker-dashboard-shell .erp-detail-table col.erp-col-sno,
+.admin-dashboard-shell .erp-detail-table col.erp-col-sno {
     width: 44px;
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-product {
+.checker-dashboard-shell .erp-detail-table col.erp-col-product,
+.admin-dashboard-shell .erp-detail-table col.erp-col-product {
     width: clamp(280px, 40vw, 520px);
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-hsn {
+.checker-dashboard-shell .erp-detail-table col.erp-col-hsn,
+.admin-dashboard-shell .erp-detail-table col.erp-col-hsn {
     width: 82px;
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-qty {
+.checker-dashboard-shell .erp-detail-table col.erp-col-qty,
+.admin-dashboard-shell .erp-detail-table col.erp-col-qty {
     width: 58px;
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-rate {
+.checker-dashboard-shell .erp-detail-table col.erp-col-rate,
+.admin-dashboard-shell .erp-detail-table col.erp-col-rate {
     width: 88px;
 }
 
 .checker-dashboard-shell .erp-detail-table col.erp-col-disc,
-.checker-dashboard-shell .erp-detail-table col.erp-col-margin {
+.checker-dashboard-shell .erp-detail-table col.erp-col-margin,
+.admin-dashboard-shell .erp-detail-table col.erp-col-disc,
+.admin-dashboard-shell .erp-detail-table col.erp-col-margin {
     width: 68px;
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-mrp {
+.checker-dashboard-shell .erp-detail-table col.erp-col-taxname,
+.admin-dashboard-shell .erp-detail-table col.erp-col-taxname {
+    width: 140px;
+}
+
+.checker-dashboard-shell .erp-detail-table col.erp-col-taxrate,
+.admin-dashboard-shell .erp-detail-table col.erp-col-taxrate {
+    width: 76px;
+}
+
+.checker-dashboard-shell .erp-detail-table col.erp-col-taxamount,
+.admin-dashboard-shell .erp-detail-table col.erp-col-taxamount {
+    width: 96px;
+}
+
+.checker-dashboard-shell .erp-detail-table col.erp-col-mrp,
+.admin-dashboard-shell .erp-detail-table col.erp-col-mrp {
     width: 78px;
 }
 
-.checker-dashboard-shell .erp-detail-table col.erp-col-amount {
+.checker-dashboard-shell .erp-detail-table col.erp-col-amount,
+.admin-dashboard-shell .erp-detail-table col.erp-col-amount {
     width: 96px;
 }
 
 .checker-dashboard-shell .erp-detail-table th,
-.checker-dashboard-shell .erp-detail-table td {
+.checker-dashboard-shell .erp-detail-table td,
+.admin-dashboard-shell .erp-detail-table th,
+.admin-dashboard-shell .erp-detail-table td {
     box-sizing: border-box;
     height: 24px !important;
     min-height: 24px;
@@ -3293,7 +3349,8 @@ body {
     line-height: 1;
 }
 
-.checker-dashboard-shell .erp-detail-table thead th {
+.checker-dashboard-shell .erp-detail-table thead th,
+.admin-dashboard-shell .erp-detail-table thead th {
     color: #1f2937 !important;
     background: #e7edf5 !important;
     font-size: 10px !important;
@@ -3303,31 +3360,37 @@ body {
     letter-spacing: 0;
 }
 
-.checker-dashboard-shell .erp-detail-table thead th.erp-product {
+.checker-dashboard-shell .erp-detail-table thead th.erp-product,
+.admin-dashboard-shell .erp-detail-table thead th.erp-product {
     text-align: left;
 }
 
-.checker-dashboard-shell .erp-detail-table tbody tr:nth-child(even) td {
+.checker-dashboard-shell .erp-detail-table tbody tr:nth-child(even) td,
+.admin-dashboard-shell .erp-detail-table tbody tr:nth-child(even) td {
     background: #f8fbff;
 }
 
-.checker-dashboard-shell .erp-detail-table tbody tr:hover td {
+.checker-dashboard-shell .erp-detail-table tbody tr:hover td,
+.admin-dashboard-shell .erp-detail-table tbody tr:hover td {
     background: #eaf3ff;
 }
 
-.checker-dashboard-shell .erp-detail-table td {
+.checker-dashboard-shell .erp-detail-table td,
+.admin-dashboard-shell .erp-detail-table td {
     color: #111827 !important;
     font-size: 11px !important;
     font-weight: 500 !important;
     text-align: center;
 }
 
-.checker-dashboard-shell .erp-detail-table .erp-sno {
+.checker-dashboard-shell .erp-detail-table .erp-sno,
+.admin-dashboard-shell .erp-detail-table .erp-sno {
     text-align: center;
     color: #64748b !important;
 }
 
-.checker-dashboard-shell .erp-detail-table .erp-product {
+.checker-dashboard-shell .erp-detail-table .erp-product,
+.admin-dashboard-shell .erp-detail-table .erp-product {
     min-width: 280px;
     max-width: 520px;
     color: #0f2b5b !important;
@@ -3337,13 +3400,15 @@ body {
     text-overflow: ellipsis;
 }
 
-.checker-dashboard-shell .erp-detail-table .erp-hsn {
+.checker-dashboard-shell .erp-detail-table .erp-hsn,
+.admin-dashboard-shell .erp-detail-table .erp-hsn {
     color: #475569 !important;
     font-family: Consolas, 'Courier New', monospace;
     text-align: center;
 }
 
-.checker-dashboard-shell .erp-detail-table .erp-empty {
+.checker-dashboard-shell .erp-detail-table .erp-empty,
+.admin-dashboard-shell .erp-detail-table .erp-empty {
     color: #64748b !important;
     text-align: center;
     font-weight: 700 !important;
@@ -3354,13 +3419,28 @@ body {
 .checker-dashboard-shell .erp-detail-table .erp-disc,
 .checker-dashboard-shell .erp-detail-table .erp-margin,
 .checker-dashboard-shell .erp-detail-table .erp-mrp,
-.checker-dashboard-shell .erp-detail-table .erp-amount {
+.checker-dashboard-shell .erp-detail-table .erp-amount,
+.checker-dashboard-shell .erp-detail-table .erp-taxrate,
+.checker-dashboard-shell .erp-detail-table .erp-taxamount,
+.admin-dashboard-shell .erp-detail-table .erp-qty,
+.admin-dashboard-shell .erp-detail-table .erp-rate,
+.admin-dashboard-shell .erp-detail-table .erp-disc,
+.admin-dashboard-shell .erp-detail-table .erp-margin,
+.admin-dashboard-shell .erp-detail-table .erp-mrp,
+.admin-dashboard-shell .erp-detail-table .erp-amount,
+.admin-dashboard-shell .erp-detail-table .erp-taxrate,
+.admin-dashboard-shell .erp-detail-table .erp-taxamount {
     text-align: center;
 }
 
 .checker-dashboard-shell .erp-detail-table .erp-qty,
 .checker-dashboard-shell .erp-detail-table .erp-rate,
-.checker-dashboard-shell .erp-detail-table .erp-amount {
+.checker-dashboard-shell .erp-detail-table .erp-amount,
+.checker-dashboard-shell .erp-detail-table .erp-taxamount,
+.admin-dashboard-shell .erp-detail-table .erp-qty,
+.admin-dashboard-shell .erp-detail-table .erp-rate,
+.admin-dashboard-shell .erp-detail-table .erp-amount,
+.admin-dashboard-shell .erp-detail-table .erp-taxamount {
     font-weight: 800 !important;
 }
 .admin-dashboard-shell .top-scroll {
@@ -3439,7 +3519,9 @@ body {
     padding: 20px;
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .btn-cancel {
@@ -3457,6 +3539,24 @@ body {
     padding: 10px 18px;
     border-radius: 8px;
     cursor: pointer;
+}
+
+.btn-modal-reject {
+    min-height: 39px;
+    padding: 10px 18px;
+    border-radius: 8px;
+}
+
+.payment-checker-shell .verify-footer .btn-cancel,
+.payment-checker-shell .verify-footer .btn-modal-reject,
+.payment-checker-shell .verify-footer .btn-verify {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 120px;
+    font-weight: 700;
+    white-space: nowrap;
 }
 .btn-review {
     background: #2563eb;

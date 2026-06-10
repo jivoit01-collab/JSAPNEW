@@ -392,9 +392,14 @@
                         <col class="col-voucher" />
                         <col class="col-date" />
                         <col class="col-amount" />
+                        <col class="col-supplier" />
+                        <col class="col-date" />
+                        <col class="col-attachment" />
                         <col class="col-remark" />
                         <col class="col-status" />
-                        <col class="col-attachment" />
+                        <col class="col-checker-remark" />
+                        <col class="col-action" />
+                        <col class="col-serial" />
                     </colgroup>
                     <thead>
                         <tr>
@@ -402,9 +407,14 @@
                             <th>Voucher No</th>
                             <th>Date</th>
                             <th>Amount</th>
-                            <th>Remark</th>
-                            <th>Status</th>
+                            <th>Supplier Ref</th>
+                            <th>Due Date</th>
                             <th>Attachment</th>
+                            <th>Maker Remark</th>
+                            <th>Status</th>
+                            <th>Checker Remark</th>
+                            <th>Action</th>
+                            <th>Serial No</th>
                         </tr>
                     </thead>
                     <tbody id="checkerBody"></tbody>
@@ -940,11 +950,19 @@
     if(tab === 'checker')
     {
     rowsData.forEach(x => {
+    const checkerStatus = x.checkerStatus || 'Pending';
 
     rows += `
-    <tr>
+    <tr id="admin-checker-row-${safeValueAttr(x.vchNumber)}" onclick="highlightAdminCheckerRow(this)">
 
-    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+    <td class="td-account" title="${safeAttr(x.accountName)}">
+    <a href="javascript:void(0)"
+    onclick="loadAdminCheckerDetails('${safeValueAttr(x.vchNumber)}','${safeValueAttr(x.serialNumber)}');event.stopPropagation();"
+    class="account-drill-link">
+    <span class="cell-text">${safeText(x.accountName)}</span>
+    <i class="fa-solid fa-chevron-down"></i>
+    </a>
+    </td>
 
     <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
 
@@ -952,17 +970,32 @@
 
     <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
 
-    <td class="td-remark" title="${safeAttr(x.checkerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.checkerRemark ?? '-')}</span></td>
+    <td class="td-supplier" title="${safeAttr(x.supplierRef ?? '-')}"><span class="cell-text">${safeText(x.supplierRef ?? '-')}</span></td>
 
-    <td class="td-status">${statusBadge(x.checkerStatus ?? '-')}</td>
+    <td class="td-date"><span class="cell-text">${safeText(x.dueDate ?? '-')}</span></td>
 
     <td class="td-attachment">${attachmentLink(x.attachmentPath)}</td>
+
+    <td class="td-remark" title="${safeAttr(x.makerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.makerRemark ?? '-')}</span></td>
+
+    <td class="td-status">${statusBadge(checkerStatus)}</td>
+
+    <td class="td-checker-remark">
+    <input type="text"
+    class="checker-remark-input adminCheckerRemark"
+    value="${safeValueAttr(x.checkerRemark ?? '')}"
+    placeholder="Admin remark" />
+    </td>
+
+    <td class="td-action-cell">${checkerRejectButton(x, checkerStatus)}</td>
+
+    <td class="td-serial"><span class="cell-text">${safeText(x.serialNumber ?? '-')}</span></td>
 
     </tr>
     `;
     });
 
-    $('#checkerBody').html(rows || emptyRow(7));
+    $('#checkerBody').html(rows || emptyRow(12));
     }
 
     // if(tab === 'invoice')
@@ -1110,6 +1143,11 @@
     return safeText(value).replace(/"/g, '&quot;');
     }
 
+    function safeValueAttr(value) {
+    if (value === null || value === undefined) return '';
+    return $('<div>').text(value).html().replace(/"/g, '&quot;');
+    }
+
     function statusBadge(status) {
     const value = safeText(status);
     const normalized = String(status || '').toLowerCase();
@@ -1134,10 +1172,141 @@
     if (!path) return '<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>';
 
     return `
-    <a class="attach-view" target="_blank" href="${path}">
+    <a class="attach-view" target="_blank" rel="noopener" href="${safeAttr(path)}">
     <i class="fa-solid fa-eye"></i>
     View
     </a>`;
+    }
+
+    function checkerRejectButton(x, status) {
+    if (String(status || '').toLowerCase() === 'rejected') {
+    return '<span class="status-badge sb-rejected"><i class="fa-solid fa-ban"></i> Rejected</span>';
+    }
+
+    return `
+    <button class="btn-reject adminRejectCheckerBtn"
+    type="button"
+    data-vch="${safeValueAttr(x.vchNumber)}"
+    data-account="${safeValueAttr(x.accountName ?? '')}"
+    data-amount="${safeValueAttr(x.billAmount ?? '')}">
+    <i class="fa-solid fa-xmark"></i> Reject
+    </button>`;
+    }
+
+    function highlightAdminCheckerRow(tr) {
+    document.querySelectorAll('#checkerBody tr.row-selected')
+    .forEach(r => r.classList.remove('row-selected'));
+    tr.classList.add('row-selected');
+    }
+
+    function loadAdminCheckerDetails(vchNumber, serialNumber) {
+    const existing = document.getElementById("admin-details-" + vchNumber);
+    if (existing) {
+    existing.remove();
+    return;
+    }
+
+    document.querySelectorAll("[id^='admin-details-']").forEach(el => el.remove());
+
+    const row = document.getElementById("admin-checker-row-" + vchNumber);
+    if (!row) return;
+
+    row.insertAdjacentHTML("afterend", `
+    <tr id="admin-details-${safeValueAttr(vchNumber)}" class="detail-row">
+    <td colspan="12">
+    <div class="detail-inner">
+    <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
+    Loading items...
+    </div>
+    </td>
+    </tr>`);
+
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+    fetch("/Checker/GetInvoiceItems?serialNumber=" + encodeURIComponent(serialNumber), { signal: ctrl.signal })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+    clearTimeout(timeout);
+
+    const items = Array.isArray(data) ? data : [];
+    const bodyRows = items.length ? items.map((item, idx) => `
+    <tr class="erp-item-row">
+    <td class="erp-product" title="${safeAttr(item.productName ?? "-")}">${safeText(item.productName ?? "-")}</td>
+    <td class="erp-hsn">${safeText(item.hsnsacid ?? "-")}</td>
+    <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
+    <td class="erp-rate">&#8377;${safeText(item.purchaseRate ?? 0)}</td>
+    <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
+    <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
+    
+    <td class="erp-taxname">${safeText(item.taxName ?? "-")}</td>
+
+    <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
+
+    <td class="erp-taxamount">&#8377;${safeText(item.taxAmount ?? 0)}</td>
+    <td class="erp-mrp">&#8377;${safeText(item.mrp ?? "-")}</td>
+    <td class="erp-amount">&#8377;${safeText(item.amount ?? 0)}</td>
+    <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
+    </tr>`).join("") : `
+    <tr class="erp-item-row">
+    <td colspan="12" class="erp-empty">No items found.</td>
+    </tr>`;
+
+    const el = document.getElementById("admin-details-" + vchNumber);
+    if (el) {
+    el.outerHTML = `
+    <tr id="admin-details-${safeValueAttr(vchNumber)}" class="detail-row">
+    <td colspan="12" class="erp-detail-cell">
+    <div class="erp-detail-wrap">
+    <table class="erp-detail-table">
+    <colgroup>
+    <col class="erp-col-product" />
+    <col class="erp-col-hsn" />
+    <col class="erp-col-qty" />
+    <col class="erp-col-rate" />
+    <col class="erp-col-disc" />
+    <col class="erp-col-margin" />
+    <col class="erp-col-taxname" />
+    <col class="erp-col-taxrate" />
+    <col class="erp-col-taxamount" />
+    <col class="erp-col-mrp" />
+    <col class="erp-col-amount" />
+    <col class="erp-col-sno" />
+    </colgroup>
+    <thead>
+    <tr>
+    <th class="erp-product">Product Name</th>
+    <th class="erp-hsn">HSN/SAC</th>
+    <th class="erp-qty">Qty</th>
+    <th class="erp-rate">Pur. Rate</th>
+    <th class="erp-disc">Disc %</th>
+    <th class="erp-margin">Margin %</th>
+    <th class="erp-taxname">Tax Name</th>
+
+    <th class="erp-taxrate">Tax Rate</th>
+
+    <th class="erp-taxamount">Tax Amount</th>
+    <th class="erp-mrp">MRP</th>
+    <th class="erp-amount">Amount</th>
+    <th class="erp-sno">Serial No</th>
+    </tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>
+    </table>
+    </div>
+    </td>
+    </tr>`;
+    }
+    })
+    .catch(err => {
+    clearTimeout(timeout);
+    const el = document.getElementById("admin-details-" + vchNumber);
+    if (el) {
+    el.innerHTML = `<td colspan="12" class="empty-row" style="color:#EF4444">
+    ${err.name === "AbortError" ? "Request timed out" : "Error loading items"}
+    </td>`;
+    }
+    });
     }
 
     function deleteAttachmentButton(x) {
@@ -1363,6 +1532,65 @@
     });
     }
 
+    $(document).on("click", ".adminRejectCheckerBtn", function () {
+    const btn = $(this);
+    const row = btn.closest("tr");
+    const vch = btn.data("vch");
+    const account = btn.data("account");
+    const amount = btn.data("amount");
+    const remark = row.find(".adminCheckerRemark").val() || "Rejected by Admin";
+
+    $("#confirmTitle").text("Reject Checker Entry");
+    $("#confirmSubtitle").text("Admin correction");
+    $("#confirmWarningText").html("You are about to <strong>reject this checker entry</strong>. This will return the bill to rejected status.");
+    $("#meta-vch").text(vch);
+    $("#meta-account").text(account || "-");
+    $("#meta-amount").text("₹" + (amount || "-"));
+    $("#meta-remark").text(remark);
+    $("#confirmProceed")
+    .html('<i class="fa-solid fa-circle-xmark"></i> Reject')
+    .css({ "background": "linear-gradient(135deg,#dc2626,#ef4444)" });
+
+    $("#confirmOverlay").addClass("show");
+    $("#confirmProceed").off("click").on("click", function () {
+    rejectCheckerEntry(vch, remark, btn);
+    });
+    });
+
+    function rejectCheckerEntry(vch, remark, btn) {
+    btn.prop("disabled", true);
+
+    $.ajax({
+    url: '/Admin/RejectCheckerEntry',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+    vchNumber: vch,
+    remark: remark
+    }),
+    success: function (res) {
+    closeConfirm();
+
+    if (!res || res.success === false) {
+    alert((res && res.message) || "Unable to reject checker entry.");
+    btn.prop("disabled", false);
+    return;
+    }
+
+    loadChecker();
+    loadMaker();
+    loadInvoicePayment();
+    loadPaymentChecker();
+    loadSummary();
+    },
+    error: function () {
+    closeConfirm();
+    alert("Unable to reject checker entry.");
+    btn.prop("disabled", false);
+    }
+    });
+    }
+
     function openMarkPaidModal(vch, account, amount)
     {
     $("#confirmTitle").text("Mark Invoice as Paid");
@@ -1549,21 +1777,25 @@
     }
 
     else if (tab === "checker") {
-    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Checker Remark","Checker Status","Attachment"]);
+    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Supplier Ref","Due Date","Attachment","Maker Remark","Checker Status","Checker Remark","Serial No"]);
     data.forEach(function(x) {
     rows.push([
     x.accountName    || "",
     x.vchNumber      || "",
     x.voucherDate    || "",
     x.billAmount     || "",
-    x.checkerRemark  || "",
+    x.supplierRef    || "",
+    x.dueDate        || "",
+    x.attachmentPath ? "Yes" : "No",
+    x.makerRemark    || "",
     x.checkerStatus  || "",
-    x.attachmentPath ? "Yes" : "No"
+    x.checkerRemark  || "",
+    x.serialNumber   || ""
     ]);
     });
     var totalAmt = data.reduce(function(s,x){ return s + (parseFloat(x.billAmount)||0); }, 0);
     rows.push([]);
-    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"","",""]);
+    rows.push(["","","Total Bill Amount","₹" + totalAmt.toLocaleString("en-IN"),"","","","","","",""]);
     }
 
     else if (tab === "invoice") {

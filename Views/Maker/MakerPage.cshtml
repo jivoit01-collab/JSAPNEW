@@ -644,17 +644,21 @@
     }
 
  
-    /* ═══════════════════════════════════
-    PDF VIEWER  (your original — unchanged)
-    ═══════════════════════════════════ */
-    function openPdf(path) {
-    document.getElementById("pdfFrame").src = path;
-    document.getElementById("pdfContainer").style.display = "block";
-    }
+    // ═══════════════════════════════════
+    // PDF VIEWER  (your original — unchanged)
+    // ═══════════════════════════════════
+    // function openPdf(path) {
+    // document.getElementById("pdfFrame").src = path;
+    // document.getElementById("pdfContainer").style.display = "block";
+    // }
 
-    function closePdf() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("pdfFrame").src = "";
+    // function closePdf() {
+    // document.getElementById("pdfContainer").style.display = "none";
+    // document.getElementById("pdfFrame").src = "";
+    // }
+
+    function openPdf(path) {
+    window.open(path, '_blank');
     }
 
     /* ═══════════════════════════════════

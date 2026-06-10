@@ -2,7 +2,8 @@
 
 ## 1. Module Overview
 
-The Bill Verification module manages the movement of purchase bills from initial document upload through checker approval, invoice payment monitoring, paid invoice review, and admin audit. The user-facing pages are built with Razor views, Bootstrap, jQuery, MVC controllers, service classes, SQL Server stored procedures, and the `AttachmentUpload` workflow table.
+The Bill Verification module manages the movement of purchase bills from initial document upload through checker approval, invoice payment monitoring, paid invoice review, and admin audit. The user-facing pages are built with Razor views, Bootstrap, jQuery, MVC controllers, service classes, SQL Server stored procedures, and the `
+` workflow table.
 
 The main pages are:
 

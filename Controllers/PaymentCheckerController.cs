@@ -50,5 +50,17 @@ namespace JSAPNEW.Controllers
                 message = "Payment verified successfully"
             });
         }
+
+        [HttpPost]
+        public IActionResult RejectPayment(int vchNumber, string remark)
+        {
+            var success = _service.RejectPayment(vchNumber, remark);
+
+            return Json(new
+            {
+                success,
+                message = success ? "Payment rejected successfully" : "Unable to reject payment"
+            });
+        }
     }
 }
