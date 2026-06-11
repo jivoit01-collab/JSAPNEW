@@ -746,18 +746,29 @@
     const items = Array.isArray(data) ? data : [];
     const bodyRows = items.length ? items.map((item, idx) => `
     <tr class="erp-item-row">
-    <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
     <td class="erp-product" title="${safeAttr(item.productName ?? "-")}">${safeText(item.productName ?? "-")}</td>
-    <td class="erp-hsn">${safeText(item.hsnsacid ?? "-")}</td>
-    <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
+     <td class="erp-hsn">${safeText(item.hsnsacid ?? "-")}</td>
+     <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
+  
     <td class="erp-rate">&#8377;${safeText(item.purchaseRate ?? 0)}</td>
     <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
+
     <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
+
+    <td class="erp-taxname">${safeText(item.taxName ?? "-")}</td>
+
+    <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
+
+    <td class="erp-taxamount">&#8377;${safeText(item.taxAmount ?? 0)}</td>
+
+  
     <td class="erp-mrp">&#8377;${safeText(item.mrp ?? "-")}</td>
+
     <td class="erp-amount">&#8377;${safeText(item.amount ?? 0)}</td>
+    <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
     </tr>`).join("") : `
     <tr class="erp-item-row">
-    <td colspan="9" class="erp-empty">No items found.</td>
+    <td colspan="12" class="erp-empty">No items found.</td>
     </tr>`;
 
     const el = document.getElementById("details-" + vchNumber);
@@ -768,27 +779,40 @@
     <div class="erp-detail-wrap">
     <table class="erp-detail-table">
     <colgroup>
-    <col class="erp-col-sno" />
     <col class="erp-col-product" />
     <col class="erp-col-hsn" />
     <col class="erp-col-qty" />
     <col class="erp-col-rate" />
     <col class="erp-col-disc" />
     <col class="erp-col-margin" />
+    <col class="erp-col-taxname" />
+    <col class="erp-col-taxrate" />
+    <col class="erp-col-taxamount" />
     <col class="erp-col-mrp" />
     <col class="erp-col-amount" />
+    <col class="erp-col-sno" />
     </colgroup>
     <thead>
     <tr>
-    <th class="erp-sno">S.No</th>
     <th class="erp-product">Product Name</th>
     <th class="erp-hsn">HSN/SAC</th>
     <th class="erp-qty">Qty</th>
     <th class="erp-rate">Pur. Rate</th>
     <th class="erp-disc">Disc %</th>
+
     <th class="erp-margin">Margin %</th>
+
+    <th class="erp-taxname">Tax Name</th>
+
+    <th class="erp-taxrate">Tax Rate</th>
+
+    <th class="erp-taxamount">Tax Amount</th>
+
+   
     <th class="erp-mrp">MRP</th>
+
     <th class="erp-amount">Amount</th>
+    <th class="erp-sno">Serial No</th>
     </tr>
     </thead>
     <tbody>${bodyRows}</tbody>
@@ -810,15 +834,17 @@
     /* ═══════════════════════════════════════
     PDF
     ═══════════════════════════════════════ */
+    // function openPdf(path) {
+    // document.getElementById("pdfFrame").src = path;
+    // document.getElementById("pdfContainer").style.display = "flex";
+    // }
+    // function closePdf() {
+    // document.getElementById("pdfContainer").style.display = "none";
+    // document.getElementById("pdfFrame").src = "";
+    // }
     function openPdf(path) {
-    document.getElementById("pdfFrame").src = path;
-    document.getElementById("pdfContainer").style.display = "flex";
+    window.open(path, '_blank');
     }
-    function closePdf() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("pdfFrame").src = "";
-    }
-
     /* ═══════════════════════════════════════
     FORMAT DATE
     ═══════════════════════════════════════ */

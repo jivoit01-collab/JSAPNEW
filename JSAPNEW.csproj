@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -44,12 +44,14 @@
     <Folder Include="wwwroot\TempDownloads\" />
     <Folder Include="wwwroot\uploads\BOM\" />
     <Folder Include="wwwroot\uploads\BPmaster\" />
+    <Folder Include="wwwroot\uploads\documenthub\" />
     <Folder Include="wwwroot\uploads\maker\" />
     <Folder Include="wwwroot\uploads\Ticket\" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Update="Views\**\*.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Remove="wwwroot\images\71W7ZcPkvRL._AC_UF894,1000_QL80_.jpg" />
   </ItemGroup>
     
 

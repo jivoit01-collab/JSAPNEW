@@ -323,6 +323,7 @@
                     <col class="col-attachment" />
                     <col class="col-checker-status" />
                     <col class="col-payment-status" />
+                    <col class="col-action" />
                     <col class="col-checker-remark" />
                 </colgroup>
 
@@ -414,6 +415,12 @@
                     <button class="btn-cancel"
                             onclick="closeVerificationModal()">
                         Close
+                    </button>
+
+                    <button class="btn-reject btn-modal-reject"
+                            onclick="openRejectPayment()">
+                        <i class="fa-solid fa-xmark"></i>
+                        Reject
                     </button>
 
                     <button class="btn-verify"
@@ -539,7 +546,7 @@
 
     $("#paymentCheckerTable").html(`
     <tr>
-    <td colspan="12"
+    <td colspan="13"
     class="empty-row"
     style="color:#EF4444">
 
@@ -578,7 +585,7 @@
 
     $("#paymentCheckerTable").html(`
     <tr>
-    <td colspan="12"
+    <td colspan="13"
     class="empty-row">
 
     <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
@@ -651,10 +658,11 @@
     '${item.vchNumber}',
     '${item.billAmount}',
     '${formatDate(item.paymentDate)}',
-    '${item.attachmentPath || ""}'
+    '${item.attachmentPath || ""}',
+    '${safeAttr(item.accountName || "")}'
     )">
     <i class="fa-solid fa-shield-check"></i>
-    Verify
+    View
     </button>
     </td>
     <td class="td-remark" title="${safeAttr(item.checkerRemark || "-")}"><span class="cell-text clamp-text">${safeText(item.checkerRemark || "-")}</span></td>
@@ -946,9 +954,12 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     }
-    function openVerificationModal(vchNo, amount, paymentDate, attachmentPath)
+    let currentPaymentAccountName = null;
+
+    function openVerificationModal(vchNo, amount, paymentDate, attachmentPath, accountName)
     {
     currentVoucherNo = vchNo;
+    currentPaymentAccountName = accountName || "-";
 
     $("#verifyVoucherNo").text(vchNo);
     $("#verifyAmount").text("₹" + amount);
@@ -970,8 +981,52 @@
 
     $("#verificationModal").css("display", "flex");
     }
+
+    function openRejectPayment()
+    {
+    if (!currentVoucherNo)
+    {
+    alert("Voucher not found");
+    return;
+    }
+
+    if (!confirm("Reject paid entry for voucher " + currentVoucherNo + " (" + (currentPaymentAccountName || "-") + ")?"))
+    {
+    return;
+    }
+
+    const remark = prompt("Enter rejection reason for Maker:", "Payment rejected by payment checker");
+    if (remark === null)
+    {
+    return;
+    }
+
+    $.post('/PaymentChecker/RejectPayment',
+    {
+    vchNumber: currentVoucherNo,
+    remark: remark || "Payment rejected by payment checker"
+    },
+    function(response)
+    {
+    if(response.success)
+    {
+    closeVerificationModal();
+    alert("Payment rejected and sent back to Maker");
+    loadData();
+    }
+    else
+    {
+    alert(response.message || "Payment rejection failed");
+    }
+    }).fail(function()
+    {
+    alert("Payment rejection failed");
+    });
+    }
+
     function closeVerificationModal() {
     $("#verificationModal").hide();
+    currentPaymentAccountName = null;
     }
 
     // function markVerified()

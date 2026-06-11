@@ -147,5 +147,33 @@ namespace JSAPNEW.Services.Implementation
                 }
             }
         }
+
+        public bool RejectPayment(int vchNumber, string remark)
+        {
+            string connStr = _config.GetConnectionString("FHConnection");
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                string query = @"
+        UPDATE AttachmentUpload
+        SET CheckerStatus = 'Rejected',
+            CheckerRemark = @Remark,
+            CheckerDate = GETDATE(),
+            PaymentStatus = 'UnPaid',
+            PaymentDate = NULL,
+            IsPaymentVerified = 0
+        WHERE VchNumber = @VchNumber";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@VchNumber", vchNumber);
+                    cmd.Parameters.AddWithValue("@Remark",
+                        string.IsNullOrWhiteSpace(remark) ? DBNull.Value : remark.Trim());
+
+                    conn.Open();
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
     }
 }
