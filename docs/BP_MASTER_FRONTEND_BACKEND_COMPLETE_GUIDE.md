@@ -465,12 +465,13 @@ Important columns:
 - `salesEmployeeCode`
 - `territoryId`
 - `sapBankCode`
-- `createdBy`
 - `updatedBy`
 - `createdOn`
 - `updatedOn`
 
-`BP.jsSAPData` is the single source of truth for SAP approval fields. Create BP and Update BP must not write these fields into `BP.jsMaster`. Create BP creates a default SAPData row with `apiStatusTag = 'N'`, configured `cardCodePrefix`, configured AR/AP account from `appsettings.json`, `createdOn`, `updatedOn`, `createdBy`, and `updatedBy`.
+`BP.jsSAPData` is the single source of truth for SAP approval fields. Create BP and Update BP must not write these fields into `BP.jsMaster`. Create BP creates a default SAPData row with `apiStatusTag = 'N'`, configured `cardCodePrefix`, configured AR/AP account from `appsettings.json`, `createdOn`, `updatedOn`, and `updatedBy`.
+
+Legacy SAPData fields `debPayAcct`, `wtLabel`, and `series` are intentionally removed from the BP SAPData contract. SAP `DebitorAccount` / `OCRD.DebPayAcct` is calculated only during SAP payload creation: customers use `arAccountCode`, and vendors use `apAccountCode`.
 
 ### Snapshot Tables
 
@@ -1094,10 +1095,6 @@ Response:
     "sapAttachmentEntry": null,
     "payloadHash": "",
     "retryCount": 0,
-    "debPayAcct": "",
-    "wtLabel": "",
-    "series": "",
-    "grpCode": "",
     "cardCodePrefix": "CUSTA",
     "bpGroupCode": null,
     "bpGroupName": "",
@@ -1107,7 +1104,6 @@ Response:
     "salesEmployeeCode": null,
     "territoryId": null,
     "sapBankCode": "",
-    "createdBy": 76,
     "updatedBy": 76,
     "createdOn": "2026-06-11T16:30:00",
     "updatedOn": "2026-06-11T16:30:00"
@@ -1699,6 +1695,8 @@ Current SAP master-data scripts:
 | `docs/implementation/bp-create-sapdata-on-create-flow.sql` | Adds SAPData status/default columns, `sapBankCode`, and updates SAPData/status procedures so one SAPData row exists before approval |
 | `docs/implementation/bp-add-sap-fields-to-sapdata.sql` | Adds SAP approval columns to `BP.jsSAPData` and updates SAPData read/update procedures |
 | `docs/implementation/bp-reorder-sapdata-remove-lastattempt.sql` | Rebuilds active `BP.jsSAPData` in the requested column order and removes `lastAttemptOn` / `lastAttemptBy` after dependency checks |
+| `docs/implementation/bp-remove-sapdata-unused-legacy-fields.sql` | Removes unused BP SAPData legacy fields `debPayAcct`, `wtLabel`, and `series`; SAP `DebitorAccount` is derived from `arAccountCode` / `apAccountCode` |
+| `docs/implementation/bp-rollback-sapdata-unused-legacy-fields.sql` | Rollback helper to re-add removed legacy SAPData columns if a DB compatibility rollback is needed |
 | `docs/implementation/bp-clean-master-sap-field-procedure-dependencies.sql` | Alters existing BP procedures so master/detail/list/audit/snapshot logic no longer reads SAP approval fields from `BP.jsMaster` |
 | `docs/implementation/bp-remove-sap-fields-from-master.sql` | Removes SAP approval columns from `BP.jsMaster` after dependent procedure references are gone |
 

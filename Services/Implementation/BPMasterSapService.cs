@@ -50,8 +50,8 @@ namespace JSAPNEW.Services.Implementation
             var cardType = IsVendor(request.BpType) ? "cSupplier" : "cCustomer";
             var bpType = cardType == "cSupplier" ? "V" : "C";
             var selectedControlAccount = bpType == "V"
-                ? FirstText(request.SapData?.apAccountCode, request.SapData?.debPayAcct)
-                : FirstText(request.SapData?.arAccountCode, request.SapData?.debPayAcct);
+                ? FirstText(request.SapData?.apAccountCode)
+                : FirstText(request.SapData?.arAccountCode);
             var accountResolution = await ResolveControlAccountAsync(request.Company, bpType, selectedControlAccount, cancellationToken);
             if (!accountResolution.Success)
             {
@@ -1143,10 +1143,6 @@ LIMIT 1";
         {
             if (!string.IsNullOrWhiteSpace(request.SapData?.cardCodePrefix))
                 return request.SapData.cardCodePrefix.Trim().ToUpperInvariant();
-
-            var series = request.SapData?.series;
-            if (!string.IsNullOrWhiteSpace(series) && !series.All(char.IsDigit))
-                return series.Trim().ToUpperInvariant();
 
             return cardType == "cSupplier" ? "VENDA" : "CUSTA";
         }

@@ -1142,7 +1142,6 @@ WHERE s.name = @SchemaName
             var now = DateTime.Now;
             AddValue("createdOn", "@CreatedOn", now);
             AddValue("updatedOn", "@UpdatedOn", now);
-            AddValue("createdBy", "@CreatedBy", userId);
             AddValue("updatedBy", "@UpdatedBy", userId);
 
             var outputClause = columns.Contains("id") ? "OUTPUT INSERTED.id" : string.Empty;
@@ -3273,10 +3272,6 @@ ORDER BY id DESC;";
                     var updateProcedureParameters = await GetStoredProcedureParameterNamesAsync(conn, "BP", "jsUpdateSAPData");
                     AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@id", model.Id > 0 ? model.Id : sapDataId);
                     AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@masterId", masterId);
-                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@debPayAcct", NullIfBlank(model.DebPayAcct));
-                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@wtLabel", NullIfBlank(model.WtLabel));
-                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@series", NullIfBlank(model.Series));
-                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@grpCode", NullIfBlank(model.GrpCode));
                     AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@cardCodePrefix", NullIfBlank(model.CardCodePrefix));
                     AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupCode", model.BpGroupCode);
                     AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupName", NullIfBlank(model.BpGroupName));

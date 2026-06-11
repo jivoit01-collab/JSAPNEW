@@ -1058,17 +1058,37 @@ namespace JSAPNEW.Controllers
 
         [HttpPost("UpdateSapData")]
         [HttpPut("UpdateSAPData")]
-        [HttpPost("UpdateSAPData")]
-        public async Task<ActionResult<BPmasterModels>> UpdateSapData([FromBody] BpSapDataUpdateRequest model)
+        public async Task<ActionResult<BPmasterModels>> UpdateSapData()
         {
             try
             {
+                BpSapDataUpdateRequest? model = null;
+
+                if (Request.HasFormContentType)
+                {
+                    var form = await Request.ReadFormAsync();
+                    var requestJson = form["requests"].ToString();
+                    if (!string.IsNullOrWhiteSpace(requestJson))
+                    {
+                        model = JsonConvert.DeserializeObject<BpSapDataUpdateRequest>(requestJson);
+                    }
+                }
+                else
+                {
+                    using var reader = new StreamReader(Request.Body);
+                    var requestJson = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(requestJson))
+                    {
+                        model = JsonConvert.DeserializeObject<BpSapDataUpdateRequest>(requestJson);
+                    }
+                }
+
                 if (model == null)
                 {
                     return BadRequest(new BPmasterModels { Success = false, Message = "Invalid request data" });
                 }
                 var result = await _BPService.UpdateSapDataAsync(model);
-                return Ok(result);
+                return result.Success ? Ok(result) : BadRequest(result);
             }
             catch (Exception ex)
             {

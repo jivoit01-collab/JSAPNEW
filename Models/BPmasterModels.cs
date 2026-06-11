@@ -585,10 +585,6 @@ namespace JSAPNEW.Models
         public int? sapAttachmentEntry { get; set; }
         public string payloadHash { get; set; } = string.Empty;
         public int retryCount { get; set; }
-        public string debPayAcct { get; set; } = string.Empty;
-        public string wtLabel { get; set; } = string.Empty;
-        public string series { get; set; } = string.Empty;
-        public string grpCode { get; set; } = string.Empty;
         public string cardCodePrefix { get; set; } = string.Empty;
         public int? bpGroupCode { get; set; }
         public string bpGroupName { get; set; } = string.Empty;
@@ -598,7 +594,6 @@ namespace JSAPNEW.Models
         public int? salesEmployeeCode { get; set; }
         public int? territoryId { get; set; }
         public string sapBankCode { get; set; } = string.Empty;
-        public int? createdBy { get; set; }
         public int? updatedBy { get; set; }
         public DateTime? createdOn { get; set; }
         public DateTime? updatedOn { get; set; }
@@ -617,10 +612,6 @@ namespace JSAPNEW.Models
     {
         public int Id { get; set; }
         public int MasterId { get; set; }
-        public string DebPayAcct { get; set; } = string.Empty;
-        public string WtLabel { get; set; } = string.Empty;
-        public string Series { get; set; } = string.Empty;
-        public string GrpCode { get; set; } = string.Empty;
         public string CardCodePrefix { get; set; } = string.Empty;
         public int? BpGroupCode { get; set; }
         public string BpGroupName { get; set; } = string.Empty;
