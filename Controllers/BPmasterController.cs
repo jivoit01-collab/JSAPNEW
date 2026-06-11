@@ -125,8 +125,26 @@ namespace JSAPNEW.Controllers
                 // Call service
                 var result = await _BPService.InsertBPMasterAsync(model);
                 return result.Success
-                    ? Ok(new { success = true, message = result.Message, generatedCode = result.GeneratedCode })
-                    : BadRequest(new { success = false, message = result.Message, generatedCode = result.GeneratedCode });
+                    ? Ok(new
+                    {
+                        success = true,
+                        message = result.Message,
+                        generatedCode = result.GeneratedCode,
+                        masterId = result.MasterId,
+                        sapDataId = result.SapDataId,
+                        flowId = result.FlowId,
+                        status = result.Status
+                    })
+                    : BadRequest(new
+                    {
+                        success = false,
+                        message = result.Message,
+                        generatedCode = result.GeneratedCode,
+                        masterId = result.MasterId,
+                        sapDataId = result.SapDataId,
+                        flowId = result.FlowId,
+                        status = result.Status
+                    });
             }
             catch (Exception ex)
             {
@@ -810,6 +828,7 @@ namespace JSAPNEW.Controllers
             }
         }
         [HttpGet("GetSPAData")]
+        [HttpGet("GetSAPData")]
         public async Task<IActionResult> GetSPAData(int masterId)
         {
             try
@@ -1038,6 +1057,8 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("UpdateSapData")]
+        [HttpPut("UpdateSAPData")]
+        [HttpPost("UpdateSAPData")]
         public async Task<ActionResult<BPmasterModels>> UpdateSapData([FromBody] BpSapDataUpdateRequest model)
         {
             try

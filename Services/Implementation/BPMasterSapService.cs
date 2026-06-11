@@ -113,6 +113,7 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
 
+            ApplySapBankCodeOverride(request.BpData, request.SapData?.sapBankCode);
             var bankValidation = await ValidateVendorBankDetailsAsync(request.Company, request.BpData, cardType, cancellationToken);
             if (!bankValidation.IsValid)
             {
@@ -746,6 +747,18 @@ LIMIT 1";
             }
 
             return BpBankValidationResult.Ok(resolvedBanks);
+        }
+
+        private static void ApplySapBankCodeOverride(SingleBPDataModel bp, string? sapBankCode)
+        {
+            if (bp?.BankDetails == null || string.IsNullOrWhiteSpace(sapBankCode))
+                return;
+
+            var normalizedBankCode = sapBankCode.Trim();
+            foreach (var bank in bp.BankDetails.Where(bank => !string.IsNullOrWhiteSpace(bank.AccountNumber)))
+            {
+                bank.BankCode = normalizedBankCode;
+            }
         }
 
         private async Task<BpSapBankRow?> ResolveSapBankAsync(

@@ -254,6 +254,10 @@ namespace JSAPNEW.Models
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
         public int GeneratedCode { get; set; }
+        public int MasterId { get; set; }
+        public int SapDataId { get; set; }
+        public int FlowId { get; set; }
+        public string Status { get; set; } = string.Empty;
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? ErrorCode { get; set; }
     }
@@ -589,6 +593,19 @@ namespace JSAPNEW.Models
         public int? paymentTermCode { get; set; }
         public int? salesEmployeeCode { get; set; }
         public int? territoryId { get; set; }
+        public string sapBankCode { get; set; } = string.Empty;
+        public string apiStatusTag { get; set; } = string.Empty;
+        public string apiMessage { get; set; } = string.Empty;
+        public string sapCardCode { get; set; } = string.Empty;
+        public int? sapAttachmentEntry { get; set; }
+        public string payloadHash { get; set; } = string.Empty;
+        public int retryCount { get; set; }
+        public DateTime? lastAttemptOn { get; set; }
+        public int? lastAttemptBy { get; set; }
+        public DateTime? createdOn { get; set; }
+        public DateTime? updatedOn { get; set; }
+        public int? createdBy { get; set; }
+        public int? updatedBy { get; set; }
     }
 
     public class BPMasterUpdateRequest : InsertBPMasterDataModel
@@ -616,6 +633,8 @@ namespace JSAPNEW.Models
         public int? PaymentTermCode { get; set; }
         public int? SalesEmployeeCode { get; set; }
         public int? TerritoryId { get; set; }
+        public string SapBankCode { get; set; } = string.Empty;
+        public int UserId { get; set; }
     }
 
     public class BPinsightsModel

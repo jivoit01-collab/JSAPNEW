@@ -245,6 +245,8 @@ Retired fields must not be used by new clients:
 | `country` | Country | Yes | Both | `BP.jsMasterAddress.countryID` | `CRD1.Country` | `IN` | Country code |
 | `gstin` | Address GSTIN | Conditional | Both | `BP.jsMasterAddress.gstNo` | SAP GST address field | `03AAKCR1234F1Z5` | GST registration for address |
 
+Address storage rule: backend normalizes all BP address fields to uppercase before insert/update, and `docs/implementation/bp-uppercase-address-normalization.sql` backfills existing rows and keeps `BP.jsMasterAddress` uppercase at database level. This prevents SAP validation `(200023) Address should be in upper case`.
+
 ### Tax And Compliance Fields
 
 | Field | Purpose | Required | Customer/Vendor | Stored In | Sent To SAP | Example | Business Meaning |
@@ -272,12 +274,13 @@ These fields are not normal BP request fields. The SAP/Finance approver fills th
 | `paymentTermCode` | Payment term code | Approval-time | Both | `BP.jsSAPData.paymentTermCode` | `OCRD.GroupNum` / payload `PayTermsGrpCode` | `29` | Payment/credit term |
 | `salesEmployeeCode` | Sales employee | Customer approval-time | Customer | `BP.jsSAPData.salesEmployeeCode` | `OCRD.SlpCode` / payload `SalesPersonCode` | `78` | Customer sales owner |
 | `territoryId` | Sales territory | Customer approval-time | Customer | `BP.jsSAPData.territoryId` | `OCRD.Territory` when greater than zero | `-2` | Customer territory; `-2` means no territory |
+| `sapBankCode` | SAP bank master code | Vendor approval-time | Vendor | `BP.jsSAPData.sapBankCode` | `OCRB.BankCode` override for vendor bank rows | `HDFC` | Must exist in SAP `ODSC`; used when SAP/Finance chooses the bank code after creation |
 
 ### Vendor Bank Fields
 
 | Field | Purpose | Required | Customer/Vendor | Stored In | Sent To SAP | Example | Business Meaning |
 |---|---|---:|---|---|---|---|---|
-| `bankAccounts[].bankCode` | SAP bank code | Vendor yes | Vendor | `BP.jsBankDetails.BankCode` | `OCRB.BankCode` | `ABC` | Must exist in SAP `ODSC` |
+| `bankAccounts[].bankCode` | User-entered bank code | Vendor yes at create unless SAP section later supplies `sapBankCode` | Vendor | `BP.jsBankDetails.BankCode` | `OCRB.BankCode` unless overridden by `BP.jsSAPData.sapBankCode` | `ABC` | Must exist in SAP `ODSC` |
 | `bankAccounts[].bankName` | Bank display name | Vendor recommended | Vendor | `BP.jsBankDetails.name` or display source | Display/validation | `ABC BANK` | Human-readable bank name |
 | `bankAccounts[].vendorName` | Bank account holder name | Vendor recommended | Vendor | `BP.jsBankDetails.VendorName` | `OCRB.AcctName` via `AccountName` | `Bharat Packaging Industries Pvt Ltd` | Name on bank account |
 | `bankAccounts[].branch` | Branch | No | Vendor | `BP.jsBankDetails.branch` | `OCRB.Branch` | `Ludhiana` | Bank branch |
@@ -439,10 +442,10 @@ Important columns:
 | Item | Detail |
 |---|---|
 | Purpose | Stores SAP approval metadata, posting status, and result |
-| Inserted when | BP flow is created, SAP section is saved, or SAP posting begins |
+| Inserted when | Immediately after BP create succeeds, before any approval or SAP retry |
 | Updated when | SAP/Finance saves approval fields, SAP post succeeds/fails/retries |
 | Read by | SAP section, final approval, retry logic, pending list, support diagnostics |
-| Relationship | One or more SAP records per BP depending implementation |
+| Relationship | One active SAPData row per BP master record |
 
 Important columns:
 
@@ -463,8 +466,13 @@ Important columns:
 - `paymentTermCode`
 - `salesEmployeeCode`
 - `territoryId`
+- `sapBankCode`
+- `createdOn`
+- `updatedOn`
+- `createdBy`
+- `updatedBy`
 
-`BP.jsSAPData` is the single source of truth for SAP approval fields. Create BP and Update BP must not write these fields into `BP.jsMaster`.
+`BP.jsSAPData` is the single source of truth for SAP approval fields. Create BP and Update BP must not write these fields into `BP.jsMaster`. Create BP creates a default SAPData row with `apiStatusTag = 'N'`, configured `cardCodePrefix`, configured AR/AP account from `appsettings.json`, `createdOn`, `updatedOn`, `createdBy`, and `updatedBy`.
 
 ### Snapshot Tables
 
@@ -991,9 +999,21 @@ Success response:
 {
   "success": true,
   "message": "BP Master inserted successfully.",
-  "generatedCode": 1234
+  "generatedCode": 1234,
+  "masterId": 1234,
+  "sapDataId": 59,
+  "flowId": 1148,
+  "status": "Pending"
 }
 ```
+
+After this response, these rows must already exist:
+
+- one row in `BP.jsMaster`
+- one row in `BP.jsFlow`
+- one row in `BP.jsSAPData`
+
+The frontend should use `masterId` for `/api/BPmaster/GetSAPData` and `/api/BPmaster/UpdateSAPData`. It should not wait for an approval failure before saving SAP approval values.
 
 Common errors:
 
@@ -1053,12 +1073,58 @@ Approved-lock response:
 }
 ```
 
+### Get SAP Data
+
+| Item | Value |
+|---|---|
+| Method | `GET` |
+| URL | `/api/BPmaster/GetSAPData?masterId=1234` |
+| Compatibility URL | `/api/BPmaster/GetSPAData?masterId=1234` |
+| Purpose | Load the create-time SAPData row and any saved SAP approval/status values |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 59,
+    "masterId": 1234,
+    "debPayAcct": "",
+    "wtLabel": "",
+    "series": "",
+    "grpCode": "",
+    "cardCodePrefix": "CUSTA",
+    "bpGroupCode": null,
+    "bpGroupName": "",
+    "arAccountCode": "1101001",
+    "apAccountCode": "",
+    "paymentTermCode": null,
+    "salesEmployeeCode": null,
+    "territoryId": null,
+    "sapBankCode": "",
+    "apiStatusTag": "N",
+    "apiMessage": "",
+    "sapCardCode": "",
+    "sapAttachmentEntry": null,
+    "payloadHash": "",
+    "retryCount": 0,
+    "lastAttemptOn": null,
+    "lastAttemptBy": null,
+    "createdBy": 76,
+    "updatedBy": 76
+  }
+}
+```
+
+Default `cardCodePrefix`, `arAccountCode`, and `apAccountCode` come from `appsettings.json` under `BPDefaults`. The backend creates the SAPData row during Create BP, so this API should work before any approval attempt.
+
 ### Update SAP Data
 
 | Item | Value |
 |---|---|
-| Method | `POST` |
-| URL | `/api/BPmaster/UpdateSapData` |
+| Method | `PUT` or `POST` |
+| URL | `/api/BPmaster/UpdateSAPData` or `/api/BPmaster/UpdateSapData` |
 | Purpose | Save SAP/Finance approval fields after BP creation and before final approval |
 
 Customer SAP data body:
@@ -1066,13 +1132,15 @@ Customer SAP data body:
 ```json
 {
   "masterId": 1234,
+  "userId": 76,
   "cardCodePrefix": "CUSTA",
   "bpGroupCode": 132,
   "bpGroupName": "ANDHRA PRADESH",
   "arAccountCode": "1101001",
   "paymentTermCode": 29,
   "salesEmployeeCode": 78,
-  "territoryId": -2
+  "territoryId": -2,
+  "sapBankCode": ""
 }
 ```
 
@@ -1081,20 +1149,26 @@ Vendor SAP data body:
 ```json
 {
   "masterId": 1235,
+  "userId": 76,
   "cardCodePrefix": "VENDA",
   "bpGroupCode": 101,
   "bpGroupName": "BRANCH VENDOR",
   "apAccountCode": "2110000",
-  "paymentTermCode": 29
+  "paymentTermCode": 29,
+  "sapBankCode": "HDFC"
 }
 ```
 
 Rules:
 
+- `masterId` is required; frontend does not need to send `sapDataId`.
+- `userId` should be sent so `BP.jsSAPData.updatedBy` records who changed SAP approval values.
+- Partial update is supported. Omitted fields keep their existing values.
 - Allowed while `BP.jsFlow.status` is `P` or `R`.
 - Blocked when `BP.jsFlow.status` is `A`.
 - Final approval and retry read these values from `BP.jsSAPData`.
 - Create BP and Update BP must not write these values to `BP.jsMaster`.
+- For vendors, `sapBankCode` overrides the create-time bank code during SAP posting and must exist in SAP `ODSC`.
 
 ### Get Single BP Data
 
@@ -1296,8 +1370,10 @@ These APIs must return BP data only. They must not return IMC/item data.
 | `/api/BPmaster/GetGSTMismatchByState?company=1&stateCode=PB` | GST-state validation |
 | `/api/BPmaster/BPGetCardInfo?company=1&BPType=C&IsStaff=false` | Existing SAP card info |
 | `/api/BPmaster/GetBpPANByBranch?Branch=Ludhiana&company=1` | PAN lookup by branch |
-| `/api/BPmaster/GetSPAData?masterId=1234` | SAP approval fields and SAP posting status |
-| `/api/BPmaster/UpdateSapData` | Save SAP approval fields in `BP.jsSAPData` |
+| `/api/BPmaster/GetSAPData?masterId=1234` | SAP approval fields and SAP posting status |
+| `/api/BPmaster/GetSPAData?masterId=1234` | Compatibility alias for `GetSAPData` |
+| `/api/BPmaster/UpdateSAPData` | Save SAP approval fields in `BP.jsSAPData` |
+| `/api/BPmaster/UpdateSapData` | Compatibility alias for `UpdateSAPData` |
 
 ---
 
@@ -1610,17 +1686,19 @@ Ask:
 5. Continue only when no `BP.jsMaster` procedures reference SAP approval columns.
 6. Deploy backend code.
 7. Restart API process.
-8. Test Create BP without SAP approval fields.
-9. Test `/api/BPmaster/UpdateSapData`.
-10. Test final approval/retry.
-11. Run `bp-remove-sap-fields-from-master.sql`.
-12. Test dropdown APIs.
-13. Verify SAP result.
+8. Test Create BP without SAP approval fields and verify `masterId`, `sapDataId`, and `flowId` are returned.
+9. Test `/api/BPmaster/GetSAPData?masterId=<created masterId>`.
+10. Test `/api/BPmaster/UpdateSAPData`.
+11. Test final approval/retry.
+12. Run `bp-remove-sap-fields-from-master.sql`.
+13. Test dropdown APIs.
+14. Verify SAP result.
 
 Current SAP master-data scripts:
 
 | Script | Purpose |
 |---|---|
+| `docs/implementation/bp-create-sapdata-on-create-flow.sql` | Adds SAPData status/default columns, `sapBankCode`, and updates SAPData/status procedures so one SAPData row exists before approval |
 | `docs/implementation/bp-add-sap-fields-to-sapdata.sql` | Adds SAP approval columns to `BP.jsSAPData` and updates SAPData read/update procedures |
 | `docs/implementation/bp-clean-master-sap-field-procedure-dependencies.sql` | Alters existing BP procedures so master/detail/list/audit/snapshot logic no longer reads SAP approval fields from `BP.jsMaster` |
 | `docs/implementation/bp-remove-sap-fields-from-master.sql` | Removes SAP approval columns from `BP.jsMaster` after dependent procedure references are gone |
