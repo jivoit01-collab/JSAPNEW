@@ -904,40 +904,63 @@ Multipart fields:
 
 Customer request example:
 
+Postman setup:
+
+- Method: `POST`
+- URL: `/api/BPmaster/InsertBPmasterData`
+- Body: `form-data`
+- Key: `requests`
+- Type: `Text`
+- Do not send SAP approval fields in this create payload.
+
 ```json
 {
   "company": "JIVO_OIL_HANADB",
+  "companyId": 1,
+  "type": "C",
   "customerType": "B2B",
-  "cardName": "North India Distributor",
-  "foreignName": "North India Distributor",
+  "cardName": "TEST CUSTOMER BP 0611 01",
+  "foreignName": "TEST CUSTOMER FOREIGN",
   "typeOfBusiness": "Company",
   "industry": "FMCG",
-  "contactFirst": "Ramesh",
-  "contactLast": "Kumar",
-  "contactTitle": "Owner",
+  "contactFirst": "RAMESH",
+  "contactLast": "KUMAR",
+  "contactTitle": "OWNER",
   "mobile": "9876543210",
-  "email": "ramesh@example.com",
-  "contactEmail": "accounts@example.com",
-  "gstin": "03AAKCR1234F1Z5",
-  "pan": "AAKCR1234F",
+  "email": "customer061101@example.com",
+  "contactEmail": "accounts061101@example.com",
+  "gstin": "03AAKCU6101F1Z5",
+  "pan": "AAKCU6101F",
   "currency": "INR",
-  "remarks": "Customer registration",
+  "remarks": "Customer registration test",
   "isStaff": false,
   "userId": 76,
+  "companyByUser": "JIVO_OIL_HANADB",
   "sameAsBill": true,
   "allBillAddresses": [
     {
-      "addrName": "BILL-PB-001",
-      "street": "Plot 14 Industrial Area",
-      "block": "Phase 2",
-      "city": "Ludhiana",
+      "addrName": "BILL-CUST-061101",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
       "zip": "141001",
       "state": "PB",
       "country": "IN",
-      "gstin": "03AAKCR1234F1Z5"
+      "gstin": "03AAKCU6101F1Z5"
     }
   ],
-  "allShipAddresses": [],
+  "allShipAddresses": [
+    {
+      "addrName": "SHIP-CUST-061101",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCU6101F1Z5"
+    }
+  ],
   "hasMsme": false,
   "msmeNo": "",
   "msmeType": "",
@@ -947,35 +970,48 @@ Customer request example:
 
 Vendor request example:
 
+Postman setup:
+
+- Method: `POST`
+- URL: `/api/BPmaster/InsertBPmasterData`
+- Body: `form-data`
+- Key: `requests`
+- Type: `Text`
+- Do not send SAP approval fields in this create payload.
+- IFSC must match `^[A-Z]{4}0[A-Z0-9]{6}$`, for example `HDFC0001234`.
+
 ```json
 {
+  "type": "V",
   "company": "JIVO_OIL_HANADB",
+  "companyId": 1,
   "vendorType": "SUPPLIER",
-  "cardName": "Bharat Packaging Industries Pvt Ltd",
-  "foreignName": "Bharat Packaging",
-  "typeOfBusiness": "Company",
-  "industry": "Packaging",
-  "contactFirst": "Amit",
-  "contactLast": "Sharma",
-  "contactTitle": "Sales Head",
-  "mobile": "9876543210",
+  "cardName": "TEST VENDOR BP 0611 02",
+  "foreignName": "TEST VENDOR FOREIGN",
+  "typeOfBusiness": "Partnership",
+  "industry": "IT Services",
+  "contactFirst": "ROHIT",
+  "contactLast": "RATHOD",
+  "contactTitle": "OWNER",
+  "mobile": "8571954685",
   "altContact": "0161123456",
-  "email": "amit@example.com",
-  "gstin": "03AAKCA1234F1Z1",
-  "pan": "AAKCA1234F",
+  "email": "vendor061102@example.com",
+  "contactEmail": "accounts061102@example.com",
+  "gstin": "03AAKCT6102F1Z5",
+  "pan": "AAKCT6102F",
   "tan": "PTLA12345B",
   "currency": "INR",
   "hasMsme": true,
-  "msmeNo": "UDYAM-PB-00-0001234",
+  "msmeNo": "UDYAM-PB-00-0611022",
   "msmeType": "MICRO",
   "msmeBType": "Manufacturing",
-  "fssaiNo": "10012022000011",
+  "fssaiNo": "10012022006112",
   "bankAccounts": [
     {
-      "bankCode": "ABC",
-      "bankName": "ABC BANK",
-      "vendorName": "Bharat Packaging Industries Pvt Ltd",
-      "branch": "Ludhiana",
+      "bankCode": "HDFC",
+      "bankName": "HDFC BANK",
+      "vendorName": "TEST VENDOR BP 0611 02",
+      "branch": "LUDHIANA",
       "accNo": "50100123456789",
       "ifsc": "HDFC0001234",
       "swiftCode": "HDFCINBB",
@@ -983,12 +1019,35 @@ Vendor request example:
       "isPrimary": true
     }
   ],
-  "remarks": "Vendor registration",
+  "remarks": "Vendor registration test",
   "isStaff": false,
   "userId": 76,
+  "companyByUser": "JIVO_OIL_HANADB",
   "sameAsBill": true,
-  "allBillAddresses": [],
-  "allShipAddresses": []
+  "allBillAddresses": [
+    {
+      "addrName": "BILL-VEND-061102",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCT6102F1Z5"
+    }
+  ],
+  "allShipAddresses": [
+    {
+      "addrName": "SHIP-VEND-061102",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCT6102F1Z5"
+    }
+  ]
 }
 ```
 
@@ -1123,9 +1182,17 @@ Default `cardCodePrefix`, `arAccountCode`, and `apAccountCode` come from `appset
 
 Customer SAP data body:
 
+Use values returned by:
+
+- `GET /api/BPmaster/GetBPGroups?company=1&bpType=C`
+- `GET /api/BPmaster/GetARAccounts?company=1`
+- `GET /api/BPmaster/GetPaymentTerms?company=1`
+- `GET /api/BPmaster/GetSalesEmployees?company=1`
+- `GET /api/BPmaster/GetTerritories?company=1`
+
 ```json
 {
-  "masterId": 1234,
+  "masterId": 1254,
   "userId": 76,
   "cardCodePrefix": "CUSTA",
   "bpGroupCode": 132,
@@ -1140,14 +1207,21 @@ Customer SAP data body:
 
 Vendor SAP data body:
 
+Use values returned by:
+
+- `GET /api/BPmaster/GetBPGroups?company=1&bpType=V`
+- `GET /api/BPmaster/GetAPAccounts?company=1`
+- `GET /api/BPmaster/GetPaymentTerms?company=1`
+- `GET /api/BPmaster/GetBankCodes?company=1&countryCode=IN`
+
 ```json
 {
-  "masterId": 1235,
+  "masterId": 1255,
   "userId": 76,
   "cardCodePrefix": "VENDA",
   "bpGroupCode": 101,
   "bpGroupName": "BRANCH VENDOR",
-  "apAccountCode": "2110000",
+  "apAccountCode": "2110005",
   "paymentTermCode": 29,
   "sapBankCode": "HDFC"
 }
@@ -1163,6 +1237,8 @@ Rules:
 - Final approval and retry read these values from `BP.jsSAPData`.
 - Create BP and Update BP must not write these values to `BP.jsMaster`.
 - For vendors, `sapBankCode` overrides the create-time bank code during SAP posting and must exist in SAP `ODSC`.
+- For vendors, `bpGroupCode` and `apAccountCode` must be a valid SAP combination. If SAP returns `(200002) Incorrect Group or Payable/Receivable Account`, the payload reached SAP but SAP rejected that group/account pair. Pick both values from the live dropdown APIs and retry.
+- Do not send retired fields `debPayAcct`, `wtLabel`, or `series`; SAP `DebitorAccount` is calculated during SAP payload creation from `arAccountCode` for customers and `apAccountCode` for vendors.
 
 ### Get Single BP Data
 
@@ -1572,6 +1648,15 @@ Root cause:
 - Customer AR account is not valid for assets/receivables.
 - Account is not postable.
 - Account does not exist.
+- SAP rejected the selected BP group and control account combination.
+
+For this SAP error:
+
+```text
+(200002) Incorrect Group or Payable/Receivable Account
+```
+
+The BP payload reached SAP, but SAP rejected the combination of `GroupCode` and `DebitorAccount`. For vendors, `GroupCode` comes from `BP.jsSAPData.bpGroupCode` and `DebitorAccount` comes from `BP.jsSAPData.apAccountCode`. For customers, `GroupCode` comes from `BP.jsSAPData.bpGroupCode` and `DebitorAccount` comes from `BP.jsSAPData.arAccountCode`.
 
 Verification:
 
@@ -1584,6 +1669,8 @@ WHERE "AcctCode" = '2110000';
 Fix:
 
 - Select a valid dropdown value from `GetAPAccounts` or `GetARAccounts`.
+- Select BP group from `GetBPGroups` using the correct `bpType`.
+- Confirm the BP group and control account are valid together in SAP.
 - Confirm account is postable and valid in SAP.
 
 ### Attachment Upload Failed
