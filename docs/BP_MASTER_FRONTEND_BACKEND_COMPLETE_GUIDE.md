@@ -456,8 +456,6 @@ Important columns:
 - `sapAttachmentEntry`
 - `payloadHash`
 - `retryCount`
-- `lastAttemptOn`
-- `lastAttemptBy`
 - `cardCodePrefix`
 - `bpGroupCode`
 - `bpGroupName`
@@ -467,10 +465,10 @@ Important columns:
 - `salesEmployeeCode`
 - `territoryId`
 - `sapBankCode`
-- `createdOn`
-- `updatedOn`
 - `createdBy`
 - `updatedBy`
+- `createdOn`
+- `updatedOn`
 
 `BP.jsSAPData` is the single source of truth for SAP approval fields. Create BP and Update BP must not write these fields into `BP.jsMaster`. Create BP creates a default SAPData row with `apiStatusTag = 'N'`, configured `cardCodePrefix`, configured AR/AP account from `appsettings.json`, `createdOn`, `updatedOn`, `createdBy`, and `updatedBy`.
 
@@ -1090,6 +1088,12 @@ Response:
   "data": {
     "id": 59,
     "masterId": 1234,
+    "apiStatusTag": "N",
+    "apiMessage": "",
+    "sapCardCode": "",
+    "sapAttachmentEntry": null,
+    "payloadHash": "",
+    "retryCount": 0,
     "debPayAcct": "",
     "wtLabel": "",
     "series": "",
@@ -1103,16 +1107,10 @@ Response:
     "salesEmployeeCode": null,
     "territoryId": null,
     "sapBankCode": "",
-    "apiStatusTag": "N",
-    "apiMessage": "",
-    "sapCardCode": "",
-    "sapAttachmentEntry": null,
-    "payloadHash": "",
-    "retryCount": 0,
-    "lastAttemptOn": null,
-    "lastAttemptBy": null,
     "createdBy": 76,
-    "updatedBy": 76
+    "updatedBy": 76,
+    "createdOn": "2026-06-11T16:30:00",
+    "updatedOn": "2026-06-11T16:30:00"
   }
 }
 ```
@@ -1700,6 +1698,7 @@ Current SAP master-data scripts:
 |---|---|
 | `docs/implementation/bp-create-sapdata-on-create-flow.sql` | Adds SAPData status/default columns, `sapBankCode`, and updates SAPData/status procedures so one SAPData row exists before approval |
 | `docs/implementation/bp-add-sap-fields-to-sapdata.sql` | Adds SAP approval columns to `BP.jsSAPData` and updates SAPData read/update procedures |
+| `docs/implementation/bp-reorder-sapdata-remove-lastattempt.sql` | Rebuilds active `BP.jsSAPData` in the requested column order and removes `lastAttemptOn` / `lastAttemptBy` after dependency checks |
 | `docs/implementation/bp-clean-master-sap-field-procedure-dependencies.sql` | Alters existing BP procedures so master/detail/list/audit/snapshot logic no longer reads SAP approval fields from `BP.jsMaster` |
 | `docs/implementation/bp-remove-sap-fields-from-master.sql` | Removes SAP approval columns from `BP.jsMaster` after dependent procedure references are gone |
 

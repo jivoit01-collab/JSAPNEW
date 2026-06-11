@@ -55,8 +55,6 @@ namespace JSAPNEW.Models
         public string SapCardCode { get; set; } = string.Empty;
         public int? SapAttachmentEntry { get; set; }
         public string PayloadHash { get; set; } = string.Empty;
-        public DateTime? LastAttemptOn { get; set; }
-        public int? LastAttemptBy { get; set; }
         public int RetryCount { get; set; }
         public bool CanRetrySap { get; set; }
         public BP_Master Master { get; set; } = new();
@@ -581,6 +579,12 @@ namespace JSAPNEW.Models
     {
         public int id { get; set; }
         public int masterId { get; set; }
+        public string apiStatusTag { get; set; } = string.Empty;
+        public string apiMessage { get; set; } = string.Empty;
+        public string sapCardCode { get; set; } = string.Empty;
+        public int? sapAttachmentEntry { get; set; }
+        public string payloadHash { get; set; } = string.Empty;
+        public int retryCount { get; set; }
         public string debPayAcct { get; set; } = string.Empty;
         public string wtLabel { get; set; } = string.Empty;
         public string series { get; set; } = string.Empty;
@@ -594,18 +598,10 @@ namespace JSAPNEW.Models
         public int? salesEmployeeCode { get; set; }
         public int? territoryId { get; set; }
         public string sapBankCode { get; set; } = string.Empty;
-        public string apiStatusTag { get; set; } = string.Empty;
-        public string apiMessage { get; set; } = string.Empty;
-        public string sapCardCode { get; set; } = string.Empty;
-        public int? sapAttachmentEntry { get; set; }
-        public string payloadHash { get; set; } = string.Empty;
-        public int retryCount { get; set; }
-        public DateTime? lastAttemptOn { get; set; }
-        public int? lastAttemptBy { get; set; }
-        public DateTime? createdOn { get; set; }
-        public DateTime? updatedOn { get; set; }
         public int? createdBy { get; set; }
         public int? updatedBy { get; set; }
+        public DateTime? createdOn { get; set; }
+        public DateTime? updatedOn { get; set; }
     }
 
     public class BPMasterUpdateRequest : InsertBPMasterDataModel
