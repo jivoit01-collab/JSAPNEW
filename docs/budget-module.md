@@ -1258,6 +1258,1474 @@ Example response:
 
 ## 13. Important Notes
 
+## 12A. Complete Budget API JSON Catalog
+
+This section documents the Budget-related APIs with HTTP method, URL, query/body shape, and example response format. Most endpoints return a wrapper like:
+
+```json
+{
+  "success": true,
+  "data": []
+}
+```
+
+Some endpoints use `Success` with capital `S`, and some older endpoints use `message` instead of `Message`. The examples below preserve the observed controller style.
+
+### Legacy Budget Approval APIs - `/api/auth`
+
+#### Get Budget Dropdown
+
+```http
+GET /api/auth/getbudgets?company=1
+```
+
+Query parameters:
+
+| Name | Type | Required | Example |
+| --- | --- | --- | --- |
+| `company` | int | Yes | `1` |
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": "BackOff"
+    }
+  ]
+}
+```
+
+#### Get Sub-Budget Dropdown
+
+```http
+GET /api/auth/getSubBudgets?company=1
+```
+
+Query parameters:
+
+| Name | Type | Required | Example |
+| --- | --- | --- | --- |
+| `company` | int | Yes | `1` |
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "sBudgetId": "Admin"
+    }
+  ]
+}
+```
+
+#### Get Budget Status Count
+
+```http
+GET /api/auth/budgetstatusCount?userId=68&company=1&month=07-2025
+GET /api/auth/budgetstatusCount2?userId=68&company=1&month=07-2025
+```
+
+Query parameters:
+
+| Name | Type | Required | Example |
+| --- | --- | --- | --- |
+| `userId` | int | Yes | `68` |
+| `company` | int | Yes | `1` |
+| `month` | string | Yes | `07-2025` |
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "type": "Budget",
+      "pending": 10,
+      "approved": 25,
+      "rejected": 2,
+      "total": 37
+    }
+  ]
+}
+```
+
+#### Get Pending Budgets
+
+```http
+GET /api/auth/getpendingbudgetwithdetails?userId=68&company=1&month=07-2025
+GET /api/auth/getpendingbudgetwithdetails2?userId=68&company=1&month=07-2025
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 4525,
+      "budget": "BackOff",
+      "objType": 28,
+      "company": "OIL",
+      "docEntry": "2543",
+      "objectName": "Document",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "docDate": "2025-07-15",
+      "totalAmount": "3500.00",
+      "status": "Pending",
+      "nextApprover": [
+        {
+          "userId": 68,
+          "loginUser": "approver.user"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Get Approved Budgets
+
+```http
+GET /api/auth/getapprovedbudgetwithdetails?userId=68&company=1&month=07-2025
+GET /api/auth/getapprovedbudgetwithdetails2?userId=68&company=1&month=07-2025
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 4096,
+      "objType": 28,
+      "company": "OIL",
+      "docEntry": "21333",
+      "objectName": "Document",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "docDate": "2025-07-15",
+      "totalAmount": "4756.00",
+      "status": "Approved",
+      "nextApprover": []
+    }
+  ]
+}
+```
+
+#### Get Rejected Budgets
+
+```http
+GET /api/auth/getrejectedbudgetwithdetails?userId=68&company=1&month=07-2025
+GET /api/auth/getrejectedbudgetwithdetails2?userId=68&company=1&month=07-2025
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 2261,
+      "objType": 28,
+      "company": "OIL",
+      "docEntry": "1673",
+      "objectName": "Document",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "docDate": "2025-07-11",
+      "totalAmount": "31595.16",
+      "rejectionStatus": "R",
+      "rejectedOn": "2025-05-31T17:24:12",
+      "description": "Rejected",
+      "status": "Rejected",
+      "nextApprover": []
+    }
+  ]
+}
+```
+
+#### Get All Budget Details
+
+```http
+GET /api/auth/getallbudgetwithdetails?userId=68&company=1&month=07-2025
+GET /api/auth/getallbudgetwithdetails2?userId=68&company=1&month=07-2025
+```
+
+Returns pending, approved, and rejected budget rows together.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 4096,
+      "objType": 28,
+      "company": "OIL",
+      "docEntry": "21333",
+      "objectName": "Document",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "docDate": "2025-07-15",
+      "totalAmount": "4756.00",
+      "status": "Approved",
+      "nextApprover": []
+    }
+  ]
+}
+```
+
+#### Approve Budget
+
+```http
+POST /api/auth/approvebudget
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "docIds": "4096,4159",
+  "company": 1,
+  "userId": 68,
+  "remarks": "Approved"
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Approved Budget ID 4096 | Approved Budget ID 4159"
+}
+```
+
+#### Reject Budget
+
+```http
+POST /api/auth/rejectebudget
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "docId": 2261,
+  "docIds": "2261",
+  "company": 1,
+  "userId": 68,
+  "remarks": "Rejected due to budget mismatch"
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Rejected completed."
+}
+```
+
+#### Create Category Monthly Budget
+
+```http
+POST /api/auth/CreateCategoryMonthlyBudget
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "budgetCategory": "BackOff",
+  "subBudget": "Admin",
+  "month": "07-2025",
+  "totalAmount": 6500000,
+  "company": 1
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Budget created successfully"
+}
+```
+
+#### Get Budget Detail By Id
+
+```http
+GET /api/auth/GetBudgetDetailById?budgetId=4096
+GET /api/auth/GetBudgetDetailByIdv2?budgetId=4096&company=1
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "budgetHeader": {
+      "budgetId": 4096,
+      "docEntry": 21333,
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "totalAmount": 4756
+    },
+    "budgetLines": [
+      {
+        "docEntry": 21333,
+        "lineNum": 0,
+        "visOrder": 0,
+        "budget": "BackOff",
+        "subBudget": "Admin",
+        "requestAmount": 1000,
+        "currentMonthBudget": 6500000,
+        "postedAmount": 653008.58
+      }
+    ],
+    "attachments": [
+      {
+        "docEntry": 21333,
+        "fileName": "invoice.pdf",
+        "fileExt": "pdf",
+        "downloadUrl": "http://files.jivo.in:8000/files/invoice.pdf"
+      }
+    ]
+  }
+}
+```
+
+#### Get Category Monthly Budget
+
+```http
+GET /api/auth/GetCategoryMonthlyBudget?budgetCategory=BackOff&subBudget=Admin&month=07-2025&company=1
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budget": "BackOff",
+      "subBudget": "Admin",
+      "month": "07-2025",
+      "totalAmount": "6500000.00",
+      "usedAmount": "653008.58",
+      "rejectedAmount": "59723.16",
+      "remaining": "5846991.42"
+    }
+  ]
+}
+```
+
+#### Budget Category Dropdown
+
+```http
+GET /api/auth/BudgetCategoryDropdown?userId=68&company=1
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": "BackOff"
+    }
+  ]
+}
+```
+
+#### Budget Approval Flow
+
+```http
+GET /api/auth/GetBudgetApprovalFlow?budgetId=4096
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "stageId": 217,
+      "stageName": "Manager Approval",
+      "priority": 1,
+      "assignedTo": "Ravinder Chadda",
+      "actionStatus": "A",
+      "actionDate": "2025-07-15T11:39:20",
+      "description": "Approved",
+      "approvalRequired": 1,
+      "rejectionRequired": 0
+    }
+  ]
+}
+```
+
+#### Get All Budget Insight
+
+```http
+GET /api/auth/GetAllBudgetInsight?company=1&month=07-2025
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "userId": 68,
+      "userName": "Approver Name",
+      "type": "Budget",
+      "pending": 2,
+      "approved": 35,
+      "rejected": 2,
+      "total": 39
+    }
+  ]
+}
+```
+
+#### Send Pending Budget Notification
+
+```http
+GET /api/auth/sendpendingbudgetnotify
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Notifications sent successfully"
+}
+```
+
+#### Get Budget Summary
+
+```http
+GET /api/auth/GetBudgetSummary?userId=68&budgetCategory=BackOff&subBudget=Admin&month=07-2025&company=1
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "totalBudget": "6500000.00",
+      "approvedAmount": "653008.58",
+      "rejectedAmount": "59723.16",
+      "pendingAmount": "4696.00",
+      "availableBalance": 5846991.42,
+      "approvedPercentage": 10.05,
+      "pendingPercentage": 0.07,
+      "availablePercentage": 89.95
+    }
+  ]
+}
+```
+
+#### Get Budget Summary Amount
+
+```http
+GET /api/auth/GetBudgetSummaryAmount?userId=68&company=1&month=07-2025
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 4096,
+      "objType": 28,
+      "company": "OIL",
+      "docEntry": "21333",
+      "objectName": "Document",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "docDate": "2025-07-15",
+      "totalAmount": "4756.00",
+      "status": "Approved",
+      "header": {},
+      "lines": []
+    }
+  ]
+}
+```
+
+#### Get All Budget Summary Amount
+
+```http
+GET /api/auth/GetAllBudgetSummaryAmount?company=1&month=07-2025
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "userId": 68,
+      "userName": "Approver Name",
+      "budgetData": [],
+      "budgetDetails": []
+    }
+  ]
+}
+```
+
+#### Get DocEntry Helpers
+
+```http
+GET /api/auth/GetDocIdsUsingDocEntry?docEntry=21333
+GET /api/auth/GetApprovedDocEntries?company=1&docEntry=21333
+GET /api/auth/GetPendingDocEntries?company=1&docEntry=21333
+GET /api/auth/GetRejectedDocEntries?company=1&docEntry=21333
+GET /api/auth/GetAllDocEntries?company=1&docEntry=21333
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 4096,
+      "docEntry": 21333,
+      "objectType": 28,
+      "branch": "Branch",
+      "objectName": "Document",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "budget": "BackOff",
+      "subBudget": "Admin",
+      "requestAmount": 4756,
+      "postedAmount": 653008.58,
+      "currentMonthBudget": 6500000,
+      "approvalStatus": "A"
+    }
+  ]
+}
+```
+
+### Auth2 Budget Master and Allocation APIs - `/api/Auth2`
+
+#### Create Budget With Sub-Budgets
+
+```http
+POST /api/Auth2/CreateBudgetWithSubBudgets
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "company": 1,
+  "budgetName": "Sales Promotion",
+  "description": "Sales department promotion budget",
+  "totalAmount": 1200000,
+  "isActive": true,
+  "subBudgets": [
+    {
+      "subBudgetName": "Retail Campaign",
+      "description": "Retail outlet campaign spend"
+    },
+    {
+      "subBudgetName": "Distributor Scheme",
+      "description": "Distributor incentive scheme"
+    }
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Budget created successfully",
+  "budgetId": 12,
+  "budgetName": "Sales Promotion",
+  "companyId": 1,
+  "subBudgetsCreated": 2
+}
+```
+
+#### Create Monthly Allocations
+
+```http
+POST /api/Auth2/CreateMonthlyAllocations
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "budgetId": 12,
+  "allocationMonth": "2026-05-01",
+  "budgetAllocatedAmount": 100000,
+  "budgetNotes": "May allocation",
+  "subBudgetAllocations": [
+    {
+      "subBudgetId": 31,
+      "allocatedAmount": 60000,
+      "notes": "Retail"
+    },
+    {
+      "subBudgetId": 32,
+      "allocatedAmount": 40000,
+      "notes": "Distributor"
+    }
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Monthly allocations created successfully",
+  "budgetId": 12,
+  "allocationMonth": "2026-05-01T00:00:00",
+  "budgetAllocatedAmount": 100000,
+  "subBudgetAllocationsCreated": 2,
+  "totalSubBudgetAmount": 100000
+}
+```
+
+#### Update Monthly Allocations
+
+```http
+POST /api/Auth2/UpdateMonthlyAllocations
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "budgetId": 12,
+  "allocationMonth": "2026-05-01",
+  "budgetAllocatedAmount": 125000,
+  "budgetNotes": "Updated May allocation",
+  "updateBudgetNotes": true,
+  "subBudgetAllocations": [
+    {
+      "subBudgetId": 31,
+      "allocatedAmount": 70000,
+      "notes": "Updated Retail"
+    },
+    {
+      "subBudgetId": 32,
+      "allocatedAmount": 55000,
+      "notes": "Updated Distributor"
+    }
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Monthly allocations updated successfully",
+  "budgetId": 12,
+  "allocationMonth": "2026-05-01T00:00:00",
+  "budgetAllocationUpdated": true,
+  "subBudgetAllocationsUpdated": 2
+}
+```
+
+#### Get All Budgets
+
+```http
+GET /api/Auth2/GetAllBudgets?company=1&isActive=true
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": 12,
+      "company": 1,
+      "budgetName": "Sales Promotion",
+      "description": "Sales department promotion budget",
+      "totalAmount": 1200000,
+      "isActive": true,
+      "createdAt": "2026-05-01T10:00:00",
+      "updatedAt": null,
+      "totalSubBudgets": 2
+    }
+  ]
+}
+```
+
+#### Get Budget And Sub-Budget Details
+
+```http
+GET /api/Auth2/GetBudgetAndSubBudgetDetails?budgetId=12&subBudgetId=31
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Data retrieved successfully",
+    "budgetInfo": {
+      "budgetId": 12,
+      "company": 1,
+      "budgetName": "Sales Promotion",
+      "budgetDescription": "Sales department promotion budget",
+      "totalAmount": 1200000,
+      "budgetIsActive": true,
+      "totalSubBudgets": 2,
+      "totalMonthlyAllocations": 1,
+      "totalAllocatedAmount": 100000
+    },
+    "subBudgetInfo": {
+      "subBudgetId": 31,
+      "budgetId": 12,
+      "subBudgetName": "Retail Campaign",
+      "subBudgetIsActive": true,
+      "parentBudgetName": "Sales Promotion",
+      "totalMonthlyAllocations": 1,
+      "totalAllocatedAmount": 60000
+    },
+    "monthlyComparison": [
+      {
+        "allocationMonth": "2026-05",
+        "budgetAllocatedAmount": 100000,
+        "budgetNotes": "May allocation",
+        "subBudgetAllocatedAmount": 60000,
+        "subBudgetNotes": "Retail",
+        "allocationStatus": "Allocated"
+      }
+    ]
+  }
+}
+```
+
+#### Get Budget With Sub-Budgets
+
+```http
+GET /api/Auth2/GetBudgetWithSubBudgets?budgetId=12
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Data successfully retrieve",
+  "data": {
+    "budgets": {
+      "budgetId": 12,
+      "company": 1,
+      "budgetName": "Sales Promotion",
+      "description": "Sales department promotion budget",
+      "totalAmount": 1200000,
+      "isActive": true,
+      "totalSubBudgets": 2
+    },
+    "subBudgets": [
+      {
+        "subBudgetId": 31,
+        "budgetId": 12,
+        "subBudgetName": "Retail Campaign",
+        "description": "Retail outlet campaign spend",
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+#### Get Distinct Budget Attributes
+
+```http
+GET /api/Auth2/GetDistinctBudgetAttributes?mode=BUDGET
+```
+
+Accepted `mode` values:
+
+```text
+BUDGET, SUB_BUDGET, BRANCH, PROCESSTAT, OBJTYPE, ACCTCODE, BUDGETDATE
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Data successfully retrieve",
+  "data": [
+    "BackOff",
+    "Sales",
+    "Factory"
+  ]
+}
+```
+
+#### Get Sub-Budgets By Budget Id
+
+```http
+GET /api/Auth2/GetSubBudgetsByBudgetId?budgetId=12&isActive=true
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "message": "Data successfully retrieve",
+  "totalSubBudgets": 2,
+  "data": [
+    {
+      "subBudgetId": 31,
+      "budgetId": 12,
+      "subBudgetName": "Retail Campaign",
+      "description": "Retail outlet campaign spend",
+      "isActive": true
+    }
+  ]
+}
+```
+
+#### Get Budget Monthly Allocation View
+
+```http
+GET /api/Auth2/GetBudgetMonthlyAllocationView?budgetName=Sales%20Promotion&allocationMonth=2026-05-01
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "budget": {
+      "budgetId": 12,
+      "budgetName": "Sales Promotion",
+      "allocationMonth": "2026-05-01",
+      "allocatedAmount": 100000,
+      "notes": "May allocation"
+    },
+    "subBudgets": [
+      {
+        "subBudgetId": 31,
+        "subBudgetName": "Retail Campaign",
+        "allocatedAmount": 60000,
+        "notes": "Retail"
+      }
+    ]
+  }
+}
+```
+
+#### Get Budget Types And Sub-Budgets
+
+```http
+GET /api/Auth2/getAllBudgetTypes
+GET /api/Auth2/getSubBudgetByBudget?budget=BackOff
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "budget": "BackOff",
+      "subBudget": "Admin"
+    }
+  ]
+}
+```
+
+#### Create Allocation Change Request
+
+```http
+POST /api/Auth2/createBudgetAllocation
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "budgetAllocationId": 501,
+  "newAmount": 125000,
+  "createdBy": 68
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "newRequestId": 77,
+    "message": "Budget allocation request created"
+  }
+}
+```
+
+#### Get Allocation Requests
+
+```http
+GET /api/Auth2/GetPendingBudgetAllocationRequests?userId=68&companyId=1&month=05-2026
+GET /api/Auth2/GetApprovedBudgetAllocationRequests?userId=68&companyId=1&month=05-2026
+GET /api/Auth2/GetRejectedBudgetAllocationRequests?userId=68&companyId=1&month=05-2026
+GET /api/Auth2/GetAllBudgetAllocationRequests?userId=68&companyId=1&month=05-2026
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "totalCount": 1,
+  "data": [
+    {
+      "id": 77,
+      "companyId": 1,
+      "budgetId": 12,
+      "budgetName": "Sales Promotion",
+      "allocationId": 501,
+      "allocationMonth": "2026-05-01",
+      "currentAmount": 100000,
+      "requestedAmount": 125000,
+      "amountDifference": 25000,
+      "createdById": 68,
+      "createdBy": "request.user",
+      "flowId": 9001,
+      "flowStatus": "P",
+      "currentStage": 1,
+      "totalStage": 2
+    }
+  ]
+}
+```
+
+#### Approve Allocation Change
+
+```http
+POST /api/Auth2/approveBudgetAllocation
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "flowId": 9001,
+  "company": 1,
+  "userId": 68,
+  "remarks": "Approved allocation change"
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "resultMessage": "Approved",
+    "budgetAllocationRequestId": 77,
+    "companyId": 1,
+    "flowId": 9001
+  }
+}
+```
+
+#### Reject Allocation Change
+
+```http
+POST /api/Auth2/rejectBudgetAllocation
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "flowId": 9001,
+  "company": 1,
+  "userId": 68,
+  "remarks": "Rejected allocation change"
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "resultMessage": "Rejected",
+    "budgetAllocationRequestId": 77,
+    "companyId": 1,
+    "flowId": 9001
+  }
+}
+```
+
+#### Get Allocation Request Detail
+
+```http
+GET /api/Auth2/GetBudgetAllocationRequestDetail?requestId=77
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "requestDetail": {
+      "id": 77,
+      "companyId": 1,
+      "budgetId": 12,
+      "budgetName": "Sales Promotion",
+      "allocationId": 501,
+      "allocationMonth": "2026-05-01",
+      "currentAmount": 100000,
+      "requestedAmount": 125000,
+      "amountDifference": 25000,
+      "createdById": 68
+    },
+    "flow": []
+  }
+}
+```
+
+#### Get Monthly Allocation Insights
+
+```http
+GET /api/Auth2/getMonthlyAllocationInsights?userId=68&company=1&month=05-2026
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 10,
+    "pending": 3,
+    "approved": 6,
+    "rejected": 1
+  }
+}
+```
+
+#### Get Budget Allocation Flow
+
+```http
+GET /api/Auth2/GetBudgetAllocationFlow?flowId=9001
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "totalCount": 2,
+  "data": [
+    {
+      "stageId": 1,
+      "stageName": "Manager Approval",
+      "priority": 1,
+      "assignedTo": "manager.user",
+      "actionStatus": "A",
+      "actionDate": "2026-05-02T10:30:00",
+      "description": "Approved",
+      "approvalRequired": 1,
+      "rejectRequired": 0
+    }
+  ]
+}
+```
+
+### Report and Dashboard Budget APIs
+
+#### Search Budget By Company
+
+```http
+GET /api/Reports/GetBudgetByCompany?company=1&docEntry=21333&cardName=Vendor&month=07-2025&status=Approved
+```
+
+Query parameters:
+
+| Name | Type | Required | Example |
+| --- | --- | --- | --- |
+| `company` | int | Yes | `1` |
+| `docEntry` | int | No | `21333` |
+| `cardName` | string | No | `Vendor` |
+| `month` | string | No | `07-2025` |
+| `status` | string | No | `Approved` |
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "budgets": [
+      {
+        "budgetId": 4096,
+        "objType": 28,
+        "company": "OIL",
+        "companyId": 1,
+        "docEntry": 21333,
+        "objectName": "Document",
+        "cardCode": "V1001",
+        "cardName": "Vendor Name",
+        "docDate": "2025-07-15T00:00:00",
+        "totalAmount": 4756,
+        "currentMonth": "07-2025",
+        "budgetOwner": "Ravinder Chadda",
+        "ownerCode": "JWPL0011",
+        "approverName": "Approver Name",
+        "approvalCode": "A"
+      }
+    ]
+  }
+}
+```
+
+#### Dashboard Budget Dropdowns And Data
+
+```http
+GET /api/Dashboard/getUniqueBudgets
+GET /api/Dashboard/getUniqueBudgets?branch=Mumbai
+GET /api/Dashboard/getBudgetDataByBranch
+GET /api/Dashboard/getBudgetDataByBranch?branch=Mumbai
+GET /api/Dashboard/getUniqueAccounts?branch=Mumbai
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "branch": "Mumbai",
+      "docEntry": 21333,
+      "objectName": "Document",
+      "objType": 28,
+      "lineNum": 0,
+      "visOrder": 0,
+      "acctCode": "600001",
+      "acctName": "Expense Account",
+      "cardCode": "V1001",
+      "cardName": "Vendor Name",
+      "effectMonth": "07-2025",
+      "budget": "BackOff",
+      "subBudget": "Admin",
+      "state": "MH",
+      "amount": 4756,
+      "currentMonth": "07-2025",
+      "currentMonthPostedAmount": 653008.58,
+      "budgetOwner": "Ravinder Chadda",
+      "ownerCode": "JWPL0011",
+      "currentMonthBudget": 6500000,
+      "status": "Approved"
+    }
+  ]
+}
+```
+
+## 12B. Budget Summary API Documentation
+
+### Overview
+
+Endpoint:
+
+```http
+GET /api/auth/GetBudgetSummary
+```
+
+Purpose:
+
+Returns budget summary information for a specific user, budget, sub-budget, month, and company.
+
+Query parameters:
+
+| Name | Type | Required | Example |
+| --- | --- | --- | --- |
+| `userId` | int | Yes | `68` |
+| `budgetCategory` | string | Yes | `BackOff` |
+| `subBudget` | string | No | `Admin` |
+| `month` | string | Yes | `07-2025` |
+| `company` | int | Yes | `1` |
+
+Response fields:
+
+| Field | Meaning |
+| --- | --- |
+| `totalBudget` | Budget amount allocated for the selected month. |
+| `approvedAmount` | Amount approved by the selected user. |
+| `rejectedAmount` | Amount rejected by the selected user. |
+| `pendingAmount` | Amount pending action for the selected user. |
+| `availableBalance` | Calculated in `UserService` as `totalBudget - approvedAmount`, floored at zero. |
+| `approvedPercentage` | Calculated in `UserService` when `totalBudget > 0`. |
+| `pendingPercentage` | Calculated in `UserService` when `totalBudget > 0`. |
+| `availablePercentage` | Calculated in `UserService` when `totalBudget > 0`. |
+
+### Architecture Change
+
+Previous behavior:
+
+```text
+TotalBudget came only from bud.jsBudgetCategoryMonthSummary.
+```
+
+Problem:
+
+Many workflow records exist without matching rows in `bud.jsBudgetCategoryMonthSummary`. This caused cards like:
+
+```json
+{
+  "totalBudget": "0.00",
+  "approvedAmount": "653008.58",
+  "rejectedAmount": "59723.16",
+  "pendingAmount": "4696.00"
+}
+```
+
+### New TotalBudget Resolution Logic
+
+The procedure now uses a three-level fallback chain.
+
+| Level | Source | When used | Purpose |
+| --- | --- | --- | --- |
+| 1 | `bud.jsBudgetCategoryMonthSummary` | Matching summary row exists | Supports legacy summary data. |
+| 2 | `bud.BudgetMonthlyAllocations`, `bud.SubBudgetMonthlyAllocations` | No summary row exists | Supports Auth2 allocation architecture. |
+| 3 | `bud.jsBudgetTable.Current_month_Budget` | No summary row and no Auth2 allocation | Supports historical workflow-only records. |
+
+Level 3 selection rule:
+
+```sql
+ORDER BY
+    COALESCE(UpdateDate, CreatedDate, DocDate, budgetDate) DESC,
+    DocEntry DESC,
+    LineNum DESC,
+    VisOrder DESC
+```
+
+Only non-zero, non-null `Current_month_Budget` snapshots are considered.
+
+### Sample API Calls
+
+#### Level 3 Historical Workflow Fallback
+
+```http
+GET /api/auth/GetBudgetSummary?userId=68&budgetCategory=BackOff&subBudget=Admin&month=07-2025&company=1
+```
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "totalBudget": "6500000.00",
+      "approvedAmount": "653008.58",
+      "rejectedAmount": "59723.16",
+      "pendingAmount": "4696.00",
+      "availableBalance": 5846991.42,
+      "approvedPercentage": 10.05,
+      "pendingPercentage": 0.07,
+      "availablePercentage": 89.95
+    }
+  ]
+}
+```
+
+Source:
+
+```text
+Level 3: bud.jsBudgetTable.Current_month_Budget
+```
+
+#### Level 2 Auth2 Allocation
+
+```http
+GET /api/auth/GetBudgetSummary?userId=68&budgetCategory=BackOff&subBudget=Admin&month=12-2025&company=1
+```
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "totalBudget": "800000.00",
+      "approvedAmount": "0.00",
+      "rejectedAmount": "0.00",
+      "pendingAmount": "0.00",
+      "availableBalance": 800000,
+      "approvedPercentage": 0,
+      "pendingPercentage": 0,
+      "availablePercentage": 100
+    }
+  ]
+}
+```
+
+Source:
+
+```text
+Level 2: bud.SubBudgetMonthlyAllocations
+```
+
+#### Level 3 Interest Example
+
+```http
+GET /api/auth/GetBudgetSummary?userId=77&budgetCategory=Interest&subBudget=CC%20Limit&month=05-2025&company=1
+```
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "totalBudget": "2500000.00",
+      "approvedAmount": "2747855.00",
+      "rejectedAmount": "0.00",
+      "pendingAmount": "0.00",
+      "availableBalance": 0,
+      "approvedPercentage": 109.91,
+      "pendingPercentage": 0,
+      "availablePercentage": 0
+    }
+  ]
+}
+```
+
+Source:
+
+```text
+Level 3: bud.jsBudgetTable.Current_month_Budget
+```
+
+### SQL Validation Queries
+
+```sql
+EXEC bud.jsGetBudgetSummary
+    @userId = 68,
+    @budgetCategory = 'BackOff',
+    @subBudget = 'Admin',
+    @month = '07-2025',
+    @company = 1;
+```
+
+Expected:
+
+```text
+TotalBudget = 6500000.00
+ApprovedAmount = 653008.58
+RejectedAmount = 59723.16
+PendingAmount = 4696.00
+```
+
+```sql
+EXEC bud.jsGetBudgetSummary
+    @userId = 68,
+    @budgetCategory = 'BackOff',
+    @subBudget = 'Admin',
+    @month = '12-2025',
+    @company = 1;
+```
+
+Expected:
+
+```text
+TotalBudget = 800000.00
+```
+
+```sql
+EXEC bud.jsGetBudgetSummary
+    @userId = 77,
+    @budgetCategory = 'Interest',
+    @subBudget = 'CC Limit',
+    @month = '05-2025',
+    @company = 1;
+```
+
+Expected:
+
+```text
+TotalBudget = 2500000.00
+ApprovedAmount = 2747855.00
+```
+
+### Troubleshooting
+
+If `TotalBudget = 0`, check in this order:
+
+1. `bud.jsBudgetCategoryMonthSummary`
+2. `bud.BudgetMonthlyAllocations`
+3. `bud.SubBudgetMonthlyAllocations`
+4. `bud.jsBudgetTable.Current_month_Budget`
+
+If `ApprovedAmount`, `RejectedAmount`, or `PendingAmount` is non-zero while `TotalBudget` is zero, the likely cause is missing summary/allocation records with no usable historical snapshot.
+
+### Impact
+
+No API contract changed. No controller, service, DTO, frontend, Flutter, Auth2 workflow, approval workflow, SAP, HANA, notification, or export API changes are required. Only `TotalBudget` source resolution changed inside `[bud].[jsGetBudgetSummary]`.
+
 ### Non-Obvious Implementation Details
 
 - There is no dedicated `BudgetController.cs`, `IBudgetService`, or `BudgetService.cs`.

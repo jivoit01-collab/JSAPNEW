@@ -149,6 +149,11 @@ namespace JSAPNEW.Services.Implementation
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
 
+        private static string ToDbUpper(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
+        }
+
         private static List<ChainModel> NormalizeChains(IEnumerable<ChainModel> rows)
         {
             return (rows ?? Enumerable.Empty<ChainModel>())
@@ -507,15 +512,15 @@ namespace JSAPNEW.Services.Implementation
                 {
                     rows.Add(new BPMasterAddress
                     {
-                        AddressType = FirstText(address.AddressType, addressType),
-                        Street = address.Street,
-                        BlockArea = FirstText(address.BlockArea, address.Block),
-                        State = address.State,
-                        City = address.City,
-                        PinCode = FirstText(address.PinCode, address.Zip),
-                        Country = address.Country,
-                        Gstin = FirstText(address.Gstin, model.Gstin),
-                        AddressName = FirstText(address.AddressName, address.AddrName)
+                        AddressType = ToDbUpper(FirstText(address.AddressType, addressType)),
+                        Street = ToDbUpper(address.Street),
+                        BlockArea = ToDbUpper(FirstText(address.BlockArea, address.Block)),
+                        State = ToDbUpper(address.State),
+                        City = ToDbUpper(address.City),
+                        PinCode = ToDbUpper(FirstText(address.PinCode, address.Zip)),
+                        Country = ToDbUpper(address.Country),
+                        Gstin = ToDbUpper(FirstText(address.Gstin, model.Gstin)),
+                        AddressName = ToDbUpper(FirstText(address.AddressName, address.AddrName))
                     });
                 }
             }
@@ -976,7 +981,10 @@ WHERE UserId = @UserId;";
 SELECT name
 FROM sys.columns
 WHERE object_id = OBJECT_ID(N'BP.jsMaster')
-  AND name IN (N'mainGroupID', N'chain', N'creditLimit', N'createDate', N'updationDate', N'action');";
+  AND name IN (
+      N'mainGroupID', N'chain', N'creditLimit',
+      N'createDate', N'updationDate', N'action'
+  );";
 
             var names = (await connection.QueryAsync<string>(sql)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return new BpMasterOptionalColumns
@@ -988,6 +996,185 @@ WHERE object_id = OBJECT_ID(N'BP.jsMaster')
                 HasUpdationDate = names.Contains("updationDate"),
                 HasAction = names.Contains("action")
             };
+        }
+
+        private static async Task<HashSet<string>> GetStoredProcedureParameterNamesAsync(
+            SqlConnection connection,
+            string schemaName,
+            string procedureName)
+        {
+            const string sql = @"
+SELECT p.name
+FROM sys.parameters p
+INNER JOIN sys.objects o ON o.object_id = p.object_id
+INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+WHERE s.name = @SchemaName
+  AND o.name = @ProcedureName
+  AND o.type IN ('P', 'PC');";
+
+            var names = await connection.QueryAsync<string>(sql, new
+            {
+                SchemaName = schemaName,
+                ProcedureName = procedureName
+            });
+
+            return names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static void AddProcedureParameterIfPresent(
+            SqlCommand command,
+            IReadOnlySet<string> procedureParameters,
+            string parameterName,
+            object? value)
+        {
+            if (!procedureParameters.Contains(parameterName))
+                return;
+
+            command.Parameters.AddWithValue(parameterName, value ?? DBNull.Value);
+        }
+
+        private static async Task<HashSet<string>> GetTableColumnNamesAsync(
+            SqlConnection connection,
+            string schemaName,
+            string tableName)
+        {
+            const string sql = @"
+SELECT c.name
+FROM sys.columns c
+INNER JOIN sys.objects o ON o.object_id = c.object_id
+INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+WHERE s.name = @SchemaName
+  AND o.name = @TableName;";
+
+            var names = await connection.QueryAsync<string>(sql, new
+            {
+                SchemaName = schemaName,
+                TableName = tableName
+            });
+
+            return names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private string? GetBpDefaultValue(string bpType, string key)
+        {
+            var section = NormalizeBpType(bpType) == "V" ? "Vendor" : "Customer";
+            return NullIfBlank(_configuration[$"BPDefaults:{section}:{key}"]);
+        }
+
+        private string? GetBpDefaultAccountCode(string bpType)
+        {
+            if (NormalizeBpType(bpType) == "V")
+            {
+                return FirstText(
+                    GetBpDefaultValue("V", "APAccountCode"),
+                    _configuration["BPControlAccounts:Vendor"]);
+            }
+
+            return FirstText(
+                GetBpDefaultValue("C", "ARAccountCode"),
+                _configuration["BPControlAccounts:Customer"]);
+        }
+
+        private async Task<string> GetBpTypeByMasterIdAsync(SqlConnection connection, int masterId)
+        {
+            const string sql = "SELECT TOP (1) type FROM BP.jsMaster WHERE code = @MasterId;";
+            var type = await connection.QueryFirstOrDefaultAsync<string?>(sql, new { MasterId = masterId });
+            return NormalizeBpType(type ?? "C");
+        }
+
+        private async Task<int?> GetMasterIdBySapDataIdAsync(SqlConnection connection, int sapDataId)
+        {
+            if (sapDataId <= 0)
+                return null;
+
+            const string sql = "SELECT TOP (1) masterId FROM BP.jsSAPData WHERE id = @SapDataId;";
+            return await connection.QueryFirstOrDefaultAsync<int?>(sql, new { SapDataId = sapDataId });
+        }
+
+        private async Task<int> EnsureSapDataRowAsync(SqlConnection connection, int masterId, string? bpType = null, int? userId = null)
+        {
+            if (masterId <= 0)
+                return 0;
+
+            var columns = await GetTableColumnNamesAsync(connection, "BP", "jsSAPData");
+            if (!columns.Contains("masterId"))
+                throw new InvalidOperationException("BP.jsSAPData.masterId column is missing.");
+
+            var existingId = columns.Contains("id")
+                ? await connection.QueryFirstOrDefaultAsync<int?>(
+                    "SELECT TOP (1) id FROM BP.jsSAPData WHERE masterId = @MasterId ORDER BY id DESC;",
+                    new { MasterId = masterId })
+                : null;
+
+            if (existingId.GetValueOrDefault() > 0)
+                return existingId.Value;
+
+            var normalizedBpType = string.IsNullOrWhiteSpace(bpType)
+                ? await GetBpTypeByMasterIdAsync(connection, masterId)
+                : NormalizeBpType(bpType);
+            var cardCodePrefix = GetBpDefaultValue(normalizedBpType, "CardCodePrefix");
+            var accountCode = GetBpDefaultAccountCode(normalizedBpType);
+
+            var insertColumns = new List<string> { "masterId" };
+            var values = new List<string> { "@MasterId" };
+            var parameters = new DynamicParameters();
+            parameters.Add("@MasterId", masterId);
+
+            void AddValue(string column, string parameterName, object? value)
+            {
+                if (!columns.Contains(column))
+                    return;
+
+                insertColumns.Add(column);
+                values.Add(parameterName);
+                parameters.Add(parameterName, value);
+            }
+
+            AddValue("apiStatusTag", "@ApiStatusTag", "N");
+            AddValue("apiMessage", "@ApiMessage", null);
+            AddValue("cardCodePrefix", "@CardCodePrefix", cardCodePrefix);
+
+            if (normalizedBpType == "V")
+                AddValue("apAccountCode", "@APAccountCode", accountCode);
+            else
+                AddValue("arAccountCode", "@ARAccountCode", accountCode);
+
+            var now = DateTime.Now;
+            AddValue("createdOn", "@CreatedOn", now);
+            AddValue("updatedOn", "@UpdatedOn", now);
+            AddValue("updatedBy", "@UpdatedBy", userId);
+
+            var outputClause = columns.Contains("id") ? "OUTPUT INSERTED.id" : string.Empty;
+            var sql = $@"
+INSERT INTO BP.jsSAPData ({string.Join(", ", insertColumns)})
+{outputClause}
+VALUES ({string.Join(", ", values)});";
+
+            if (columns.Contains("id"))
+                return await connection.ExecuteScalarAsync<int>(sql, parameters);
+
+            await connection.ExecuteAsync(sql, parameters);
+            return 0;
+        }
+
+        private async Task<BpCreateRuntimeRow?> GetBpCreateRuntimeAsync(int bpCode)
+        {
+            if (bpCode <= 0)
+                return null;
+
+            const string sql = @"
+SELECT TOP (1)
+    f.id AS FlowId,
+    f.status AS FlowStatus,
+    sd.id AS SapDataId
+FROM BP.jsFlow AS f
+LEFT JOIN BP.jsSAPData AS sd
+    ON sd.masterId = f.bpCode
+WHERE f.bpCode = @BpCode
+ORDER BY f.id DESC, sd.id DESC;";
+
+            using var connection = new SqlConnection(_connectionString);
+            return await connection.QueryFirstOrDefaultAsync<BpCreateRuntimeRow>(sql, new { BpCode = bpCode });
         }
 
         private async Task SaveBpManagerFieldsAsync(
@@ -1235,6 +1422,7 @@ WHERE code = @Code
             try
             {
                 var companyId = ResolveCompanyId(model);
+                var bpType = ResolveBpType(model);
                 var primaryBank = ResolvePrimaryBank(model);
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -1242,7 +1430,7 @@ WHERE code = @Code
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
+                    cmd.Parameters.AddWithValue("@type", bpType);
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
                     cmd.Parameters.AddWithValue("@name", ResolveCompanyName(model));
                     cmd.Parameters.AddWithValue("@company", companyId);
@@ -1304,10 +1492,20 @@ WHERE code = @Code
                     await SaveBpManagerFieldsAsync(conn, response.GeneratedCode, model);
                     await SaveBpAuditFieldsAsync(conn, response.GeneratedCode, model.UserId, "C");
                     await SaveBpBankCodeAsync(conn, response.GeneratedCode, primaryBank);
+                    response.SapDataId = await EnsureSapDataRowAsync(conn, response.GeneratedCode, bpType, model.UserId);
                 }
 
                 if (response.GeneratedCode > 0)
+                {
                     await EnsureInitialPendingFlowStatusAsync(response.GeneratedCode, model.UserId);
+                    var runtime = await GetBpCreateRuntimeAsync(response.GeneratedCode);
+                    response.MasterId = response.GeneratedCode;
+                    response.FlowId = runtime?.FlowId ?? 0;
+                    response.SapDataId = runtime?.SapDataId ?? response.SapDataId;
+                    response.Status = string.Equals(runtime?.FlowStatus, "P", StringComparison.OrdinalIgnoreCase)
+                        ? "Pending"
+                        : runtime?.FlowStatus ?? "Pending";
+                }
             }
             catch (Exception ex)
             {
@@ -1438,9 +1636,16 @@ WHERE ar.UserId IS NOT NULL
 
             foreach (var item in list)
             {
-                table.Rows.Add(item.AddressType, item.Street, item.BlockArea, item.State,
-                               item.City, item.PinCode, item.Country, item.Gstin,
-                               item.AddressName);
+                table.Rows.Add(
+                    ToDbUpper(item.AddressType),
+                    ToDbUpper(item.Street),
+                    ToDbUpper(item.BlockArea),
+                    ToDbUpper(item.State),
+                    ToDbUpper(item.City),
+                    ToDbUpper(item.PinCode),
+                    ToDbUpper(item.Country),
+                    ToDbUpper(item.Gstin),
+                    ToDbUpper(item.AddressName));
             }
 
             return table;
@@ -1483,21 +1688,77 @@ WHERE ar.UserId IS NOT NULL
 
         public async Task<IEnumerable<DistinctBankNameModel>> GetDistinctBankNameAsync(int company)
         {
+            return await GetBankCodesAsync(company, "IN");
+        }
+
+        public async Task<IEnumerable<DistinctBankNameModel>> GetBankCodesAsync(int company, string countryCode = "IN")
+        {
+            var normalizedCountry = NormalizeCountryCode(countryCode);
+            Exception? serviceLayerException = null;
+            var serviceLayerFailureMessage = string.Empty;
+
+            try
+            {
+                var serviceLayerBanks = (await _bpMasterSapService.GetBankCodesAsync(company, normalizedCountry)).ToList();
+                if (serviceLayerBanks.Count > 0)
+                    return serviceLayerBanks;
+
+                serviceLayerFailureMessage = "SAP Service Layer Banks returned 0 rows.";
+                _logger.LogWarning(
+                    "SAP Service Layer bank code lookup returned 0 rows. Falling back to HANA ODSC. Company={Company}, CountryCode={CountryCode}",
+                    company,
+                    normalizedCountry);
+            }
+            catch (Exception ex)
+            {
+                serviceLayerException = ex;
+                serviceLayerFailureMessage = ex.Message;
+                _logger.LogWarning(
+                    ex,
+                    "SAP Service Layer bank code lookup failed. Falling back to HANA ODSC. Company={Company}, CountryCode={CountryCode}",
+                    company,
+                    normalizedCountry);
+            }
+
+            try
+            {
+                return await GetBankCodesFromHanaAsync(company, normalizedCountry);
+            }
+            catch (Exception hanaEx)
+            {
+                throw new InvalidOperationException(
+                    $"Bank code lookup failed. Service Layer error: {serviceLayerFailureMessage}. HANA ODSC error: {hanaEx.Message}",
+                    serviceLayerException ?? hanaEx);
+            }
+        }
+
+        private async Task<IEnumerable<DistinctBankNameModel>> GetBankCodesFromHanaAsync(int company, string countryCode)
+        {
             var settings = GetHanaSettings(company);
-
-            var primarySql = $"CALL \"{settings.Schema}\".\"BPGETDISTINCTBANKNAME\"()";
-            var fallbackSql = $@"
+            var sql = $@"
                 SELECT
-                    ""BankCode"",
-                    ""BankName""
+                    ""BankCode"" AS ""BankCode"",
+                    ""BankName"" AS ""BankName"",
+                    ""SwiftNo"" AS ""SwiftNo"",
+                    ""CountryCode"" AS ""CountryCode""
                 FROM ""{settings.Schema}"".""ODSC""
+                WHERE ""CountryCode"" = ?
                 ORDER BY ""BankName""";
+            var parameters = new DynamicParameters();
+            parameters.Add("CountryCode", countryCode);
 
-            return await QueryHanaWithFallbackAsync<DistinctBankNameModel>(
-                company,
-                "Bank options",
-                primarySql,
-                fallbackSql: fallbackSql);
+            using var connection = new HanaConnection(settings.ConnectionString);
+            var rows = (await connection.QueryAsync<DistinctBankNameModel>(sql, parameters)).ToList();
+            if (rows.Count == 0)
+            {
+                _logger.LogWarning(
+                    "HANA ODSC bank code lookup returned 0 rows. Company={Company}, CountryCode={CountryCode}, Schema={Schema}",
+                    company,
+                    countryCode,
+                    settings.Schema);
+            }
+
+            return rows;
         }
         public async Task<IEnumerable<SLPnameModel>> GetSLPnameAsync(int company)
         {
@@ -1642,6 +1903,95 @@ WHERE ar.UserId IS NOT NULL
 
             return result;
         }
+
+        public async Task<IEnumerable<GroupNameResponse>> GetBPGroupsAsync(int company, string bpType)
+        {
+            return await _bpMasterSapService.GetBusinessPartnerGroupsAsync(company, bpType);
+        }
+
+        public async Task<IEnumerable<BpAccountOptionModel>> GetARAccountsAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""AcctCode"",
+                    ""AcctName""
+                FROM ""{settings.Schema}"".""OACT""
+                WHERE ""FatherNum"" = '1101000'
+                ORDER BY ""AcctCode""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return await connection.QueryAsync<BpAccountOptionModel>(sql);
+        }
+
+        public async Task<IEnumerable<BpAccountOptionModel>> GetAPAccountsAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""AcctCode"",
+                    ""AcctName""
+                FROM ""{settings.Schema}"".""OACT""
+                WHERE (""FatherNum"" = '2101000' OR ""AcctCode"" LIKE '211%')
+                  AND ""Finanse"" = 'N'
+                ORDER BY ""AcctCode""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            var rows = (await connection.QueryAsync<BpAccountOptionModel>(sql)).ToList();
+            if (rows.Count == 0)
+            {
+                _logger.LogWarning(
+                    "AP account query returned 0 rows. Company={Company}, Schema={Schema}, Filter={Filter}",
+                    company,
+                    settings.Schema,
+                    "(FatherNum='2101000' OR AcctCode LIKE '211%') AND Finanse='N'");
+            }
+
+            return rows;
+        }
+
+        public async Task<IEnumerable<PaymentGroupModel>> GetPaymentTermsAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""GroupNum"",
+                    ""PymntGroup""
+                FROM ""{settings.Schema}"".""OCTG""
+                ORDER BY ""PymntGroup""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return NormalizePaymentGroups(await connection.QueryAsync<PaymentGroupModel>(sql));
+        }
+
+        public async Task<IEnumerable<SLPnameModel>> GetSalesEmployeesAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT ""SlpCode"", ""SlpName""
+                FROM ""{settings.Schema}"".""OSLP""
+                WHERE ""SlpCode"" > 0
+                  AND IFNULL(""Locked"", 'N') = 'N'
+                ORDER BY ""SlpName""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return await connection.QueryAsync<SLPnameModel>(sql);
+        }
+
+        public async Task<IEnumerable<BpTerritoryOptionModel>> GetTerritoriesAsync(int company)
+        {
+            var settings = GetHanaSettings(company);
+            var sql = $@"
+                SELECT
+                    ""territryID"" AS ""TerritoryId"",
+                    ""descript"" AS ""TerritoryName""
+                FROM ""{settings.Schema}"".""OTER""
+                ORDER BY ""descript""";
+
+            using var connection = new HanaConnection(settings.ConnectionString);
+            return await connection.QueryAsync<BpTerritoryOptionModel>(sql);
+        }
+
         public async Task<IEnumerable<PaymentGroupModel>> GetDistinctPaymentGroupsAsync(int company)
         {
             var settings = GetHanaSettings(company);
@@ -1956,6 +2306,8 @@ WHERE ar.UserId IS NOT NULL
 
                 try
                 {
+                    var bpData = await GetSingleBPDataForSapAsync(flow.BpCode);
+                    var sapData = await GetSPADataAsync(flow.BpCode);
                     var previousTag = await UpdateBpApiStatusAsync(flow.BpCode, "Processing SAP BP creation", "P", null, null, null, request.UserId);
                     if (string.Equals(previousTag.PreviousTag, "Y", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1989,8 +2341,6 @@ WHERE ar.UserId IS NOT NULL
                     BpSapPostResult sapResult;
                     try
                     {
-                        var bpData = await GetSingleBPDataForSapAsync(flow.BpCode);
-                        var sapData = await GetSPADataAsync(flow.BpCode);
                         sapResult = await _bpMasterSapService.PostBusinessPartnerAsync(new BpSapPostRequest
                         {
                             FlowId = flow.FlowId,
@@ -2345,6 +2695,21 @@ WHERE f.id = @flowId;";
             return await connection.QueryFirstOrDefaultAsync<BpFlowRuntimeModel>(sql, new { flowId });
         }
 
+        private static async Task<string> GetBpUpdateBlockMessageAsync(SqlConnection connection, int bpCode)
+        {
+            const string sql = @"
+SELECT TOP (1) f.status
+FROM BP.jsFlow AS f
+WHERE f.bpCode = @bpCode
+  AND f.status = 'A'
+ORDER BY f.id DESC;";
+
+            var status = await connection.QueryFirstOrDefaultAsync<string?>(sql, new { bpCode });
+            return string.Equals(status?.Trim(), "A", StringComparison.OrdinalIgnoreCase)
+                ? "BP update is blocked because workflow is already approved."
+                : string.Empty;
+        }
+
         private async Task<bool> IsUserAssignedToCurrentStageAsync(int userId, int stageId)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -2681,6 +3046,9 @@ ORDER BY id DESC;";
 
             using (var connection = new SqlConnection(_connectionString))
             {
+                await connection.OpenAsync();
+                await EnsureSapDataRowAsync(connection, masterId);
+
                 var parameters = new DynamicParameters();
                 parameters.Add("@masterId", masterId);
 
@@ -2690,7 +3058,7 @@ ORDER BY id DESC;";
                     commandType: CommandType.StoredProcedure
                 );
 
-                return result;
+                return result ?? new SPAData { masterId = masterId };
             }
 
         }
@@ -2763,6 +3131,7 @@ ORDER BY id DESC;";
             try
             {
                 var companyId = ResolveCompanyId(model);
+                var bpType = ResolveBpType(model);
                 var primaryBank = ResolvePrimaryBank(model);
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -2771,7 +3140,7 @@ ORDER BY id DESC;";
                     cmd.CommandType = CommandType.StoredProcedure;
 
                     cmd.Parameters.AddWithValue("@Code", model.Code);
-                    cmd.Parameters.AddWithValue("@type", ResolveBpType(model));
+                    cmd.Parameters.AddWithValue("@type", bpType);
                     cmd.Parameters.AddWithValue("@isStaff", model.IsStaff);
                     cmd.Parameters.AddWithValue("@name", ResolveCompanyName(model));
                     cmd.Parameters.AddWithValue("@company", companyId);
@@ -2824,6 +3193,14 @@ ORDER BY id DESC;";
                     attachParam.SqlDbType = SqlDbType.Structured;
 
                     await conn.OpenAsync();
+                    var updateBlockMessage = await GetBpUpdateBlockMessageAsync(conn, model.Code);
+                    if (!string.IsNullOrWhiteSpace(updateBlockMessage))
+                    {
+                        response.Success = false;
+                        response.Message = updateBlockMessage;
+                        return response;
+                    }
+
                     var creatorUserId = await GetBpCreatorUserIdAsync(conn, model.Code);
                     await cmd.ExecuteNonQueryAsync();
 
@@ -2867,18 +3244,45 @@ ORDER BY id DESC;";
             try
             {
                 using (var conn = new SqlConnection(_connectionString))
-                using (var cmd = new SqlCommand("[BP].[jsUpdateSAPData]", conn))
                 {
+                    await conn.OpenAsync();
+                    var masterId = model.MasterId > 0
+                        ? model.MasterId
+                        : (await GetMasterIdBySapDataIdAsync(conn, model.Id)).GetValueOrDefault();
+                    if (masterId <= 0)
+                    {
+                        result.Message = "masterId is required for SAP data update.";
+                        return result;
+                    }
+
+                    var updateBlockMessage = await GetBpUpdateBlockMessageAsync(conn, masterId);
+                    if (!string.IsNullOrWhiteSpace(updateBlockMessage))
+                    {
+                        result.Success = false;
+                        result.Message = updateBlockMessage;
+                        return result;
+                    }
+
+                    var bpType = await GetBpTypeByMasterIdAsync(conn, masterId);
+                    var sapDataId = await EnsureSapDataRowAsync(conn, masterId, bpType, model.UserId > 0 ? model.UserId : null);
+
+                    using var cmd = new SqlCommand("[BP].[jsUpdateSAPData]", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.Parameters.AddWithValue("@id", model.Id);
-                    cmd.Parameters.AddWithValue("@masterId", model.MasterId);
-                    cmd.Parameters.AddWithValue("@debPayAcct", model.DebPayAcct);
-                    cmd.Parameters.AddWithValue("@wtLabel", model.WtLabel);
-                    cmd.Parameters.AddWithValue("@series", model.Series);
-                    cmd.Parameters.AddWithValue("@grpCode", model.GrpCode);
+                    var updateProcedureParameters = await GetStoredProcedureParameterNamesAsync(conn, "BP", "jsUpdateSAPData");
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@id", model.Id > 0 ? model.Id : sapDataId);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@masterId", masterId);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@cardCodePrefix", NullIfBlank(model.CardCodePrefix));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupCode", model.BpGroupCode);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupName", NullIfBlank(model.BpGroupName));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@arAccountCode", NullIfBlank(model.ArAccountCode));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@apAccountCode", NullIfBlank(model.ApAccountCode));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@paymentTermCode", model.PaymentTermCode);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@salesEmployeeCode", model.SalesEmployeeCode);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@territoryId", model.TerritoryId);
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@sapBankCode", NullIfBlank(model.SapBankCode));
+                    AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@userId", model.UserId > 0 ? model.UserId : null);
 
-                    await conn.OpenAsync();
                     await cmd.ExecuteNonQueryAsync();
 
                     result.Success = true;
@@ -2990,6 +3394,13 @@ ORDER BY id DESC;";
             public DateTime? CreateDate { get; set; }
             public DateTime? UpdationDate { get; set; }
             public string Action { get; set; } = string.Empty;
+        }
+
+        private sealed class BpCreateRuntimeRow
+        {
+            public int FlowId { get; set; }
+            public string FlowStatus { get; set; } = string.Empty;
+            public int SapDataId { get; set; }
         }
 
         private sealed class BpMasterOptionalColumns

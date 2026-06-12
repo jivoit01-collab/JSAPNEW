@@ -2203,7 +2203,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetBudgetSummary")]
-        public async Task<ActionResult> GetBudgetSummary(int userId, string budgetCategory, string subBudget, string month, int company)
+        public async Task<ActionResult> GetBudgetSummary(int userId, string budgetCategory, string month, int company, string subBudget = "")
         {
             try
             {
