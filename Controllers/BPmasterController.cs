@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Data.Entities;
 using static System.Net.Mime.MediaTypeNames;
@@ -59,32 +60,295 @@ namespace JSAPNEW.Controllers
             return BpSapErrorMapper.ExtractSapError(ex);
         }
 
+        private sealed class BpRequestBindingException : Exception
+        {
+            public BpRequestBindingException(string message) : base(message)
+            {
+            }
+        }
+
+        private static readonly HashSet<string> ComplexFormFields = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "bankAccounts",
+            "allBillAddresses",
+            "allShipAddresses",
+            "contacts",
+            "contactPersons",
+            "attachments"
+        };
+
+        private async Task<(T? Model, IFormCollection? Form)> ReadFlexibleRequestAsync<T>(string jsonFieldName = "requests")
+            where T : class
+        {
+            if (Request.HasFormContentType)
+            {
+                var form = await Request.ReadFormAsync();
+                return (BindFormRequest<T>(form, jsonFieldName), form);
+            }
+
+            using var reader = new StreamReader(Request.Body);
+            var requestJson = await reader.ReadToEndAsync();
+            return (DeserializeRequestJson<T>(requestJson), null);
+        }
+
+        private static T? BindFormRequest<T>(IFormCollection form, string jsonFieldName)
+            where T : class
+        {
+            var requestJson = form[jsonFieldName].ToString();
+            if (!string.IsNullOrWhiteSpace(requestJson))
+                return DeserializeRequestJson<T>(requestJson);
+
+            var payload = new JObject();
+            foreach (var key in form.Keys)
+            {
+                if (string.Equals(key, jsonFieldName, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(key, "fileTypes", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var values = form[key];
+                if (TryParseIndexedFormKey(key, out var rootField, out var index, out var propertyName))
+                {
+                    if (values.Any(IsInvalidFormObjectValue))
+                        throw InvalidComplexFieldFormat(rootField);
+
+                    var array = GetOrCreateArray(payload, rootField);
+                    while (array.Count <= index)
+                        array.Add(new JObject());
+
+                    if (array[index] is not JObject item)
+                    {
+                        item = new JObject();
+                        array[index] = item;
+                    }
+
+                    item[propertyName] = ToFormJsonValue(values.ToString(), propertyName);
+                    continue;
+                }
+
+                if (values.Count > 1)
+                {
+                    if (IsComplexFormField(key) && values.Any(IsInvalidFormObjectValue))
+                        throw InvalidComplexFieldFormat(key);
+
+                    payload[key] = new JArray(values.Select(value => ToFormJsonValue(value, key)));
+                    continue;
+                }
+
+                payload[key] = ToFormJsonValue(values.ToString(), key);
+            }
+
+            if (!payload.HasValues)
+                return null;
+
+            try
+            {
+                return payload.ToObject<T>();
+            }
+            catch (Newtonsoft.Json.JsonException ex)
+            {
+                throw ToBindingException(ex);
+            }
+        }
+
+        private static T? DeserializeRequestJson<T>(string? requestJson)
+            where T : class
+        {
+            if (string.IsNullOrWhiteSpace(requestJson))
+                return null;
+
+            try
+            {
+                return JsonConvert.DeserializeObject<T>(requestJson);
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                return null;
+            }
+        }
+
+        private static bool TryParseIndexedFormKey(string key, out string rootField, out int index, out string propertyName)
+        {
+            rootField = string.Empty;
+            index = -1;
+            propertyName = string.Empty;
+
+            var open = key.IndexOf('[');
+            var close = key.IndexOf(']', open + 1);
+            if (open <= 0 || close <= open + 1)
+                return false;
+
+            var indexText = key.Substring(open + 1, close - open - 1);
+            if (!int.TryParse(indexText, out index) || index < 0)
+                return false;
+
+            rootField = NormalizeFormFieldName(key.Substring(0, open));
+            var remainder = key.Substring(close + 1);
+
+            if (remainder.StartsWith("."))
+            {
+                propertyName = remainder.Substring(1);
+            }
+            else if (remainder.StartsWith("[") && remainder.EndsWith("]") && remainder.Length > 2)
+            {
+                propertyName = remainder.Substring(1, remainder.Length - 2);
+            }
+            else
+            {
+                return false;
+            }
+
+            propertyName = propertyName.Trim();
+            return !string.IsNullOrWhiteSpace(rootField) && !string.IsNullOrWhiteSpace(propertyName);
+        }
+
+        private static JArray GetOrCreateArray(JObject payload, string fieldName)
+        {
+            if (payload.TryGetValue(fieldName, StringComparison.OrdinalIgnoreCase, out var existing) && existing is JArray existingArray)
+                return existingArray;
+
+            var array = new JArray();
+            payload[fieldName] = array;
+            return array;
+        }
+
+        private static string NormalizeFormFieldName(string fieldName)
+        {
+            var normalized = fieldName.Trim();
+            return normalized.EndsWith("[]", StringComparison.Ordinal)
+                ? normalized.Substring(0, normalized.Length - 2)
+                : normalized;
+        }
+
+        private static bool IsComplexFormField(string fieldName)
+        {
+            return ComplexFormFields.Contains(NormalizeFormFieldName(fieldName));
+        }
+
+        private static bool IsInvalidFormObjectValue(string? value)
+        {
+            var trimmed = value?.Trim();
+            return string.Equals(trimmed, "[object Object]", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(trimmed, "[object Object],[object Object]", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static BpRequestBindingException InvalidComplexFieldFormat(string fieldName)
+        {
+            var normalized = NormalizeFormFieldName(fieldName);
+            return new BpRequestBindingException($"Invalid {normalized} format. Send JSON array or indexed form-data fields.");
+        }
+
+        private static BpRequestBindingException ToBindingException(Newtonsoft.Json.JsonException ex)
+        {
+            var path = (ex as JsonSerializationException)?.Path
+                ?? (ex as JsonReaderException)?.Path;
+            var rootPath = path?.Split('.', '[').FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(rootPath) && IsComplexFormField(rootPath))
+                return InvalidComplexFieldFormat(rootPath);
+
+            return new BpRequestBindingException("Invalid request data.");
+        }
+
+        private static JToken ToFormJsonValue(string? value, string? fieldName = null)
+        {
+            if (value == null)
+                return JValue.CreateNull();
+
+            var trimmed = value.Trim();
+            if (!string.IsNullOrWhiteSpace(fieldName) && IsComplexFormField(fieldName) && IsInvalidFormObjectValue(trimmed))
+                throw InvalidComplexFieldFormat(fieldName);
+
+            if ((trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+                || (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
+            {
+                try
+                {
+                    return JToken.Parse(trimmed);
+                }
+                catch (Newtonsoft.Json.JsonException)
+                {
+                    if (!string.IsNullOrWhiteSpace(fieldName) && IsComplexFormField(fieldName))
+                        throw InvalidComplexFieldFormat(fieldName);
+
+                    return new JValue(value);
+                }
+            }
+
+            return new JValue(value);
+        }
+
+        private static List<string> ParseOptionalFileTypes(IFormCollection? form, IFormFileCollection files)
+        {
+            var fileTypes = form?["fileTypes"].ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToList() ?? new List<string>();
+
+            if (files.Count > 0 && fileTypes.Count == 0)
+            {
+                fileTypes = files
+                    .Select(file => string.IsNullOrWhiteSpace(file.Name)
+                        ? Path.GetFileNameWithoutExtension(file.FileName)
+                        : file.Name)
+                    .ToList();
+            }
+
+            return fileTypes;
+        }
+
+        private static async Task<List<BPAttachment>> SaveBpAttachmentsAsync(IFormFileCollection files, List<string> fileTypes)
+        {
+            var attachments = new List<BPAttachment>();
+            if (files.Count == 0)
+                return attachments;
+
+            var uploadPath = Path.Combine("wwwroot", "Uploads", "BPmaster");
+            if (!Directory.Exists(uploadPath))
+                Directory.CreateDirectory(uploadPath);
+
+            for (var i = 0; i < files.Count; i++)
+            {
+                var file = files[i];
+                var fileType = fileTypes[i];
+
+                if (file.Length <= 0)
+                    continue;
+
+                var ext = Path.GetExtension(file.FileName);
+                var newFileName = $"{Guid.NewGuid()}{ext}";
+                var savePath = Path.Combine(uploadPath, newFileName);
+
+                await using var stream = new FileStream(savePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+
+                attachments.Add(new BPAttachment
+                {
+                    FileName = newFileName,
+                    FilePath = "/Uploads/BPmaster",
+                    FileSize = file.Length,
+                    ContentType = file.ContentType,
+                    fileType = fileType
+                });
+            }
+
+            return attachments;
+        }
+
         [HttpPost("InsertBPmasterData")]
-        [Consumes("multipart/form-data")]
         public async Task<ActionResult<object>> InsertBPMaster()
         {
             try
             {
-                var form = await Request.ReadFormAsync();
-                var requestJson = form["requests"];
-                if (string.IsNullOrWhiteSpace(requestJson))
+                var (model, form) = await ReadFlexibleRequestAsync<InsertBPMasterDataModel>();
+                if (model == null)
                 {
                     return BadRequest(new BPMasterResponse { Success = false, Message = "Missing request data", GeneratedCode = 0 });
                 }
 
-                var model = JsonConvert.DeserializeObject<InsertBPMasterDataModel>(requestJson);
+                var files = form?.Files;
+                var fileTypeList = files == null ? new List<string>() : ParseOptionalFileTypes(form, files);
 
-                // Attachments from files
-                var files = form.Files;
-                model.Attachments = new List<BPAttachment>();
-
-                // 2. Parse fileTypes
-                var fileTypeList = form["fileTypes"].ToString()
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(t => t.Trim())
-                    .ToList();
-
-                if (files.Count != fileTypeList.Count)
+                if (files != null && files.Count != fileTypeList.Count)
                 {
                     return BadRequest(new BPMasterResponse
                     {
@@ -93,34 +357,10 @@ namespace JSAPNEW.Controllers
                         GeneratedCode = 0
                     });
                 }
-                var uploadPath = Path.Combine("wwwroot", "Uploads", "BPmaster");
-                if (!Directory.Exists(uploadPath))
-                    Directory.CreateDirectory(uploadPath);
 
-                for (int i = 0; i < files.Count; i++)
-                {
-                    var file = files[i];
-                    var fileType = fileTypeList[i];
-
-                    if (file.Length > 0)
-                    {
-                        var ext = Path.GetExtension(file.FileName);
-                        var newFileName = $"{Guid.NewGuid()}{ext}";
-                        var savePath = Path.Combine(uploadPath, newFileName);
-
-                        using var stream = new FileStream(savePath, FileMode.Create);
-                        await file.CopyToAsync(stream);
-
-                        model.Attachments.Add(new BPAttachment
-                        {
-                            FileName = newFileName,
-                            FilePath = "/Uploads/BPmaster", // Use relative path for UI
-                            FileSize = file.Length,
-                            ContentType = file.ContentType,
-                            fileType = fileType
-                        });
-                    }
-                }
+                model.Attachments = files == null
+                    ? new List<BPAttachment>()
+                    : await SaveBpAttachmentsAsync(files, fileTypeList);
 
                 // Call service
                 var result = await _BPService.InsertBPMasterAsync(model);
@@ -145,6 +385,15 @@ namespace JSAPNEW.Controllers
                         flowId = result.FlowId,
                         status = result.Status
                     });
+            }
+            catch (BpRequestBindingException ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message,
+                    generatedCode = 0
+                });
             }
             catch (Exception ex)
             {
@@ -502,24 +751,33 @@ namespace JSAPNEW.Controllers
 
 
         [HttpPost("ApproveBP")]
-        public async Task<IActionResult> ApproveBP([FromBody] ApproveOrRejectBpRequest request)
+        public async Task<IActionResult> ApproveBP()
         {
+            ApproveOrRejectBpRequest? request = null;
             try
             {
+                (request, _) = await ReadFlexibleRequestAsync<ApproveOrRejectBpRequest>();
+                if (request == null)
+                    return BpFailure("Missing request data.", "BP_INVALID_REQUEST", 400);
+
                 var result = await _BPService.ApproveBPAsync(request);
                 if (!result.Success)
                     return BpFailure(result.ResultMessage, result.ErrorCode, sapError: result.SapError);
 
                 return BpSuccess(result.ResultMessage, ToApprovalResponseData(result, request.FlowId));
             }
+            catch (BpRequestBindingException ex)
+            {
+                return BpFailure(ex.Message, "BP_INVALID_REQUEST", 400);
+            }
             catch (SqlException ex)
             {
                 _BPlogger.LogError(
                     ex,
                     "SQL error during BP approval. FlowId={FlowId}, Company={Company}, UserId={UserId}",
-                    request.FlowId,
-                    request.Company,
-                    request.UserId);
+                    request?.FlowId,
+                    request?.Company,
+                    request?.UserId);
                 return BpFailure(MapSqlExceptionMessage(ex), MapSqlExceptionCode(ex));
             }
             catch (Exception ex)
@@ -527,32 +785,41 @@ namespace JSAPNEW.Controllers
                 _BPlogger.LogError(
                     ex,
                     "Error during BP approval. FlowId={FlowId}, Company={Company}, UserId={UserId}",
-                    request.FlowId,
-                    request.Company,
-                    request.UserId);
+                    request?.FlowId,
+                    request?.Company,
+                    request?.UserId);
                 return BpFailure("BP approval failed because of an internal server error.", "BP_INTERNAL_ERROR", 500);
             }
         }
 
         [HttpPost("RejectBP")]
-        public async Task<IActionResult> RejectBP([FromBody] ApproveOrRejectBpRequest request)
+        public async Task<IActionResult> RejectBP()
         {
+            ApproveOrRejectBpRequest? request = null;
             try
             {
+                (request, _) = await ReadFlexibleRequestAsync<ApproveOrRejectBpRequest>();
+                if (request == null)
+                    return BpFailure("Missing request data.", "BP_INVALID_REQUEST", 400);
+
                 var result = await _BPService.RejectBPAsync(request);
                 if (!result.Success)
                     return BpFailure(result.ResultMessage, result.ErrorCode, sapError: result.SapError);
 
                 return BpSuccess(result.ResultMessage, ToApprovalResponseData(result, request.FlowId));
             }
+            catch (BpRequestBindingException ex)
+            {
+                return BpFailure(ex.Message, "BP_INVALID_REQUEST", 400);
+            }
             catch (SqlException ex)
             {
                 _BPlogger.LogError(
                     ex,
                     "SQL error during BP rejection. FlowId={FlowId}, Company={Company}, UserId={UserId}",
-                    request.FlowId,
-                    request.Company,
-                    request.UserId);
+                    request?.FlowId,
+                    request?.Company,
+                    request?.UserId);
                 return BpFailure(MapSqlExceptionMessage(ex), MapSqlExceptionCode(ex));
             }
             catch (Exception ex)
@@ -560,18 +827,23 @@ namespace JSAPNEW.Controllers
                 _BPlogger.LogError(
                     ex,
                     "Error during BP rejection. FlowId={FlowId}, Company={Company}, UserId={UserId}",
-                    request.FlowId,
-                    request.Company,
-                    request.UserId);
+                    request?.FlowId,
+                    request?.Company,
+                    request?.UserId);
                 return BpFailure("BP rejection failed because of an internal server error.", "BP_INTERNAL_ERROR", 500);
             }
         }
 
         [HttpPost("RetrySapPost")]
-        public async Task<IActionResult> RetrySapPost([FromBody] ApproveOrRejectBpRequest request)
+        public async Task<IActionResult> RetrySapPost()
         {
+            ApproveOrRejectBpRequest? request = null;
             try
             {
+                (request, _) = await ReadFlexibleRequestAsync<ApproveOrRejectBpRequest>();
+                if (request == null)
+                    return BpFailure("Missing request data.", "BP_INVALID_REQUEST", 400);
+
                 request.Action = "Approve";
                 var result = await _BPService.RetrySapPostAsync(request);
                 if (!result.Success)
@@ -579,14 +851,18 @@ namespace JSAPNEW.Controllers
 
                 return BpSuccess(result.ResultMessage, ToApprovalResponseData(result, request.FlowId));
             }
+            catch (BpRequestBindingException ex)
+            {
+                return BpFailure(ex.Message, "BP_INVALID_REQUEST", 400);
+            }
             catch (SqlException ex)
             {
                 _BPlogger.LogError(
                     ex,
                     "SQL error during BP SAP retry. FlowId={FlowId}, Company={Company}, UserId={UserId}",
-                    request.FlowId,
-                    request.Company,
-                    request.UserId);
+                    request?.FlowId,
+                    request?.Company,
+                    request?.UserId);
                 return BpFailure(MapSqlExceptionMessage(ex), MapSqlExceptionCode(ex));
             }
             catch (Exception ex)
@@ -594,9 +870,9 @@ namespace JSAPNEW.Controllers
                 _BPlogger.LogError(
                     ex,
                     "Error during BP SAP retry. FlowId={FlowId}, Company={Company}, UserId={UserId}",
-                    request.FlowId,
-                    request.Company,
-                    request.UserId);
+                    request?.FlowId,
+                    request?.Company,
+                    request?.UserId);
                 return BpFailure("BP SAP retry failed because of an internal server error.", "BP_INTERNAL_ERROR", 500);
             }
         }
@@ -978,33 +1254,20 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("UpdateBPMaster")]
-        [Consumes("multipart/form-data")]
         public async Task<ActionResult<BPmasterModels>> UpdateBPMaster()
         {
             try
             {
-                var form = await Request.ReadFormAsync();
-
-                // Read and deserialize the main JSON data
-                var requestJson = form["requests"];
-                if (string.IsNullOrWhiteSpace(requestJson))
+                var (model, form) = await ReadFlexibleRequestAsync<BPMasterUpdateRequest>();
+                if (model == null)
                 {
                     return BadRequest(new BPmasterModels { Success = false, Message = "Missing request data" });
                 }
 
-                var model = JsonConvert.DeserializeObject<BPMasterUpdateRequest>(requestJson);
+                var files = form?.Files;
+                var fileTypeList = files == null ? new List<string>() : ParseOptionalFileTypes(form, files);
 
-                // Attachments from files
-                var files = form.Files;
-                model.Attachments = new List<BPAttachment>();
-
-                // 2. Parse fileTypes
-                var fileTypeList = form["fileTypes"].ToString()
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(t => t.Trim())
-                    .ToList();
-
-                if (files.Count != fileTypeList.Count)
+                if (files != null && files.Count != fileTypeList.Count)
                 {
                     return BadRequest(new BPmasterModels
                     {
@@ -1012,38 +1275,22 @@ namespace JSAPNEW.Controllers
                         Message = "The number of fileTypes does not match the number of attachments.",
                     });
                 }
-                var uploadPath = Path.Combine("wwwroot", "Uploads", "BPmaster");
-                if (!Directory.Exists(uploadPath))
-                    Directory.CreateDirectory(uploadPath);
 
-                for (int i = 0; i < files.Count; i++)
-                {
-                    var file = files[i];
-                    var fileType = fileTypeList[i];
-
-                    if (file.Length > 0)
-                    {
-                        var ext = Path.GetExtension(file.FileName);
-                        var newFileName = $"{Guid.NewGuid()}{ext}";
-                        var savePath = Path.Combine(uploadPath, newFileName);
-
-                        using var stream = new FileStream(savePath, FileMode.Create);
-                        await file.CopyToAsync(stream);
-
-                        model.Attachments.Add(new BPAttachment
-                        {
-                            FileName = newFileName,
-                            FilePath = "/Uploads/BPmaster", // Use relative path for UI
-                            FileSize = file.Length,
-                            ContentType = file.ContentType,
-                            fileType = fileType
-                        });
-                    }
-                }
+                model.Attachments = files == null
+                    ? new List<BPAttachment>()
+                    : await SaveBpAttachmentsAsync(files, fileTypeList);
 
                 // Call service
                 var result = await _BPService.UpdateBPMasterAsync(model);
                 return Ok(result);
+            }
+            catch (BpRequestBindingException ex)
+            {
+                return BadRequest(new BPmasterModels
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
             }
             catch (Exception ex)
             {
@@ -1062,33 +1309,21 @@ namespace JSAPNEW.Controllers
         {
             try
             {
-                BpSapDataUpdateRequest? model = null;
-
-                if (Request.HasFormContentType)
-                {
-                    var form = await Request.ReadFormAsync();
-                    var requestJson = form["requests"].ToString();
-                    if (!string.IsNullOrWhiteSpace(requestJson))
-                    {
-                        model = JsonConvert.DeserializeObject<BpSapDataUpdateRequest>(requestJson);
-                    }
-                }
-                else
-                {
-                    using var reader = new StreamReader(Request.Body);
-                    var requestJson = await reader.ReadToEndAsync();
-                    if (!string.IsNullOrWhiteSpace(requestJson))
-                    {
-                        model = JsonConvert.DeserializeObject<BpSapDataUpdateRequest>(requestJson);
-                    }
-                }
-
+                var (model, _) = await ReadFlexibleRequestAsync<BpSapDataUpdateRequest>();
                 if (model == null)
                 {
                     return BadRequest(new BPmasterModels { Success = false, Message = "Invalid request data" });
                 }
                 var result = await _BPService.UpdateSapDataAsync(model);
                 return result.Success ? Ok(result) : BadRequest(result);
+            }
+            catch (BpRequestBindingException ex)
+            {
+                return BadRequest(new BPmasterModels
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
             }
             catch (Exception ex)
             {

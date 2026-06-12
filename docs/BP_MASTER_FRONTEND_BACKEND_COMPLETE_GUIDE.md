@@ -891,16 +891,74 @@ Base route:
 |---|---|
 | Method | `POST` |
 | URL | `/api/BPmaster/InsertBPmasterData` |
-| Content Type | `multipart/form-data` or raw JSON for no attachments |
+| Content Type | `application/json`, `multipart/form-data`, or `application/x-www-form-urlencoded` |
 | Purpose | Create BP request and start workflow |
 
-Multipart fields:
+Supported request formats:
+
+1. Raw JSON body.
+2. `multipart/form-data` with one `requests` text field containing the full JSON body.
+3. `multipart/form-data` or `application/x-www-form-urlencoded` direct fields such as `type=V`, `companyId=1`, `cardName=TEST VENDOR`.
+4. `multipart/form-data` with direct fields and files. For arrays such as `bankAccounts`, `allBillAddresses`, and `allShipAddresses`, send the field value as a JSON array string when using direct form fields.
+
+Complex FormData fields:
+
+These collection fields support either a JSON array string or indexed form-data fields:
+
+- `bankAccounts`
+- `allBillAddresses`
+- `allShipAddresses`
+- `contacts`
+- `contactPersons`
+- `attachments`
+
+Correct JSON-array string format:
+
+```text
+bankAccounts=[{"bankCode":"HDFC","bankName":"HDFC BANK","accNo":"50100123456789","ifsc":"HDFC0001234"}]
+allBillAddresses=[{"addrName":"BILL-001","street":"PLOT 14 INDUSTRIAL AREA","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN"}]
+allShipAddresses=[{"addrName":"SHIP-001","street":"PLOT 14 INDUSTRIAL AREA","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN"}]
+```
+
+Correct indexed field format:
+
+```text
+bankAccounts[0].bankCode=HDFC
+bankAccounts[0].bankName=HDFC BANK
+bankAccounts[0].vendorName=TEST VENDOR BP 0612 01
+bankAccounts[0].branch=LUDHIANA
+bankAccounts[0].accNo=50100123456789
+bankAccounts[0].ifsc=HDFC0001234
+allBillAddresses[0].addrName=BILL-001
+allBillAddresses[0].street=PLOT 14 INDUSTRIAL AREA
+allBillAddresses[0].city=LUDHIANA
+allBillAddresses[0].zip=141001
+allBillAddresses[0].state=PB
+allBillAddresses[0].country=IN
+```
+
+Incorrect browser-generated format:
+
+```text
+bankAccounts=[object Object]
+```
+
+This happens when frontend code appends a JavaScript object directly, for example `formData.append("bankAccounts", bankAccounts[0])`. Send `JSON.stringify(bankAccounts)` or use indexed keys instead. The API returns:
+
+```json
+{
+  "success": false,
+  "message": "Invalid bankAccounts format. Send JSON array or indexed form-data fields."
+}
+```
+
+Multipart compatibility fields:
 
 | Key | Type | Required | Meaning |
 |---|---|---:|---|
-| `requests` | Text JSON | Yes | BP request body |
+| `requests` | Text JSON | No if direct fields are sent | BP request body |
 | `files` | File list | No | Uploaded documents |
-| `fileTypes` | Text | Required per file | Comma-separated document labels |
+| `fileTypes` | Text | Required per file unless file input names such as `panFile`/`gstFile` are used | Comma-separated document labels |
 
 Customer request example:
 
@@ -909,8 +967,8 @@ Postman setup:
 - Method: `POST`
 - URL: `/api/BPmaster/InsertBPmasterData`
 - Body: `form-data`
-- Key: `requests`
-- Type: `Text`
+- Option A: key `requests`, type `Text`, value is the full JSON below.
+- Option B: send the same properties as direct form fields.
 - Do not send SAP approval fields in this create payload.
 
 ```json
@@ -975,8 +1033,8 @@ Postman setup:
 - Method: `POST`
 - URL: `/api/BPmaster/InsertBPmasterData`
 - Body: `form-data`
-- Key: `requests`
-- Type: `Text`
+- Option A: key `requests`, type `Text`, value is the full JSON below.
+- Option B: send the same properties as direct form fields.
 - Do not send SAP approval fields in this create payload.
 - IFSC must match `^[A-Z]{4}0[A-Z0-9]{6}$`, for example `HDFC0001234`.
 
@@ -1051,6 +1109,33 @@ Postman setup:
 }
 ```
 
+Vendor direct form-data example:
+
+```text
+type=V
+company=JIVO_OIL_HANADB
+companyId=1
+vendorType=SUPPLIER
+cardName=TEST VENDOR BP 0611 02
+foreignName=TEST VENDOR FOREIGN
+typeOfBusiness=Partnership
+industry=IT Services
+contactFirst=ROHIT
+contactLast=RATHOD
+mobile=8571954685
+email=vendor061102@example.com
+gstin=03AAKCT6102F1Z5
+pan=AAKCT6102F
+currency=INR
+userId=76
+companyByUser=JIVO_OIL_HANADB
+isStaff=false
+sameAsBill=true
+bankAccounts=[{"bankCode":"HDFC","bankName":"HDFC BANK","vendorName":"TEST VENDOR BP 0611 02","branch":"LUDHIANA","accNo":"50100123456789","ifsc":"HDFC0001234","swiftCode":"HDFCINBB","accountType":"Current","isPrimary":true}]
+allBillAddresses=[{"addrName":"BILL-VEND-061102","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCT6102F1Z5"}]
+allShipAddresses=[{"addrName":"SHIP-VEND-061102","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCT6102F1Z5"}]
+```
+
 Success response:
 
 ```json
@@ -1088,6 +1173,7 @@ Common errors:
 |---|---|
 | Method | `POST` |
 | URL | `/api/BPmaster/UpdateBPMaster` |
+| Content Type | `application/json`, `multipart/form-data`, or `application/x-www-form-urlencoded` |
 | Purpose | Update BP while workflow is `P` or `R` |
 
 Update is allowed when:
@@ -1120,6 +1206,18 @@ Example update body:
   "updateContacts": false,
   "updateAttachments": false
 }
+```
+
+Form-data direct field example:
+
+```text
+code=1234
+cardName=UPDATED TEST VENDOR
+mobile=8571954685
+updateAddresses=false
+updateBankDetails=false
+updateContacts=false
+updateAttachments=false
 ```
 
 Approved-lock response:
@@ -1178,6 +1276,7 @@ Default `cardCodePrefix`, `arAccountCode`, and `apAccountCode` come from `appset
 |---|---|
 | Method | `PUT` or `POST` |
 | URL | `/api/BPmaster/UpdateSAPData` or `/api/BPmaster/UpdateSapData` |
+| Content Type | `application/json`, `multipart/form-data`, or `application/x-www-form-urlencoded` |
 | Purpose | Save SAP/Finance approval fields after BP creation and before final approval |
 
 Customer SAP data body:
@@ -1225,6 +1324,19 @@ Use values returned by:
   "paymentTermCode": 29,
   "sapBankCode": "HDFC"
 }
+```
+
+Vendor SAP data form-data example:
+
+```text
+masterId=1255
+userId=76
+cardCodePrefix=VENDA
+bpGroupCode=101
+bpGroupName=BRANCH VENDOR
+apAccountCode=2110005
+paymentTermCode=29
+sapBankCode=HDFC
 ```
 
 Rules:
@@ -1318,6 +1430,7 @@ Business details are returned in the separate `master`, `taxDetails`, `billingAd
 |---|---|
 | Method | `POST` |
 | URL | `/api/BPmaster/ApproveBP` |
+| Content Type | `application/json`, `multipart/form-data`, or `application/x-www-form-urlencoded` |
 | Purpose | Approve current stage; final stage posts to SAP |
 
 Request:
@@ -1330,6 +1443,16 @@ Request:
   "remarks": "Approved",
   "action": "Approve"
 }
+```
+
+Form-data direct field example:
+
+```text
+flowId=1153
+company=1
+userId=70
+remarks=Verified.
+action=Approve
 ```
 
 Final-stage SAP success response:
@@ -1363,6 +1486,7 @@ SAP failure response:
 |---|---|
 | Method | `POST` |
 | URL | `/api/BPmaster/RejectBP` |
+| Content Type | `application/json`, `multipart/form-data`, or `application/x-www-form-urlencoded` |
 | Purpose | Reject current approval stage |
 
 Request:
@@ -1377,13 +1501,44 @@ Request:
 }
 ```
 
+Form-data direct field example:
+
+```text
+flowId=1153
+company=1
+userId=69
+remarks=PAN attachment mismatch.
+action=Reject
+```
+
 ### Retry SAP Post
 
 | Item | Value |
 |---|---|
 | Method | `POST` |
 | URL | `/api/BPmaster/RetrySapPost` |
+| Content Type | `application/json`, `multipart/form-data`, or `application/x-www-form-urlencoded` |
 | Purpose | Retry failed final-stage SAP posting |
+
+JSON request:
+
+```json
+{
+  "flowId": 1153,
+  "company": 1,
+  "userId": 108,
+  "remarks": "Retry after SAP correction."
+}
+```
+
+Form-data direct field example:
+
+```text
+flowId=1153
+company=1
+userId=108
+remarks=Retry after SAP correction.
+```
 
 Rules:
 
