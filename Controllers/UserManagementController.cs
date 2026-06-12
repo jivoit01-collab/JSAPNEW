@@ -2,10 +2,12 @@
 using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JSAPNEW.Controllers
 {
+    [Authorize(Policy = "AdminOnly")]
     public class UserManagementController : Controller
     {
         private readonly IUserService _userService;

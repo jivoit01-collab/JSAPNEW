@@ -1,14 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System;
+using System.Security.Claims;
 using JSAPNEW.Data.Entities;
 using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
     [Route("websession")]
+    [Authorize]
     public class WebSessionController : Controller
     {
         private readonly IUserService _userService;
@@ -23,22 +26,24 @@ namespace JSAPNEW.Controllers
         {
             try
             {
-                if (request == null || request.UserId <= 0)
+                var userId = GetAuthenticatedUserId();
+
+                if (userId <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Invalid request data" });
+                    return Unauthorized(new { success = false, message = "Invalid authenticated user" });
                 }
 
-                // Fetch companies using the existing service
-                var companies = (await _userService.GetCompanyAsync(request.UserId))?.ToList();
+                // Fetch companies using the authenticated user from JWT claims.
+                var companies = (await _userService.GetCompanyAsync(userId))?.ToList();
 
                 if (companies == null || companies.Count == 0)
                 {
                     return BadRequest(new { success = false, message = "No companies found for user" });
                 }
 
-                // Set session values
-                HttpContext.Session.SetInt32("userId", request.UserId);
-                HttpContext.Session.SetString("username", request.UserName ?? "Guest");
+                // Set session values from server-side claims only.
+                HttpContext.Session.SetInt32("userId", userId);
+                HttpContext.Session.SetString("username", GetAuthenticatedUserName());
                 HttpContext.Session.SetString("companyList", JsonConvert.SerializeObject(companies));
                 HttpContext.Session.SetInt32("selectedCompanyId", companies[0].id); // Default to first
 
@@ -52,13 +57,27 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updateSelectedCompany")]
-        public IActionResult UpdateSelectedCompany([FromBody] CompanySelectRequest req)
+        public async Task<IActionResult> UpdateSelectedCompany([FromBody] CompanySelectRequest req)
         {
             try
             {
                 if (req == null || req.CompanyId <= 0)
                 {
                     return BadRequest(new { success = false, message = "Invalid company ID" });
+                }
+
+                var userId = GetAuthenticatedUserId();
+
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "Invalid authenticated user" });
+                }
+
+                var companies = (await _userService.GetCompanyAsync(userId))?.ToList();
+
+                if (companies == null || !companies.Any(company => company.id == req.CompanyId))
+                {
+                    return Forbid();
                 }
 
                 HttpContext.Session.SetInt32("selectedCompanyId", req.CompanyId);
@@ -92,6 +111,19 @@ namespace JSAPNEW.Controllers
             {
                 return Json(new { valid = false });
             }
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private string GetAuthenticatedUserName()
+        {
+            return User.FindFirstValue(ClaimTypes.Name)
+                ?? User.Identity?.Name
+                ?? "User";
         }
     }
 

@@ -1,16 +1,31 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using Dapper;
+using Microsoft.Data.SqlClient;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
 using System.Text;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using JSAPNEW.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddControllers();
-builder.Services.AddControllersWithViews();
+var authenticatedPolicy = new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+    .RequireAuthenticatedUser()
+    .Build();
+
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add(new AuthorizeFilter(authenticatedPolicy));
+});
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AuthorizeFilter(authenticatedPolicy));
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddSession(options =>
 {
@@ -64,9 +79,63 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"])),
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
             ClockSkew = TimeSpan.Zero
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var configuration = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Principal?.FindFirstValue("userId");
+                var tokenStamp = context.Principal?.FindFirstValue("securityStamp");
+
+                if (!int.TryParse(userIdValue, out var userId) || string.IsNullOrWhiteSpace(tokenStamp))
+                {
+                    context.Fail("Invalid token claims.");
+                    return;
+                }
+
+                var connectionString = configuration.GetConnectionString("DefaultConnection");
+                var secretKey = configuration["Jwt:SecretKey"];
+
+                await using var connection = new SqlConnection(connectionString);
+                var userRow = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                    "SELECT TOP 1 * FROM jsUser WHERE UserId = @UserId",
+                    new { UserId = userId });
+
+                if (userRow == null)
+                {
+                    context.Fail("User no longer exists.");
+                    return;
+                }
+
+                var userValues = (IDictionary<string, object>)userRow;
+                var roleRows = await connection.QueryAsync<dynamic>(
+                    @"SELECT ur.userId, ur.roleId, r.roleName
+                      FROM jsUserRole ur
+                      LEFT JOIN jsRole r ON ur.roleId = r.roleId
+                      WHERE ur.userId = @UserId
+                      ORDER BY ur.roleId, r.roleName",
+                    new { UserId = userId });
+                var roleSnapshot = AuthSecurity.CreateRoleSnapshot(roleRows);
+                var currentStamp = AuthSecurity.CreateSecurityStamp(userValues, secretKey, roleSnapshot);
+
+                if (!string.Equals(tokenStamp, currentStamp, StringComparison.Ordinal))
+                {
+                    context.Fail("Token security stamp is no longer valid.");
+                }
+            }
+        };
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = authenticatedPolicy;
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("Admin", "SuperAdmin", "Super User"));
+});
 
 // Register services
 builder.Services.AddScoped<IUserService, UserService>();
@@ -140,6 +209,6 @@ app.MapGet("/health", () => Results.Ok(new
     status = "healthy",
     timestamp = DateTime.UtcNow,
     app = "JSAP"
-}));
+})).AllowAnonymous();
 
 app.Run();

@@ -1,4 +1,5 @@
 ﻿using JSAPNEW.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -6,6 +7,7 @@ using JSAPNEW.Models;
 namespace JSAPNEW.Controllers
 
 {
+    [Authorize(Policy = "AdminOnly")]
     public class AdminController : Controller
     {
         private readonly IConfiguration _config;

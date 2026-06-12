@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using Sap.Data.Hana;
+using System.Security.Claims;
 
 namespace JSAPNEW.Controllers
 {
@@ -15,12 +16,32 @@ namespace JSAPNEW.Controllers
         private readonly IConfiguration _configuration;
         private readonly ILogger<QcController> _logger;
         private readonly IQcService _QcService;
+        private readonly IUserService _userService;
 
-        public QcController(IConfiguration configuration, IQcService QcService, ILogger<QcController> logger)
+        public QcController(IConfiguration configuration, IQcService QcService, ILogger<QcController> logger, IUserService userService)
         {
             _configuration = configuration;
             _logger = logger;
             _QcService = QcService;
+            _userService = userService;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<(int UserId, bool Authorized)> GetAuthorizedScopeAsync(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            if (userId <= 0 || companyId <= 0)
+            {
+                return (0, false);
+            }
+
+            var companies = await _userService.GetCompanyAsync(userId);
+            return (userId, companies != null && companies.Any(company => company.id == companyId));
         }
 
         [HttpPost("CreateForm")]
@@ -112,6 +133,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
                 var result = await _QcService.GetFormDataUsingDocEntryAsync(docEntry, company, Url);
                 return Ok(new
                 {
@@ -184,6 +211,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var authenticatedUserId = GetAuthenticatedUserId();
+                if (authenticatedUserId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                userId = authenticatedUserId.ToString();
                 var result = await _QcService.GetFormUsingCreatedByAsync(userId);
                 return Ok(new
                 {
@@ -366,6 +400,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _QcService.GetDocumentInsightsAsync(userId, companyId, month);
                 return Ok(new
                 {
@@ -395,6 +436,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _QcService.GetPendingDocumentsAsync(userId, companyId, month);
                 return Ok(new
                 {
@@ -423,6 +471,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _QcService.GetApprovedDocumentsAsync(userId, companyId, month);
                 return Ok(new
                 {
@@ -451,6 +506,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _QcService.GetRejectedDocumentsAsync(userId, companyId, month);
                 return Ok(new
                 {
@@ -480,6 +542,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _QcService.GetAllQcDocumentAsync(userId, companyId, month);
                 return Ok(new
                 {
@@ -692,6 +761,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
                 var result = await _QcService.GetProductionDataUsingLineAsync(DocEntry, docId, LineNum, company);
                 return Ok(new
                 {

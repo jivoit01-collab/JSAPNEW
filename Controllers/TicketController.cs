@@ -1,4 +1,5 @@
 ﻿using JSAPNEW.Services.Interfaces;
+using JSAPNEW.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TicketSystem.Models;
@@ -7,6 +8,7 @@ using JSAPNEW.Services.Implementation;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Newtonsoft.Json;
 using Microsoft.Data.SqlClient;
+using System.Security.Claims;
 
 namespace TicketSystem.Controllers
 {
@@ -16,10 +18,35 @@ namespace TicketSystem.Controllers
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
+        private readonly IUserService _userService;
 
-        public TicketController(ITicketService ticketService)
+        public TicketController(ITicketService ticketService, IUserService userService)
         {
             _ticketService = ticketService;
+            _userService = userService;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<bool> VerifyCompanyOwnsResource(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            return await ResourceAuthorizationHelper.VerifyCompanyOwnsResource(userId, companyId, _userService.GetCompanyAsync);
+        }
+
+        private async Task<bool> VerifyUserOwnsResource(int ticketId)
+        {
+            if (ticketId <= 0)
+            {
+                return false;
+            }
+
+            var ticket = (await _ticketService.GetOneTicketDetailsAsync(ticketId))?.FirstOrDefault();
+            return ticket != null && await VerifyCompanyOwnsResource(ticket.company);
         }
 
         [HttpPost("assignticket")]
@@ -29,6 +56,12 @@ namespace TicketSystem.Controllers
             {
                 return BadRequest(ModelState);
             }
+            if (!await VerifyUserOwnsResource(request.ticketId))
+            {
+                return Forbid();
+            }
+
+            request.userId = GetAuthenticatedUserId();
             // Call the service to add the comment on the ticket
             var result = await _ticketService.AssignTicketAsync(request);
             if (result != null)
@@ -112,6 +145,12 @@ namespace TicketSystem.Controllers
         {
             try
             {
+                userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var result = await _ticketService.GetUserTicketsInsightsAsync(userId,month);
                 if (result == null || !result.Any())
                 {
@@ -147,6 +186,17 @@ namespace TicketSystem.Controllers
             try
             {
                 var result = await _ticketService.GetOneTicketDetailsAsync(ticketId);
+                var ticket = result?.FirstOrDefault();
+                if (ticket == null)
+                {
+                    return NotFound(new { Success = false, Message = "Ticket not found." });
+                }
+
+                if (!await VerifyCompanyOwnsResource(ticket.company))
+                {
+                    return Forbid();
+                }
+
                 return Ok(new
                 {
                     Success = true,
@@ -170,6 +220,12 @@ namespace TicketSystem.Controllers
         {
             try
             {
+                userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var result = await _ticketService.GetUserTicketsWithStatusAsync(userId, statusIds,month);
                 return Ok(new
                 {
@@ -260,6 +316,12 @@ namespace TicketSystem.Controllers
             {
                 return BadRequest(ModelState);
             }
+            if (!await VerifyUserOwnsResource(request.ticketId))
+            {
+                return Forbid();
+            }
+
+            request.userId = GetAuthenticatedUserId();
             // Call the service to update the ticket status
             var result = await _ticketService.UpdateTicketStatusAsync(request);
             if (result != null)
@@ -279,6 +341,12 @@ namespace TicketSystem.Controllers
             {
                 return BadRequest(ModelState);
             }
+            if (!await VerifyUserOwnsResource(request.ticketId))
+            {
+                return Forbid();
+            }
+
+            request.userId = GetAuthenticatedUserId();
             // Call the service to add the comment on the ticket
             var result = await _ticketService.AddCommentOnTicketAsync(request);
             if (result != null)
@@ -320,6 +388,11 @@ namespace TicketSystem.Controllers
         {
             try
             {
+                if (!await VerifyUserOwnsResource(ticketId))
+                {
+                    return Forbid();
+                }
+
                 var result = await _ticketService.GetTicketCommentsAsync(ticketId);
                 return Ok(new { success = true, data = result });
             }
@@ -333,6 +406,11 @@ namespace TicketSystem.Controllers
         {
             try
             {
+                if (!await VerifyUserOwnsResource(ticketId))
+                {
+                    return Forbid();
+                }
+
                 var result = await _ticketService.GetTicketAttachmentsAsync(ticketId, Url);
                 return Ok(new { success = true, data = result });
             }

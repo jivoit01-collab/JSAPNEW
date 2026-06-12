@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Data.Common;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text.Json;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -18,12 +19,32 @@ namespace JSAPNEW.Controllers
         private readonly IConfiguration _configuration;
         private readonly IItemMasterService _ItemMasterService;
         private readonly ILogger<ItemMasterController> _Itemmasterlogger;
+        private readonly IUserService _userService;
 
-        public ItemMasterController(IConfiguration configuration, IItemMasterService ItemMasterService, ILogger<ItemMasterController> Itemmasterlogger)
+        public ItemMasterController(IConfiguration configuration, IItemMasterService ItemMasterService, ILogger<ItemMasterController> Itemmasterlogger, IUserService userService)
         {
             _configuration = configuration;
             _ItemMasterService = ItemMasterService;
             _Itemmasterlogger = Itemmasterlogger;
+            _userService = userService;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<(int UserId, bool Authorized)> GetAuthorizedScopeAsync(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            if (userId <= 0 || companyId <= 0)
+            {
+                return (0, false);
+            }
+
+            var companies = await _userService.GetCompanyAsync(userId);
+            return (userId, companies != null && companies.Any(company => company.id == companyId));
         }
 
         [HttpGet("GetHSN")]
@@ -455,6 +476,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var approvedItems = await _ItemMasterService.GetApprovedItemsAsync(userId, company);
                 if (approvedItems == null || !approvedItems.Any())
                 {
@@ -498,6 +526,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var pendingItems = await _ItemMasterService.GetPendingItemsAsync(userId, company);
                 if (pendingItems == null || !pendingItems.Any())
                 {
@@ -520,6 +555,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var rejectedItems = await _ItemMasterService.GetRejectedItemsAsync(userId, company);
                 if (rejectedItems == null || !rejectedItems.Any())
                 {
@@ -542,6 +584,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var insights = await _ItemMasterService.GetWorkflowInsightsAsync(userId, companyId, month);
                 if (insights == null)
                 {
@@ -731,6 +780,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var items = await _ItemMasterService.GetAllItemsAsync(userId, companyId);
                 if (items == null || !items.Any())
                 {
@@ -928,6 +984,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var createdByDetails = await _ItemMasterService.GetCreatedByDetailAsync(userId, companyId);
                 if (createdByDetails == null)
                 {
@@ -1023,6 +1086,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var bkdtDetails = await _ItemMasterService.GetBKDTinsightsAsync(userId, company, month);
                 if (bkdtDetails == null || !bkdtDetails.Any())
                 {
@@ -1044,6 +1114,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var pendingDocs = await _ItemMasterService.GetBKDTPendingDocAsync(userId, company, month);
 
                 if (pendingDocs == null || !pendingDocs.Any())
@@ -1069,6 +1146,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var approvedDocs = await _ItemMasterService.GetBKDTApprovedDocAsync(userId, company, month);
                 if (approvedDocs == null || !approvedDocs.Any())
                 {
@@ -1093,6 +1177,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var rejectedDocs = await _ItemMasterService.GetBKDTRejectedDocAsync(userId, company, month);
                 if (rejectedDocs == null || !rejectedDocs.Any())
                 {
@@ -1117,6 +1208,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var bkdtDetails = await _ItemMasterService.GetBKDTFullDetailsAsync(userId, company, month);
                 if (bkdtDetails == null || !bkdtDetails.Any())
                 {
@@ -1204,6 +1302,11 @@ namespace JSAPNEW.Controllers
 
                 // ✅ get companyId from first record (all details belong to same company)
                 int companyId = bkdtDocDetails.First().companyId;
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
 
                 // ✅ fetch Mobj details for documentType mapping
                 var mobjDetails = await _ItemMasterService.GetMobjDetailsAsync(companyId);
@@ -1278,6 +1381,11 @@ namespace JSAPNEW.Controllers
 
                 // ✅ get companyId from first record (all details belong to same company)
                 int companyId = bkdtDocDetails.First().companyId;
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
 
                 // ✅ fetch Mobj details for documentType mapping
                 var mobjDetails = await _ItemMasterService.GetMobjDetailsAsync(companyId);
@@ -1516,6 +1624,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var authenticatedUserId = GetAuthenticatedUserId();
+                if (authenticatedUserId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                createdBy = authenticatedUserId.ToString();
                 var insights = await _ItemMasterService.GetUserDocumentInsightsAsync(createdBy, month);
                 if (insights == null)
                 {
@@ -1585,6 +1700,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                createdBy = scope.UserId.ToString();
                 var documents = await _ItemMasterService.GetUserDocumentsByCreatedByAndMonthAsync(createdBy, monthYear, status);
                 if (documents == null)
                 {
@@ -1697,6 +1819,12 @@ namespace JSAPNEW.Controllers
                 {
                     _Itemmasterlogger.LogInformation($"No BKDT document details found for FlowId {flowId}");
                     return NotFound(new { Success = false, Message = "No BKDT document details found." });
+                }
+
+                var scope = await GetAuthorizedScopeAsync(bkdtDocDetails.First().companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
                 }
 
                 string hanaStatusText = "BKDT processed successfully."; // default message
@@ -1912,6 +2040,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _ItemMasterService.GetItemByIdAsync(userId, company, month);
                 return Ok(new { Success = true, Data = result });
             }
@@ -1988,6 +2123,21 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (company.HasValue)
+                {
+                    var scope = await GetAuthorizedScopeAsync(company.Value);
+                    if (!scope.Authorized)
+                    {
+                        return Forbid();
+                    }
+                }
+
                 var data = await _ItemMasterService.GetRejectedItemsForCreatorAsync(userId, company);
 
                 if (data == null || !data.Any())

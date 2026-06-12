@@ -3,8 +3,10 @@ using System.ComponentModel.Design;
 using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using System.Security.Claims;
 
 namespace JSAPNEW.Controllers
 {
@@ -14,11 +16,31 @@ namespace JSAPNEW.Controllers
     {
         private readonly IAuth2Service _auth2Service; //An interface for user-related operations
         private readonly ILogger<Auth2Controller> _logger; //for recording events or errors
+        private readonly IUserService _userService;
 
-        public Auth2Controller(IAuth2Service Auth2Service, ILogger<Auth2Controller> logger)
+        public Auth2Controller(IAuth2Service Auth2Service, ILogger<Auth2Controller> logger, IUserService userService)
         {
             _auth2Service = Auth2Service;
             _logger = logger;
+            _userService = userService;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<(int UserId, bool Authorized)> GetAuthorizedScopeAsync(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            if (userId <= 0 || companyId <= 0)
+            {
+                return (0, false);
+            }
+
+            var companies = await _userService.GetCompanyAsync(userId);
+            return (userId, companies != null && companies.Any(company => company.id == companyId));
         }
 
         [HttpGet("getTemplateDataForCloning")]
@@ -538,6 +560,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _auth2Service.GetPendingBudgetAllocationRequestsAsync(userId, companyId, month);
                 if (result == null)
                     return NotFound(new { Success = false, Message = "No data found for given allocationMonth." });
@@ -571,6 +600,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _auth2Service.GetApprovedBudgetAllocationRequestsAsync(userId, companyId, month);
                 if (result == null)
                     return NotFound(new { Success = false, Message = "No data found for given allocationMonth." });
@@ -603,6 +639,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _auth2Service.GetRejectedBudgetAllocationRequestsAsync(userId, companyId, month);
                 if (result == null)
                     return NotFound(new { Success = false, Message = "No data found for given allocationMonth." });
@@ -640,6 +683,13 @@ namespace JSAPNEW.Controllers
 
             try
             {
+                var scope = await GetAuthorizedScopeAsync(request.Company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                request.UserId = scope.UserId;
                 var result = await _auth2Service.ApproveBudgetAllocationRequestAsync(request);
                 if (result == null)
                     return NotFound(new { Success = false, Message = "No data found for given request." });
@@ -677,6 +727,13 @@ namespace JSAPNEW.Controllers
            
             try
             {
+                var scope = await GetAuthorizedScopeAsync(request.Company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                request.UserId = scope.UserId;
                 var result = await _auth2Service.RejectBudgetAllocationRequestAsync(request);
                 if (result == null)
                     return NotFound(new { Success = false, Message = "No data found for given request." });
@@ -716,8 +773,11 @@ namespace JSAPNEW.Controllers
             if (request.NewAmount <= 0)
                 return BadRequest(new { Success = false, Message = "NewAmount must be greater than 0" });
 
-            if (request.CreatedBy <= 0)
-                return BadRequest(new { Success = false, Message = "CreatedBy must be a valid user ID" });
+            var authenticatedUserId = GetAuthenticatedUserId();
+            if (authenticatedUserId <= 0)
+                return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+
+            request.CreatedBy = authenticatedUserId;
 
             
             try
@@ -788,7 +848,14 @@ namespace JSAPNEW.Controllers
         {
             try
             {
-                if (userId <= 0 || company <= 0 || string.IsNullOrEmpty(month))
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
+                if (string.IsNullOrEmpty(month))
                 {
                     return BadRequest("Invalid parameters");
                 }
@@ -809,6 +876,7 @@ namespace JSAPNEW.Controllers
 
 
         [HttpGet("GetAllBudgetAllocationRequests")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetAllBudgetAllocationRequests(int userId, int companyId, string month = null)
         {
             // Add this to see what parameters are received

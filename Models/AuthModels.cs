@@ -14,7 +14,8 @@ namespace JSAPNEW.Models
     public class LoginResponse
     {
         public bool Success { get; set; }
-        //public string Token { get; set; }
+        public string? AccessToken { get; set; }
+        public string? Token { get; set; }
         public string Message { get; set; }
         public UserDto User { get; set; }
     }
@@ -59,6 +60,10 @@ namespace JSAPNEW.Models
         public string firstName { get; set; }
         public string lastName { get; set; }
         public int changePassword { get; set; }
+        public string? role { get; set; }
+        public string? Role { get; set; }
+        public string? securityStamp { get; set; }
+        public string? SecurityStamp { get; set; }
 
     }
     public class VarietyModel

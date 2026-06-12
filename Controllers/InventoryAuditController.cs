@@ -4,6 +4,7 @@ using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Collections;
+using System.Security.Claims;
 
 namespace JSAPNEW.Controllers
 {
@@ -20,6 +21,12 @@ namespace JSAPNEW.Controllers
             _configuration = configuration;
             _inventoryService = InventoryAuditService;
             _inventorylogger = Inventorylogger;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
         }
 
         [HttpPost("GetItemStockDetails")]
@@ -253,6 +260,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                UserId = GetAuthenticatedUserId();
+                if (UserId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var Result = await _inventoryService.GetItemsUsingLotNumberAsync(lotNumber,UserId);
                 if (Result == null)
                 {
@@ -336,6 +349,7 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetUserActiveSessions")]
         public async Task<IActionResult> GetUserActiveSessions(int userId)
         {
+            userId = GetAuthenticatedUserId();
             if (userId <= 0)
                 return BadRequest(new { Success = false, Message = "UserId is required." });
 
@@ -358,6 +372,7 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetUserInactiveSessions")]
         public async Task<IActionResult> GetUserInactiveSessions(int userId)
         {
+            userId = GetAuthenticatedUserId();
             if (userId <= 0)
                 return BadRequest(new { Success = false, Message = "UserId is required." });
 
@@ -513,6 +528,7 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetActiveSessionsByUser")]
         public async Task<IActionResult> GetActiveSessionsByUser(int createdBy)
         {
+            createdBy = GetAuthenticatedUserId();
             if (createdBy <= 0)
                 return BadRequest(new { Success = false, Message = "createdBy is required." });
             try
@@ -529,6 +545,7 @@ namespace JSAPNEW.Controllers
         [HttpGet("GetInActiveSessionsByUser")]
         public async Task<IActionResult> GetInActiveSessionsByUser(int createdBy)
         {
+            createdBy = GetAuthenticatedUserId();
             if (createdBy <= 0)
                 return BadRequest(new { Success = false, Message = "createdBy is required." });
             try
@@ -563,6 +580,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 // Step 1: Get items using lot number
                 var itemsResult = await _inventoryService.GetItemsUsingLotNumberAsync(lotNumber, userId);
 

@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Renci.SshNet.Messages.Authentication;
 using ServiceStack.Text;
 using System.Data;
+using System.Security.Claims;
 using System.Text.Json;
 using TicketSystem.Models;
 
@@ -25,6 +26,13 @@ namespace JSAPNEW.Controllers
             _gigoService = gigoService;
             _logger = logger;
         }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
         [HttpPost("InsertGateEntry")]
         public async Task<IActionResult> InsertGateEntry(GateEntryModel model)
         {
@@ -34,6 +42,13 @@ namespace JSAPNEW.Controllers
             }
             try
             {
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                model.CreatedBy = createdBy;
                 var response = await _gigoService.InsertGateEntryAsync(model);
                 if (response.Success)
                 {
@@ -209,9 +224,11 @@ namespace JSAPNEW.Controllers
                 if (form.Files is null || form.Files.Count == 0)
                     return BadRequest(new gigoModels { Success = false, Message = "No files uploaded" });
 
-                int createdBy = 0;
-                if (!int.TryParse(User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value, out createdBy))
-                    int.TryParse(form["CreatedBy"], out createdBy);
+                int createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new gigoModels { Success = false, Message = "Invalid authenticated user." });
+                }
 
                 var common = new VehicleDetails
                 {
@@ -334,6 +351,13 @@ namespace JSAPNEW.Controllers
 
                 // ✅ Use your existing JsonConvert approach
                 var model = JsonConvert.DeserializeObject<GateEntryMasterRequest>(requestJson);
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new gigoModels { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                model.CreatedBy = createdBy;
 
                 Console.WriteLine("🔍 CONTROLLER DETAILED DEBUG:");
                 Console.WriteLine($"Vehicle No: {model.VehicleNo}");

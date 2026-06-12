@@ -1,12 +1,14 @@
 ﻿using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = "AdminOnly")]
     public class PermissionController : ControllerBase
     {
         private readonly IConfiguration _configuration;

@@ -8,6 +8,7 @@ using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using System.Security.Claims;
 using System.Security.AccessControl;
 
 namespace JSAPNEW.Controllers
@@ -26,6 +27,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -60,6 +62,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("register")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> Register([FromBody] UserRegistrationDTO request)
         {
             try
@@ -68,6 +71,13 @@ namespace JSAPNEW.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.createdBy = createdBy;
                 // Call the UserService to register the user
                 int statusCode = await _userService.RegisterUserAsync(request); //create a new user
 
@@ -105,10 +115,14 @@ namespace JSAPNEW.Controllers
                 }
 
 
-                if (request.userId == 0)
+                var authenticatedUserId = GetAuthenticatedUserId();
+                if (authenticatedUserId <= 0)
                 {
                     return Unauthorized(new { Message = "User not authenticated" });
                 }
+
+                request.userId = authenticatedUserId;
+                request.updatedBy = authenticatedUserId;
 
                 var result = await _userService.ChangePasswordAsync(request);
 
@@ -124,6 +138,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("change-password2")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> ChangePassword2([FromBody] ChangePasswordRequest2 request)
         {
             try
@@ -134,10 +149,13 @@ namespace JSAPNEW.Controllers
                 }
 
 
-                if (request.userId == 0)
+                var authenticatedUserId = GetAuthenticatedUserId();
+                if (authenticatedUserId <= 0)
                 {
                     return Unauthorized(new { Message = "User not authenticated" });
                 }
+
+                request.updatedBy = authenticatedUserId;
 
                 var result = await _userService.ChangePasswordAsync2(request);
 
@@ -150,6 +168,34 @@ namespace JSAPNEW.Controllers
                 _logger.LogError(ex, "Error during password change for user {UserId}", request.userId);
                 return StatusCode(500, new { Message = "An error occurred while changing password" });
             }
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<bool> HasCompanyAccessAsync(int userId, int companyId)
+        {
+            if (userId <= 0 || companyId <= 0)
+            {
+                return false;
+            }
+
+            var companies = await _userService.GetCompanyAsync(userId);
+            return companies != null && companies.Any(company => company.id == companyId);
+        }
+
+        private async Task<(int UserId, bool Authorized)> GetAuthorizedScopeAsync(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            if (userId <= 0)
+            {
+                return (0, false);
+            }
+
+            return (userId, await HasCompanyAccessAsync(userId, companyId));
         }
 
         [HttpGet("getVarieties")]
@@ -365,6 +411,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("getusers")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> GetUsers([FromQuery] int company)
         {
             try
@@ -411,10 +458,16 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("getcompanies")]
-        public async Task<ActionResult> GetCompanies([FromQuery] int userId)
+        public async Task<ActionResult> GetCompanies()
         {
             try
             {
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var company = await _userService.GetCompanyAsync(userId); // Assuming _userService is your service to get company.
 
                 if (!company.Any())
@@ -434,10 +487,18 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("addStage")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddStage([FromBody] AddStage stageData)
         {
             try
             {
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                stageData.createdBy = createdBy;
                 var result = await _userService.AddStageAsync(stageData);
                 switch (result)
                 {
@@ -460,6 +521,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("addUserPermissions")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddUserPermission([FromBody] AssignPermissionDetail Data)
         {
             try
@@ -517,6 +579,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("getallusers")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> GetAllUsers([FromQuery] int company)
         {
             try
@@ -559,6 +622,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var user = await _userService.GetSelectedUserAsync(company, userId); // Assuming _userService is your service to get user.
 
                 if (!user.Any())
@@ -642,6 +712,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("getusernotregisterincompany")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> GetUserNotRegisterInCompany([FromQuery] int company)
         {
             try
@@ -665,11 +736,19 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("changelockprofile")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateUserStatus([FromBody] UserStatusUpdateModel model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var updatedBy = GetAuthenticatedUserId();
+            if (updatedBy <= 0)
+            {
+                return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+            }
+
+            model.UpdatedBy = updatedBy;
             var result = await _userService.UpdateUserStatus(model);
 
             if (result)
@@ -679,10 +758,18 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("addtemplate")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddTemplate([FromBody] AddTemplateModel request)
         {
             try
             {
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.createdBy = createdBy;
                 var addtemplate = await _userService.GetAddTemplateAsync(request);
 
                 if (addtemplate == 0)
@@ -707,10 +794,18 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("addpage")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddPage([FromBody] AddPageModel request)
         {
             try
             {
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.createdBy = createdBy;
                 var addpage = await _userService.GetAddPageAsync(request);
 
                 if (addpage > 0)
@@ -735,10 +830,18 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("addrole")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddRole([FromBody] AddRoleModel request)
         {
             try
             {
+                var createdBy = GetAuthenticatedUserId();
+                if (createdBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.createdBy = createdBy;
                 var role = await _userService.GetAddRoleAsync(request);
 
                 if (role > 0)
@@ -767,6 +870,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgetapproval = await _userService.GetAllBudgetApprovalCountsAsync(userId, company, month);
 
                 if (!budgetapproval.Any())
@@ -790,6 +900,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgetapproval = await _userService.GetAllBudgetApprovalCountsAsync(userId, company, month);
 
                 if (!budgetapproval.Any())
@@ -809,10 +926,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatebudget")]
-        public async Task<ActionResult> UpdateBudget(int userId, int updatedBy, string budgetId, bool status, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateBudget(int userId, string budgetId, bool status, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var budget = await _userService.UpdateBudgetAsync(userId, updatedBy, budgetId, status, company);
 
                 _logger.LogInformation("budget updated successfully.");
@@ -855,6 +979,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updateuserapproval")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> UpdateUserApproval([FromBody] useraprrovalModel request)
         {
             try
@@ -878,10 +1003,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatestate")]
-        public async Task<ActionResult> UpdateState(int userId, int updatedBy, string stateId, bool status, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateState(int userId, string stateId, bool status, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var state = await _userService.UpdateStateAsync(userId, updatedBy, stateId, status, company);
 
                 _logger.LogInformation("state updated successfully.");
@@ -901,10 +1033,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatesubbudget")]
-        public async Task<ActionResult> UpdateSubBudget(int userId, int updatedBy, string subBudgetId, bool status, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateSubBudget(int userId, string subBudgetId, bool status, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var subbudget = await _userService.UpdateSubBudgetAsync(userId, updatedBy, subBudgetId, status, company);
 
                 _logger.LogInformation("subbudget updated successfully.");
@@ -924,10 +1063,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatefromtodate")]
-        public async Task<ActionResult> UpdateFromToDate(int userId, int updatedBy, DateTime toDate, DateTime fromDate, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateFromToDate(int userId, DateTime toDate, DateTime fromDate, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var dates = await _userService.UpdateFromToDateAsync(userId, updatedBy, toDate, fromDate, company);
 
                 _logger.LogInformation("dates updated successfully.");
@@ -947,10 +1093,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatebranch")]
-        public async Task<ActionResult> UpdateBranch(int userId, int updatedBy, string branchId, bool status, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateBranch(int userId, string branchId, bool status, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var branch = await _userService.UpdateBranchAsync(userId, updatedBy, branchId, status, company);
 
                 _logger.LogInformation("branch updated successfully.");
@@ -969,10 +1122,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatereport")]
-        public async Task<ActionResult> UpdateReport(int userId, int updatedBy, string reportId, bool status, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateReport(int userId, string reportId, bool status, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var report = await _userService.UpdateReportAsync(userId, updatedBy, reportId, status, company);
 
                 _logger.LogInformation("report updated successfully.");
@@ -991,10 +1151,17 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updatevariety")]
-        public async Task<ActionResult> UpdateVariety(int userId, int updatedBy, string varietyId, bool status, int company)
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UpdateVariety(int userId, string varietyId, bool status, int company)
         {
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
                 var variety = await _userService.UpdateVarietyAsync(userId, updatedBy, varietyId, status, company);
 
 
@@ -1015,6 +1182,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updateuserrole")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> UpdateUserRole(int userId, int roleId, int company)
         {
             try
@@ -1047,6 +1215,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var pendingbudget = await _userService.GetPendingBudgetWithDetailsAsync(userId, company, month); // Assuming _userService is your service to get query.
 
                 if (!pendingbudget.Any())
@@ -1076,6 +1251,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var approvedBudgets = await _userService.GetApprovedBudgetWithDetailsAsync(userId, company, month);
 
                 if (!approvedBudgets.Any())
@@ -1106,6 +1288,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var rejectedbudget = await _userService.GetRejectedBudgetWithDetailsAsync(userId, company, month); // Assuming _userService is your service to get query.
 
                 if (!rejectedbudget.Any())
@@ -1137,6 +1326,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var pendingbudget = await _userService.GetPendingBudgetWithDetailsAsync2(userId, company, month); // Assuming _userService is your service to get query.
 
                 if (!pendingbudget.Any())
@@ -1166,6 +1362,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var approvedBudgets = await _userService.GetApprovedBudgetWithDetailsAsync2(userId, company, month);
 
                 if (!approvedBudgets.Any())
@@ -1197,6 +1400,13 @@ namespace JSAPNEW.Controllers
         {   
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var rejectedbudget = await _userService.GetRejectedBudgetWithDetailsAsync2(userId, company, month); // Assuming _userService is your service to get query.
 
                 if (!rejectedbudget.Any())
@@ -1227,6 +1437,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgets = await _userService.GetAllBudgetWithDetailsAsync(userId, company, month);
 
                 if (!budgets.Any())
@@ -1261,6 +1478,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgets = await _userService.GetAllBudgetWithDetailsAsync(userId, company, month);
 
                 if (!budgets.Any())
@@ -1295,6 +1519,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgetsummary = await _userService.GetUserBudgetSummaryByTypeAsync(userId, company, budgetType); // Assuming _userService is your service to get query.
 
                 if (!budgetsummary.Any())
@@ -1318,6 +1549,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var docEntryData = await _userService.getDocEntryDataAsync(docEntry, userId, company);
                 var remarksData = await _userService.getRemarksDataAsync(docEntry, company);
 
@@ -1466,6 +1704,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("getallpermissionsofoneuser")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> GetAllPermissionsOfOneUser(int userId, int company)
         {
             var data = await _userService.GetAllPermissionsOfOneUserAsync(userId, company);
@@ -1475,6 +1714,13 @@ namespace JSAPNEW.Controllers
         [HttpGet("getuserbudgettypes")]
         public async Task<ActionResult> GetUserBudgetTypes(int userId, int company)
         {
+            var scope = await GetAuthorizedScopeAsync(company);
+            if (!scope.Authorized)
+            {
+                return Forbid();
+            }
+
+            userId = scope.UserId;
             var data = await _userService.GetUserBudgetTypesAsync(userId, company); // Assuming _userService is your service to get query.
             return Ok(data);
         }
@@ -1484,6 +1730,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var OnedocEntry = await _userService.AmountOfOneDocEntryAsync(docEntry, userId, company); // Assuming _userService is your service to get query.
 
                 if (!OnedocEntry.Any())
@@ -1509,6 +1762,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgetallocation = await _userService.GetUserBudgetAllocationAsync(userId, company, month);
 
                 if (!budgetallocation.Any())
@@ -1528,6 +1788,7 @@ namespace JSAPNEW.Controllers
 
 
         [HttpPost("addquery")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddQuery([FromBody] AddQueryModel request)
         {
             try
@@ -1552,6 +1813,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("validatequery")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> ValidateQuery(string query)
         {
             try
@@ -1573,6 +1835,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("adminresetpassword")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AdminResetPassword([FromBody] AdminResetPasswordModel request)
         {
             try
@@ -1581,6 +1844,13 @@ namespace JSAPNEW.Controllers
                 {
                     return BadRequest(ModelState);
                 }
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.updatedBy = updatedBy;
                 // Call the service to add the catalog item
                 var result = await _userService.ResetAdminPasswordAsync(request);
                 if (result.Success)
@@ -1709,6 +1979,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("AddAlternativeUserToStages")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> AddAlternativeUserToStages([FromBody] AddAlternativeUserToStagesModel request)
         {
             if (request == null)
@@ -1740,6 +2011,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("DeactivateDelegation")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> DeactivateDelegation([FromBody] DeactivateDelegationModel request)
         {
             if (request == null)
@@ -1832,6 +2104,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var templateList = await _userService.GetTemplateListAccordingToUserAsync(userId, company);
                 if (!templateList.Any())
                 {
@@ -1934,6 +2213,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgetCategoryDropdown = await _userService.BudgetCategoryDropdownAsync(userId, company);
                 if (!budgetCategoryDropdown.Any())
                 {
@@ -1972,6 +2258,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("DelegateApprovalStagesTwo")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> DelegateApprovalStagesTwo([FromBody] DelegateApprovalStagesTwoModel request)
         {
             if (request == null)
@@ -2025,6 +2312,7 @@ namespace JSAPNEW.Controllers
             }
         }
         [HttpPost("UpdateDelegationDatesTwo")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> UpdateDelegationDatesTwo([FromBody] UpdateDelegationDatesTwoModel request)
         {
             if (request == null)
@@ -2053,6 +2341,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("UpdateUserStageStatusTwo")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> UpdateUserStageStatusTwo([FromBody] UpdateUserStageStatusTwoModel request)
         {
             if (request == null)
@@ -2207,6 +2496,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var budgetSummary = await _userService.GetBudgetSummaryAsync(userId, budgetCategory, subBudget, month, company);
                 if (!budgetSummary.Any())
                 {
@@ -2238,6 +2534,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var data = await _userService.GetCombinedBudgetsAsync(userId, company, month);
                 if (data == null || !data.BudgetData.Any())
                 {
@@ -2540,6 +2843,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("UpdateUserInfo")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateUserInfo([FromBody] UserUpdateDTO request)
         {
             if (request == null || !ModelState.IsValid)
@@ -2548,6 +2852,13 @@ namespace JSAPNEW.Controllers
             }
             try
             {
+                var updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.UpdatedBy = updatedBy;
                 var result = await _userService.UpdateUserInfoAsync(request);
                 if (result.Success)
                 {
