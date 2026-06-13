@@ -13,242 +13,242 @@ jobs:
       SSH_PASSWORD: ${{ secrets.PASSWORD }}
       SSH_PORT: ${{ secrets.PORT }}
 
-   steps:
-  - name: Checkout Main Branch
-    uses: actions/checkout@v4
-    with:
-      ref: main
+    steps:
+      - name: Checkout Main Branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
 
-  - name: Setup .NET
-    uses: actions/setup-dotnet@v4
-    with:
-      dotnet-version: ${{ vars.DOTNET_VERSION }}
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ vars.DOTNET_VERSION }}
 
-  - name: Cache NuGet Packages
-    uses: actions/cache@v4
-    with:
-      path: ~/.nuget/packages
-      key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
-      restore-keys: |
-        nuget-${{ runner.os }}-
+      - name: Cache NuGet Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
-  - name: Restore Packages
-    run: dotnet restore JSAPNEW.csproj
+      - name: Restore Packages
+        run: dotnet restore JSAPNEW.csproj
 
-  - name: Publish Project
-    run: |
-      dotnet publish JSAPNEW.csproj \
-        --configuration Release \
-        --no-restore \
-        --output ./publish \
-        -p:DebugType=None \
-        -p:DebugSymbols=false
+      - name: Publish Project
+        run: |
+          dotnet publish JSAPNEW.csproj \
+            --configuration Release \
+            --no-restore \
+            --output ./publish \
+            -p:DebugType=None \
+            -p:DebugSymbols=false
 
-  - name: Check Publish Output
-    run: |
-      echo "CURRENT DIRECTORY"
-      pwd
+      - name: Check Publish Output
+        run: |
+          echo "CURRENT DIRECTORY"
+          pwd
 
-      echo "PUBLISH FOLDER"
-      ls -la ./publish
+          echo "PUBLISH FOLDER"
+          ls -la ./publish
 
-      echo "VERIFY PUBLISH IS NOT EMPTY"
-      test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
+          echo "VERIFY PUBLISH IS NOT EMPTY"
+          test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
 
-  - name: Install sshpass
-    run: |
-      sudo apt-get update
-      sudo apt-get install -y sshpass
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
-  - name: Compress Publish Folder Fast
-    run: |
-      tar -cf - -C ./publish . | gzip -1 > publish.tar.gz
-      echo "TAR FILE CREATED"
-      ls -lh publish.tar.gz
+      - name: Compress Publish Folder Fast
+        run: |
+          tar -cf - -C ./publish . | gzip -1 > publish.tar.gz
+          echo "TAR FILE CREATED"
+          ls -lh publish.tar.gz
 
-  - name: Test SSH Connection
-    run: |
-      sshpass -p "$SSH_PASSWORD" ssh \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -p "$SSH_PORT" \
-        "$SSH_USER@$SSH_HOST" \
-        "powershell -NoProfile -Command \"Write-Host 'SSH connection successful'\""
+      - name: Test SSH Connection
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            "powershell -NoProfile -Command \"Write-Host 'SSH connection successful'\""
 
-  - name: Stop IIS Website And Prepare Temp Folders
-    run: |
-      sshpass -p "$SSH_PASSWORD" ssh \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -p "$SSH_PORT" \
-        "$SSH_USER@$SSH_HOST" \
-        'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
-      $ErrorActionPreference = "Stop"
+      - name: Stop IIS Website And Prepare Temp Folders
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
+          $ErrorActionPreference = "Stop"
 
-      Import-Module WebAdministration
+          Import-Module WebAdministration
 
-      $Live = "C:\LiveProjects\JSAP"
-      $TempRoot = "C:\LiveProjects\temp"
-      $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
-      $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
-      $TarPath = "C:\LiveProjects\temp\publish.tar.gz"
+          $Live = "C:\LiveProjects\JSAP"
+          $TempRoot = "C:\LiveProjects\temp"
+          $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
+          $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+          $TarPath = "C:\LiveProjects\temp\publish.tar.gz"
 
-      Stop-Website -Name "JSAP Test" -ErrorAction SilentlyContinue
-      Stop-Service -Name "jsapnew" -Force -ErrorAction SilentlyContinue
-      Start-Sleep -Seconds 3
+          Stop-Website -Name "JSAP Test" -ErrorAction SilentlyContinue
+          Stop-Service -Name "jsapnew" -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
 
-      New-Item -ItemType Directory -Path $Live -Force | Out-Null
-      New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
-      New-Item -ItemType Directory -Path $PublishTemp -Force | Out-Null
-      New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
-
-      Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-      if (Test-Path $TarPath) {
-          Remove-Item $TarPath -Force -ErrorAction SilentlyContinue
-      }
-
-      Write-Host "Website stopped"
-      Write-Host "Service stopped"
-      Write-Host "Temp publish folder cleaned"
-      Write-Host "Old tar file removed"
-      PS
-
-  - name: Upload Publish TAR To Server
-    run: |
-      sshpass -p "$SSH_PASSWORD" scp \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -P "$SSH_PORT" \
-        publish.tar.gz \
-        "$SSH_USER@$SSH_HOST:C:/LiveProjects/temp/publish.tar.gz"
-
-  - name: Extract Backup Deploy And Restart
-    run: |
-      sshpass -p "$SSH_PASSWORD" ssh \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -p "$SSH_PORT" \
-        "$SSH_USER@$SSH_HOST" \
-        'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
-      $ErrorActionPreference = "Stop"
-
-      Import-Module WebAdministration
-
-      $Live = "C:\LiveProjects\JSAP"
-      $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
-      $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
-      $TarPath = "C:\LiveProjects\temp\publish.tar.gz"
-
-      $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-      $BackupFile = Join-Path $BackupRoot "JSAP_backup_$Timestamp.tar.gz"
-
-      if (!(Test-Path $Live)) {
           New-Item -ItemType Directory -Path $Live -Force | Out-Null
-      }
+          New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path $PublishTemp -Force | Out-Null
+          New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
 
-      if (!(Test-Path $TarPath)) {
-          throw "Publish tar not found: $TarPath"
-      }
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-      Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          if (Test-Path $TarPath) {
+              Remove-Item $TarPath -Force -ErrorAction SilentlyContinue
+          }
 
-      Write-Host "Extracting publish tar..."
-      tar -xzf $TarPath -C $PublishTemp
+          Write-Host "Website stopped"
+          Write-Host "Service stopped"
+          Write-Host "Temp publish folder cleaned"
+          Write-Host "Old tar file removed"
+          PS
 
-      if (!(Test-Path "$PublishTemp\*")) {
-          throw "Publish temp folder is empty after extract: $PublishTemp"
-      }
+      - name: Upload Publish TAR To Server
+        run: |
+          sshpass -p "$SSH_PASSWORD" scp \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -P "$SSH_PORT" \
+            publish.tar.gz \
+            "$SSH_USER@$SSH_HOST:C:/LiveProjects/temp/publish.tar.gz"
 
-      $ProtectedFiles = @(
-          "appsettings.json",
-          "appsettings.Production.json",
-          "web.config",
-          ".env"
-      )
+      - name: Extract Backup Deploy And Restart
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
+          $ErrorActionPreference = "Stop"
 
-      $ProtectedFolders = @(
-          "wwwroot",
-          "Logs",
-          "logs",
-          "Uploads",
-          "uploads",
-          "App_Data",
-          "Storage",
-          "storage",
-          "UserFiles",
-          "userfiles"
-      )
+          Import-Module WebAdministration
 
-      Write-Host "Creating fast compressed backup of replaceable files only..."
+          $Live = "C:\LiveProjects\JSAP"
+          $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
+          $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+          $TarPath = "C:\LiveProjects\temp\publish.tar.gz"
 
-      $TarExcludes = @(
-          "--exclude=appsettings.json",
-          "--exclude=appsettings.Production.json",
-          "--exclude=web.config",
-          "--exclude=.env",
-          "--exclude=wwwroot",
-          "--exclude=Logs",
-          "--exclude=logs",
-          "--exclude=Uploads",
-          "--exclude=uploads",
-          "--exclude=App_Data",
-          "--exclude=Storage",
-          "--exclude=storage",
-          "--exclude=UserFiles",
-          "--exclude=userfiles"
-      )
+          $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+          $BackupFile = Join-Path $BackupRoot "JSAP_backup_$Timestamp.tar.gz"
 
-      if (Test-Path "$Live\*") {
-          tar -czf $BackupFile -C $Live @TarExcludes .
-          Write-Host "Backup created at: $BackupFile"
-      } else {
-          Write-Host "Live folder is empty. Backup skipped."
-      }
+          if (!(Test-Path $Live)) {
+              New-Item -ItemType Directory -Path $Live -Force | Out-Null
+          }
 
-      Write-Host "Deploying new files with robocopy mirror mode..."
+          if (!(Test-Path $TarPath)) {
+              throw "Publish tar not found: $TarPath"
+          }
 
-      $DeployArgs = @(
-          $PublishTemp,
-          $Live,
-          "/MIR",
-          "/MT:16",
-          "/R:2",
-          "/W:2",
-          "/NFL",
-          "/NDL",
-          "/NJH",
-          "/NJS",
-          "/NC",
-          "/NS",
-          "/NP"
-      )
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-      foreach ($file in $ProtectedFiles) {
-          $DeployArgs += "/XF"
-          $DeployArgs += $file
-      }
+          Write-Host "Extracting publish tar..."
+          tar -xzf $TarPath -C $PublishTemp
 
-      foreach ($folder in $ProtectedFolders) {
-          $DeployArgs += "/XD"
-          $DeployArgs += $folder
-      }
+          if (!(Test-Path "$PublishTemp\*")) {
+              throw "Publish temp folder is empty after extract: $PublishTemp"
+          }
 
-      robocopy @DeployArgs
+          $ProtectedFiles = @(
+              "appsettings.json",
+              "appsettings.Production.json",
+              "web.config",
+              ".env"
+          )
 
-      if ($LASTEXITCODE -gt 7) {
-          throw "Deploy robocopy failed with exit code $LASTEXITCODE"
-      }
+          $ProtectedFolders = @(
+              "wwwroot",
+              "Logs",
+              "logs",
+              "Uploads",
+              "uploads",
+              "App_Data",
+              "Storage",
+              "storage",
+              "UserFiles",
+              "userfiles"
+          )
 
-      $global:LASTEXITCODE = 0
+          Write-Host "Creating fast compressed backup of replaceable files only..."
 
-      Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
-      Remove-Item $TarPath -Force -ErrorAction SilentlyContinue
+          $TarExcludes = @(
+              "--exclude=appsettings.json",
+              "--exclude=appsettings.Production.json",
+              "--exclude=web.config",
+              "--exclude=.env",
+              "--exclude=wwwroot",
+              "--exclude=Logs",
+              "--exclude=logs",
+              "--exclude=Uploads",
+              "--exclude=uploads",
+              "--exclude=App_Data",
+              "--exclude=Storage",
+              "--exclude=storage",
+              "--exclude=UserFiles",
+              "--exclude=userfiles"
+          )
 
-      Start-Website -Name "JSAP Test"
-      Start-Service -Name "jsapnew"
+          if (Test-Path "$Live\*") {
+              tar -czf $BackupFile -C $Live @TarExcludes .
+              Write-Host "Backup created at: $BackupFile"
+          } else {
+              Write-Host "Live folder is empty. Backup skipped."
+          }
 
-      Write-Host "Deployment Completed Successfully"
-      Write-Host "Backup File: $BackupFile"
-      Write-Host "Live Location: $Live"
-      PS
+          Write-Host "Deploying new files with robocopy mirror mode..."
+
+          $DeployArgs = @(
+              $PublishTemp,
+              $Live,
+              "/MIR",
+              "/MT:16",
+              "/R:2",
+              "/W:2",
+              "/NFL",
+              "/NDL",
+              "/NJH",
+              "/NJS",
+              "/NC",
+              "/NS",
+              "/NP"
+          )
+
+          foreach ($file in $ProtectedFiles) {
+              $DeployArgs += "/XF"
+              $DeployArgs += $file
+          }
+
+          foreach ($folder in $ProtectedFolders) {
+              $DeployArgs += "/XD"
+              $DeployArgs += $folder
+          }
+
+          robocopy @DeployArgs
+
+          if ($LASTEXITCODE -gt 7) {
+              throw "Deploy robocopy failed with exit code $LASTEXITCODE"
+          }
+
+          $global:LASTEXITCODE = 0
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $TarPath -Force -ErrorAction SilentlyContinue
+
+          Start-Website -Name "JSAP Test"
+          Start-Service -Name "jsapnew"
+
+          Write-Host "Deployment Completed Successfully"
+          Write-Host "Backup File: $BackupFile"
+          Write-Host "Live Location: $Live"
+          PS
