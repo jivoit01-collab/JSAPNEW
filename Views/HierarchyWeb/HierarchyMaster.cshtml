@@ -1,6 +1,7 @@
 ﻿@{
     ViewData["Title"] = "Hierarchy Master";
     bool isAdmin = ViewBag.IsAdmin is bool ia && ia;
+    bool canViewSalary = ViewBag.ViewSalary is bool vs && vs;
     string empCode = ViewBag.EmpCode?.ToString() ?? "";
 }
 
@@ -124,6 +125,26 @@
         flex-shrink: 0;
     }
 
+        .stat-pill.clickable {
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+        }
+
+            .stat-pill.clickable:hover {
+                background: #eef5ff;
+                color: var(--g1);
+            }
+
+        .stat-pill.selected {
+            background: #eaf4ff;
+            color: var(--g1);
+            box-shadow: inset 0 -2px 0 var(--g2);
+        }
+
+            .stat-pill.selected b {
+                color: var(--g1);
+            }
+
     .stat-pill-dot {
         width: 8px; height: 8px;
         border-radius: 50%;
@@ -192,6 +213,23 @@
 
         .btn-excel:hover {
             background: rgba(21,128,61,.35);
+        }
+
+    .btn-salary {
+        background: rgba(217,119,6,.14);
+        color: #b45309;
+        border: 1px solid rgba(217,119,6,.28)
+    }
+
+        .btn-salary:hover {
+            background: rgba(217,119,6,.22);
+            color: #92400e
+        }
+
+        .btn-salary.active {
+            background: #15803d;
+            color: #fff;
+            border-color: #15803d
         }
 
     /* ── Topbar-only overrides (light background) ── */
@@ -397,6 +435,27 @@
         display: flex;
         flex-direction: column;
         gap: 2px
+    }
+
+    .emp-cell-btn {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        text-align: left;
+        cursor: pointer
+    }
+
+        .emp-cell-btn:hover .emp-name,
+        .emp-cell-btn:focus-visible .emp-name {
+            color: var(--blue);
+            text-decoration: underline
+        }
+
+        .emp-cell-btn:focus-visible {
+            outline: 2px solid rgba(37,99,235,.35);
+            outline-offset: 2px;
+            border-radius: 4px
     }
 
     .emp-name {
@@ -690,6 +749,69 @@
         margin-bottom: 12px
     }
 
+    .salary-action-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 8px 0 10px
+    }
+
+    .salary-action-card {
+        text-align: left;
+        border: 1px solid var(--border);
+        background: var(--bg2);
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: var(--text);
+        cursor: pointer;
+        font-family: 'Sora',sans-serif;
+        transition: all .15s
+    }
+
+        .salary-action-card strong {
+            display: block;
+            font-size: 12px;
+            color: var(--g1)
+        }
+
+        .salary-action-card span {
+            display: block;
+            margin-top: 3px;
+            font-size: 10px;
+            color: var(--muted)
+        }
+
+        .salary-action-card.active {
+            border-color: #16a34a;
+            background: #f0fdf4;
+            box-shadow: 0 0 0 2px rgba(22,163,74,.16)
+        }
+
+    .salary-info-box {
+        display: none;
+        margin-top: 10px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 10px 12px
+    }
+
+        .salary-info-box .salary-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #166534;
+            text-transform: uppercase;
+            letter-spacing: .3px
+        }
+
+        .salary-info-box .salary-value {
+            margin-top: 3px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #14532d;
+            font-family: 'JetBrains Mono',monospace
+        }
+
     .fl {
         font-size: 10px;
         font-weight: 700;
@@ -885,6 +1007,148 @@
         overflow-y: auto;
         font-family: 'JetBrains Mono',monospace
     }
+
+    .hm-help-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,42,.28);
+        z-index: 12000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .18s ease, visibility .18s ease;
+    }
+
+    #hmHelpToggle {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .hm-help-backdrop.open {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    #hmHelpToggle:checked ~ .hm-help-backdrop {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .hm-help-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        width: min(520px, 94vw);
+        background: #fff;
+        border-left: 1px solid var(--border);
+        box-shadow: -12px 0 34px rgba(15,23,42,.18);
+        z-index: 12001;
+        transform: translateX(104%);
+        transition: transform .22s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hm-help-drawer.open {
+        transform: translateX(0);
+    }
+
+    #hmHelpToggle:checked ~ .hm-help-drawer {
+        transform: translateX(0);
+    }
+
+    .hm-help-head {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    .hm-help-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg,var(--g1),var(--g2));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+    }
+
+    .hm-help-head h3 {
+        font-size: 16px;
+        color: var(--g1);
+        margin: 0;
+        flex: 1;
+    }
+
+    .hm-help-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    .hm-help-close:hover {
+        background: var(--bg2);
+        color: var(--g1);
+    }
+
+    .hm-help-body {
+        overflow-y: auto;
+        padding: 18px 20px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .hm-help-section {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        padding: 13px 14px;
+    }
+
+    .hm-help-section h4 {
+        font-size: 13px;
+        color: var(--g1);
+        margin: 0 0 8px;
+    }
+
+    .hm-help-section p,
+    .hm-help-section li {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .hm-help-section ul {
+        padding-left: 18px;
+        display: grid;
+        gap: 5px;
+    }
+
+    .hm-help-section strong {
+        color: var(--text);
+        font-weight: 700;
+    }
+
+    .hm-help-note {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
 </style>
 
 <!-- TOP BAR -->
@@ -901,6 +1165,10 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
                     Import Excel
                 </button>
+                <button class="btn btn-excel" onclick="downloadHierarchyMasterExcel()" title="Download current table as Excel">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+                    Download Excel
+                </button>
                 <button class="btn btn-add-employee" onclick="openAdd()" title="Add new employee">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                     Add Employee
@@ -914,10 +1182,10 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
                     Departments
                 </button>
-                <button class="btn btn-ghost" onclick="openColumnManager()" title="Manage visible columns">
+                @* <button class="btn btn-ghost" onclick="openColumnManager()" title="Manage visible columns">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>
                     Columns
-                </button>
+                </button> *@
                 <button class="btn btn-ghost" onclick="openLogs()" title="View audit logs">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                     Logs
@@ -928,21 +1196,201 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                 View
             </button>
+            @if (canViewSalary)
+            {
+                <button class="btn btn-salary" onclick="openSalaryApiModal()" id="salaryBtn" title="Load salary for 30 minutes">
+                    ₹ Salary
+                </button>
+            }
             <button class="btn btn-ghost" onclick="loadGrid()" title="Reload data">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 100-.49" /></svg>
                 Refresh
             </button>
+            <label class="btn btn-ghost" for="hmHelpToggle" title="How to use Hierarchy Master">
+                ?
+                Help
+            </label>
         </div>
     </div>
     <div class="stat-bar">
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#6366f1"></span><b id="sTotal">—</b> Employees</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#22c55e"></span><b id="sActive">—</b> Active</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#f87171"></span><b id="sInactive">—</b> Inactive</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#3b82f6"></span><b id="sHod">—</b> HODs</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#a855f7"></span><b id="sSub">—</b> SubHODs</div>
-        <div class="stat-pill"><span class="stat-pill-dot" style="background:#f59e0b"></span><b id="sExec">—</b> Execs</div>
+        <div class="stat-pill clickable selected" id="statAll" onclick="showStatusFilter('')"><span class="stat-pill-dot" style="background:#6366f1"></span><b id="sTotal">—</b> Employees</div>
+        <div class="stat-pill clickable" id="statActive" onclick="showStatusFilter('active')"><span class="stat-pill-dot" style="background:#22c55e"></span><b id="sActive">—</b> Active</div>
+        <div class="stat-pill clickable" id="statInactive" onclick="showStatusFilter('inactive')"><span class="stat-pill-dot" style="background:#f87171"></span><b id="sInactive">—</b> Inactive</div>
+        <div class="stat-pill clickable" id="statHod" onclick="showRoleFilter('hod')"><span class="stat-pill-dot" style="background:#3b82f6"></span><b id="sHod">—</b> HODs</div>
+        <div class="stat-pill clickable" id="statSub" onclick="showRoleFilter('subhod')"><span class="stat-pill-dot" style="background:#a855f7"></span><b id="sSub">—</b> SubHODs</div>
+        <div class="stat-pill clickable" id="statExec" onclick="showRoleFilter('exec')"><span class="stat-pill-dot" style="background:#f59e0b"></span><b id="sExec">—</b> Execs</div>
     </div>
 </div>
+
+<!-- HELP DRAWER -->
+<input type="checkbox" id="hmHelpToggle" />
+<label class="hm-help-backdrop" id="hmHelpBackdrop" for="hmHelpToggle"></label>
+<aside class="hm-help-drawer" id="hmHelpDrawer" aria-hidden="true" aria-label="Hierarchy Master help">
+    <div class="hm-help-head">
+        <div class="hm-help-icon">?</div>
+        <h3>How to use Hierarchy Master</h3>
+        <label class="hm-help-close" for="hmHelpToggle" aria-label="Close help">x</label>
+    </div>
+    <div class="hm-help-body">
+        <section class="hm-help-section hm-help-note">
+            <h4>Page Purpose</h4>
+            <p>This page manages the HO employee hierarchy: HOD, Department, Sub-Department, SubHOD, and Executive. Use it to add employees, assign reporting structure, edit hierarchy details, import/export Excel data, and audit hierarchy changes.</p>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Top Buttons</h4>
+            <ul>
+                <li><strong>Import Excel</strong>: Opens the Excel upload panel. Admin only.</li>
+                <li><strong>Download Excel</strong>: Downloads the current hierarchy table in Excel format. Use this file as a working/export file.</li>
+                <li><strong>Add Employee</strong>: Opens the create employee popup. Admin only.</li>
+                <li><strong>Bulk Assign</strong>: Assigns many executives to a HOD/SubHOD in one action, or changes a selected group from one SubHOD to another. Admin only.</li>
+                <li><strong>Departments</strong>: Opens Department and Sub-Department master management. Admin only.</li>
+                <li><strong>Logs</strong>: Shows hierarchy change audit logs with search, action filter, and pagination. Admin only.</li>
+                <li><strong>View</strong>: Opens Column Visibility and Order. Show/hide columns and move columns up/down.</li>
+                <li><strong>Salary</strong>: Loads salary data for a limited session after password validation. Visible only for allowed users.</li>
+                <li><strong>Refresh</strong>: Reloads hierarchy data from the server.</li>
+                <li><strong>Help</strong>: Opens this right-side guide.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Stats Bar</h4>
+            <ul>
+                <li><strong>Employees</strong>: Shows total unique employees in the hierarchy. Click to clear role/status filter.</li>
+                <li><strong>Active</strong>: Shows active employees only.</li>
+                <li><strong>Inactive</strong>: Shows inactive employees only.</li>
+                <li><strong>HODs</strong>: Filters the grid to active HOD rows.</li>
+                <li><strong>SubHODs</strong>: Filters the grid to active SubHOD rows.</li>
+                <li><strong>Execs</strong>: Filters the grid to active executive rows.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Search And Filters</h4>
+            <ul>
+                <li><strong>Search box</strong>: Searches employee name, employee code, department, and sub-department.</li>
+                <li><strong>All Departments</strong>: Filters rows by department.</li>
+                <li><strong>All Status</strong>: Filters active or inactive employees.</li>
+                <li><strong>Unassigned</strong>: Shows employees that exist in Hierarchy Master but do not have a department/hierarchy assignment.</li>
+                <li><strong>Row count</strong>: Shows how many rows are currently visible after filters.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Main Grid</h4>
+            <ul>
+                <li><strong>HOD</strong>: Top hierarchy person. HOD names/codes can be clicked to edit.</li>
+                <li><strong>Department</strong>: Department attached to the hierarchy row.</li>
+                <li><strong>Sub-Dept</strong>: Optional sub-department under a department.</li>
+                <li><strong>SubHOD</strong>: Person reporting to HOD and managing executives. Click name/code to edit.</li>
+                <li><strong>SubHOD Desig.</strong>: Designation of the SubHOD.</li>
+                <li><strong>Executive</strong>: Leaf employee under HOD/SubHOD. Click name/code to edit.</li>
+                <li><strong>Exec Desig.</strong>: Executive designation.</li>
+                <li><strong>Status</strong>: Shows Active/Inactive for the row's leaf employee.</li>
+                <li><strong>Actions</strong>: Admin quick edit buttons: H edits HOD, S edits SubHOD, E edits Executive.</li>
+                <li><strong>Custom columns</strong>: If custom fields exist, they appear before Actions. Admins can edit their values inline.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Import Excel</h4>
+            <ul>
+                <li><strong>Download Format</strong>: Downloads the current hierarchy in upload-ready format.</li>
+                <li><strong>Drop Excel / Browse</strong>: Select an .xlsx or .xls file. The page previews parsed rows before import.</li>
+                <li><strong>Run Import</strong>: Saves the parsed Excel hierarchy into the system.</li>
+                <li><strong>Clear</strong>: Removes the selected file preview and resets import state.</li>
+                <li><strong>Import result</strong>: Shows inserted/updated/error counts and row-level errors.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Add Employee</h4>
+            <ul>
+                <li><strong>HOD / SubHOD / Executive tabs</strong>: Select the role you are creating.</li>
+                <li><strong>Create as unassigned</strong>: Creates the employee without HOD, department, or reporting links.</li>
+                <li><strong>Employee Code and Full Name</strong>: Required fields.</li>
+                <li><strong>Email, Phone, Designation, DOJ</strong>: Optional employee details.</li>
+                <li><strong>Gender, Qualification, Area, Sikh/Non-Sikh</strong>: Optional profile fields.</li>
+                <li><strong>Reports To, Department, Sub-Department</strong>: These fields change based on selected role.</li>
+                <li><strong>Create Employee</strong>: Saves the employee and hierarchy assignment.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Edit Employee</h4>
+            <ul>
+                <li>Open it by clicking an employee name/code or by pressing H, S, or E in Actions.</li>
+                <li><strong>Salary box</strong>: Shows salary only if salary data is loaded and permitted.</li>
+                <li><strong>Role</strong>: Change between HOD, Sub-HOD, and Executive. Change role before choosing reporting fields.</li>
+                <li><strong>Reports To HOD/SubHOD</strong>: Controls manager relationship.</li>
+                <li><strong>Department/Sub-Department</strong>: Controls placement in the hierarchy.</li>
+                <li><strong>Make employee unassigned</strong>: Clears hierarchy assignment but keeps the employee record.</li>
+                <li><strong>Status</strong>: Activates or deactivates the employee.</li>
+                <li><strong>Team impact detected</strong>: If a move affects a team, choose whether the team moves with the employee or stays behind.</li>
+                <li><strong>Save Changes</strong>: Applies employee and hierarchy updates.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Bulk Assign</h4>
+            <ul>
+                <li><strong>Assign Team</strong>: Pick HOD, Department, optional Sub-Department/SubHOD, then select executives to assign.</li>
+                <li><strong>Change SubHOD</strong>: Pick current SubHOD and move selected executives to another SubHOD.</li>
+                <li><strong>Executive search</strong>: Filters the selectable executive list.</li>
+                <li><strong>Select Visible</strong>: Selects all currently visible executives.</li>
+                <li><strong>Clear Visible</strong>: Clears currently visible selections.</li>
+                <li><strong>Assign Team</strong>: Saves the bulk action.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Departments</h4>
+            <ul>
+                <li><strong>Departments tab</strong>: Add a new department or edit existing department names.</li>
+                <li><strong>Sub-Departments tab</strong>: Select parent department, add sub-departments, or edit existing names.</li>
+                <li>Changes here are used by Add/Edit/Bulk Assign dropdowns.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Salary</h4>
+            <ul>
+                <li><strong>Password</strong>: Required before loading salary data.</li>
+                <li><strong>Below 40 Employees</strong>: Loads below-40 salary data.</li>
+                <li><strong>Equal and Above 40</strong>: Loads upper salary group data.</li>
+                <li><strong>Load Salaries</strong>: Starts a temporary salary session. Salary appears in edit popup where available.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Logs</h4>
+            <ul>
+                <li><strong>Search</strong>: Finds logs by employee name/code.</li>
+                <li><strong>Action filter</strong>: Filters by Create, Update, Role Change, Dept Change, Move Team, Detach Team, Bulk Assign, Import, Deactivate, Set Password, Add Dept, or Add SubDept.</li>
+                <li><strong>Prev/Next</strong>: Moves between log pages.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>View And Page Settings</h4>
+            <ul>
+                <li><strong>Column Visibility & Order</strong>: Check columns to show/hide them, use up/down arrows to reorder, then Apply & Refresh.</li>
+                <li><strong>Reset Default</strong>: Restores the default column setup.</li>
+                <li><strong>Page Settings</strong>: Controls text size, font, row density, colors, and other page display settings when available from the global page settings menu.</li>
+            </ul>
+        </section>
+
+        <section class="hm-help-section">
+            <h4>Important Rules</h4>
+            <ul>
+                <li>Use <strong>Unassigned</strong> when an employee exists but should not be placed in hierarchy yet.</li>
+                <li>For role changes, select the new role first, then choose reporting and department fields.</li>
+                <li>If changing a manager or department affects a team, read the team impact prompt carefully before saving.</li>
+                <li>After imports or large changes, use <strong>Refresh</strong> to reload the latest data.</li>
+            </ul>
+        </section>
+    </div>
+</aside>
 
 <!-- EXCEL UPLOAD PANEL -->
 @if (isAdmin)
@@ -951,6 +1399,13 @@
         <div class="upload-title">
             📊 Import from HR Excel
             <span style="font-size:10px;font-weight:400;color:var(--muted)">ORG_Chart format: Dept · HOD · SubDept · SubHOD · Exec with Employee Codes</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button type="button" class="btn btn-excel" onclick="downloadHierarchyMasterExcel()" title="Download current hierarchy in upload-ready format">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+                Download Format
+            </button>
+            <span style="align-self:center;font-size:10px;color:var(--muted)">Download, edit rows, then upload the same file here.</span>
         </div>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('xlFile').click()"
              ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -985,6 +1440,9 @@
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
     </select>
+    <button type="button" class="btn btn-ghost" id="unassignedOnlyBtn" onclick="toggleUnassignedOnly()" title="Show employees not assigned to any hierarchy department">
+        Unassigned
+    </button>
     <span class="row-count" id="rowCount"></span>
 </div>
 
@@ -1000,6 +1458,42 @@
 <!-- TOAST -->
 <div class="toast-wrap" id="toastWrap"></div>
 
+<!-- SALARY MODAL -->
+<div class="hm-modal-overlay" id="salaryApiModal">
+    <div class="hm-modal-box" style="width:500px">
+        <div class="hm-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Load Salary</span>
+            <button class="btn btn-ghost" onclick="closeSalaryApiModal()" style="padding:4px 10px;font-size:11px">Close</button>
+        </div>
+        <div class="fg">
+            <label class="fl">Password *</label>
+            <input type="password" class="fi" id="salaryApiPassword" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSalaryApiFetch()" />
+        </div>
+        <div class="fg">
+            <label class="fl">Salary Tab *</label>
+            <div class="salary-action-grid" id="salaryActionCards">
+                <button type="button" class="salary-action-card active" data-action="belowfourtyemployee" onclick="selectSalaryAction('belowfourtyemployee')">
+                    <strong>Below 40 Employees</strong>
+                    <span>Load below 40 salary data</span>
+                </button>
+                <button type="button" class="salary-action-card" data-action="equalandabovefourty" onclick="selectSalaryAction('equalandabovefourty')">
+                    <strong>Equal and Above 40</strong>
+                    <span>Load upper 40 salary data</span>
+                </button>
+            </div>
+            <select class="fs" id="salaryApiAction" onchange="selectSalaryAction(this.value)">
+                <option value="belowfourtyemployee">Below 40 Employees</option>
+                <option value="equalandabovefourty">Equal and Above 40 Employees</option>
+            </select>
+        </div>
+        <div id="salaryApiError" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></div>
+        <div class="hm-modal-foot">
+            <button class="btn btn-ghost" onclick="closeSalaryApiModal()">Cancel</button>
+            <button class="btn btn-primary" id="salaryApiSubmitBtn" onclick="submitSalaryApiFetch()">Load Salaries</button>
+        </div>
+    </div>
+</div>
+
 
 <!-- ADD MODAL -->
 <div class="hm-modal-overlay" id="addModal">
@@ -1009,6 +1503,13 @@
             <button class="ltab on" id="ltab1" onclick="setLvl(1)">HOD</button>
             <button class="ltab" id="ltab2" onclick="setLvl(2)">SubHOD</button>
             <button class="ltab" id="ltab3" onclick="setLvl(3)">Executive</button>
+        </div>
+        <div class="fg" style="display:flex;align-items:flex-start;gap:10px;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 10px">
+            <input type="checkbox" id="f_unassigned" onchange="onAddUnassignedChange()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--g2)" />
+            <label for="f_unassigned" style="cursor:pointer;line-height:1.45">
+                <span style="display:block;font-size:12px;font-weight:700;color:var(--g1)">Create as unassigned</span>
+                <span style="display:block;font-size:11px;color:var(--muted)">Use this for a new joiner who does not have department, HOD or Sub-HOD assigned yet.</span>
+            </label>
         </div>
         <div class="f2">
             <div class="fg"><label class="fl">Employee Code *</label><input class="fi" id="f_code" placeholder="JWPL0001" /></div>
@@ -1021,6 +1522,29 @@
         <div class="f2">
             <div class="fg"><label class="fl">Designation</label><input class="fi" id="f_desig" /></div>
             <div class="fg"><label class="fl">Date of Joining</label><input type="date" class="fi" id="f_doj" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg">
+                <label class="fl">Gender</label>
+                <select class="fs" id="f_gender">
+                    <option value="">— Select —</option>
+                    <option value="M">Male (M)</option>
+                    <option value="F">Female (F)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="fg"><label class="fl">Qualification</label><input class="fi" id="f_qualification" placeholder="B.Com, MBA, B.Tech…" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Area</label><input class="fi" id="f_area" placeholder="West, Jammu, Ludhiana…" /></div>
+            <div class="fg">
+                <label class="fl">Sikh / Non-Sikh</label>
+                <select class="fs" id="f_sikh">
+                    <option value="">— Select —</option>
+                    <option value="S">Sikh (S)</option>
+                    <option value="N-S">Non-Sikh (N-S)</option>
+                </select>
+            </div>
         </div>
         <div id="s_mgr" style="display:none">
             <div class="fg">
@@ -1061,6 +1585,10 @@
             <span>✎ Edit Employee</span>
             <span id="editEmpBadge" style="font-size:10px;font-weight:600;background:rgba(13,148,136,.15);color:var(--g2);padding:3px 10px;border-radius:20px;border:1px solid rgba(13,148,136,.3)"></span>
         </div>
+        <div class="salary-info-box" id="editSalaryBox">
+            <div class="salary-label">Salary</div>
+            <div class="salary-value" id="editSalaryValue">—</div>
+        </div>
         <div class="f2">
             <div class="fg"><label class="fl">Employee Code *</label><input class="fi" id="e_code" placeholder="JWPL0001" /></div>
             <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="e_name" /></div>
@@ -1086,17 +1614,53 @@
             <div class="fg">
                 <label class="fl" id="e_dept_label">Department</label>
                 <select class="fs" id="e_dept" onchange="onEditDeptChange()"><option value="">— Select —</option></select>
+                <div id="e_hod_dept_multi" style="display:none;max-height:132px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;padding:7px 8px"></div>
             </div>
             <div class="fg" id="e_sdept_wrap">
                 <label class="fl" id="e_sdept_label">Sub-Department</label>
                 <select class="fs" id="e_sdept" onchange="onEditSubDeptChange()"><option value="">— None —</option></select>
+                <div id="e_subhod_sdept_multi" style="display:none;max-height:132px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;padding:7px 8px"></div>
             </div>
         </div>
         <div id="e_sub_row" style="display:none">
             <div class="fg">
                 <label class="fl" id="e_sub_label">Reports To (SubHOD) — optional</label>
-                <select class="fs" id="e_sub"><option value="">— Direct to HOD —</option></select>
+                <select class="fs" id="e_sub" onfocus="refreshEditSubHods()" onmousedown="refreshEditSubHods()"><option value="">— Direct to HOD —</option></select>
             </div>
+        </div>
+        <div class="fg" style="display:flex;align-items:flex-start;gap:10px;margin-top:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 10px">
+            <input type="checkbox" id="e_unassigned" onchange="onEditUnassignedChange()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--g2)" />
+            <label for="e_unassigned" style="cursor:pointer;line-height:1.45">
+                <span style="display:block;font-size:12px;font-weight:700;color:var(--g1)">Make employee unassigned</span>
+                <span style="display:block;font-size:11px;color:var(--muted)">Clears HOD, department, sub-department and reporting link. Employee stays in Hierarchy Master for reassignment.</span>
+            </label>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Date of Joining</label><input type="date" class="fi" id="e_doj" /></div>
+            <div class="fg">
+                <label class="fl">Gender</label>
+                <select class="fs" id="e_gender">
+                    <option value="">— Select —</option>
+                    <option value="M">Male (M)</option>
+                    <option value="F">Female (F)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+        </div>
+        <div class="f2">
+            <div class="fg"><label class="fl">Qualification</label><input class="fi" id="e_qualification" placeholder="B.Com, MBA, B.Tech…" /></div>
+            <div class="fg"><label class="fl">Area</label><input class="fi" id="e_area" placeholder="West, Jammu, Ludhiana…" /></div>
+        </div>
+        <div class="f2">
+            <div class="fg">
+                <label class="fl">Sikh / Non-Sikh</label>
+                <select class="fs" id="e_sikh">
+                    <option value="">— Select —</option>
+                    <option value="S">Sikh (S)</option>
+                    <option value="N-S">Non-Sikh (N-S)</option>
+                </select>
+            </div>
+            <div class="fg"></div>
         </div>
         <div class="fg" style="display:flex;align-items:center;gap:10px;margin-top:4px">
             <label class="fl" style="margin:0">Status</label>
@@ -1104,6 +1668,24 @@
                 <input type="checkbox" id="e_active" style="width:16px;height:16px;accent-color:var(--g2)" />
                 <span style="font-size:12px;color:var(--text)" id="e_activeLabel">Active</span>
             </label>
+        </div>
+        <details style="margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--g1)">Help: How to use this change popup</summary>
+            <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-top:8px">
+                1. Change role first, then choose HOD/Department/Sub-Department.<br />
+                2. For Executive/Sub-HOD, manager must be active.<br />
+                3. If role was changed and manager becomes invalid, choose a new manager and save again.<br />
+                4. If department move asks team impact, pick the action shown and continue.
+            </div>
+        </details>
+        <div id="e_teamMoveWrap" style="display:none;margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px">
+            <div style="font-size:11px;font-weight:700;color:var(--g1);margin-bottom:6px">Team impact detected</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:7px" id="e_teamMoveMsg"></div>
+            <select class="fs" id="e_teamMoveChoice">
+                <option value="">— Select action —</option>
+                <option value="move">Move team with this employee</option>
+                <option value="detach">Save employee only (detach team)</option>
+            </select>
         </div>
         <div id="editErr" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></div>
         <div class="hm-modal-foot">
@@ -1388,8 +1970,31 @@
 
 <script>
     const IS_ADMIN    = @(isAdmin ? "true" : "false");
+    const CAN_VIEW_SALARY = @(canViewSalary ? "true" : "false");
     const API         = '/api/Hierarchy';
-    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null;
+    let allRows=[], deptsMeta=[], hodsMeta=[], bulkExecsMeta=[], bulkSelectedExecIds=new Set(), bulkMode='assign', addLvl=1, pendingXl=[], editCurrentDateOfJoining=null, editModalExtras=null, unassignedOnly=false, roleFilter='', editHodSelectedDeptIds=new Set(), editHodOriginalDeptIds=new Set(), editSubHodSelectedSubDeptIds=new Set(), editSubHodOriginalSubDeptIds=new Set(), salaryLookup={}, salarySessionActive=false, salarySessionTimer=null, salaryApiAction='belowfourtyemployee';
+
+    function openHierarchyHelp(){
+        var toggle = document.getElementById('hmHelpToggle');
+        if(toggle) toggle.checked = true;
+        document.getElementById('hmHelpBackdrop')?.classList.add('open');
+        const drawer = document.getElementById('hmHelpDrawer');
+        if(drawer){
+            drawer.classList.add('open');
+            drawer.setAttribute('aria-hidden','false');
+        }
+    }
+
+    function closeHierarchyHelp(){
+        var toggle = document.getElementById('hmHelpToggle');
+        if(toggle) toggle.checked = false;
+        document.getElementById('hmHelpBackdrop')?.classList.remove('open');
+        const drawer = document.getElementById('hmHelpDrawer');
+        if(drawer){
+            drawer.classList.remove('open');
+            drawer.setAttribute('aria-hidden','true');
+        }
+    }
 
     document.addEventListener('DOMContentLoaded', async()=>{
         // Move all overlays to <body> so layout's overflow-x:hidden doesn't trap fixed positioning
@@ -1397,15 +2002,31 @@
         await Promise.all([loadGrid(), loadDeptsMeta(), loadHodsMeta()]);
     });
 
+    document.addEventListener('keydown', e=>{
+        if(e.key === 'Escape') closeHierarchyHelp();
+    });
+
     async function loadGrid(){
         setLoad(true);
         try{
             const r = await api(`${API}/GetMasterFlatAdmin`);
-            if(!r.success){toast(r.message||'Load failed','err');return;}
-            allRows=r.data||[];
+            const success = r.success ?? r.Success;
+            const message = r.message ?? r.Message;
+            const data = r.data ?? r.Data;
+            if(!success){toast(message||'Load failed','err');return;}
+            allRows=Array.isArray(data)?data:[];
             updateStats(); populateDeptFilter(); applyFilters();
         }catch(e){toast('Network error','err');}
         finally{setLoad(false);}
+    }
+    function formatDateForInput(value){
+        if(!value) return '';
+        const d = new Date(value);
+        if(isNaN(d.getTime())) return '';
+        const year = d.getFullYear();
+        const month = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return `${year}-${month}-${day}`;
     }
     function setLoad(v){
         document.getElementById('gridLoading').style.display=v?'flex':'none';
@@ -1444,12 +2065,35 @@
         });
 
         const inactive = employees.size - active;
-        document.getElementById('sTotal').textContent = active;
+        document.getElementById('sTotal').textContent = employees.size;
         document.getElementById('sActive').textContent = active;
         document.getElementById('sInactive').textContent = inactive;
         document.getElementById('sHod').textContent = activeH;
         document.getElementById('sSub').textContent = activeS;
         document.getElementById('sExec').textContent = activeE;
+    }
+    function showStatusFilter(status){
+        unassignedOnly=false;
+        roleFilter='';
+        const statusSel=document.getElementById('fStatus');
+        if(statusSel) statusSel.value=status||'';
+        applyFilters();
+    }
+    function showRoleFilter(role){
+        unassignedOnly=false;
+        roleFilter = roleFilter === role ? '' : role;
+        const statusSel=document.getElementById('fStatus');
+        if(statusSel) statusSel.value='';
+        applyFilters();
+    }
+    function updateStatusPillHighlight(){
+        const status=document.getElementById('fStatus')?.value||'';
+        document.getElementById('statAll')?.classList.toggle('selected', status==='' && roleFilter==='');
+        document.getElementById('statActive')?.classList.toggle('selected', status==='active' && roleFilter==='');
+        document.getElementById('statInactive')?.classList.toggle('selected', status==='inactive' && roleFilter==='');
+        document.getElementById('statHod')?.classList.toggle('selected', roleFilter==='hod');
+        document.getElementById('statSub')?.classList.toggle('selected', roleFilter==='subhod');
+        document.getElementById('statExec')?.classList.toggle('selected', roleFilter==='exec');
     }
 
     function renderGrid(rows){
@@ -1485,37 +2129,66 @@
             const hasS=(row.subHodEmployeeId>0)||!!(row.subHodName||row.subHodCode||row.subHodDesignation);
             const hasE=(row.execEmployeeId>0)||!!(row.execName||row.execCode||row.execDesignation);
             const leafOk=hasE?row.execIsActive:hasS?row.subHodIsActive:row.hodIsActive;
-            const hodEditBtn  = adm?`<button class="btn-icon btn-edit-hod"  onclick="openEdit(${row.hodEmployeeId})"    title="Edit HOD">H</button>` :'';
-            const subEditBtn  = adm&&hasS?`<button class="btn-icon btn-edit-sub"  onclick="openEdit(${row.subHodEmployeeId})" title="Edit SubHOD">S</button>`:'';
-            const execEditBtn = adm&&hasE?`<button class="btn-icon btn-edit-exec" onclick="openEdit(${row.execEmployeeId})"   title="Edit Exec">E</button>`:'';
+            const hodEditBtn  = adm&&row.hodEmployeeId>0?`<button class="btn-icon btn-edit-hod"  onclick="${openEditCall(row.hodEmployeeId, 1, row)}"    title="Edit HOD">H</button>` :'';
+            const subEditBtn  = adm&&hasS&&row.subHodEmployeeId>0?`<button class="btn-icon btn-edit-sub"  onclick="${openEditCall(row.subHodEmployeeId, 2, row)}" title="Edit SubHOD">S</button>`:'';
+            const execEditBtn = adm&&hasE&&row.execEmployeeId>0?`<button class="btn-icon btn-edit-exec" onclick="${openEditCall(row.execEmployeeId, 3, row)}"   title="Edit Exec">E</button>`:'';
             const cellMap={
-                hod:`<td class="sk1">${eCell(row.hodName,row.hodCode)}</td>`,
+                hod:`<td class="sk1">${eCell(row.hodName,row.hodCode,row.hodEmployeeId,'HOD',1,row)}</td>`,
                 dept:`<td class="td-wrap">${row.departmentName?`<span class="dept-badge">${esc(row.departmentName)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
                 subDept:`<td class="td-wrap">${row.subDepartmentName?`<span class="subdept-text">${esc(row.subDepartmentName)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
-                subHod:`<td>${hasS?eCell(row.subHodName,row.subHodCode):'<span class="cell-empty">—</span>'}</td>`,
+                subHod:`<td>${hasS?eCell(row.subHodName,row.subHodCode,row.subHodEmployeeId,'SubHOD',2,row):'<span class="cell-empty">—</span>'}</td>`,
                 subHodDesig:`<td>${row.subHodDesignation&&hasS?`<span class="desig-text">${esc(row.subHodDesignation)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
-                exec:`<td>${hasE?eCell(row.execName,row.execCode):'<span class="cell-empty">—</span>'}</td>`,
+                exec:`<td>${hasE?eCell(row.execName,row.execCode,row.execEmployeeId,'Executive',3,row):'<span class="cell-empty">—</span>'}</td>`,
                 execDesig:`<td>${row.execDesignation&&hasE?`<span class="desig-text">${esc(row.execDesignation)}</span>`:'<span class="cell-empty">—</span>'}</td>`,
                 status:`<td>${leafOk?'<span class="status-dot active">Active</span>':'<span class="status-dot inactive">Inactive</span>'}</td>`,
                 actions:adm?`<td><div class="act-cell">${hodEditBtn}${subEditBtn}${execEditBtn}</div></td>`:'',
             };
             h+=`<tr data-hod="${row.hodEmployeeId}" class="${nH?'hod-border':''}">${visCols.map(c=>cellMap[c.key]||'<td></td>').join('')}</tr>`;
         });
+        if(!rows.length){
+            h+=`<tr><td colspan="${Math.max(visCols.length,1)}" style="padding:28px;text-align:center;color:var(--muted);font-size:12px">No hierarchy rows to show.</td></tr>`;
+        }
         h+=`</tbody></table>`;
         document.getElementById('gridCont').innerHTML=h;
         document.getElementById('rowCount').textContent=`${rows.length} rows`;
     }
 
-    function eCell(n,c){
+    function openEditCall(employeeId, roleTypeId, row){
+        const vals = [
+            Number(employeeId) || 0,
+            Number(roleTypeId) || 0,
+            Number(row?.hodEmployeeId) || 0,
+            Number(row?.subHodEmployeeId) || 0,
+            Number(row?.execEmployeeId) || 0,
+            Number(row?.departmentId) || 0,
+            Number(row?.subDepartmentId) || 0
+        ];
+        return `openEdit(${vals.join(',')})`;
+    }
+
+    function eCell(n,c,employeeId=null,roleLabel='Employee',roleTypeId=null,row=null){
         const hasName=!!(n&&String(n).trim());
         const hasCode=!!(c&&String(c).trim());
         if(!hasName && !hasCode)return`<span class="cell-empty">—</span>`;
         const isTemp = hasCode && String(c).toUpperCase().startsWith('TEMP');
         const codeClass = isTemp ? 'emp-code temp-code' : 'emp-code';
-        if(!hasName && hasCode){
-            return`<div class="emp-cell"><span class="${codeClass}">${esc(c)}</span></div>`;
+        const content = !hasName && hasCode
+            ? `<span class="${codeClass}">${esc(c)}</span>`
+            : `<span class="emp-name">${esc(n)}</span>${hasCode?`<span class="${codeClass}">${esc(c)}</span>`:''}`;
+        const id = Number(employeeId) || 0;
+        if(id > 0){
+            const editCall = row ? openEditCall(id, roleTypeId, row) : `openEdit(${id})`;
+            return `<button type="button" class="emp-cell emp-cell-btn" onclick="${editCall}" title="Edit ${escAttr(roleLabel)}">${content}</button>`;
         }
-        return`<div class="emp-cell"><span class="emp-name">${esc(n)}</span>${hasCode?`<span class="${codeClass}">${esc(c)}</span>`:''}</div>`;
+        if(!hasName && hasCode){
+            return`<div class="emp-cell">${content}</div>`;
+        }
+        return`<div class="emp-cell">${content}</div>`;
+    }
+    function formatMoney(value){
+        const n = Number(value);
+        if(isNaN(n)) return esc(value);
+        return n.toLocaleString('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 });
     }
     function startEdit(td){
         if(td.classList.contains('editing'))return;
@@ -1566,13 +2239,72 @@
         const q=(document.getElementById('searchBox').value||'').toLowerCase();
         const dept=(document.getElementById('fDept').value||'').trim();
         const st=document.getElementById('fStatus').value||'';
-        const filtered=allRows.filter(r=>{
+        const source=roleFilter?buildRoleFilterRows(roleFilter):allRows;
+        const filtered=source.filter(r=>{
+            const rowIsUnassigned=isUnassignedRow(r);
+            if(unassignedOnly && !rowIsUnassigned)return false;
             if(q){const hay=[r.hodName,r.hodCode,r.subHodName,r.subHodCode,r.execName,r.execCode,r.departmentName,r.subDepartmentName].join(' ').toLowerCase();if(!hay.includes(q))return false;}
-            if(dept && String(r.departmentId||'')!==dept)return false;
-            if(st){const a=r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;if(st==='active'&&!a)return false;if(st==='inactive'&&a)return false;}
+            if(dept && !(r._departmentIds||[r.departmentId]).some(id=>String(id||'')===dept))return false;
+            if(st){const a=getRowDisplayActive(r);if(st==='active'&&!a)return false;if(st==='inactive'&&a)return false;}
             return true;
         });
         renderGrid(filtered);
+        updateUnassignedOnlyButton();
+        updateStatusPillHighlight();
+    }
+    function getRowDisplayActive(r){
+        return r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;
+    }
+    function buildRoleFilterRows(role){
+        const map=new Map();
+        allRows.forEach(r=>{
+            let id=0,key='',base=null;
+            if(role==='hod'){
+                id=Number(r.hodEmployeeId)||0;if(!id)return;key=`hod-${id}`;
+                base=map.get(key)||{...r,subHodEmployeeId:0,subHodName:'',subHodCode:'',subHodDesignation:'',subHodIsActive:false,execEmployeeId:0,execName:'',execCode:'',execDesignation:'',execIsActive:false,_deptNames:new Set(),_departmentIds:new Set()};
+                if(r.departmentName)base._deptNames.add(r.departmentName);
+                if(r.departmentId)base._departmentIds.add(r.departmentId);
+                base.hodIsActive=base.hodIsActive||!!r.hodIsActive;
+            }else if(role==='subhod'){
+                id=Number(r.subHodEmployeeId)||0;if(!id)return;key=`sub-${id}`;
+                base=map.get(key)||{...r,execEmployeeId:0,execName:'',execCode:'',execDesignation:'',execIsActive:false,_deptNames:new Set(),_departmentIds:new Set(),_subDeptNames:new Set()};
+                if(r.departmentName)base._deptNames.add(r.departmentName);
+                if(r.departmentId)base._departmentIds.add(r.departmentId);
+                if(r.subDepartmentName)base._subDeptNames.add(r.subDepartmentName);
+                base.subHodIsActive=base.subHodIsActive||!!r.subHodIsActive;
+            }else if(role==='exec'){
+                id=Number(r.execEmployeeId)||0;if(!id)return;key=`exec-${id}`;
+                base=map.get(key)||{...r,_departmentIds:new Set()};
+                if(r.departmentId)base._departmentIds.add(r.departmentId);
+                base.execIsActive=base.execIsActive||!!r.execIsActive;
+            }
+            if(base)map.set(key,base);
+        });
+        return [...map.values()].map(r=>{
+            if(r._deptNames&&r._deptNames.size)r.departmentName=[...r._deptNames].join(', ');
+            if(r._subDeptNames&&r._subDeptNames.size)r.subDepartmentName=[...r._subDeptNames].join(', ');
+            if(r._departmentIds instanceof Set)r._departmentIds=[...r._departmentIds];
+            delete r._deptNames;delete r._subDeptNames;
+            return r;
+        });
+    }
+    function isUnassignedRow(r){
+        const hasUnassignedHod=(r.hodEmployeeId||0)>0 && !(r.departmentId||0) && !(r.subHodEmployeeId||0) && !(r.execEmployeeId||0);
+        const hasUnassignedSubHod=(r.subHodEmployeeId||0)>0 && !(r.hodEmployeeId||0) && !(r.departmentId||0);
+        const hasUnassignedExec=(r.execEmployeeId||0)>0 && !(r.hodEmployeeId||0) && !(r.departmentId||0);
+        return hasUnassignedHod || hasUnassignedSubHod || hasUnassignedExec;
+    }
+    function toggleUnassignedOnly(){
+        unassignedOnly=!unassignedOnly;
+        applyFilters();
+    }
+    function updateUnassignedOnlyButton(){
+        const btn=document.getElementById('unassignedOnlyBtn');
+        if(!btn)return;
+        const count=allRows.filter(isUnassignedRow).length;
+        btn.textContent=unassignedOnly?`All Employees (${count} unassigned)`: `Unassigned (${count})`;
+        btn.classList.toggle('btn-primary',unassignedOnly);
+        btn.classList.toggle('btn-ghost',!unassignedOnly);
     }
     function populateDeptFilter(){
         const sel=document.getElementById('fDept');
@@ -1589,6 +2321,89 @@
         const list=(depts.length?depts:fallback).sort((a,b)=>String(a.departmentName).localeCompare(String(b.departmentName)));
         sel.innerHTML='<option value="">All Departments</option>'+list.map(d=>`<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
         if(current && [...sel.options].some(o=>o.value===current)) sel.value=current;
+    }
+
+    function downloadHierarchyMasterExcel(){
+        if(typeof XLSX==='undefined'){toast('Excel library is not loaded','err');return;}
+
+        const rows=getCurrentFilteredRows();
+        if(!rows.length){toast('No rows to download','err');return;}
+
+        const directorName=@Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.OwnerName ?? "Director"));
+        const data=[[
+            'Director',
+            'HOD Name',
+            'HOD Code',
+            'Department',
+            'SubDepartment',
+            'SubHOD Name',
+            'SubHOD Code',
+            'Designation',
+            'Executive Name',
+            'Executive Code',
+            'Designation',
+            'Active'
+        ]];
+
+        rows.forEach(r=>{
+            const hasSubHod=(r.subHodEmployeeId>0)||!!(r.subHodName||r.subHodCode||r.subHodDesignation);
+            const hasExec=(r.execEmployeeId>0)||!!(r.execName||r.execCode||r.execDesignation);
+            const active=hasExec?r.execIsActive:hasSubHod?r.subHodIsActive:r.hodIsActive;
+            data.push([
+                directorName,
+                cleanExportCell(r.hodName),
+                cleanExportCell(r.hodCode),
+                cleanExportCell(r.departmentName),
+                cleanExportCell(r.subDepartmentName),
+                hasSubHod?cleanExportCell(r.subHodName):'',
+                hasSubHod?cleanExportCell(r.subHodCode):'',
+                hasSubHod?cleanExportCell(r.subHodDesignation):'',
+                hasExec?cleanExportCell(r.execName):'',
+                hasExec?cleanExportCell(r.execCode):'',
+                hasExec?cleanExportCell(r.execDesignation):'',
+                active?'Active':'Inactive'
+            ]);
+        });
+
+        const ws=XLSX.utils.aoa_to_sheet(data);
+        ws['!cols']=data[0].map((h,idx)=>{
+            const maxLen=Math.max(String(h).length,...data.slice(1).map(r=>String(r[idx]||'').length));
+            return {wch:Math.min(Math.max(maxLen+2,12),36)};
+        });
+        const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'Hierarchy Master');
+        XLSX.writeFile(wb,`Hierarchy_Master_${new Date().toISOString().slice(0,10)}.xlsx`);
+        toast(`Downloaded ${data.length-1} rows`,'ok');
+    }
+
+    function getCurrentFilteredRows(){
+        const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
+        const dept=(document.getElementById('fDept')?.value||'').trim();
+        const st=document.getElementById('fStatus')?.value||'';
+        return (allRows||[]).filter(r=>{
+            const rowIsUnassigned=isUnassignedRow(r);
+            if(unassignedOnly && !rowIsUnassigned)return false;
+            if(!unassignedOnly && rowIsUnassigned)return false;
+            if(q){
+                const hay=[r.hodName,r.hodCode,r.subHodName,r.subHodCode,r.execName,r.execCode,r.departmentName,r.subDepartmentName].join(' ').toLowerCase();
+                if(!hay.includes(q))return false;
+            }
+            if(dept && String(r.departmentId||'')!==dept)return false;
+            if(st){
+                const a=r.execEmployeeId>0?r.execIsActive:r.subHodEmployeeId>0?r.subHodIsActive:r.hodIsActive;
+                if(st==='active'&&!a)return false;
+                if(st==='inactive'&&a)return false;
+            }
+            return true;
+        });
+    }
+
+    function cleanExportCell(value){
+        return String(value||'')
+            .replace(/\u00a0/g,' ')
+            .replace(/\s+/g,' ')
+            .replace(/^—$/,'')
+            .trim();
     }
 
     function toggleUpload(){
@@ -1612,26 +2427,39 @@
                 const json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
                 pendingXl=[];
                 const headerRow=(json[0]||[]).map(normalizeHeader);
+                const isMasterDownloadFormat=isHierarchyMasterDownloadFormat(headerRow);
+                const fallbackCols=isMasterDownloadFormat
+                    ? {hodName:1,hodCode:2,department:3,subDepartment:4,subHodName:5,subHodCode:6,subHodDesignation:7,execName:8,execCode:9,execDesignation:10}
+                    : {hodName:2,hodCode:13,department:1,subDepartment:3,subHodName:5,subHodCode:12,subHodDesignation:null,execName:7,execCode:11,execDesignation:6};
                 const hodNameIdx=findColumnIndex(headerRow,['hodname','hod']);
-                const hodCodeIdx=findColumnIndex(headerRow,['hodcode','hodemployeecode','hodempcode']);
+                const hodCodeIdx=findColumnIndex(headerRow,['hodcode','hodemployeecode','hodempcode','hodco']);
                 const deptIdx=findColumnIndex(headerRow,['department','dept']);
-                const subDeptIdx=findColumnIndex(headerRow,['subdepartment','subdept']);
+                const subDeptIdx=findColumnIndex(headerRow,['subdepartment','subdept','subdepartmentname']);
                 const subHodNameIdx=findColumnIndex(headerRow,['subhodname','subhod']);
-                const subHodCodeIdx=findColumnIndex(headerRow,['subhodcode','subhodemployeecode','subhodempcode']);
-                const subHodDesignationIdx=findColumnIndex(headerRow,['subhoddesignation','subhoddesig','subdesignation']);
+                const subHodCodeIdx=findColumnIndex(headerRow,['subhodcode','subhodemployeecode','subhodempcode','subhodco']);
+                const subHodDesignationIdx=findColumnIndex(headerRow,['subhoddesignation','subhoddesig','subdesignation','subhoddesigna']);
                 const execNameIdx=findColumnIndex(headerRow,['executivename','execname','executive']);
-                const execCodeIdx=findColumnIndex(headerRow,['executivecode','execcode','executiveemployeecode']);
-                const execDesignationIdx=findColumnIndex(headerRow,['executivedesignation','execdesignation','execdesig']);
+                const execCodeIdx=findColumnIndex(headerRow,['executivecode','execcode','executiveemployeecode','executivec']);
+                const execDesignationIdx=findColumnIndex(headerRow,['executivedesignation','execdesignation','execdesig','execdesigna']);
+                const genericDesignationIndexes=headerRow
+                    .map((h,idx)=>h==='designation'?idx:-1)
+                    .filter(idx=>idx>=0);
+                const subHodDesignationImportIdx=subHodDesignationIdx!==-1
+                    ? subHodDesignationIdx
+                    : findGenericDesignationBetween(genericDesignationIndexes, subHodCodeIdx, execNameIdx);
+                const execDesignationImportIdx=execDesignationIdx!==-1
+                    ? execDesignationIdx
+                    : findGenericDesignationAfter(genericDesignationIndexes, execCodeIdx);
                 for(let i=1;i<json.length;i++){
                     const r=json[i];
-                    const hodName=cl(sheetCellAt(ws, i, hodNameIdx, 2));
-                    const hodCode=cl(sheetCellAt(ws, i, hodCodeIdx, 13));
-                    const department=cl(sheetCellAt(ws, i, deptIdx, 1));
-                    const subDepartment=cl(sheetCellAt(ws, i, subDeptIdx, 3));
-                    const subHodName=cl(sheetCellAt(ws, i, subHodNameIdx, 5));
-                    const subHodCode=cl(sheetCellAt(ws, i, subHodCodeIdx, 12));
-                    const subHodDesignation=cl(sheetCellAt(ws, i, subHodDesignationIdx, null));
-                    const execName=cl(sheetCellAt(ws, i, execNameIdx, 7));
+                    const hodName=cl(sheetCellAt(ws, i, hodNameIdx, fallbackCols.hodName));
+                    const hodCode=cl(sheetCellAt(ws, i, hodCodeIdx, fallbackCols.hodCode));
+                    const department=cl(sheetCellAt(ws, i, deptIdx, fallbackCols.department));
+                    const subDepartment=cl(sheetCellAt(ws, i, subDeptIdx, fallbackCols.subDepartment));
+                    const subHodName=cl(sheetCellAt(ws, i, subHodNameIdx, fallbackCols.subHodName));
+                    const subHodCode=cl(sheetCellAt(ws, i, subHodCodeIdx, fallbackCols.subHodCode));
+                    const subHodDesignation=cl(sheetCellAt(ws, i, subHodDesignationImportIdx, fallbackCols.subHodDesignation));
+                    const execName=cl(sheetCellAt(ws, i, execNameIdx, fallbackCols.execName));
                     if(!hodName&&!subHodName&&!execName)continue;
                     pendingXl.push({
                         rowNumber:i+1,
@@ -1643,8 +2471,8 @@
                         subHodCode:subHodCode,
                         subHodDesignation:subHodDesignation,
                         execName:execName,
-                        execCode:cl(sheetCellAt(ws, i, execCodeIdx, 11)),
-                        execDesignation:cl(sheetCellAt(ws, i, execDesignationIdx, 6))
+                        execCode:cl(sheetCellAt(ws, i, execCodeIdx, fallbackCols.execCode)),
+                        execDesignation:cl(sheetCellAt(ws, i, execDesignationImportIdx, fallbackCols.execDesignation))
                     });
                 }
                 const pv=document.getElementById('importPreview');
@@ -1675,12 +2503,31 @@
         return bestScore>=3 ? bestName : '';
     }
     function normalizeHeader(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+    function isHierarchyMasterDownloadFormat(headers){
+        return headers[0]==='director'
+            && headers[1]==='hodname'
+            && headers[2]==='hodcode'
+            && headers[3]==='department'
+            && headers[4]==='subdepartment'
+            && headers[5]==='subhodname'
+            && headers[6]==='subhodcode'
+            && headers[8]==='executivename'
+            && headers[9]==='executivecode';
+    }
     function findColumnIndex(headers, aliases){
         for(const alias of aliases){
             const idx=headers.indexOf(alias);
             if(idx!==-1)return idx;
         }
         return -1;
+    }
+    function findGenericDesignationBetween(indexes,startIdx,endIdx){
+        if(startIdx<0||endIdx<0)return -1;
+        return indexes.find(idx=>idx>startIdx&&idx<endIdx) ?? -1;
+    }
+    function findGenericDesignationAfter(indexes,startIdx){
+        if(startIdx<0)return -1;
+        return indexes.find(idx=>idx>startIdx) ?? -1;
     }
     function rawSheetCellValue(ws,rowIdx,colIdx){
         if(colIdx===null||colIdx===undefined||colIdx<0)return '';
@@ -1784,9 +2631,10 @@
     }
     function updateAddFormLabels(){
         const role=addLvl;
-        setLabelHtml('f_hod_label', role>=2 ? 'Reports To (HOD) *' : 'Reports To (HOD) <span style="color:var(--muted);font-weight:400">optional</span>');
-        setLabelHtml('f_dept_label', role>=1 ? 'Department *' : 'Department');
-        setLabelHtml('f_sdept_label', role===2 ? 'Sub-Department *' : 'Sub-Department');
+        const unassigned = document.getElementById('f_unassigned')?.checked || false;
+        setLabelHtml('f_hod_label', !unassigned && role>=2 ? 'Reports To (HOD) *' : 'Reports To (HOD) <span style="color:var(--muted);font-weight:400">optional</span>');
+        setLabelHtml('f_dept_label', !unassigned && role>=1 ? 'Department *' : 'Department');
+        setLabelHtml('f_sdept_label', !unassigned && role===2 ? 'Sub-Department *' : 'Sub-Department');
         setLabelHtml('f_sub_label', 'Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span>');
     }
     function updateEditFormLabels(){
@@ -1797,11 +2645,13 @@
         setLabelHtml('e_sub_label', 'Reports To (SubHOD) <span style="color:var(--muted);font-weight:400">optional</span>');
     }
     function clearAddForm(clearMessage=true){
-        ['f_code','f_name','f_email','f_phone','f_desig','f_doj'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+        ['f_code','f_name','f_email','f_phone','f_desig','f_doj','f_gender','f_qualification','f_area','f_sikh'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
         ['f_hod','f_sub','f_dept','f_sdept'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+        const unassigned=document.getElementById('f_unassigned');if(unassigned)unassigned.checked=false;
         const s=document.getElementById('f_sal');if(s)s.value='';
         renderDeptOptions('f_dept', deptsMeta);
         document.getElementById('f_sub').innerHTML='<option value="">— Direct to HOD —</option>';
+        onAddUnassignedChange(false);
         updateAddFormLabels();
         if(clearMessage) showAddError('');
     }
@@ -1819,11 +2669,30 @@
         }else if(document.getElementById('f_hod').value){
             onHodChange();
         }
+        onAddUnassignedChange(false);
+    }
+    function onAddUnassignedChange(clearValues = true){
+        const unassigned = document.getElementById('f_unassigned')?.checked || false;
+        ['f_hod','f_dept','f_sdept','f_sub'].forEach(id=>{
+            const el=document.getElementById(id);
+            if(!el)return;
+            el.disabled=unassigned;
+            if(unassigned && clearValues) el.value='';
+        });
+        ['s_mgr','s_dept','s_sub'].forEach(id=>{
+            const el=document.getElementById(id);
+            if(el)el.style.opacity=unassigned?'.55':'1';
+        });
+        updateAddFormLabels();
     }
     function renderDeptOptions(selId, departments){
         const s=document.getElementById(selId);
         if(!s)return;
-        s.innerHTML='<option value="">— Select —</option>'+(departments||[]).map(d=>`<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
+        s.innerHTML='<option value="">— Select —</option>'+(departments||[]).map(d=>{
+            const id = d.departmentId ?? d.DepartmentId ?? '';
+            const name = d.departmentName ?? d.DepartmentName ?? '';
+            return `<option value="${id}">${esc(name)}</option>`;
+        }).join('');
     }
     function ensureSelectOption(selId, value, label){
         const s = document.getElementById(selId);
@@ -1833,6 +2702,115 @@
         if(!exists){
             s.innerHTML += `<option value="${normalized}">${esc(label || normalized)}</option>`;
         }
+    }
+    function normalizeSikhCode(value){
+        if(value===null || value===undefined) return '';
+        const text=String(value).trim();
+        const compact=text.toLowerCase().replace(/[\s/_-]+/g,'');
+        if(compact==='s' || compact==='sikh') return 'S';
+        if(compact==='ns' || compact==='nonsikh' || compact==='notsikh') return 'N-S';
+        return text;
+    }
+    function getEditHodDepartmentIds(){
+        return [...document.querySelectorAll('#e_hod_dept_multi input[type="checkbox"]:checked')]
+            .map(cb=>parseInt(cb.value)||0)
+            .filter(id=>id>0);
+    }
+    function syncEditHodDeptSelect(){
+        const selected = getEditHodDepartmentIds();
+        editHodSelectedDeptIds = new Set(selected);
+        const deptSel = document.getElementById('e_dept');
+        if(deptSel) deptSel.value = selected.length ? String(selected[0]) : '';
+    }
+    function renderEditHodDepartments(selectedIds){
+        const wrap = document.getElementById('e_hod_dept_multi');
+        if(!wrap) return;
+        const selected = new Set((selectedIds||[]).map(id=>Number(id)||0).filter(id=>id>0));
+        wrap.innerHTML = (deptsMeta||[]).map(d=>{
+            const id = Number(d.departmentId ?? d.DepartmentId)||0;
+            const name = d.departmentName ?? d.DepartmentName ?? '';
+            const checked = selected.has(id) ? 'checked' : '';
+            return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;font-size:12px;color:var(--text)">
+                <input type="checkbox" value="${id}" ${checked} onchange="syncEditHodDeptSelect()" style="width:15px;height:15px;accent-color:var(--g2)" />
+                <span>${esc(name)}</span>
+            </label>`;
+        }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px 0">No departments found</div>';
+        syncEditHodDeptSelect();
+    }
+
+    function getEditSubHodSubDepartmentIds(){
+        return [...document.querySelectorAll('#e_subhod_sdept_multi input[type="checkbox"]:checked')]
+            .map(cb=>parseInt(cb.value)||0)
+            .filter(id=>id>0);
+    }
+    function syncEditSubHodSubDeptSelect(){
+        const selected = getEditSubHodSubDepartmentIds();
+        editSubHodSelectedSubDeptIds = new Set(selected);
+        const subDeptSel = document.getElementById('e_sdept');
+        if(subDeptSel) subDeptSel.value = selected.length ? String(selected[0]) : '';
+    }
+    function renderEditSubHodSubDepartments(selectedIds){
+        const wrap = document.getElementById('e_subhod_sdept_multi');
+        if(!wrap) return;
+        const deptId = parseInt(document.getElementById('e_dept')?.value) || 0;
+        const selected = new Set((selectedIds||[]).map(id=>Number(id)||0).filter(id=>id>0));
+        const subDepartments = getSubDepartmentsFromMeta(deptId);
+        if (!subDepartments.length) {
+            wrap.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px 0">No sub-departments found for this department</div>';
+            if (selected.size) editSubHodSelectedSubDeptIds = new Set([...selected]);
+            return;
+        }
+        wrap.innerHTML = subDepartments.map(s=>{
+            const id = Number(s.subDepartmentId)||0;
+            const checked = selected.has(id) ? 'checked' : '';
+            return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;font-size:12px;color:var(--text)">
+                <input type="checkbox" value="${id}" ${checked} onchange="syncEditSubHodSubDeptSelect()" style="width:15px;height:15px;accent-color:var(--g2)" />
+                <span>${esc(s.subDepartmentName)}</span>
+            </label>`;
+        }).join('');
+        syncEditSubHodSubDeptSelect();
+    }
+
+    function getDepartmentNameById(deptId) {
+        if (!deptId) return '';
+        const dept = (deptsMeta || []).find(d => String(d.departmentId ?? d.DepartmentId ?? '') === String(deptId));
+        return dept ? (dept.departmentName ?? dept.DepartmentName ?? '') : '';
+    }
+
+    function findDepartmentIdForSubDepartment(subDeptId, subDeptName) {
+        const subId = subDeptId ? String(subDeptId) : '';
+        const subName = (subDeptName || '').trim().toLowerCase();
+        for (const dept of (deptsMeta || [])) {
+            const deptId = dept.departmentId ?? dept.DepartmentId ?? '';
+            const subDepartments = dept.subDepartments ?? dept.SubDepartments ?? [];
+            const match = (subDepartments || []).find(s => {
+                const currentSubId = String(s.subDepartmentId ?? s.SubDepartmentId ?? '');
+                const currentSubName = String(s.subDepartmentName ?? s.SubDepartmentName ?? '').trim().toLowerCase();
+                return (subId && currentSubId === subId) || (subName && currentSubName === subName);
+            });
+            if (match && deptId) return deptId;
+        }
+        return '';
+    }
+    function getSubDepartmentsFromMeta(deptId) {
+        const deptKey = String(deptId || '');
+        const dept = (deptsMeta || []).find(d => String(d.departmentId ?? d.DepartmentId ?? '') === deptKey);
+        return (dept?.subDepartments ?? dept?.SubDepartments ?? []).map(s => ({
+            subDepartmentId:s.subDepartmentId ?? s.SubDepartmentId,
+            subDepartmentName:s.subDepartmentName ?? s.SubDepartmentName
+        })).filter(s => s.subDepartmentId && s.subDepartmentName);
+    }
+    function setEditDeptMode(role){
+        const deptSel = document.getElementById('e_dept');
+        const multi = document.getElementById('e_hod_dept_multi');
+        const subDeptSel = document.getElementById('e_sdept');
+        const subHodMulti = document.getElementById('e_subhod_sdept_multi');
+        const isHod = Number(role) === 1;
+        const isSubHod = Number(role) === 2;
+        if(deptSel) deptSel.style.display = isHod ? 'none' : '';
+        if(multi) multi.style.display = isHod ? '' : 'none';
+        if(subDeptSel) subDeptSel.style.display = isSubHod ? 'none' : '';
+        if(subHodMulti) subHodMulti.style.display = isSubHod ? '' : 'none';
     }
     function isValidEmail(email){
         if(!email) return true;
@@ -1879,6 +2857,16 @@
     function getDropdownEmployeeId(e){
         return Number(e?.employeeId ?? e?.EmployeeId ?? 0) || 0;
     }
+    function isEmployeeActiveById(employeeId){
+        const id = Number(employeeId) || 0;
+        if(!id) return false;
+        for(const r of (allRows||[])){
+            if((r.hodEmployeeId||0) === id) return !!r.hodIsActive;
+            if((r.subHodEmployeeId||0) === id) return !!r.subHodIsActive;
+            if((r.execEmployeeId||0) === id) return !!r.execIsActive;
+        }
+        return true;
+    }
     function renderHodOptions(selId, hods, excludeEmployeeId){
         const s=document.getElementById(selId);
         if(!s)return;
@@ -1910,6 +2898,36 @@
                 }
             });
         return [...items.values()];
+    }
+    function getSubHodFromRows(subHodId){
+        const id = Number(subHodId) || 0;
+        if(!id)return null;
+        const row = (allRows||[]).find(r => (Number(r.subHodEmployeeId) || 0) === id);
+        if(!row)return null;
+        return {
+            employeeId:id,
+            employeeName:row.subHodName || '',
+            employeeCode:row.subHodCode || ''
+        };
+    }
+    function getRoleIdFromName(roleName){
+        const role = String(roleName || '').toLowerCase().replace(/[^a-z]/g, '');
+        if(role === 'hod') return 1;
+        if(role === 'subhod') return 2;
+        if(role === 'executive') return 3;
+        return 0;
+    }
+    function getPrimaryReportTo(employeeDetail){
+        const reports = employeeDetail?.reportsTo || employeeDetail?.ReportsTo || [];
+        if(!Array.isArray(reports) || !reports.length) return null;
+        return reports.find(r => (r.isPrimary ?? r.IsPrimary) === true) || reports[0] || null;
+    }
+    function getOnlySubHodForContext(hodId, deptId, subDeptId){
+        const exact = getSubHodsForDepartment(hodId, deptId, subDeptId);
+        if(exact.length === 1) return exact[0];
+        const deptWide = getSubHodsForDepartment(hodId, deptId, 0);
+        if(deptWide.length === 1) return deptWide[0];
+        return null;
     }
     async function populateAddSubHods(hodId, deptId){
         const subDeptId=parseInt(document.getElementById('f_sdept').value)||0;
@@ -1962,15 +2980,38 @@
     async function loadSubDepts(dId,selId){
         const sel=document.getElementById(selId);if(!sel)return;
         sel.innerHTML='<option value="">— Select —</option>';if(!dId)return;
-        try{const r=await api(`${API}/GetSubDepartments/${dId}`);
-        if(r.success)(r.data||[]).forEach(s=>{sel.innerHTML+=`<option value="${s.subDepartmentId}">${esc(s.subDepartmentName)}</option>`;});}catch(e){}
+        const items = new Map();
+        getSubDepartmentsFromMeta(dId).forEach(s => {
+            items.set(String(s.subDepartmentId), s.subDepartmentName);
+        });
+        try{
+            const r=await api(`${API}/GetSubDepartments/${dId}`);
+            if(r.success)(r.data||[]).forEach(s=>{
+                const id = s.subDepartmentId ?? s.SubDepartmentId;
+                const name = s.subDepartmentName ?? s.SubDepartmentName;
+                if(id && name) items.set(String(id), name);
+            });
+        }catch(e){}
+        const dept = (deptsMeta || []).find(d => String(d.departmentId ?? d.DepartmentId ?? '') === String(dId));
+        if (dept && items.size) {
+            const merged = [...items.entries()].map(([id, name]) => ({
+                subDepartmentId: Number(id) || id,
+                subDepartmentName: name
+            }));
+            dept.subDepartments = merged;
+            dept.SubDepartments = merged;
+        }
+        items.forEach((name,id)=>{sel.innerHTML+=`<option value="${id}">${esc(name)}</option>`;});
     }
     function validateHierarchySequence(role, prefix){
+        if(prefix==='f' && (document.getElementById('f_unassigned')?.checked || false)) return '';
         const deptId=parseInt(document.getElementById(`${prefix}_dept`)?.value)||0;
         const subDeptId=parseInt(document.getElementById(`${prefix}_sdept`)?.value)||0;
         const hodId=role>=2 ? (parseInt(document.getElementById(`${prefix}_hod`)?.value)||0) : 0;
         const subHodId=role===3 ? (parseInt(document.getElementById(`${prefix}_sub`)?.value)||0) : 0;
         if(role>=2 && !hodId) return 'Select HOD first';
+        if(prefix==='e' && role===1 && !getEditHodDepartmentIds().length) return 'Select Department after HOD';
+        if(prefix==='e' && role===2 && !getEditSubHodSubDepartmentIds().length) return 'Select at least one Sub-Department before saving Sub-HOD';
         if(!deptId) return 'Select Department after HOD';
         if(role===2 && !subDeptId) return 'Select Sub-Department before saving Sub-HOD';
         if(role===3 && subHodId && !subDeptId) return 'Select Sub-Department before choosing Sub-HOD';
@@ -1980,6 +3021,7 @@
         const code=document.getElementById('f_code').value.trim(), name=document.getElementById('f_name').value.trim();
         const email = document.getElementById('f_email').value.trim();
         const phone = document.getElementById('f_phone').value.trim();
+        const isUnassigned = document.getElementById('f_unassigned')?.checked || false;
         showAddError('');
         if(!code||!name){showAddError('Code and Name are required');return;}
         const hierarchyError=validateHierarchySequence(addLvl,'f');
@@ -1989,12 +3031,16 @@
         const btn=document.getElementById('addBtn');btn.disabled=true;btn.textContent='Creating…';
         const payload={employeeCode:code,employeeName:name,email:email||null,phone:phone?normalizePhone(phone):null,designation:document.getElementById('f_desig').value.trim()||null,
             dateOfJoining:document.getElementById('f_doj').value||null,
-            roleTypeId:addLvl,primaryDepartmentId:document.getElementById('f_dept')?.value?parseInt(document.getElementById('f_dept').value):null,isActive:true};
+            gender:document.getElementById('f_gender').value||null,
+            qualification:document.getElementById('f_qualification').value.trim()||null,
+            area:document.getElementById('f_area').value.trim()||null,
+            sikhNonSikh:normalizeSikhCode(document.getElementById('f_sikh').value)||null,
+            roleTypeId:addLvl,primaryDepartmentId:(!isUnassigned && document.getElementById('f_dept')?.value)?parseInt(document.getElementById('f_dept').value):null,isActive:true};
         try{
             const r=await api(`${API}/CreateEmployee`,'POST',payload);
             if(!r.success || !r.data?.employeeId){showAddError(r.message||'Employee not created');return;}
             const nId=r.data?.employeeId;
-            if(addLvl>=2&&nId){
+            if(!isUnassigned && addLvl>=2&&nId){
                 const hId=parseInt(document.getElementById('f_hod').value);
                 const sId=document.getElementById('f_sub')?.value;
                 const dId=parseInt(document.getElementById('f_dept').value);
@@ -2017,6 +3063,112 @@
         if(body)o.body=JSON.stringify(body);
         return (await fetch(url,o)).json();
     }
+    function openSalaryApiModal(){
+        if(!CAN_VIEW_SALARY){toast('Salary permission is not enabled for your user.','err');return;}
+        const pwd=document.getElementById('salaryApiPassword');
+        const err=document.getElementById('salaryApiError');
+        if(pwd)pwd.value='';
+        if(err){err.textContent='';err.style.display='none';}
+        selectSalaryAction(salaryApiAction || 'belowfourtyemployee');
+        document.getElementById('salaryApiModal').classList.add('open');
+        setTimeout(()=>pwd?.focus(),120);
+    }
+    function closeSalaryApiModal(){
+        document.getElementById('salaryApiModal').classList.remove('open');
+    }
+    function selectSalaryAction(action){
+        salaryApiAction=action||'belowfourtyemployee';
+        const sel=document.getElementById('salaryApiAction');
+        if(sel)sel.value=salaryApiAction;
+        document.querySelectorAll('#salaryActionCards .salary-action-card').forEach(card=>{
+            card.classList.toggle('active', card.getAttribute('data-action')===salaryApiAction);
+        });
+    }
+    async function submitSalaryApiFetch(){
+        const pwdEl=document.getElementById('salaryApiPassword');
+        const err=document.getElementById('salaryApiError');
+        const btn=document.getElementById('salaryApiSubmitBtn');
+        const password=pwdEl?.value||'';
+        if(err){err.textContent='';err.style.display='none';}
+        if(!password){
+            if(err){err.textContent='Password is required.';err.style.display='';}
+            return;
+        }
+        if(btn){btn.disabled=true;btn.textContent='Loading...';}
+        try{
+            const r=await api(`${API}/UnlockSalarySession`,'POST',{password,action:salaryApiAction});
+            if(pwdEl)pwdEl.value='';
+            if(!r.success){
+                if(err){err.textContent=r.message||'Unable to load salary.';err.style.display='';}
+                return;
+            }
+            applySalaryMap(r.salaries||{},r.expiresAt);
+            closeSalaryApiModal();
+            toast(r.message||'Salary loaded successfully.','ok');
+        }catch(e){
+            if(pwdEl)pwdEl.value='';
+            if(err){err.textContent='Network error while loading salary.';err.style.display='';}
+        }finally{
+            if(btn){btn.disabled=false;btn.textContent='Load Salaries';}
+        }
+    }
+    async function restoreSalarySession(){
+        if(!CAN_VIEW_SALARY)return;
+        try{
+            const r=await api(`${API}/GetSalarySessionData`);
+            if(!r.success)return;
+            if(r.active === false || r.Active === false){
+                salaryLookup={};
+                salarySessionActive=false;
+                updateSalaryButton(null);
+                return;
+            }
+            salaryApiAction=r.action||salaryApiAction;
+            applySalaryMap(r.salaries||{},r.expiresAt);
+        }catch(e){}
+    }
+    function applySalaryMap(map,expiresAt){
+        salaryLookup={};
+        Object.keys(map||{}).forEach(k=>{
+            if(!k)return;
+            const n=Number(map[k]);
+            if(!isNaN(n))salaryLookup[String(k).trim().toUpperCase()]=n;
+        });
+        salarySessionActive=Object.keys(salaryLookup).length>0;
+        updateSalaryButton(expiresAt);
+        applyFilters();
+        if(editEmpId) updateEditSalaryBox();
+    }
+    function updateSalaryButton(expiresAt){
+        const btn=document.getElementById('salaryBtn');
+        if(!btn)return;
+        if(salarySessionTimer)clearInterval(salarySessionTimer);
+        if(!salarySessionActive){
+            btn.className='btn btn-salary';
+            btn.textContent='₹ Salary';
+            return;
+        }
+        btn.className='btn btn-salary active';
+        const expiry=expiresAt?new Date(expiresAt):new Date(Date.now()+30*60000);
+        const tick=()=>{
+            const remaining=Math.max(0,expiry.getTime()-Date.now());
+            if(remaining<=0){
+                salarySessionActive=false;
+                salaryLookup={};
+                btn.className='btn btn-salary';
+                btn.textContent='₹ Salary';
+                applyFilters();
+                if(editEmpId)updateEditSalaryBox();
+                clearInterval(salarySessionTimer);
+                return;
+            }
+            const m=Math.floor(remaining/60000);
+            const s=Math.floor((remaining%60000)/1000);
+            btn.textContent=`₹ Salary ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        };
+        tick();
+        salarySessionTimer=setInterval(tick,1000);
+    }
     function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
     function escAttr(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
     function routeModalMessage(msg, type='err'){
@@ -2038,6 +3190,17 @@
         if(addModal?.classList.contains('open')){
             showAddError(text, type);
             return true;
+        }
+
+        const salaryModal = document.getElementById('salaryApiModal');
+        if(salaryModal?.classList.contains('open')){
+            const errEl = document.getElementById('salaryApiError');
+            if(errEl){
+                errEl.textContent = text;
+                errEl.style.display = '';
+                errEl.style.color = type==='ok' ? 'var(--g2)' : type==='info' ? 'var(--info)' : 'var(--danger)';
+                return true;
+            }
         }
 
         const deptModal = document.getElementById('deptModal');
@@ -2081,20 +3244,67 @@
     // ── EDIT MODAL STATE ─────────────────────────────────────────
     let editEmpId = null;
     let editContextRow = null;
+    let editCurrentSubHodOption = null;
 
-    async function openEdit(empId) {
+    function updateEditSalaryBox(){
+        const box=document.getElementById('editSalaryBox');
+        const val=document.getElementById('editSalaryValue');
+        if(!box||!val)return;
+        const code=String(document.getElementById('e_code')?.value||'').trim().toUpperCase();
+        const hasSalary=CAN_VIEW_SALARY && salarySessionActive && code && Object.prototype.hasOwnProperty.call(salaryLookup,code);
+        box.style.display=hasSalary?'block':'none';
+        val.textContent=hasSalary?formatMoney(salaryLookup[code]):'—';
+    }
+
+    async function openEdit(empId, contextRoleTypeId = 0, contextHodId = 0, contextSubHodId = 0, contextExecId = 0, contextDeptId = 0, contextSubDeptId = 0) {
         editEmpId = empId;
         editContextRow = null;
+        editCurrentSubHodOption = null;
+        editModalExtras = null;
+        editHodSelectedDeptIds = new Set();
+        editHodOriginalDeptIds = new Set();
+        editSubHodSelectedSubDeptIds = new Set();
+        editSubHodOriginalSubDeptIds = new Set();
         showEditError('');
         updateEditFormLabels();
         document.getElementById('editSaveBtn').disabled = false;
         document.getElementById('editSaveBtn').textContent = 'Save Changes';
         document.getElementById('e_sdept_wrap').style.display = '';
+        document.getElementById('e_teamMoveWrap').style.display = 'none';
+        document.getElementById('e_teamMoveMsg').textContent = '';
+        document.getElementById('e_teamMoveChoice').value = '';
+        document.getElementById('e_unassigned').checked = false;
+        document.getElementById('editSalaryBox').style.display = 'none';
 
-        // Find the row where this empId appears — check all 3 positions
-        const hodRow  = allRows.find(r => r.hodEmployeeId    === empId);
-        const subRow  = allRows.find(r => r.subHodEmployeeId === empId);
-        const execRow = allRows.find(r => r.execEmployeeId   === empId);
+        const ctxRole = Number(contextRoleTypeId) || 0;
+        const ctxHod = Number(contextHodId) || 0;
+        const ctxSub = Number(contextSubHodId) || 0;
+        const ctxExec = Number(contextExecId) || 0;
+        const ctxDept = Number(contextDeptId) || 0;
+        const ctxSubDept = Number(contextSubDeptId) || 0;
+
+        function rowMatchesEditContext(r) {
+            if (!ctxRole) return false;
+            if (ctxHod && Number(r.hodEmployeeId) !== ctxHod) return false;
+            if (ctxSub && Number(r.subHodEmployeeId) !== ctxSub) return false;
+            if (ctxExec && Number(r.execEmployeeId) !== ctxExec) return false;
+            if (ctxDept && Number(r.departmentId) !== ctxDept) return false;
+            if (ctxSubDept && Number(r.subDepartmentId) !== ctxSubDept) return false;
+            if (ctxRole === 1) return Number(r.hodEmployeeId) === Number(empId);
+            if (ctxRole === 2) return Number(r.subHodEmployeeId) === Number(empId);
+            if (ctxRole === 3) return Number(r.execEmployeeId) === Number(empId);
+            return false;
+        }
+
+        const contextRow = allRows.find(rowMatchesEditContext) || null;
+
+        // Find the row where this empId appears — prefer the clicked hierarchy row
+        const hodRow  = (ctxRole === 1 && contextRow) ? contextRow : allRows.find(r => r.hodEmployeeId    === empId);
+        const subRow  = (ctxRole === 2 && contextRow) ? contextRow : allRows.find(r => r.subHodEmployeeId === empId);
+        const execRows = (ctxRole === 3 && contextRow) ? [contextRow] : allRows.filter(r => r.execEmployeeId === empId);
+        const execRow = execRows.find(r => (Number(r.subHodEmployeeId) || 0) > 0)
+            || execRows.find(r => r.subHodName || r.subHodCode)
+            || execRows[0];
 
         if (!hodRow && !subRow && !execRow) {
             showToast('Employee not found in grid', 'err'); return;
@@ -2131,12 +3341,39 @@
 
         let employeeDetail = null;
         try {
-            const empRes = await api(`${API}/GetEmployee/${empId}`);
+            const [empRes, extrasRes] = await Promise.all([
+                api(`${API}/GetEmployee/${empId}`),
+                api(`${API}/GetEmployeeModalExtras?employeeId=${empId}`)
+            ]);
             if (empRes.success) employeeDetail = empRes.data || null;
+            if (extrasRes.success) editModalExtras = extrasRes.data || null;
         } catch (e) {}
 
         const detailDesig = employeeDetail?.designation ?? employeeDetail?.Designation ?? null;
         const detailPrimaryDeptId = employeeDetail?.primaryDepartmentId ?? employeeDetail?.PrimaryDepartmentId ?? null;
+        const detailDoj = editModalExtras?.dateOfJoining ?? editModalExtras?.DateOfJoining ?? null;
+        const detailGender = editModalExtras?.gender ?? editModalExtras?.Gender ?? '';
+        const detailQualification = editModalExtras?.qualification ?? editModalExtras?.Qualification ?? editModalExtras?.qulaification ?? editModalExtras?.Qulaification ?? '';
+        const detailArea = editModalExtras?.area ?? editModalExtras?.Area ?? '';
+        const detailSikh = normalizeSikhCode(editModalExtras?.sikhNonSikh ?? editModalExtras?.SikhNonSikh ?? editModalExtras?.sikh_no_sikh ?? '');
+
+        if (roleTypeId === 3) {
+            const reportTo = getPrimaryReportTo(employeeDetail);
+            const managerId = Number(reportTo?.managerId ?? reportTo?.ManagerId ?? 0) || 0;
+            const managerRoleId = Number(reportTo?.managerRoleTypeId ?? reportTo?.ManagerRoleTypeId ?? 0)
+                || getRoleIdFromName(reportTo?.managerRole ?? reportTo?.ManagerRole ?? reportTo?.managerRoleName ?? reportTo?.ManagerRoleName);
+            if (managerId && managerRoleId === 2) {
+                reportsToSubId = managerId;
+                editCurrentSubHodOption = {
+                    employeeId: managerId,
+                    employeeName: reportTo?.managerName ?? reportTo?.ManagerName ?? '',
+                    employeeCode: reportTo?.managerCode ?? reportTo?.ManagerCode ?? ''
+                };
+            } else if (managerId && managerRoleId === 1) {
+                reportsToHodId = managerId;
+                reportsToSubId = null;
+            }
+        }
 
         if (detailDesig !== null && detailDesig !== undefined) empDesig = detailDesig || '';
 
@@ -2144,6 +3381,15 @@
         document.getElementById('e_code').value  = empCode  || '';
         document.getElementById('e_name').value  = empName  || '';
         document.getElementById('e_desig').value = empDesig || '';
+        updateEditSalaryBox();
+        editCurrentDateOfJoining = detailDoj || editCurrentDateOfJoining;
+        document.getElementById('e_doj').value = formatDateForInput(editCurrentDateOfJoining);
+        document.getElementById('e_gender').value = '';
+        ensureSelectOption('e_gender', detailGender, detailGender);
+        document.getElementById('e_gender').value = detailGender || '';
+        document.getElementById('e_qualification').value = detailQualification || '';
+        document.getElementById('e_area').value = detailArea || '';
+        document.getElementById('e_sikh').value = detailSikh || '';
         document.getElementById('e_role').value  = String(roleTypeId);
         document.getElementById('e_active').checked = roleTypeId === 1 ? row.hodIsActive :
                                                        roleTypeId === 2 ? row.subHodIsActive : row.execIsActive;
@@ -2164,17 +3410,104 @@
             deptsMeta.map(d => `<option value="${d.departmentId}">${esc(d.departmentName)}</option>`).join('');
 
         // Set dept
-        const deptId = roleTypeId === 1 ? (detailPrimaryDeptId || row.departmentId || '') : (row.departmentId || detailPrimaryDeptId || '');
+        const isCurrentlyUnassigned = roleTypeId === 1
+            ? !row.departmentId && !detailPrimaryDeptId
+            : !reportsToHodId && !reportsToSubId && !row.departmentId && !detailPrimaryDeptId;
+        document.getElementById('e_unassigned').checked = isCurrentlyUnassigned;
+
+        const deptId = roleTypeId === 1
+            ? (detailPrimaryDeptId || row.departmentId || findDepartmentIdForSubDepartment(row.subDepartmentId, row.subDepartmentName) || '')
+            : (row.departmentId || detailPrimaryDeptId || findDepartmentIdForSubDepartment(row.subDepartmentId, row.subDepartmentName) || '');
+        if (roleTypeId === 3 && !reportsToSubId && reportsToHodId && deptId) {
+            const inferredSubHod = getOnlySubHodForContext(reportsToHodId, deptId, row.subDepartmentId || null);
+            if (inferredSubHod) {
+                reportsToSubId = Number(inferredSubHod.employeeId) || null;
+                editCurrentSubHodOption = inferredSubHod;
+            }
+        }
+        ensureSelectOption('e_dept', deptId, row.departmentName || getDepartmentNameById(deptId) || 'Current Department');
         deptSel.value = String(deptId);
+        if (roleTypeId === 1) {
+            let hodDeptIds = [];
+            try {
+                const hodDeptRes = await api(`${API}/GetDepartmentsForHOD/${empId}`);
+                if (hodDeptRes.success) {
+                    hodDeptIds = (hodDeptRes.data || []).map(d => d.departmentId || d.DepartmentId || 0).filter(id => id > 0);
+                }
+            } catch(e) {}
+            if (detailPrimaryDeptId) hodDeptIds.push(Number(detailPrimaryDeptId));
+            if (row.departmentId) hodDeptIds.push(Number(row.departmentId));
+            hodDeptIds = [...new Set(hodDeptIds.filter(id => id > 0))];
+            editHodSelectedDeptIds = new Set(hodDeptIds);
+            editHodOriginalDeptIds = new Set(hodDeptIds);
+            renderEditHodDepartments(hodDeptIds);
+        } else {
+            renderEditHodDepartments([]);
+        }
         await loadSubDepts(deptId, 'e_sdept');
         ensureSelectOption('e_sdept', row.subDepartmentId || '', row.subDepartmentName || 'Current Sub-Department');
         document.getElementById('e_sdept').value = roleTypeId === 1 ? '' : String(row.subDepartmentId || '');
         document.getElementById('e_sdept_wrap').style.display = roleTypeId >= 2 ? '' : 'none';
+        let pendingSubHodSubDeptIds = [];
+        if (roleTypeId === 2) {
+            const subHodSubDeptIds = allRows
+                .filter(r =>
+                    Number(r.subHodEmployeeId) === Number(empId) &&
+                    (!reportsToHodId || Number(r.hodEmployeeId) === Number(reportsToHodId)) &&
+                    (!deptId || Number(r.departmentId) === Number(deptId)) &&
+                    Number(r.subDepartmentId) > 0)
+                .map(r => Number(r.subDepartmentId))
+                .filter(id => id > 0);
+            if (row.subDepartmentId) subHodSubDeptIds.push(Number(row.subDepartmentId));
+            const distinctSubDeptIds = [...new Set(subHodSubDeptIds)];
+            editSubHodSelectedSubDeptIds = new Set(distinctSubDeptIds);
+            editSubHodOriginalSubDeptIds = new Set(distinctSubDeptIds);
+            pendingSubHodSubDeptIds = distinctSubDeptIds;
+        } else {
+            renderEditSubHodSubDepartments([]);
+        }
 
         // Load reporting dropdowns
         await onEditRoleChange(reportsToHodId, reportsToSubId, row.subDepartmentId || null);
+        if (deptId) {
+            ensureSelectOption('e_dept', deptId, row.departmentName || getDepartmentNameById(deptId) || 'Current Department');
+            document.getElementById('e_dept').value = String(deptId);
+            await loadSubDepts(deptId, 'e_sdept');
+        }
+        if (roleTypeId >= 2 && row.subDepartmentId) {
+            ensureSelectOption('e_sdept', row.subDepartmentId, row.subDepartmentName || 'Current Sub-Department');
+            document.getElementById('e_sdept').value = String(row.subDepartmentId);
+        }
+        if (roleTypeId === 2) {
+            renderEditSubHodSubDepartments(pendingSubHodSubDeptIds);
+        }
+        onEditUnassignedChange(false);
 
         document.getElementById('editModal').classList.add('open');
+        await populateEditSubHods(reportsToSubId);
+        setTimeout(() => populateEditSubHods(document.getElementById('e_sub')?.value || reportsToSubId), 120);
+    }
+
+    async function onEditUnassignedChange(reloadWhenAssigned = true) {
+        const unassigned = document.getElementById('e_unassigned')?.checked || false;
+        ['e_hod', 'e_dept', 'e_sdept', 'e_sub'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = unassigned;
+            if (unassigned) el.value = '';
+        });
+        document.querySelectorAll('#e_hod_dept_multi input[type="checkbox"]').forEach(cb => {
+            cb.disabled = unassigned;
+        });
+        document.querySelectorAll('#e_subhod_sdept_multi input[type="checkbox"]').forEach(cb => {
+            cb.disabled = unassigned;
+        });
+        document.getElementById('e_hod_row').style.opacity = unassigned ? '.55' : '1';
+        document.getElementById('e_hod_dept_multi').style.opacity = unassigned ? '.55' : '1';
+        document.getElementById('e_subhod_sdept_multi').style.opacity = unassigned ? '.55' : '1';
+        document.getElementById('e_sdept_wrap').style.opacity = unassigned ? '.55' : '1';
+        document.getElementById('e_sub_row').style.opacity = unassigned ? '.55' : '1';
+        if (!unassigned && reloadWhenAssigned) await onEditRoleChange();
     }
 
     async function onEditRoleChange(presetHodId, presetSubId, presetSubDeptId) {
@@ -2184,6 +3517,7 @@
         const subDeptWrap = document.getElementById('e_sdept_wrap');
         const hodSel = document.getElementById('e_hod');
         const subSel = document.getElementById('e_sub');
+        setEditDeptMode(role);
         hodRow.style.display = role >= 2 ? '' : 'none';
         subRow.style.display = role === 3 ? '' : 'none';
         subDeptWrap.style.display = role >= 2 ? '' : 'none';
@@ -2199,10 +3533,17 @@
                 ensureSelectOption('e_dept', currentDeptValue, editContextRow?.departmentName || 'Current Department');
                 document.getElementById('e_dept').value = currentDeptValue;
             }
+            if (!editHodSelectedDeptIds.size && currentDeptValue) {
+                editHodSelectedDeptIds = new Set([parseInt(currentDeptValue)]);
+                renderEditHodDepartments([...editHodSelectedDeptIds]);
+            } else {
+                syncEditHodDeptSelect();
+            }
             return;
         }
 
         if (role >= 2) {
+            if (role !== 2) renderEditSubHodSubDepartments([]);
             await loadHodsMeta();
             renderHodOptions('e_hod', hodsMeta, editEmpId);
             if (presetHodId) {
@@ -2221,6 +3562,12 @@
         const role = parseInt(document.getElementById('e_role').value);
         const deptId = parseInt(document.getElementById('e_dept').value) || null;
         await loadSubDepts(deptId, 'e_sdept');
+        if (role === 2) {
+            const selected = keepCurrentSubDept
+                ? [...editSubHodSelectedSubDeptIds]
+                : [];
+            renderEditSubHodSubDepartments(selected);
+        }
         if (keepCurrentSubDept && (presetSubDeptId || editContextRow?.subDepartmentId)) {
             const selectedSubDeptId = presetSubDeptId || editContextRow?.subDepartmentId;
             ensureSelectOption('e_sdept', selectedSubDeptId, editContextRow?.subDepartmentName || 'Current Sub-Department');
@@ -2238,14 +3585,47 @@
         const subSel = document.getElementById('e_sub');
         subSel.innerHTML = '<option value="">— Direct to HOD —</option>';
         if (role !== 3 || !hodId || !deptId) return;
-        getSubHodsForDepartment(hodId, deptId, subDeptId).forEach(s => {
+        let selectedSubHodId = Number(presetSubHod) || 0;
+        let subHods = getSubHodsForDepartment(hodId, deptId, subDeptId);
+        if (!subHods.length && subDeptId) subHods = getSubHodsForDepartment(hodId, deptId, 0);
+        if (!subHods.length) subHods = getSubHodsForDepartment(hodId, 0, 0);
+        if (!subHods.length) {
+            try {
+                const r = await api(`${API}/GetSubHODsForEdit?hodId=${hodId}`);
+                if (r.success) {
+                    subHods = (r.data || []).map(e => ({
+                        employeeId:e.employeeId || e.EmployeeId,
+                        employeeName:e.employeeName || e.EmployeeName,
+                        employeeCode:e.employeeCode || e.EmployeeCode
+                    }));
+                }
+            } catch(e) {}
+        }
+        subHods = subHods.filter(s => (Number(s.employeeId) || 0) !== (Number(editEmpId) || 0));
+        if (!selectedSubHodId && subHods.length === 1) {
+            selectedSubHodId = Number(subHods[0].employeeId) || 0;
+        }
+        if (selectedSubHodId && !subHods.some(s => (Number(s.employeeId) || 0) === selectedSubHodId)) {
+            const currentSubHod = (Number(editCurrentSubHodOption?.employeeId) || 0) === selectedSubHodId
+                ? editCurrentSubHodOption
+                : getSubHodFromRows(selectedSubHodId);
+            if (currentSubHod) subHods.unshift(currentSubHod);
+        }
+        subHods.forEach(s => {
             subSel.innerHTML += `<option value="${s.employeeId}">${esc(s.employeeName)} (${s.employeeCode})</option>`;
         });
-        if (presetSubHod) document.getElementById('e_sub').value = String(presetSubHod);
+        if (selectedSubHodId && selectedSubHodId !== (Number(editEmpId) || 0)) {
+            document.getElementById('e_sub').value = String(selectedSubHodId);
+        }
     }
 
     async function onEditSubDeptChange() {
         await populateEditSubHods();
+    }
+
+    async function refreshEditSubHods() {
+        const selectedValue = document.getElementById('e_sub')?.value || '';
+        await populateEditSubHods(selectedValue);
     }
 
     async function onEditHodChange(presetSubHod, presetDeptId, keepCurrentSubDept = false, presetSubDeptId = null) {
@@ -2259,8 +3639,8 @@
             const r = await api(`${API}/GetDepartmentsForHOD/${hodId}`);
             if(r.success){
                 renderDeptOptions('e_dept', r.data||[]);
-                if (presetDeptId && editContextRow?.departmentName) {
-                    ensureSelectOption('e_dept', presetDeptId, editContextRow.departmentName);
+                if (presetDeptId) {
+                    ensureSelectOption('e_dept', presetDeptId, editContextRow?.departmentName || getDepartmentNameById(presetDeptId) || 'Current Department');
                 }
                 if (presetDeptId) document.getElementById('e_dept').value = String(presetDeptId);
             }else{
@@ -2276,7 +3656,9 @@
         document.getElementById('editModal').classList.remove('open');
         editEmpId = null;
         editContextRow = null;
+        editCurrentSubHodOption = null;
         editCurrentDateOfJoining = null;
+        editModalExtras = null;
     }
 
     async function submitEdit() {
@@ -2286,32 +3668,53 @@
         const code = document.getElementById('e_code').value.trim();
         const name = document.getElementById('e_name').value.trim();
         const role = parseInt(document.getElementById('e_role').value);
+        const isUnassigned = document.getElementById('e_unassigned')?.checked || false;
+        const hodDepartmentIds = role === 1 && !isUnassigned ? getEditHodDepartmentIds() : [];
+        const subHodSubDepartmentIds = role === 2 && !isUnassigned ? getEditSubHodSubDepartmentIds() : [];
 
         if (!code || !name) { showEditError('Code and Name are required'); return; }
-        const hierarchyError = validateHierarchySequence(role,'e');
-        if (hierarchyError) { showEditError(hierarchyError); return; }
+        if (!isUnassigned) {
+            const hierarchyError = validateHierarchySequence(role,'e');
+            if (hierarchyError) { showEditError(hierarchyError); return; }
+        }
         // ReportsTo is optional — exec/subhod can report directly or have no manager
 
         const currentRow = editContextRow || allRows.find(r => r.hodEmployeeId===editEmpId || r.subHodEmployeeId===editEmpId || r.execEmployeeId===editEmpId);
+        const originalRole = currentRow ? (currentRow.subHodEmployeeId === editEmpId ? 2 : currentRow.hodEmployeeId === editEmpId ? 1 : 3) : role;
         const deptRaw = document.getElementById('e_dept').value;
         const subDeptRaw = document.getElementById('e_sdept').value;
-        const deptId = deptRaw !== ''
+        const deptId = isUnassigned ? null : (deptRaw !== ''
             ? (parseInt(deptRaw) || null)
-            : (role >= 2 ? (currentRow?.departmentId || null) : null);
-        const subDeptId = subDeptRaw !== ''
+            : (role >= 2 ? (currentRow?.departmentId || null) : null));
+        const subDeptId = isUnassigned ? null : (subDeptRaw !== ''
             ? (parseInt(subDeptRaw) || null)
-            : (role >= 2 ? (currentRow?.subDepartmentId || null) : null);
+            : (role >= 2 ? (currentRow?.subDepartmentId || null) : null));
         const hodRow2   = document.getElementById('e_hod_row');
         const hodRaw = document.getElementById('e_hod').value;
-        const hodId = hodRow2.style.display !== 'none'
-            ? (hodRaw !== '' ? (parseInt(hodRaw) || null) : (currentRow?.hodEmployeeId || null))
+        const fallbackHodId = (originalRole >= 2 ? (currentRow?.hodEmployeeId || null) : null);
+        const hodId = !isUnassigned && hodRow2.style.display !== 'none'
+            ? (hodRaw !== '' ? (parseInt(hodRaw) || null) : fallbackHodId)
             : null;
         const subRow2   = document.getElementById('e_sub_row');
         const subRaw = document.getElementById('e_sub').value;
-        const subHodId = subRow2.style.display !== 'none'
-            ? (subRaw !== '' ? (parseInt(subRaw) || null) : (currentRow?.subHodEmployeeId || null))
+        const fallbackSubHodId = originalRole === 3 && (currentRow?.subHodEmployeeId || 0) !== editEmpId
+            ? (currentRow?.subHodEmployeeId || null)
             : null;
-        const reportsTo = role === 3 ? (subHodId || hodId || null) : role === 2 ? (hodId || null) : null;
+        const subHodId = !isUnassigned && subRow2.style.display !== 'none'
+            ? (subRaw !== '' ? (parseInt(subRaw) || null) : fallbackSubHodId)
+            : null;
+        const computedReportsTo = isUnassigned ? null : (role === 3 ? (subHodId || hodId || null) : role === 2 ? (hodId || null) : null);
+        const reportsTo = computedReportsTo === editEmpId ? null : computedReportsTo;
+        if (computedReportsTo === editEmpId && role !== 3) {
+            showEditError('Please select a valid manager. Employee cannot report to themselves.');
+            btn.disabled = false; btn.textContent = 'Save Changes';
+            return;
+        }
+        if (reportsTo && !isEmployeeActiveById(reportsTo)) {
+            showEditError('Selected manager is inactive. Please choose an active HOD/Sub-HOD.');
+            btn.disabled = false; btn.textContent = 'Save Changes';
+            return;
+        }
         let moveTeamWithDepartment = false;
 
         btn.disabled = true; btn.textContent = 'Saving…';
@@ -2319,10 +3722,13 @@
             const currentDeptId = currentRow?.departmentId || null;
             const currentSubDeptId = currentRow?.subDepartmentId || null;
             // Detect original role from grid context
-            const originalRole = currentRow ? (currentRow.subHodEmployeeId === editEmpId ? 2 : currentRow.hodEmployeeId === editEmpId ? 1 : 3) : role;
             const roleChangedFromSubToHod = originalRole === 2 && role === 1;
             const changedDept = (currentDeptId !== deptId || currentSubDeptId !== subDeptId) && (role <= 2 || originalRole <= 2);
-            if(changedDept || roleChangedFromSubToHod){
+            const backendManagedDepartmentChange = !isUnassigned
+                && originalRole === role
+                && (role === 1 || role === 2)
+                && (currentDeptId !== deptId || currentSubDeptId !== subDeptId);
+            if(!isUnassigned && !backendManagedDepartmentChange && (changedDept || roleChangedFromSubToHod)){
                 const impactRes = await api(`${API}/GetDepartmentChangeImpact`, 'POST', {
                     employeeId: editEmpId,
                     roleTypeId: role,
@@ -2333,14 +3739,25 @@
                 });
                 const impact = impactRes?.data || impactRes?.Data;
                 if(impactRes?.success && impact?.requiresMoveTeam){
-                    const msg = impact.message || `This ${role===1?'HOD':'Sub-HOD'} has ${(impact.directReportCount||0)} linked employees. What would you like to do?`;
-                    const choice = await showDeptMoveModal(msg);
-                    if(choice === 'abort'){
+                    const msg = impact.message || `This ${role===1?'HOD':'Sub-HOD'} has ${(impact.directReportCount||0)} linked employees. Choose how to apply this change.`;
+                    document.getElementById('e_teamMoveWrap').style.display = '';
+                    document.getElementById('e_teamMoveMsg').textContent = msg;
+                    const choice = document.getElementById('e_teamMoveChoice').value || '';
+                    if(!choice){
+                        showEditError('Please choose a team action below, then click Save Changes again.');
                         btn.disabled = false; btn.textContent = 'Save Changes';
                         return;
                     }
                     moveTeamWithDepartment = (choice === 'move');
+                } else {
+                    document.getElementById('e_teamMoveWrap').style.display = 'none';
+                    document.getElementById('e_teamMoveMsg').textContent = '';
+                    document.getElementById('e_teamMoveChoice').value = '';
                 }
+            } else if (backendManagedDepartmentChange) {
+                document.getElementById('e_teamMoveWrap').style.display = 'none';
+                document.getElementById('e_teamMoveMsg').textContent = '';
+                document.getElementById('e_teamMoveChoice').value = '';
             }
             const r = await fetch(`${API}/UpdateEmployeeFull`, {
                 method: 'POST',
@@ -2350,17 +3767,49 @@
                     employeeCode:    code,
                     employeeName:    name,
                     designation:     document.getElementById('e_desig').value.trim() || null,
-                    dateOfJoining:   editCurrentDateOfJoining,
+                    dateOfJoining:   document.getElementById('e_doj').value || null,
+                    gender:          document.getElementById('e_gender').value || null,
+                    qualification:   document.getElementById('e_qualification').value.trim() || null,
+                    area:            document.getElementById('e_area').value.trim() || null,
+                    sikhNonSikh:     normalizeSikhCode(document.getElementById('e_sikh').value) || null,
                     roleTypeId:      role,
                     departmentId:    deptId,
                     subDepartmentId: subDeptId,
+                    currentDepartmentId: currentDeptId,
+                    currentSubDepartmentId: currentSubDeptId,
                     reportsToEmpId:  reportsTo,
+                    isUnassigned:    isUnassigned,
                     isActive:        document.getElementById('e_active').checked,
-                    moveTeamWithDepartment: moveTeamWithDepartment
+                    moveTeamWithDepartment: moveTeamWithDepartment,
+                    skipRelationshipSync: role === 2 && !isUnassigned
                 })
             });
             const d = await r.json();
             if (d.success) {
+                if (role === 1 && !isUnassigned) {
+                    const syncResult = await api(`${API}/SyncHODDepartments`, 'POST', {
+                        hodEmployeeId: editEmpId,
+                        departmentIds: hodDepartmentIds
+                    });
+                    if (!syncResult.success) {
+                        showEditError(syncResult.message || 'Employee updated, but department selection was not saved');
+                        btn.disabled = false; btn.textContent = 'Save Changes';
+                        return;
+                    }
+                }
+                if (role === 2 && !isUnassigned) {
+                    const syncResult = await api(`${API}/SyncSubHODSubDepartments`, 'POST', {
+                        subHodEmployeeId: editEmpId,
+                        hodEmployeeId: hodId,
+                        departmentId: deptId,
+                        subDepartmentIds: subHodSubDepartmentIds
+                    });
+                    if (!syncResult.success) {
+                        showEditError(syncResult.message || 'Employee updated, but sub-department selection was not saved');
+                        btn.disabled = false; btn.textContent = 'Save Changes';
+                        return;
+                    }
+                }
                 showEditError(d.message || 'Employee updated successfully', 'ok');
                 await loadGrid();
                 btn.disabled = false; btn.textContent = 'Save Changes';
@@ -3700,36 +5149,36 @@ function mixColor(primary, secondary, ratio) {
         el.style.display = msg ? 'block' : 'none';
     }
 
-    async function openColumnManager() {
-        showCfError('');
-        document.getElementById('cf_name').value = '';
-        document.getElementById('cf_type').value = 'Text';
-        document.getElementById('cf_options').value = '';
-        document.getElementById('cf_options_wrap').style.display = 'none';
-        await loadCustomFields();
-        renderCfList();
-        document.getElementById('colModal').classList.add('open');
-    }
+    // async function openColumnManager() {
+    //     showCfError('');
+    //     document.getElementById('cf_name').value = '';
+    //     document.getElementById('cf_type').value = 'Text';
+    //     document.getElementById('cf_options').value = '';
+    //     document.getElementById('cf_options_wrap').style.display = 'none';
+    //     await loadCustomFields();
+    //     renderCfList();
+    //     document.getElementById('colModal').classList.add('open');
+    // }
 
     function closeColumnManager() {
         document.getElementById('colModal').classList.remove('open');
     }
 
-    function renderCfList() {
-        const el = document.getElementById('cfList');
-        if (!customFieldsMeta.length) {
-            el.innerHTML = '<div class="dm-empty">No custom columns yet</div>';
-            return;
-        }
-        el.innerHTML = customFieldsMeta.map(f =>
-            `<div class="cf-row">
-                <span class="cf-name">${esc(f.fieldName)}</span>
-                <span class="cf-type">${esc(f.fieldType)}</span>
-                ${f.isRequired ? '<span class="cf-type" style="color:var(--danger)">Required</span>' : ''}
-                <button class="cf-del" onclick="removeCustomField(${f.fieldId},'${esc(f.fieldName)}')">✕ Remove</button>
-            </div>`
-        ).join('');
-    }
+    // function renderCfList() {
+    //     const el = document.getElementById('cfList');
+    //     if (!customFieldsMeta.length) {
+    //         el.innerHTML = '<div class="dm-empty">No custom columns yet</div>';
+    //         return;
+    //     }
+    //     el.innerHTML = customFieldsMeta.map(f =>
+    //         `<div class="cf-row">
+    //             <span class="cf-name">${esc(f.fieldName)}</span>
+    //             <span class="cf-type">${esc(f.fieldType)}</span>
+    //             ${f.isRequired ? '<span class="cf-type" style="color:var(--danger)">Required</span>' : ''}
+    //             <button class="cf-del" onclick="removeCustomField(${f.fieldId},'${esc(f.fieldName)}')">✕ Remove</button>
+    //         </div>`
+    //     ).join('');
+    // }
 
     async function addCustomField() {
         showCfError('');
@@ -3913,7 +5362,7 @@ function mixColor(primary, secondary, ratio) {
     function closeVisModal() { document.getElementById('visModal').classList.remove('open'); }
 
     function renderVisModalList() {
-        const salCols = false;
+        const salCols = CAN_VIEW_SALARY && salarySessionActive;
         const adm = IS_ADMIN;
         const cols = getEffectiveCols(salCols, adm);
         document.getElementById('visColList').innerHTML = cols.map((c,i)=>`
@@ -3939,7 +5388,7 @@ function mixColor(primary, secondary, ratio) {
 
     function moveCol(key, dir) {
         if (!colVisState) initColVis();
-        const cols = getEffectiveCols(false, IS_ADMIN);
+        const cols = getEffectiveCols(CAN_VIEW_SALARY && salarySessionActive, IS_ADMIN);
         const keys = cols.map(c=>c.key);
         const idx = keys.indexOf(key);
         if (idx < 0) return;

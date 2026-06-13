@@ -1,0 +1,602 @@
+﻿@{
+    ViewBag.Title = "User Sessions";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="page-header-section">
+        <div class="header-content">
+            <div class="header-left">
+                <span class="header-icon">📋</span>
+                <div>
+                    <h1 class="page-title mb-1">User Sessions</h1>
+                    <p class="page-subtitle mb-0">Manage your active and inactive sessions</p>
+                </div>
+            </div>
+            <button class="btn btn-toggle-inactive" id="toggleInactiveBtn">
+                <span id="toggleIcon">👁️</span>
+                <span id="toggleText">Show Inactive Sessions</span>
+            </button>
+        </div>
+    </div>
+
+    <input type="hidden" id="userId" name="UpdatedBy" value="@ViewBag.userId" />
+    <input type="hidden" id="Company" name="CompanyId" value="@ViewBag.company" />
+
+    <!-- Active Sessions Section -->
+    <div class="sessions-section">
+        <div class="section-header">
+            <div class="section-title">
+                <span class="section-icon">📂</span>
+                <span>Active Sessions (<span id="activeCount">0</span>)</span>
+            </div>
+            <button class="btn btn-refresh" onclick="loadActiveSessions()">
+                <span>↻</span> Refresh
+            </button>
+        </div>
+        <div class="table-container">
+            <table class="sessions-table">
+                <thead>
+                    <tr>
+                        <th>SESSION ID</th>
+                        <th>LOT NUMBER</th>
+                        <th>SESSION NAME</th>
+                        <th>CREATED DATE</th>
+                        <th>ASSIGNED BY</th>
+                        <th>DURATION (DAYS)</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="activeSessionsBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Inactive Sessions Section -->
+    <div class="sessions-section" id="inactiveSessionsSection">
+        <div class="section-header">
+            <div class="section-title">
+                <span class="section-icon">📂</span>
+                <span>Inactive Sessions (<span id="inactiveCount">0</span>)</span>
+            </div>
+            <button class="btn btn-refresh" onclick="loadInactiveSessions()">
+                <span>↻</span> Refresh
+            </button>
+        </div>
+        <div class="table-container">
+            <table class="sessions-table">
+                <thead>
+                    <tr>
+                        <th>SESSION ID</th>
+                        <th>LOT NUMBER</th>
+                        <th>SESSION NAME</th>
+                        <th>CREATED DATE</th>
+                        <th>ASSIGNED BY</th>
+                        <th>DURATION (DAYS)</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="inactiveSessionsBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-secondary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Page Header Styles */
+    .page-header-section {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a7b 100%);
+        border-radius: 12px;
+        padding: 24px 32px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .header-icon {
+        font-size: 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0;
+    }
+
+    .page-subtitle {
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0;
+    }
+
+    .btn-toggle-inactive {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .btn-toggle-inactive:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-toggle-inactive span {
+            font-size: 1rem;
+        }
+
+    /* Sessions Section Styles */
+    .sessions-section {
+        background: #ffffff;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .section-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a7b 100%);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #ffffff;
+    }
+
+    .section-icon {
+        font-size: 1.3rem;
+    }
+
+    .btn-refresh {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-refresh:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+    /* Table Styles */
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .sessions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .sessions-table thead {
+            background: #f8fafc;
+        }
+
+        .sessions-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #fffff7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+            background-color: #5c7790;
+        }
+
+        .sessions-table tbody tr {
+            border-bottom: 1px solid #e2e8f0;
+            transition: background-color 0.2s ease;
+        }
+
+            .sessions-table tbody tr:hover {
+                background-color: #f8fafc;
+            }
+
+        .sessions-table td {
+            padding: 16px;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+
+    /* Action Buttons */
+    .btn-edit {
+        background-color: #06b6d4;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-edit:hover {
+            background-color: #0891b2;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(6, 182, 212, 0.3);
+        }
+
+    .btn-view {
+        background-color: #6b7280;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: 8px;
+    }
+
+        .btn-view:hover {
+            background-color: #4b5563;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(107, 114, 128, 0.3);
+        }
+
+    .btn-excel {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-excel:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .header-content
+
+    {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    }
+
+    /* Loading and Empty States */
+    .text-center {
+        text-align: center;
+        padding: 40px 20px;
+        color: #64748b;
+    }
+
+    .spinner-border {
+        width: 2rem;
+        height: 2rem;
+        border-width: 0.25em;
+    }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        const userId = document.getElementById('userId').value;
+        let inactiveVisible = false; // Changed to false - inactive should be hidden by default
+
+        // Load sessions on page load
+        loadActiveSessions();
+        loadInactiveSessions();
+
+        // Hide inactive section initially
+        $('#inactiveSessionsSection').hide();
+
+        // Toggle inactive sessions visibility
+        $('#toggleInactiveBtn').click(function () {
+            inactiveVisible = !inactiveVisible;
+            if (inactiveVisible) {
+                $('#inactiveSessionsSection').slideDown(300);
+                $('#toggleIcon').text('🙈');
+                $('#toggleText').text('Hide Inactive Sessions');
+            } else {
+                $('#inactiveSessionsSection').slideUp(300);
+                $('#toggleIcon').text('👁️');
+                $('#toggleText').text('Show Inactive Sessions');
+            }
+        });
+    });
+
+    // Load active sessions
+    function loadActiveSessions() {
+        const userId = document.getElementById('userId').value;
+
+        $.ajax({
+            url: '/api/InventoryAudit/GetActiveSessionsByUser',
+            type: 'GET',
+            data: { createdBy: userId },
+            success: function (response) {
+                if (response.success) {
+                    const sessions = Array.isArray(response.data) ? response.data : [response.data];
+                    $('#activeCount').text(sessions.length);
+                    renderActiveSessions(sessions);
+                }
+            },
+            error: function (error) {
+                console.error('Error loading active sessions:', error);
+                $('#activeSessionsBody').html('<tr><td colspan="7" class="text-center text-danger">❌ Error loading active sessions</td></tr>');
+            }
+        });
+    }
+
+    // Load inactive sessions
+    function loadInactiveSessions() {
+        const userId = document.getElementById('userId').value;
+
+        $.ajax({
+            url: '/api/InventoryAudit/GetInActiveSessionsByUser',
+            type: 'GET',
+            data: { createdBy: userId },
+            success: function (response) {
+                if (response.success) {
+                    const sessions = Array.isArray(response.data) ? response.data : [response.data];
+                    $('#inactiveCount').text(sessions.length);
+                    renderInactiveSessions(sessions);
+                }
+            },
+            error: function (error) {
+                console.error('Error loading inactive sessions:', error);
+                $('#inactiveSessionsBody').html('<tr><td colspan="7" class="text-center text-danger">❌ Error loading inactive sessions</td></tr>');
+            }
+        });
+    }
+
+    // Render active sessions
+    function renderActiveSessions(sessions) {
+        let html = '';
+
+        if (sessions.length === 0) {
+            html = '<tr><td colspan="7" class="text-center">📭 No active sessions found</td></tr>';
+        } else {
+            sessions.forEach(function (session) {
+                const duration = calculateDuration(session.startDate, session.endDate);
+                html += `
+                    <tr>
+                        <td>${session.sessionId}</td>
+                        <td>${session.lotNumber || '-'}</td>
+                        <td>${session.sessionName || '-'}</td>
+                        <td>${formatDate(session.createdDate)}</td>
+                        <td>${session.createdBy || '-'}</td>
+                        <td>${duration}</td>
+                        <td>
+                            <button class="btn-view" onclick="viewSession(${session.sessionId}, '${session.lotNumber}')">
+                                👁️ View
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        $('#activeSessionsBody').html(html);
+    }
+
+    // Render inactive sessions
+    function renderInactiveSessions(sessions) {
+        let html = '';
+
+        if (sessions.length === 0) {
+            html = '<tr><td colspan="7" class="text-center">📭 No inactive sessions found</td></tr>';
+        } else {
+            sessions.forEach(function (session) {
+                const duration = calculateDuration(session.startDate, session.endDate);
+                html += `
+                    <tr>
+                        <td>${session.sessionId}</td>
+                        <td>${session.lotNumber || '-'}</td>
+                        <td>${session.sessionName || '-'}</td>
+                        <td>${formatDate(session.createdDate)}</td>
+                        <td>${session.createdBy || '-'}</td>
+                        <td>${duration}</td>
+                        <td>
+                            <button class="btn-view" onclick="viewSession(${session.sessionId}, '${session.lotNumber}')">
+                                👁️ View
+                            </button>
+                            <button class="btn-excel" onclick="downloadExcel('${session.lotNumber}')">
+                                📥 Excel
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        $('#inactiveSessionsBody').html(html);
+    }
+
+    // Calculate duration in days
+    function calculateDuration(startDate, endDate) {
+        if (!startDate || !endDate) return 'N/A';
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return diffDays;
+    }
+
+    // Format date
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    // Edit session function
+    function editSession(sessionId, lotNumber) {
+        window.location.href = `/InventoryAuditWeb/EditSession?sessionId=${sessionId}&lotNumber=${lotNumber}`;
+    }
+
+    // View session function
+    function viewSession(sessionId, lotNumber) {
+        window.location.href = `/InventoryAuditWeb/SessionDetails?sessionId=${sessionId}&lotNumber=${lotNumber}`;
+    }
+
+    // Download Excel report
+    function downloadExcel(lotNumber) {
+        const userId = document.getElementById('userId').value;
+        const button = event.target.closest('button');
+        const originalHtml = button.innerHTML;
+
+        button.disabled = true;
+        button.innerHTML = '⏳ Generating...';
+
+        $.ajax({
+            url: '/api/InventoryAudit/DownloadInventoryReport',
+            type: 'GET',
+            data: {
+                lotNumber: lotNumber,
+                userId: userId
+            },
+            success: function (response) {
+                if (response.success) {
+                    exportToExcel(response.data, `Inventory_Report_${lotNumber}.xlsx`);
+
+                    // Show success notification
+                    showNotification('Report generated successfully!', 'success');
+                } else {
+                    showNotification('Error: ' + response.message, 'error');
+                }
+            },
+            error: function (error) {
+                console.error('Error generating report:', error);
+                showNotification('Error generating report. Please try again.', 'error');
+            },
+            complete: function() {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    // Export to Excel function
+    function exportToExcel(data, filename) {
+        if (data.length === 0) {
+            showNotification('No data to export', 'warning');
+            return;
+        }
+
+        try {
+            // Create a new workbook
+            const wb = XLSX.utils.book_new();
+
+            // Convert JSON data to worksheet
+            const ws = XLSX.utils.json_to_sheet(data);
+
+            // Auto-size columns (optional but recommended)
+            const colWidths = [];
+            const headers = Object.keys(data[0]);
+            headers.forEach((header, idx) => {
+                const maxLength = Math.max(
+                    header.length,
+                    ...data.map(row => String(row[header] || '').length)
+                );
+                colWidths.push({ wch: Math.min(maxLength + 2, 50) }); // Max 50 chars width
+            });
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Inventory Report');
+
+            // Generate Excel file and trigger download
+            XLSX.writeFile(wb, filename);
+
+            console.log('✅ Excel file generated:', filename);
+        } catch (error) {
+            console.error('Error creating Excel file:', error);
+            showNotification('Error creating Excel file: ' + error.message, 'error');
+        }
+    }
+
+    // Show notification
+    function showNotification(message, type) {
+        // You can implement a toast notification here
+        // For now, using alert
+        alert(message);
+    }
+</script>

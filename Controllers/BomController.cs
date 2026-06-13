@@ -1,9 +1,11 @@
 ﻿using JSAPNEW.Data.Entities;
+using JSAPNEW.Authorization;
 using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 
@@ -17,14 +19,88 @@ namespace JSAPNEW.Controllers
         private readonly IConfiguration _configuration;
         private readonly IBomService _bomService; //An interface for bom-related operations
         private readonly IBom2Service _bom2Service;
+        private readonly IUserService _userService;
 
         private readonly ILogger<BomController> _bomlogger; //for recording events or errors
-        public BomController(IConfiguration configuration, IBomService bomService, ILogger<BomController> logger, IBom2Service bom2Service)
+        public BomController(IConfiguration configuration, IBomService bomService, ILogger<BomController> logger, IBom2Service bom2Service, IUserService userService)
         {
             _configuration = configuration;
             _bomService = bomService;
             _bomlogger = logger;
             _bom2Service = bom2Service;
+            _userService = userService;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<(int UserId, bool Authorized)> GetAuthorizedScopeAsync(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            if (userId <= 0 || companyId <= 0)
+            {
+                return (0, false);
+            }
+
+            return (userId, await ResourceAuthorizationHelper.VerifyCompanyOwnsResource(userId, companyId, _userService.GetCompanyAsync));
+        }
+
+        private async Task<bool> VerifyUserOwnsResource(int bomId, int userId)
+        {
+            var companies = await _userService.GetCompanyAsync(userId);
+            if (companies == null)
+            {
+                return false;
+            }
+
+            foreach (var company in companies)
+            {
+                var header = await _bomService.FullHeaderDetailModelAsync(bomId, company.id);
+                if (header != null && header.Any())
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private async Task<bool> VerifyCompanyOwnsResource(int userId, int companyId)
+        {
+            return await ResourceAuthorizationHelper.VerifyCompanyOwnsResource(userId, companyId, _userService.GetCompanyAsync);
+        }
+
+        private async Task<bool> VerifyUserOwnsBomComponent(int bomComId, int userId)
+        {
+            var companies = await _userService.GetCompanyAsync(userId);
+            if (companies == null)
+            {
+                return false;
+            }
+
+            foreach (var company in companies)
+            {
+                var boms = await _bomService.GetAllBomWithDetailsAsync(userId, company.id);
+                foreach (var bom in boms ?? Enumerable.Empty<BomAllDataWithDetails>())
+                {
+                    var materials = await _bomService.BomMaterialAsync(bom.bomId, company.id);
+                    if (materials != null && materials.Any(material => material.bomComId == bomComId))
+                    {
+                        return true;
+                    }
+
+                    var resources = await _bomService.BomResourceAsync(bom.bomId, company.id);
+                    if (resources != null && resources.Any(resource => resource.bomComId == bomComId))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         [HttpGet("getwarehouse")]
@@ -39,7 +115,7 @@ namespace JSAPNEW.Controllers
                     _bomlogger.LogInformation("No name found");
                     return NotFound(new { Success = false, Message = "No name found" });
                 }
-
+   
                 _bomlogger.LogInformation("name retrieved successfully.");
                 return Ok(new { Success = true, Data = name });
             }
@@ -176,6 +252,19 @@ namespace JSAPNEW.Controllers
                     return BadRequest(new { Success = false, Message = "Invalid request data." });
                 }
 
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyCompanyOwnsResource(userId, request.company) || !await VerifyUserOwnsResource(request.bomId, userId))
+                {
+                    return Forbid();
+                }
+
+                request.updatedBy = userId;
+
                 var result = await _bomService.AddBomComponentAsync(request);
 
                 if (result.Any())
@@ -205,6 +294,20 @@ namespace JSAPNEW.Controllers
                     _bomlogger.LogWarning("Remove Bom request is null.");
                     return BadRequest(new { Success = false, Message = "Invalid request data." });
                 }
+
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsBomComponent(request.bomComId, userId))
+                {
+                    return Forbid();
+                }
+
+                request.updatedBy = userId;
+
                 var result = await _bomService.RemoveBomComponentAsync(request);
 
                 if (result.Any())
@@ -234,6 +337,19 @@ namespace JSAPNEW.Controllers
                     return BadRequest(new { Success = false, Message = "Invalid request data." });
                 }
 
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyCompanyOwnsResource(userId, request.company))
+                {
+                    return Forbid();
+                }
+
+                request.createdBy = userId;
+
                 var result = await _bomService.CreateBomAsync(request);
 
                 if (result.Any())
@@ -258,6 +374,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var pendingbom = await _bomService.PendingBOMsAsync(userId, companyId);
 
                 if (!pendingbom.Any())
@@ -281,6 +404,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized || !await VerifyUserOwnsResource(bomId, scope.UserId))
+                {
+                    return Forbid();
+                }
+
                 var bommaterial = await _bomService.BomMaterialAsync(bomId, company);
 
                 if (!bommaterial.Any())
@@ -304,6 +433,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized || !await VerifyUserOwnsResource(bomId, scope.UserId))
+                {
+                    return Forbid();
+                }
+
                 var bomresource = await _bomService.BomResourceAsync(bomId, company);
 
                 if (!bomresource.Any())
@@ -327,6 +462,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var approvedbom = await _bomService.GetApprovedBOMsAsync(userId, company);
 
                 if (!approvedbom.Any())
@@ -350,6 +492,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var rejectedbom = await _bomService.GetRejectedBOMsAsync(userId, company);
 
                 if (!rejectedbom.Any())
@@ -373,6 +522,17 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsResource(bomId, userId))
+                {
+                    return Forbid();
+                }
+
                 var result = await _bomService.BomApproveAsync(bomId, userId, description);
 
                 // Check the result for success
@@ -402,6 +562,17 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsResource(bomId, userId))
+                {
+                    return Forbid();
+                }
+
                 var result = await _bomService.BomRejectAsync(bomId, userId, description);
 
                 // Check the result for success
@@ -484,6 +655,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var bominsights = await _bomService.TotalBomInsightsAsync(userId, companyId);
 
                 if (!bominsights.Any())
@@ -507,6 +685,12 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized || !await VerifyUserOwnsResource(bomId, scope.UserId))
+                {
+                    return Forbid();
+                }
+
                 var headerDetails = await _bomService.FullHeaderDetailModelAsync(bomId, company);
 
                 if (!headerDetails.Any())
@@ -530,6 +714,17 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsResource(bomId, updatedBy))
+                {
+                    return Forbid();
+                }
+
                 var updateResult = await _bomService.UpdateBomHeaderAsync(bomId, qty, wareHouse, updatedBy);
 
                 if (updateResult == 0)
@@ -578,6 +773,17 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                updatedBy = GetAuthenticatedUserId();
+                if (updatedBy <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsBomComponent(bomComId, updatedBy))
+                {
+                    return Forbid();
+                }
+
                 var updateResult = await _bomService.UpdateChildAsync(bomComId, qty, wareHouse, updatedBy);
 
                 if (updateResult == 0)
@@ -624,6 +830,13 @@ namespace JSAPNEW.Controllers
         [HttpGet("getallbomwithdetails")]
         public async Task<ActionResult> GetAllBomWithDetails(int userId, int company)
         {
+            var scope = await GetAuthorizedScopeAsync(company);
+            if (!scope.Authorized)
+            {
+                return Forbid();
+            }
+
+            userId = scope.UserId;
             var boms = await _bomService.GetAllBomWithDetailsAsync(userId, company);
             return Ok(boms);
         }
@@ -633,6 +846,17 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsResource(bomId, userId))
+                {
+                    return Forbid();
+                }
+
                 // ✅ Pass Url to the service
                 var result = await _bomService.GetBomFilesDataAsync(bomId, Url);
 
@@ -662,6 +886,17 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                if (!await VerifyUserOwnsResource(bomId, userId))
+                {
+                    return Forbid();
+                }
+
                 var result = await _bomService.GetBomApprovalFlowAsync(bomId);
                 if (result == null || !result.Any())
                 {
@@ -729,6 +964,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(companyId);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                createdBy = scope.UserId;
                 var result = await _bomService.GetCreatedByBomApprovalFlowAsync(createdBy, companyId);
                 if (result == null || !result.Any())
                 {
@@ -755,6 +997,13 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                var scope = await GetAuthorizedScopeAsync(company);
+                if (!scope.Authorized)
+                {
+                    return Forbid();
+                }
+
+                userId = scope.UserId;
                 var result = await _bomService.GetBomByUserIdAsync(userId, company,month);
                 if (result == null || !result.Any())
                 {

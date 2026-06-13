@@ -1,4 +1,5 @@
 ﻿using JSAPNEW.Models;
+using JSAPNEW.Services;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -7,7 +8,7 @@ using System.Text;
 
 namespace JSAPNEW.Services.Implementation
 {
-    public class TokenService : ITokenService
+    public class TokenService : Interfaces.ITokenService
     {
         private readonly IConfiguration _configuration;
 
@@ -18,29 +19,50 @@ namespace JSAPNEW.Services.Implementation
 
         public string GenerateToken(UserDto user)
         {
-            var jwtSettings = GetJwtSettings();
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey));
+            var secretKey = _configuration["Jwt:SecretKey"];
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var issuedAt = DateTimeOffset.UtcNow;
+            var securityStamp = !string.IsNullOrWhiteSpace(user.SecurityStamp)
+                ? user.SecurityStamp
+                : user.securityStamp;
+
+            if (string.IsNullOrWhiteSpace(securityStamp))
+            {
+                securityStamp = AuthSecurity.CreateSecurityStamp(
+                    user.password,
+                    secretKey,
+                    user.isActive,
+                    user.changePassword);
+            }
 
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.userId.ToString()),
                 new Claim("userId", user.userId.ToString()),
-                new Claim(ClaimTypes.Name, user.userName),
-                new Claim(ClaimTypes.Email, user.userEmail ?? string.Empty),
+                new Claim(ClaimTypes.Name, user.loginUser),
+                new Claim("username", user.loginUser),
+                new Claim("securityStamp", securityStamp),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+                new Claim(JwtRegisteredClaimNames.Iat, issuedAt.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
 
-            var role = string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role.Trim();
-            claims.Add(new Claim(ClaimTypes.Role, role));
-            claims.Add(new Claim("role", role));
+            var role = !string.IsNullOrWhiteSpace(user.Role)
+                ? user.Role
+                : user.role;
+
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim("role", role));
+            }
 
             var token = new JwtSecurityToken(
-                issuer: jwtSettings.Issuer,
-                audience: jwtSettings.Audience,
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(jwtSettings.ExpiryInMinutes),
+                notBefore: issuedAt.UtcDateTime,
+                expires: issuedAt.AddMinutes(15).UtcDateTime,
                 signingCredentials: credentials
             );
 
@@ -49,9 +71,8 @@ namespace JSAPNEW.Services.Implementation
 
         public bool ValidateToken(string token)
         {
-            var jwtSettings = GetJwtSettings();
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
+            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:SecretKey"]);
 
             try
             {
@@ -61,28 +82,17 @@ namespace JSAPNEW.Services.Implementation
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
                     ValidateAudience = true,
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudience = jwtSettings.Audience,
-                    ValidateLifetime = true,
+                    ValidIssuer = _configuration["Jwt:Issuer"],
+                    ValidAudience = _configuration["Jwt:Audience"],
                     ClockSkew = TimeSpan.Zero
-                }, out _);
+                }, out SecurityToken validatedToken);
+
                 return true;
             }
             catch
             {
                 return false;
             }
-        }
-
-        private JwtSettings GetJwtSettings()
-        {
-            return new JwtSettings
-            {
-                SecretKey = _configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured"),
-                Issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT Issuer not configured"),
-                Audience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT Audience not configured"),
-                ExpiryInMinutes = Math.Clamp(_configuration.GetValue("Jwt:ExpiryInMinutes", 15), 10, 15)
-            };
         }
     }
 }

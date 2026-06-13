@@ -249,6 +249,13 @@ namespace JSAPNEW.Controllers
 
             try
             {
+                if (dto.EmployeeId <= 0)
+                {
+                    var loggedInEmployeeId = await ResolveLoggedInEmployeeIdAsync();
+                    if (loggedInEmployeeId > 0)
+                        dto.EmployeeId = loggedInEmployeeId.Value;
+                }
+
                 var result = await _taskService.AddProgressUpdateAsync(dto);
                 return Ok(new { Success = true, Data = result });
             }
@@ -304,6 +311,26 @@ namespace JSAPNEW.Controllers
         // ============================================================
         // Reassign Task (HOD/SubHOD can reassign to their reports)
         // ============================================================
+        // ============================================================
+        // Owner Dashboard — department-level task overview
+        // ============================================================
+        [HttpGet("GetOwnerDashboard")]
+        public async Task<IActionResult> GetOwnerDashboard(
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate)
+        {
+            try
+            {
+                var result = await _taskService.GetOwnerDashboardAsync(fromDate, toDate);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching owner dashboard");
+                return StatusCode(500, new { Success = false, Message = "Error fetching owner dashboard." });
+            }
+        }
+
         [HttpPost("ReassignTask")]
         public async Task<IActionResult> ReassignTask([FromBody] ReassignTaskRequestDto dto)
         {
@@ -318,6 +345,42 @@ namespace JSAPNEW.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error reassigning task");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        [HttpPost("GetDeptHierarchy")]
+        public async Task<IActionResult> GetDeptHierarchy([FromBody] DeptHierarchyRequestDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Request body cannot be null.");
+
+            try
+            {
+                var result = await _taskService.GetDeptHierarchyAsync(dto.DeptId, dto.FromDate, dto.ToDate);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching dept hierarchy");
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
+        }
+
+        [HttpPost("GetDeptEmployeeDetail")]
+        public async Task<IActionResult> GetDeptEmployeeDetail([FromBody] DeptEmployeeDetailRequestDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Request body cannot be null.");
+
+            try
+            {
+                var result = await _taskService.GetDeptEmployeeDetailAsync(dto.DeptIds, dto.FromDate, dto.ToDate);
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching dept employee detail");
                 return StatusCode(500, new { Success = false, Message = ex.Message });
             }
         }

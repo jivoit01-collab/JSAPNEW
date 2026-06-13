@@ -95,11 +95,33 @@ namespace JSAPNEW.Services.Implementation
                         {
                             items.Add(new InvoiceItemDto
                             {
+                                SerialNumber = reader["SerialNumber"]?.ToString(),
+
                                 ProductName = reader["ProductName"]?.ToString(),
+
+                                HSNSACID = reader["HSNSACID"]?.ToString(),
+
                                 Quantity = reader["Quantity"],
-                                Rate = reader["PurchaseCost"],
+
+                                PurchaseRate = reader["PurchaseCost"],
+
+                                DiscountPercent = reader["DiscountPercent"],
+
+                                DiscountAmount = reader["DiscountAmount"],
+
+                                Margin = reader["Margin"],
+
+                                MRP = reader["SellingRate"],
+
                                 Tax = reader["TaxRate"],
-                                Amount = reader["ItemValue"]
+
+                                Amount = reader["ItemValue"],
+
+                                TaxName = reader["TaxName"] == DBNull.Value ? "-" : reader["TaxName"].ToString(),
+
+                                WarehouseName = reader["WarehouseName"] == DBNull.Value ? "-" : reader["WarehouseName"].ToString(),
+
+                                ItemValue = reader["ItemValue"]
                             });
                         }
                     }
@@ -108,5 +130,30 @@ namespace JSAPNEW.Services.Implementation
 
             return items;
         }
+        public bool MarkAsPaid(decimal vchNumber)
+        {
+            string connStr = _config.GetConnectionString("FHConnection");
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                conn.Open();
+
+                using (SqlCommand cmd = new SqlCommand(@"
+            UPDATE AttachmentUpload
+            SET
+                PaymentStatus = 'Paid',
+                PaymentDate = GETDATE()
+            WHERE VchNumber = @VchNumber
+        ", conn))
+                {
+                    cmd.Parameters.AddWithValue("@VchNumber", vchNumber);
+
+                    int rows = cmd.ExecuteNonQuery();
+
+                    return rows > 0;
+                }
+            }
+        }
+
     }
 }

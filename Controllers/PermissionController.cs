@@ -1,14 +1,14 @@
 ﻿using JSAPNEW.Models;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace JSAPNEW.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Policy = "AdminOnly")]
     public class PermissionController : ControllerBase
     {
         private readonly IConfiguration _configuration;
@@ -23,7 +23,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("AddUserGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<PermissionModels>> AddUserToGroup([FromBody] UserGroupAssignmentModel model)
         {
             if (!ModelState.IsValid)
@@ -40,7 +39,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("RemoveUserGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<PermissionModels>> RemoveUserFromGroup([FromBody] UserGroupAssignmentModel model)
         {
             if (!ModelState.IsValid)
@@ -57,7 +55,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetUserGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<List<UserGroupViewModel>>> GetUserGroups([FromQuery] int userId, [FromQuery] int companyId)
         {
             if (userId <= 0 || companyId <= 0)
@@ -78,7 +75,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetUsersByGroupAndCompany")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<List<UserGroupMemberViewModel>>> GetUsersByGroupAndCompany([FromQuery] int groupId, [FromQuery] int companyId)
         {
             if (groupId <= 0 || companyId <= 0)
@@ -99,7 +95,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("AddPermissionToGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<PermissionModels>> AssignPermission([FromBody] PermissionRequest request)
         {
             if (request == null)
@@ -130,7 +125,6 @@ namespace JSAPNEW.Controllers
 
 
         [HttpPost("RemovePermissionGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<PermissionModels>> RemovePermission([FromBody] RemovePermissionRequest request)
         {
             if (request.GroupId <= 0 || request.PermissionId <= 0)
@@ -141,7 +135,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetPermissionsByGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<List<GroupPermissionViewModel>>> GetPermissionsByGroup(int groupId)
         {
             if (groupId <= 0)
@@ -163,7 +156,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetModulesAndPermissionsByGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<List<ModulePermissionViewModel>>> GetModulesAndPermissionsByGroup(int groupId)
         {
             if (groupId <= 0)
@@ -218,7 +210,6 @@ namespace JSAPNEW.Controllers
 
 
         [HttpPost("CreateModuleWithPermissions")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> CreateModule([FromBody] CreateModuleRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.ModuleName))
@@ -236,7 +227,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("CreateGroup")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.GroupName))
@@ -251,7 +241,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetAllGroups")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetAllGroups()
         {
             try
@@ -285,7 +274,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetAllModules")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetAllModules()
         {
             try
@@ -319,7 +307,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpGet("GetPermissionsByModule")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetPermissionsByModule(int moduleId)
         {
             try
@@ -353,7 +340,6 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("CreatePermission")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> CreatePermission([FromBody] CreatePermissionRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.permissionType))
@@ -381,7 +367,6 @@ namespace JSAPNEW.Controllers
 
 
         [HttpGet("GetAllPermissions")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetAllPermissions()
         {
             try

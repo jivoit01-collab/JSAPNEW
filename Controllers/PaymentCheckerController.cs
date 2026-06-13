@@ -50,6 +50,28 @@ namespace JSAPNEW.Controllers
             var data = _service.GetInvoiceItemDetails(vchNumber);
             return Json(data);
         }
+        [HttpPost]
+        public IActionResult MarkVerified(int vchNumber)
+        {
+            _service.MarkVerified(vchNumber);
 
+            return Json(new
+            {
+                success = true,
+                message = "Payment verified successfully"
+            });
+        }
+
+        [HttpPost]
+        public IActionResult RejectPayment(int vchNumber, string remark)
+        {
+            var success = _service.RejectPayment(vchNumber, remark);
+
+            return Json(new
+            {
+                success,
+                message = success ? "Payment rejected successfully" : "Unable to reject payment"
+            });
+        }
     }
 }

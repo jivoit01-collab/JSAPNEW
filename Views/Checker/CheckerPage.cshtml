@@ -1,427 +1,1030 @@
-﻿@{
-    ViewData["Title"] = "Checker Page";
+﻿
+
+@{
+    ViewData["Title"] = "Checker Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<style>
-    .soft-btn {
-    background: rgba(13, 110, 253, 0.08); /* soft blue */
-    color: #0d6efd;
-    border: 1px solid rgba(13, 110, 253, 0.2);
-    backdrop-filter: blur(6px);
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="~/css/bill-verification.css" />
+<link rel="stylesheet" href="~/css/admin-premium.css" />
 
-.soft-btn:hover {
-    background: rgba(13, 110, 253, 0.15);
-    border-color: rgba(13, 110, 253, 0.4);
-    color: #084298;
-}
-    #suggestionBox {
-        position: absolute;
-        top: 70px;
-        width: 100%;
-        background: white;
-        z-index: 1000;
-    }
-
-    .suggest-item {
-        padding: 8px;
-        cursor: pointer;
-    }
-
-        .suggest-item:hover {
-            background: #f1f1f1;
-        }
-
-    td, th {
-        text-align: center;
-        vertical-align: middle !important;
-    }
-</style>
-<div id="pdfContainer" class="bill-ui" style="display:none; background:#fff; padding:10px; border-radius:8px;">
-
-    <button onclick="closePdf()" 
-            class="btn btn-secondary btn-sm mb-2">
-        Back
-    </button>
-
-    <iframe id="pdfFrame" 
-            style="width:100%; height:80vh; border:none; border-radius:8px;">
-    </iframe>
-
-</div>
-<div class="bill-ui">
-<div class="container-fluid mt-4">
-
-    <h3 class="page-title">Bill Verification - Checker</h3>
-
-    <!-- FILTER -->
-    <div class="card p-3 shadow-sm">
-        <div class="row">
-
-            <div class="col-md-3">
-                <label for="fromDate">From Date</label>
-                <input type="date" id="fromDate" class="form-control">
+<!-- ═══════════════════════════════════
+     NAVBAR
+═══════════════════════════════════ -->
+<div class="admin-dashboard-shell checker-dashboard-shell">
+<nav class="premium-nav">
+    <div class="nav-glass">
+        <div class="nav-left-section">
+            <div class="brand-logo-wrap">
+                <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
             </div>
-
-            <div class="col-md-3">
-                <label for="toDate">To Date</label>
-                <input type="date" id="toDate" class="form-control">
+            <div class="brand-content">
+                <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                <div class="brand-title">Wellness Verification Desk</div>
+                <div class="brand-subtitle">Healthy Oils • Super Juices • Smart Living</div>
             </div>
+        </div>
 
-            <div class="col-md-3 position-relative">
-                <label for="accountName">Account Name</label>
-                <input type="text" id="accountName" class="form-control" placeholder="Search Account" autocomplete="off">
-                <div id="suggestionBox" class="suggestion-box"></div>
+        <div class="product-slider" aria-label="Product showcase">
+            <div class="product-track">
+                <img src="@Url.Content("~/images/canola.jpg")" class="product-img" alt="Canola oil" />
+                <img src="@Url.Content("~/images/5L-Pomace-new.tif-.png")" class="product-img" alt="Pomace oil" />
+                <img src="@Url.Content("~/images/groundnut-oil.jpg")" class="product-img" alt="Groundnut oil" />
+                <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img" alt="Desi ghee" />
+                <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
             </div>
+        </div>
 
-            <div class="col-md-3 d-flex align-items-end">
-                <button class="btn btn-primary w-100" id="searchBtn">Search</button>
+        <div class="module-box checker">
+            <span class="module-dot"></span>
+            <i class="fa-solid fa-user-check"></i>
+            <span>Checker Dashboard</span>
+        </div>
+    </div>
+</nav>
+
+
+<div class="body admin-dashboard-body">
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+
+        <div class="kpi-card k-amber">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="pendingCount">0</div>
+                    <div class="kpi-label">Pending Approvals</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
             </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,10 12,18 24,12 36,20 48,10 60,16 72,8 80,14"
+                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+            </div>
+        </div>
 
+        <div class="kpi-card k-green">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="approvedToday">0</div>
+                    <div class="kpi-label">Approved</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,18 12,10 24,16 36,6 48,14 60,4 72,10 80,6"
+                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Verified</div>
+            </div>
+        </div>
+
+        <div class="kpi-card k-blue">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="monthlyEntries">0</div>
+                    <div class="kpi-label">Total Entries</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,22 12,14 24,18 36,8 48,16 60,6 72,12 80,8"
+                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-arrow-trend-up fa-xs"></i> All Entries</div>
+            </div>
+        </div>
+
+        <div class="kpi-card k-purple">
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val" id="rejectedToday">0</div>
+                    <div class="kpi-label">Rejected</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,12 24,18 36,8 48,18 60,10 72,14 80,8"
+                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-ban fa-xs"></i> Returned</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- PDF VIEWER -->
+    <div id="pdfContainer" class="pdf-modal">
+        <div class="pdf-box">
+            <button onclick="closePdf()" class="pdf-close">×</button>
+            <iframe id="pdfFrame"></iframe>
         </div>
     </div>
 
-    <!-- TABLE -->
-    <div class="card mt-4 shadow-sm">
+    <!-- ═══════════════════════════════════
+         FILTER CARD
+    ═══════════════════════════════════ -->
+    <div class="filter-card checker-filter-card">
+        <div class="f-group">
+            <span class="f-label">From Date</span>
+            <input type="date" id="fromDate" class="f-input" />
+        </div>
+        <div class="f-group">
+            <span class="f-label">To Date</span>
+            <input type="date" id="toDate" class="f-input" />
+        </div>
+        <div class="f-group grow autocomplete-group">
+            <span class="f-label">Account Name</span>
+            <input type="text" id="accountName" class="f-input"
+                   placeholder="Search account..." autocomplete="off" />
+            <div id="suggestionBox" class="suggestion-box"></div>
+        </div>
+        <div class="f-group">
+            <span class="f-label">Status</span>
+            <select id="statusFilter" class="f-input">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+        </div>
+        <button class="btn btn-dark admin-search-btn" id="searchBtn">
+            <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+        <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
+            <i class="fa-solid fa-file-excel"></i> Export
+        </button>
+    </div>
 
-        <div class="card-header bg-primary text-white">
-            <span>Bills Pending Checker Action</span>
+    <!-- ═══════════════════════════════════
+         TABLE CARD
+    ═══════════════════════════════════ -->
+    <div class="t-card checker-table-card">
+        <div class="t-header">
+            <span class="t-title">
+                <i class="fa-solid fa-shield-check"></i> Bill Verification
+            </span>
+            <span class="t-count" id="checkerCount">0 records</span>
         </div>
 
-        <div class="card-body">
+        <div class="table-slide-hint">
+            <span aria-hidden="true">&larr;</span>
+            <span>Slide horizontally to inspect all columns</span>
+            <span aria-hidden="true">&rarr;</span>
+        </div>
 
-            <div class="table-responsive">
+        <!-- TOP HORIZONTAL SCROLLBAR -->
+        <div class="top-scroll" id="topScroll">
+            <div class="top-scroll-inner" id="topScrollInner"></div>
+        </div>
 
-                <table class="table table-bordered table-striped">
+        <div class="t-wrap" id="tableWrap">
+            <table class="dt checker-workflow-table" id="checkerDt">
+                <colgroup>
+                    <col class="col-account" />
+                    <col class="col-voucher" />
+                    <col class="col-date" />
+                    <col class="col-amount" />
+                    <col class="col-supplier" />
+                    <col class="col-date" />
+                    <col class="col-attachment" />
+                    <col class="col-maker-remark" />
+                    <col class="col-status" />
+                    <col class="col-checker-remark" />
+                    <col class="col-action" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        <th>Voucher No</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Supplier Ref</th>
+                        <th>Due Date</th>
+                        <th>Attachment</th>
+                        <th>Maker Remark</th>
+                        <th>Status</th>
+                        <th>Checker Remark</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="checkerTable"></tbody>
+            </table>
+        </div>
+    </div>
 
-                    <thead class="table-light">
-                        <tr>
-                            <th>Account</th>
-                            <th>Voucher</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Supplier Ref</th>
-                            <th>Due Date</th>
-                            <th>Attachment</th>
-                            <th>Maker Remark</th>
-                            <th>Status</th>
-                            <th>Checker Remark</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
+    <!-- SCROLL BUTTONS -->
+    <div id="scroll-btns">
+        <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Top">
+            <i class="fa-solid fa-chevron-up"></i>
+        </button>
+        <button class="scroll-btn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Bottom">
+            <i class="fa-solid fa-chevron-down"></i>
+        </button>
+    </div>
 
-                    <tbody id="checkerTable">
-                        <tr class="empty-row">
-                            <td colspan="11" class="text-center">Select filters and click Search to view bills.</td>
-                        </tr>
-                    </tbody>
+</div><!-- /.body -->
+<!-- ═══════════════════════════════════
+     CONFIRMATION MODAL
+═══════════════════════════════════ -->
+<div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box" id="confirmBox">
 
-                </table>
-
+        <div class="confirm-header">
+            <div class="confirm-icon" id="confirmIcon">
+                <i id="confirmIconSymbol" class="fa-solid fa-circle-check"></i>
             </div>
+            <div>
+                <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+                <div class="confirm-subtitle" id="confirmSubtitle">Please review before proceeding</div>
+            </div>
+        </div>
 
+        <div class="confirm-body">
+            <div class="confirm-warning" id="confirmWarning">
+                <i id="confirmWarnIcon" class="fa-solid fa-triangle-exclamation"></i>
+                <div id="confirmWarningText">Are you sure?</div>
+            </div>
+            <div class="confirm-meta" id="confirmMeta">
+                <div class="confirm-meta-row">
+                    <span>Voucher No</span>
+                    <span id="meta-vch">—</span>
+                </div>
+                <div class="confirm-meta-row">
+                    <span>Account Name</span>
+                    <span id="meta-account">—</span>
+                </div>
+                <div class="confirm-meta-row">
+                    <span>Amount</span>
+                    <span id="meta-amount">—</span>
+                </div>
+                <div class="confirm-meta-row">
+                    <span>Checker Remark</span>
+                    <span id="meta-remark">—</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="confirm-footer">
+            <button class="confirm-cancel" id="confirmCancel">
+                <i class="fa-solid fa-xmark"></i> Cancel
+            </button>
+            <button class="confirm-proceed" id="confirmProceed">
+                <i class="fa-solid fa-check"></i> Confirm
+            </button>
         </div>
 
     </div>
-
 </div>
-</div>
+</div><!-- /.checker-dashboard-shell -->
 
-<!-- jQuery already loaded in _Layout.cshtml -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 
-//------------------------------------
-// LOAD DATA
-//------------------------------------
-function loadData() {
+    /* ═══════════════════════════════════════
+    STATE
+    ═══════════════════════════════════════ */
+    let _pendingAction = null;   // function to call on confirm
+    let _checkerDataCache = [];
 
-    let fromDate    = $("#fromDate").val();
-    let toDate      = $("#toDate").val();
-    let accountName = $("#accountName").val().trim() || null;
+    /* ═══════════════════════════════════════
+    BOOT
+    ═══════════════════════════════════════ */
+    $(document).ready(function () {
 
-    if (fromDate && toDate && fromDate > toDate) {
-        $("#checkerTable").html(`<tr class="empty-row"><td colspan="11" class="text-center text-danger">From Date cannot be greater than To Date.</td></tr>`);
-        return;
+    $("#searchBtn").on("click", loadData);
+
+    /* autocomplete */
+    $("#accountName").on("keyup", function () {
+    const term = $(this).val().trim();
+    if (term.length < 2) { $("#suggestionBox").empty().hide(); return; }
+    $.get("/Checker/GetAccountSuggestions", { term }, function (data) {
+    if (!data || !data.length) {
+    $("#suggestionBox").html('<div class="suggest-item suggest-empty">No result</div>').show();
+    return;
     }
-
-    $("#checkerTable").html(`<tr class="empty-row"><td colspan="11" class="text-center">Loading bills...</td></tr>`);
-
-    $.ajax({
-        url: "/Checker/GetBillDetails",
-        method: "GET",
-        data: {
-        fromDate:    fromDate || null,
-        toDate:      toDate || null,
-        accountName: accountName
-        },
-        timeout: 120000,
-        success: function (data) {
-        console.log("DATA:", data);
-        renderTable(data || []);
-        },
-        error: function (err) {
-        console.log("ERROR:", err);
-        $("#checkerTable").html(`<tr class="empty-row"><td colspan="11" class="text-center text-danger">Error loading bills. Please try again.</td></tr>`);
-        }
+    let html = "";
+    data.forEach(x => { html += `<div class="suggest-item">${x}</div>`; });
+    $("#suggestionBox").html(html).show();
     });
-}
+    });
 
+    $(document).on("mousedown", ".suggest-item", function (e) {
+    e.preventDefault();
+    const v = $(this).text().trim();
+    if (v !== "No result") $("#accountName").val(v);
+    $("#suggestionBox").empty().hide();
+    });
 
-//------------------------------------
-// RENDER TABLE
-//------------------------------------
-function renderTable(data) {
+    $(document).on("click", function (e) {
+    if (!$(e.target).closest("#accountName, #suggestionBox").length)
+    $("#suggestionBox").empty().hide();
+    });
+
+    /* modal — cancel */
+    $("#confirmCancel").on("click", closeConfirm);
+
+    /* modal — confirm */
+    $("#confirmProceed").on("click", function () {
+    if (typeof _pendingAction === "function") {
+    _pendingAction();
+    }
+    });
+
+    /* ESC to close modal */
+    $(document).on("keydown", function (e) {
+    if (e.key === "Escape") closeConfirm();
+    });
+
+    /* click OUTSIDE confirm-box = do NOT close (safety) */
+
+    initScrollSync();
+    });
+
+    /* ═══════════════════════════════════════
+    LOAD DATA
+    ═══════════════════════════════════════ */
+    function loadData() {
+    const fromDate    = $("#fromDate").val();
+    const toDate      = $("#toDate").val();
+    const accountName = $("#accountName").val().trim() || null;
+    const status      = $("#statusFilter").val();
+
+    $("#checkerTable").html(
+    `<tr><td colspan="11" class="empty-row">
+    <i class="fa-solid fa-spinner fa-spin" style="font-size:20px;color:#9CA3AF"></i>
+    </td></tr>`
+    );
+
+    $.get("/Checker/GetBillDetails",
+    { fromDate: fromDate || null, toDate: toDate || null, accountName, status },
+    function (data) {
+    renderTable(data || []);
+    _checkerDataCache = data || [];
+    updateCheckerKPIs(data || []);
+    }
+    ).fail(function () {
+    $("#exportBtn").hide();
+    $("#checkerTable").html(
+    `<tr><td colspan="11" class="empty-row" style="color:#EF4444">
+    <i class="fa-solid fa-triangle-exclamation"></i> Error loading data.
+    </td></tr>`
+    );
+    });
+    }
+    function updateCheckerKPIs(data) {
 
     if (!data || data.length === 0) {
-        $("#checkerTable").html(`<tr class="empty-row"><td colspan="11" class="text-center">No bills found for the selected filters.</td></tr>`);
-        return;
+
+    $("#pendingCount").text("0");
+
+    $("#approvedToday").text("0");
+
+    $("#monthlyEntries").text("0");
+
+    $("#rejectedToday").text("0");
+
+    return;
     }
 
-    let html    = "";
-    let seenVch = new Set();
+    /* unique vouchers */
 
-    data.forEach(item => {
+    const uniqueRows = [
+    ...new Map(
+    data.map(x => [x.vchNumber, x])
+    ).values()
+    ];
 
-        if (seenVch.has(item.vchNumber)) return;
-        seenVch.add(item.vchNumber);
+    /* pending */
 
-        let checkerStatusValue = normalizeStatus(item.checkerStatus, "Pending");
+    const pending =
+    uniqueRows.filter(x =>
+    (x.checkerStatus || "Pending")
+    .toLowerCase() === "pending"
+    ).length;
 
-        let statusBadge =
-            checkerStatusValue === "approved"
-                ? `<span class="badge bg-success">Approved</span>`
-                : checkerStatusValue === "rejected"
-                ? `<span class="badge bg-danger">Rejected</span>`
-                : `<span class="badge bg-warning text-dark">Pending</span>`;
+    /* approved */
 
-        let actionBtn =
-            checkerStatusValue === "approved"
-                ? `<span class="badge bg-success">Approved</span>`
-                : checkerStatusValue === "rejected"
-                ? `<span class="badge bg-danger">Rejected</span>`
-                : `<div class="d-flex gap-2 justify-content-center">
-                       <button class="btn btn-success btn-sm approveBtn" data-vch="${item.vchNumber}">Approve</button>
-                       <button class="btn btn-danger btn-sm rejectBtn"  data-vch="${item.vchNumber}">Reject</button>
-                   </div>`;
+    const approved =
+    uniqueRows.filter(x =>
+    (x.checkerStatus || "")
+    .toLowerCase() === "approved"
+    ).length;
 
-       //let attachHtml =
-           // item.attachmentPath
-              //  ? `<a href="${item.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`
-               // : `<span class="text-muted">No File</span>`;
-               let attachHtml =
-    item.attachmentPath
-        ? `<a href="#" onclick="openPdf('${item.attachmentPath}')" class="btn btn-sm btn-outline-primary">View</a>`
-        : `<span class="text-muted">No File</span>`;
- 
-        html += `<tr id="row-${item.vchNumber}">
-<td><a href="javascript:void(0)" onclick="loadDetails(${item.vchNumber}, ${item.serialNumber})">${item.accountName ?? ""}</a></td>
+    /* rejected */
 
-            <td>${item.vchNumber ?? ""}</td>
-            <td>${formatDate(item.voucherDate)}</td>
-            <td>${item.billAmount ?? ""}</td>
-            <td>${item.supplierRef || "-"}</td>
-            <td>${formatDate(item.dueDate)}</td>
-            <td>${attachHtml}</td>
-            <td>${item.makerRemark ?? "-"}</td>
-            <td>${statusBadge}</td>
-            <td><input type="text" class="form-control form-control-sm checkerRemark" placeholder="Enter remark" value="${item.checkerRemark ?? ""}"></td>
-            <td>${actionBtn}</td>
-        </tr>`;
+    const rejected =
+    uniqueRows.filter(x =>
+    (x.checkerStatus || "")
+    .toLowerCase() === "rejected"
+    ).length;
+
+    /* total */
+
+    const total =
+    uniqueRows.length;
+
+    $("#pendingCount").text(pending);
+
+    $("#approvedToday").text(approved);
+
+    $("#monthlyEntries").text(total);
+
+    $("#rejectedToday").text(rejected);
+
+    }
+
+    function safeText(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    return $("<div>").text(value).html();
+    }
+
+    function safeAttr(value) {
+    return safeText(value).replace(/"/g, "&quot;");
+    }
+
+    function safeValueAttr(value) {
+    if (value === null || value === undefined) return "";
+    return $("<div>").text(value).html().replace(/"/g, "&quot;");
+    }
+
+    /* render table */
+    function renderTable(data) {
+  
+  
+    const seen = new Set();
+    const rows = (data || []).filter(item => {
+    if (seen.has(item.vchNumber)) return false;
+    seen.add(item.vchNumber);
+    return true;
+    });
+
+    $("#checkerCount").text(rows.length + " record" + (rows.length !== 1 ? "s" : ""));
+
+    if (!rows.length) {
+    $("#checkerTable").html(
+    `<tr><td colspan="11" class="empty-row">
+    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
+    No data found.
+    </td></tr>`
+    );
+    syncTopScroll();
+    return;
+    }
+
+    let html = "";
+
+    rows.forEach(item => {
+
+    /* hide paid entries */
+    if ((item.paymentStatus || "").toLowerCase() === "paid") {
+    return;
+    }
+
+    /* hide entries without attachment */
+    if (!item.attachmentPath) {
+    return;
+    }
+
+    /* hide approved entries */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
+    return;
+    }
+    /* hide paid entries */
+    if ((item.paymentStatus || "").toLowerCase() === "paid") {
+    return;
+    }
+
+    /* hide approved entries */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
+    return;
+    }
+
+    /* hide rejected entries */
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") {
+    return;
+    }
+
+    const cs = item.checkerStatus || "Pending";
+    const statusBadge =
+    cs === "Approved" ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>` :
+    cs === "Rejected" ? `<span class="status-badge sb-rejected"><i class="fa-solid fa-xmark"></i> Rejected</span>` :
+    `<span class="status-badge sb-pending"><i class="fa-solid fa-clock"></i> Pending</span>`;
+
+    const actionCell = cs === "Approved"
+    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Done</span>`
+    : cs === "Rejected"
+    ? `<span class="status-badge sb-rejected"><i class="fa-solid fa-ban"></i> Rejected</span>`
+    : `<div class="action-cell">
+    <button class="btn-approve approveBtn"
+    data-vch="${safeValueAttr(item.vchNumber)}"
+    data-account="${safeValueAttr(item.accountName ?? '')}"
+    data-amount="${safeValueAttr(item.billAmount ?? '')}">
+    <i class="fa-solid fa-check"></i> Approve
+    </button>
+    <button class="btn-reject rejectBtn"
+    data-vch="${safeValueAttr(item.vchNumber)}"
+    data-account="${safeValueAttr(item.accountName ?? '')}"
+    data-amount="${safeValueAttr(item.billAmount ?? '')}">
+    <i class="fa-solid fa-xmark"></i> Reject
+    </button>
+    </div>`;
+
+    const attachHtml = item.attachmentPath
+    ? `<a class="attach-view" href="#" onclick="openPdf('${safeValueAttr(item.attachmentPath)}');return false;">
+    <i class="fa-solid fa-eye"></i> View
+    </a>`
+    : `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
+
+    html += `
+    <tr id="row-${item.vchNumber}" onclick="highlightRow(this)">
+    <td class="td-account" title="${safeAttr(item.accountName ?? '')}">
+    <a href="javascript:void(0)"
+    onclick="loadDetails(${item.vchNumber},${item.serialNumber});event.stopPropagation();"
+    class="account-drill-link">
+    <span class="cell-text">${safeText(item.accountName ?? "")}</span>
+    <i class="fa-solid fa-chevron-down"></i>
+    </a>
+    </td>
+    <td class="td-voucher"><span class="cell-text">${safeText(item.vchNumber ?? "")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.voucherDate))}</span></td>
+    <td class="td-amount"><span class="cell-text">&#8377;${safeText(item.billAmount ?? "")}</span></td>
+    <td class="td-supplier" title="${safeAttr(item.supplierRef || "-")}"><span class="cell-text">${safeText(item.supplierRef || "-")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.dueDate))}</span></td>
+    <td class="td-attachment">${attachHtml}</td>
+    <td class="td-remark" title="${safeAttr(item.makerRemark ?? "-")}"><span class="cell-text clamp-text">${safeText(item.makerRemark ?? "-")}</span></td>
+    <td class="td-status">${statusBadge}</td>
+    <td class="td-checker-remark">
+    <input type="text"
+    class="checker-remark-input checkerRemark"
+    placeholder="Enter remark…"
+    value="${safeValueAttr(item.checkerRemark ?? "")}"
+    ${cs !== "Pending" ? 'readonly style="opacity:.6"' : ''} />
+    </td>
+    <td class="td-action-cell">${actionCell}</td>
+    </tr>`;
     });
 
     $("#checkerTable").html(html);
-}
+    $("#exportBtn").show();
+    if (window._syncTopScroll) window._syncTopScroll();
+    }
+   
+   
 
-
-//------------------------------------
-// APPROVE
-//------------------------------------
-$(document).on("click", ".approveBtn", function () {
-
-    let vch    = $(this).data("vch");
-    let remark = $(this).closest("tr").find(".checkerRemark").val();
-
-    $.post("/Checker/UpdateCheckerStatus", {
-        vchNumber: vch,
-        status:    "Approved",
-        remark:    remark
-    }).done(function () {
-        alert("Approved");
-        loadData();
-    }).fail(function () {
-        alert("Error");
-    });
-});
-
-
-//------------------------------------
-// REJECT
-//------------------------------------
-$(document).on("click", ".rejectBtn", function () {
-
-    let vch    = $(this).data("vch");
-    let remark = $(this).closest("tr").find(".checkerRemark").val();
-
-    $.post("/Checker/UpdateCheckerStatus", {
-        vchNumber: vch,
-        status:    "Rejected",
-        remark:    remark
-    }).done(function () {
-        alert("Rejected");
-        loadData();
-    }).fail(function () {
-        alert("Error");
-    });
-});
-
-
-//------------------------------------
-// OMNI SEARCH
-//------------------------------------
-$("#accountName").on("keyup", function () {
-
-    let searchText = $(this).val().trim();
-
-    if (searchText.length < 2) {
-        $("#suggestionBox").empty();
-        return;
+    /* ═══════════════════════════════════════
+    ROW HIGHLIGHT
+    ═══════════════════════════════════════ */
+    function highlightRow(tr) {
+    document.querySelectorAll('.checker-table-card table.dt tbody tr.row-selected')
+    .forEach(r => r.classList.remove('row-selected'));
+    tr.classList.add('row-selected');
     }
 
-    $.get("/Checker/GetAccountSuggestions",
-        { term: searchText, fromDate: $("#fromDate").val() || null, toDate: $("#toDate").val() || null },
-        function (data) {
-            let html = "";
-            if (!data || data.length === 0) {
-                html = `<div class="suggest-item">No result</div>`;
-            } else {
-                data.forEach(x => {
-                    html += `<div class="suggest-item">${x}</div>`;
-                });
-            }
-            $("#suggestionBox").html(html);
-        });
-});
-// open pdf//
-function openPdf(path) {
-    document.getElementById("pdfFrame").src = path;
-    document.getElementById("pdfContainer").style.display = "block";
-}
+    /* ═══════════════════════════════════════
+    APPROVE — with confirmation modal
+    ═══════════════════════════════════════ */
+    $(document).on("click", ".approveBtn", function (e) {
+    e.stopPropagation();
+    const btn     = $(this);
+    const vch     = btn.data("vch");
+    const account = btn.data("account");
+    const amount  = btn.data("amount");
+    const remark  = btn.closest("tr").find(".checkerRemark").val() || "—";
 
-function closePdf() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("pdfFrame").src = "";
-}
+    openConfirm({
+    type     : "approve",
+    title    : "Approve Bill",
+    subtitle : "Confirm approval for this entry",
+    warning  : "You are about to <strong>approve</strong> this bill. This will mark it as verified and move it forward in the payment workflow.",
+    vch, account, amount, remark,
+    onConfirm: function () {
+    executeAction(vch, "Approved", remark, btn);
+    }
+    });
+    });
 
-//------------------------------------
-// SELECT SUGGESTION
-//------------------------------------
-$(document).on("click", ".suggest-item", function () {
-    let text = $(this).text();
-    if (text === "No result") return;
-    $("#accountName").val(text);
-    $("#suggestionBox").empty();
-});
+    /* ═══════════════════════════════════════
+    REJECT — with confirmation modal
+    ═══════════════════════════════════════ */
+    $(document).on("click", ".rejectBtn", function (e) {
+    e.stopPropagation();
+    const btn     = $(this);
+    const vch     = btn.data("vch");
+    const account = btn.data("account");
+    const amount  = btn.data("amount");
+    const remark  = btn.closest("tr").find(".checkerRemark").val() || "—";
 
+    openConfirm({
+    type     : "reject",
+    title    : "Reject Bill",
+    subtitle : "Confirm rejection for this entry",
+    warning  : "You are about to <strong>reject</strong> this bill. This will return it to the maker and may impact the payment workflow.",
+    vch, account, amount, remark,
+    onConfirm: function () {
+    executeAction(vch, "Rejected", remark, btn);
+    }
+    });
+    });
 
-//------------------------------------
-// SEARCH BUTTON + INIT
-//------------------------------------
-$(document).ready(function () {
-    console.log("Checker JS Loaded");
-    $("#searchBtn").click(loadData);
+    /* ═══════════════════════════════════════
+    EXECUTE ACTION
+    ═══════════════════════════════════════ */
+    function executeAction(vch, status, remark, triggerBtn) {
+    closeConfirm();
+
+    /* disable both buttons on that row while processing */
+    const row = triggerBtn.closest("tr");
+    row.find(".btn-approve, .btn-reject")
+    .prop("disabled", true)
+    .html('<i class="fa-solid fa-spinner fa-spin"></i>');
+
+    $.post("/Checker/UpdateCheckerStatus",
+    { vchNumber: vch, status: status, remark: remark },
+    function (res) {
+    showToast(
+    status === "Approved"
+    ? "Bill approved successfully ✔"
+    : "Bill rejected.",
+    status === "Approved" ? "success" : "error"
+    );
     loadData();
-});
+    }
+    ).fail(function () {
+    showToast("Action failed. Please try again.", "error");
+    row.find(".btn-approve, .btn-reject").prop("disabled", false);
+    loadData();
+    });
+    }
 
+    /* ═══════════════════════════════════════
+    CONFIRMATION MODAL HELPERS
+    ═══════════════════════════════════════ */
+    function openConfirm(opts) {
+    const isApprove = opts.type === "approve";
 
-//------------------------------------
-// DATE FORMAT
-//------------------------------------
-function formatDate(dateString) {
-    if (!dateString) return "";
-    let d = new Date(dateString);
-    if (isNaN(d)) return dateString;
-    return d.toISOString().split('T')[0];
-}
+    /* icon */
+    const icon = document.getElementById("confirmIcon");
+    icon.className = "confirm-icon " + opts.type;
+    document.getElementById("confirmIconSymbol").className =
+    isApprove ? "fa-solid fa-circle-check" : "fa-solid fa-circle-xmark";
 
-function normalizeStatus(value, fallback) {
-    return (value || fallback || "").toString().trim().toLowerCase();
-}
+    /* texts */
+    document.getElementById("confirmTitle").textContent    = opts.title;
+    document.getElementById("confirmSubtitle").textContent = opts.subtitle;
 
+    const warn = document.getElementById("confirmWarning");
+    warn.className = "confirm-warning " + opts.type;
+    document.getElementById("confirmWarnIcon").className =
+    isApprove ? "fa-solid fa-info-circle" : "fa-solid fa-triangle-exclamation";
+    document.getElementById("confirmWarningText").innerHTML = opts.warning;
 
-//------------------------------------
-// LOAD DETAILS (Account click)
-//------------------------------------
-function loadDetails(vchNumber, serialNumber) { 
-    if (!vchNumber) return;
+    /* meta */
+    document.getElementById("meta-vch").textContent     = opts.vch;
+    document.getElementById("meta-account").textContent = opts.account;
+    document.getElementById("meta-amount").textContent  = "₹" + opts.amount;
+    document.getElementById("meta-remark").textContent  = opts.remark;
 
-    let existing = document.getElementById("details-" + vchNumber);
+    /* proceed button */
+    const proceed = document.getElementById("confirmProceed");
+    proceed.className = "confirm-proceed " + opts.type;
+    proceed.innerHTML = isApprove
+    ? '<i class="fa-solid fa-circle-check"></i> Approve'
+    : '<i class="fa-solid fa-circle-xmark"></i> Reject';
+
+    /* store callback */
+    _pendingAction = opts.onConfirm;
+
+    /* show */
+    document.getElementById("confirmOverlay").classList.add("show");
+    }
+
+    function closeConfirm() {
+    document.getElementById("confirmOverlay").classList.remove("show");
+    _pendingAction = null;
+    }
+
+    function loadDetails(vchNumber, serialNumber) {
+    const existing = document.getElementById("details-" + vchNumber);
     if (existing) { existing.remove(); return; }
-
     document.querySelectorAll("[id^='details-']").forEach(el => el.remove());
-
-    let row = document.getElementById("row-" + vchNumber);
+    const row = document.getElementById("row-" + vchNumber);
     if (!row) return;
 
-    row.insertAdjacentHTML("afterend",
-        `<tr id="details-${vchNumber}">
-             <td colspan="11" class="text-center text-muted">Loading items...</td>
-         </tr>`
+    row.insertAdjacentHTML("afterend", `
+    <tr id="details-${vchNumber}" class="detail-row">
+    <td colspan="11">
+    <div class="detail-inner">
+    <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
+    Loading items...
+    </div>
+    </td>
+    </tr>`);
+
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+    fetch("/Checker/GetInvoiceItems?serialNumber=" + serialNumber, { signal: ctrl.signal })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+    clearTimeout(timeout);
+    const items = Array.isArray(data) ? data : [];
+    const bodyRows = items.length ? items.map((item, idx) => `
+    <tr class="erp-item-row">
+    <td class="erp-product" title="${safeAttr(item.productName ?? "-")}">${safeText(item.productName ?? "-")}</td>
+     <td class="erp-hsn">${safeText(item.hsnsacid ?? "-")}</td>
+     <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
+  
+    <td class="erp-rate">&#8377;${safeText(item.purchaseRate ?? 0)}</td>
+    <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
+
+    <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
+
+    <td class="erp-taxname">${safeText(item.taxName ?? "-")}</td>
+
+    <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
+
+    <td class="erp-taxamount">&#8377;${safeText(item.taxAmount ?? 0)}</td>
+
+  
+    <td class="erp-mrp">&#8377;${safeText(item.mrp ?? "-")}</td>
+
+    <td class="erp-amount">&#8377;${safeText(item.amount ?? 0)}</td>
+    <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
+    </tr>`).join("") : `
+    <tr class="erp-item-row">
+    <td colspan="12" class="erp-empty">No items found.</td>
+    </tr>`;
+
+    const el = document.getElementById("details-" + vchNumber);
+    if (el) {
+    el.outerHTML = `
+    <tr id="details-${vchNumber}" class="detail-row">
+    <td colspan="11" class="erp-detail-cell">
+    <div class="erp-detail-wrap">
+    <table class="erp-detail-table">
+    <colgroup>
+    <col class="erp-col-product" />
+    <col class="erp-col-hsn" />
+    <col class="erp-col-qty" />
+    <col class="erp-col-rate" />
+    <col class="erp-col-disc" />
+    <col class="erp-col-margin" />
+    <col class="erp-col-taxname" />
+    <col class="erp-col-taxrate" />
+    <col class="erp-col-taxamount" />
+    <col class="erp-col-mrp" />
+    <col class="erp-col-amount" />
+    <col class="erp-col-sno" />
+    </colgroup>
+    <thead>
+    <tr>
+    <th class="erp-product">Product Name</th>
+    <th class="erp-hsn">HSN/SAC</th>
+    <th class="erp-qty">Qty</th>
+    <th class="erp-rate">Pur. Rate</th>
+    <th class="erp-disc">Disc %</th>
+
+    <th class="erp-margin">Margin %</th>
+
+    <th class="erp-taxname">Tax Name</th>
+
+    <th class="erp-taxrate">Tax Rate</th>
+
+    <th class="erp-taxamount">Tax Amount</th>
+
+   
+    <th class="erp-mrp">MRP</th>
+
+    <th class="erp-amount">Amount</th>
+    <th class="erp-sno">Serial No</th>
+    </tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>
+    </table>
+    </div>
+    </td>
+    </tr>`;
+    }
+    })
+    .catch(err => {
+    clearTimeout(timeout);
+    const el = document.getElementById("details-" + vchNumber);
+    if (el) el.innerHTML = `<td colspan="11" class="empty-row" style="color:#EF4444">
+    ${err.name === "AbortError" ? "Request timed out ⏱" : "Error loading items ❌"}
+    </td>`;
+    });
+ }
+
+    /* ═══════════════════════════════════════
+    PDF
+    ═══════════════════════════════════════ */
+    // function openPdf(path) {
+    // document.getElementById("pdfFrame").src = path;
+    // document.getElementById("pdfContainer").style.display = "flex";
+    // }
+    // function closePdf() {
+    // document.getElementById("pdfContainer").style.display = "none";
+    // document.getElementById("pdfFrame").src = "";
+    // }
+    function openPdf(path) {
+    window.open(path, '_blank');
+    }
+    /* ═══════════════════════════════════════
+    FORMAT DATE
+    ═══════════════════════════════════════ */
+    function formatDate(ds) {
+    if (!ds) return "";
+    const d = new Date(ds);
+    if (isNaN(d)) return ds;
+    return d.toISOString().split("T")[0];
+    }
+
+    /* ═══════════════════════════════════════
+    TOP SCROLL SYNC
+    ═══════════════════════════════════════ */
+    function initScrollSync() {
+    const top  = document.getElementById("topScroll");
+    const wrap = document.getElementById("tableWrap");
+    if (!top || !wrap) return;
+
+    let lockTop = false, lockWrap = false;
+
+    top.addEventListener("scroll", function () {
+    if (lockWrap) return;
+    lockTop = true;
+    wrap.scrollLeft = top.scrollLeft;
+    lockTop = false;
+    });
+    wrap.addEventListener("scroll", function () {
+    if (lockTop) return;
+    lockWrap = true;
+    top.scrollLeft = wrap.scrollLeft;
+    lockWrap = false;
+    });
+    syncTopScroll();
+    window.addEventListener("resize", syncTopScroll);
+    }
+
+    function syncTopScroll() {
+    requestAnimationFrame(function () {
+    const table = document.getElementById("checkerDt");
+    const wrap = document.getElementById("tableWrap");
+    const top = document.getElementById("topScroll");
+    const inner = document.getElementById("topScrollInner");
+    if (!table || !wrap || !top || !inner) return;
+    const scrollWidth = Math.max(wrap.scrollWidth, table.scrollWidth, table.offsetWidth, wrap.clientWidth);
+    inner.style.width = scrollWidth + "px";
+    inner.style.minWidth = scrollWidth + "px";
+    top.scrollLeft = wrap.scrollLeft;
+    });
+    }
+    window._syncTopScroll = syncTopScroll;
+
+    /* ═══════════════════════════════════════
+    TOAST
+    ═══════════════════════════════════════ */
+    function showToast(msg, type) {
+    const t = document.createElement("div");
+    t.className   = "toast toast-" + type;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add("toast-show"), 10);
+    setTimeout(() => { t.classList.remove("toast-show"); setTimeout(() => t.remove(), 300); }, 3500);
+    }
+
+    /* ═══════════════════════════════════════
+    SCROLL BUTTONS
+    ═══════════════════════════════════════ */
+    window.addEventListener("scroll", function () {
+    document.getElementById("scroll-btns")
+    .classList.toggle("visible", window.scrollY > 200);
+    });
+    async function exportToExcel() {
+    var data = (_checkerDataCache || []).filter(function(item) {
+    if ((item.paymentStatus || "").toLowerCase() === "paid")    return false;
+    if (!item.attachmentPath)                                     return false;
+    if ((item.checkerStatus || "").toLowerCase() === "approved") return false;
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") return false;
+    return true;
+    });
+
+    // dedupe by voucher
+    var seen = new Set();
+    data = data.filter(function(item) {
+    if (seen.has(item.vchNumber)) return false;
+    seen.add(item.vchNumber);
+    return true;
+    });
+
+    if (!data.length) { showToast("No data to export", "error"); return; }
+
+    showToast("Preparing export with item details...", "success");
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "checker-entries_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
+    "Account Name","Voucher No","Voucher Date","Bill Amount",
+    "Supplier Ref","Due Date","Maker Remark","Checker Status","Checker Remark",
+    // item columns
+    "Product Name","Serial No","HSN/SAC","Purchase Rate","Quantity","Discount %","Margin %","Item Amount"
+    ]);
+
+    for (var i = 0; i < data.length; i++) {
+    var item = data[i];
+    var baseRow = [
+    item.accountName   || "",
+    item.vchNumber     || "",
+    formatDate(item.voucherDate) || "",
+    item.billAmount    || "",
+    item.supplierRef   || "",
+    formatDate(item.dueDate)     || "",
+    item.makerRemark   || "",
+    item.checkerStatus || "Pending",
+    item.checkerRemark || ""
+    ];
+
+    // fetch item details
+    try {
+    var resp = await fetch("/Checker/GetInvoiceItems?serialNumber=" + item.serialNumber);
+    var items = await resp.json();
+    if (items && items.length) {
+    items.forEach(function(d, idx) {
+    var row = idx === 0 ? baseRow.slice() : ["","","","","","","","",""];
+    row.push(
+    d.productName    || "",
+    d.serialNumber   || "",
+    d.hsnsacid       || "",
+    d.purchaseRate   || "",
+    d.quantity       || "",
+    d.discountPercent|| "",
+    d.margin         || "",
+    d.amount         || ""
     );
+    rows.push(row);
+    });
+    } else {
+    baseRow.push("","","","","","","","");
+    rows.push(baseRow);
+    }
+    } catch(e) {
+    baseRow.push("","","","","","","","");
+    rows.push(baseRow);
+    }
+    }
 
-    const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 15000);
+    var totalAmt = data.reduce(function(s,x){ return s+(parseFloat(x.billAmount)||0);},0);
+    rows.push([]);
+    rows.push(["TOTALS","","","₹"+totalAmt.toLocaleString("en-IN")]);
 
-    fetch("/Checker/GetInvoiceItems?serialNumber=" + serialNumber, { signal: controller.signal })
-        .then(res => {
-            if (!res.ok) throw new Error("Server error: " + res.status);
-            return res.json();
-        })
-        .then(data => {
-            clearTimeout(timeout);
-let rows = data.map(item => `
-<tr>
-    <td>${item.productName ?? ""}</td>
-    <td>${item.quantity ?? ""}</td>
-    <td>${item.warehouseName ?? "-"}</td>
-    <td>${item.tax ?? ""}</td>
-    <td>${item.taxName ?? "-"}</td>
-    <td>${item.itemValue ?? ""}</td>
-</tr>
-`).join("");
+    downloadCSV(rows, filename);
+    showToast("Exported successfully!", "success");
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
 
-            let html =
-                `<tr id="details-${vchNumber}" style="background-color:#f8f9fa;">
-                     <td colspan="11">
-                         <table class="table table-bordered table-sm mb-0">
-                             <thead class="table-light">
-                                 <tr>
-                                      <th>Product</th>
-            <th>Qty</th>
-            <th>Warehouse</th>
-            <th>Tax %</th>
-            <th>Tax Name</th>
-            <th>Item Value</th>
-                                 </tr>
-                             </thead>
-                             <tbody>
-                                 ${rows.length ? rows : "<tr><td colspan='6' class='text-center'>No items</td></tr>"}
-                             </tbody>
-                         </table>
-                     </td>
-                 </tr>`;
-
-            let detailRow = document.getElementById("details-" + vchNumber);
-            if (detailRow) detailRow.outerHTML = html;
-        })
-        .catch(err => {
-            clearTimeout(timeout);
-            let msg = err.name === "AbortError" ? "Request timed out" : "Error loading items";
-            let detailRow = document.getElementById("details-" + vchNumber);
-            if (detailRow) detailRow.innerHTML = `<td colspan="11" class="text-danger text-center">${msg}</td>`;
-        });
-}
-
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    }
 </script>

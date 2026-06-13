@@ -1,0 +1,89 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      SSH_HOST: ${{ secrets.HOST }}
+      SSH_USER: ${{ secrets.USERNAME }}
+      SSH_PASSWORD: ${{ secrets.PASSWORD }}
+      SSH_PORT: ${{ secrets.PORT }}
+
+    steps:
+      - name: Checkout Main Branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ vars.DOTNET_VERSION }}
+
+      - name: Restore Packages
+        run: dotnet restore JSAPNEW.csproj
+
+      - name: Build Project
+        run: dotnet build JSAPNEW.csproj --configuration Release --no-restore
+
+      - name: Publish Project
+        run: dotnet publish JSAPNEW.csproj --configuration Release --output ./publish
+
+      - name: Check Publish Output
+        run: |
+          echo "CURRENT DIRECTORY"
+          pwd
+
+          echo "FILES"
+          ls -la
+
+          echo "PUBLISH FOLDER"
+          ls -la ./publish
+
+          echo "VERIFY PUBLISH IS NOT EMPTY"
+          test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
+
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Test SSH Connection
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            "powershell -NoProfile -Command \"Write-Host 'SSH connection successful'\""
+
+      - name: Stop IIS Website and Windows Service
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            "powershell -NoProfile -Command \"Import-Module WebAdministration; Stop-Website -Name 'JSAP Test' -ErrorAction SilentlyContinue; Stop-Service -Name 'jsapnew' -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 5; if (Test-Path 'C:\LiveProjects\JSAPTestDeployTemp') { Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue } else { New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAPTestDeployTemp' -Force }\""
+
+      - name: Upload Publish Files To Temp Folder
+        run: |
+          sshpass -p "$SSH_PASSWORD" scp \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -P "$SSH_PORT" \
+            -r ./publish/* \
+            "$SSH_USER@$SSH_HOST:C:/LiveProjects/JSAPTestDeployTemp/"
+
+      - name: Move Files To Live Folder And Restart
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            "powershell -NoProfile -Command \"Import-Module WebAdministration; if (!(Test-Path 'C:\LiveProjects\JSAP Test')) { New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAP Test' -Force }; Remove-Item 'C:\LiveProjects\JSAP Test\*' -Recurse -Force -ErrorAction SilentlyContinue; Copy-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' 'C:\LiveProjects\JSAP Test\' -Recurse -Force; Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue; Start-Website -Name 'JSAP Test'; Start-Service -Name 'jsapnew'; Write-Host 'Deployment Completed Successfully'\""

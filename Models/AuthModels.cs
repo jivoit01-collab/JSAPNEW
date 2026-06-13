@@ -14,7 +14,8 @@ namespace JSAPNEW.Models
     public class LoginResponse
     {
         public bool Success { get; set; }
-        //public string Token { get; set; }
+        public string? AccessToken { get; set; }
+        public string? Token { get; set; }
         public string Message { get; set; }
         public UserDto User { get; set; }
     }
@@ -45,20 +46,25 @@ namespace JSAPNEW.Models
     public class UserDto
     {
         public int userId { get; set; }
-        public string userName { get; set; } = string.Empty;
+        public string userName { get; set; }
         public int userPhoneNumber { get; set; }
-        public string userEmail { get; set; } = string.Empty;
+        public string userEmail { get; set; }
+        public string password { get; set; }
         public int isActive { get; set; }
-        public string isActiveBy { get; set; } = string.Empty;
+        public string isActiveBy { get; set; }
         public DateTime isActiveOn { get; set; }
-        public string loginUser { get; set; } = string.Empty;
+        public string loginUser { get; set; }
         public DateTime createdOn { get; set; }
-        public string createdBy { get; set; } = string.Empty;
-        public string Comment { get; set; } = string.Empty;
-        public string firstName { get; set; } = string.Empty;
-        public string lastName { get; set; } = string.Empty;
+        public string createdBy { get; set; }
+        public string Comment { get; set; }
+        public string firstName { get; set; }
+        public string lastName { get; set; }
         public int changePassword { get; set; }
+        public string? role { get; set; }
         public string? Role { get; set; }
+        public string? securityStamp { get; set; }
+        public string? SecurityStamp { get; set; }
+
     }
     public class VarietyModel
     {
@@ -816,6 +822,10 @@ namespace JSAPNEW.Models
         public string ApprovedAmount { get; set; }
         public string RejectedAmount { get; set; }
         public string PendingAmount { get; set; }
+        public decimal? AvailableBalance { get; set; }
+        public decimal? ApprovedPercentage { get; set; }
+        public decimal? PendingPercentage { get; set; }
+        public decimal? AvailablePercentage { get; set; }
     }
     public class CombinedBudgetDTO
     {

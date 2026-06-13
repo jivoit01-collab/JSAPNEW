@@ -4,7 +4,7 @@ namespace JSAPNEW.Services.Interfaces
 {
     public interface ICheckerService
     {
-        List<BillDetailDto> GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName);
+        List<BillDetailDto> GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName, string status);
         List<InvoiceItemDto> GetInvoiceItemDetails(decimal serialNumber);
         void UpdateCheckerStatus(int vchNumber, string status, string remark);
     }

@@ -87,9 +87,9 @@ namespace JSAPNEW.Controllers
         // GET BILL DETAILS
         // ============================
         [HttpGet]
-        public IActionResult GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName)
+        public IActionResult GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName, string status)
         {
-            var data = _service.GetBillDetails(fromDate, toDate, accountName);
+            var data = _service.GetBillDetails(fromDate, toDate, accountName, status);
             return Json(data);
         }
 

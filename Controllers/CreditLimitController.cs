@@ -1,10 +1,12 @@
 ﻿using JSAPNEW.Models;
+using JSAPNEW.Authorization;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
+using System.Security.Claims;
 
 namespace JSAPNEW.Controllers
 {
@@ -15,12 +17,26 @@ namespace JSAPNEW.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly ICreditLimitService _CreditLimitService;
+        private readonly IUserService _userService;
         private readonly ILogger<CreditLimitController> _CreditLimitlogger;
-        public CreditLimitController(IConfiguration configuration, ICreditLimitService creditLimitService, ILogger<CreditLimitController> creditLimitlogger)
+        public CreditLimitController(IConfiguration configuration, ICreditLimitService creditLimitService, ILogger<CreditLimitController> creditLimitlogger, IUserService userService)
         {
             _configuration = configuration;
             _CreditLimitService = creditLimitService;
             _CreditLimitlogger = creditLimitlogger;
+            _userService = userService;
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private async Task<bool> VerifyCompanyOwnsResource(int companyId)
+        {
+            var userId = GetAuthenticatedUserId();
+            return await ResourceAuthorizationHelper.VerifyCompanyOwnsResource(userId, companyId, _userService.GetCompanyAsync);
         }
 
         [HttpPost("OpenCslm")]
@@ -54,6 +70,11 @@ namespace JSAPNEW.Controllers
         {
             try
             {
+                if (!await VerifyCompanyOwnsResource(company))
+                {
+                    return Forbid();
+                }
+
                 var customerCards = await _CreditLimitService.GetCustomerCardsAsync(company);
                 if (customerCards == null || !customerCards.Any())
                 {
@@ -80,6 +101,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new CreateDocumentResult { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.CompanyId))
+                {
+                    return Forbid();
+                }
+
+                request.CreatedBy = GetAuthenticatedUserId();
                 var result = await _CreditLimitService.CreateDocumentAsync(request);
                 if (result == null)
                 {
@@ -156,6 +183,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.companyId))
+                {
+                    return Forbid();
+                }
+
+                request.userId = GetAuthenticatedUserId();
                 var documents = await _CreditLimitService.GetApprovedDocumentsAsync(request);
                 if (documents == null || !documents.Any())
                 {
@@ -188,6 +221,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.companyId))
+                {
+                    return Forbid();
+                }
+
+                request.userId = GetAuthenticatedUserId();
                 var documents = await _CreditLimitService.GetPendingDocumentsAsync(request);
                 if (documents == null || !documents.Any())
                 {
@@ -218,6 +257,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.companyId))
+                {
+                    return Forbid();
+                }
+
+                request.userId = GetAuthenticatedUserId();
                 var documents = await _CreditLimitService.GetRejectedDocumentsAsync(request);
                 if (documents == null || !documents.Any())
                 {
@@ -248,6 +293,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.companyId))
+                {
+                    return Forbid();
+                }
+
+                request.userId = GetAuthenticatedUserId();
                 var documents = await _CreditLimitService.GetAllDocumentsAsync(request);
                 if (documents == null || !documents.Any())
                 {
@@ -279,6 +330,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.companyId))
+                {
+                    return Forbid();
+                }
+
+                request.userId = GetAuthenticatedUserId();
                 var insights = await _CreditLimitService.GetCreditDocumentInsightAsync(request);
                 if (insights == null || !insights.Any())
                 {
@@ -310,6 +367,13 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.createdBy = userId.ToString();
                 var insights = await _CreditLimitService.GetUserDocumentInsightsAsync(request);
                 if (insights == null || !insights.Any())
                 {
@@ -346,6 +410,15 @@ namespace JSAPNEW.Controllers
                 {
                     _CreditLimitlogger.LogInformation("Document detail not found");
                     return NotFound(new { Success = false, Message = "Document detail not found" });
+                }
+                if (!detail.Any())
+                {
+                    return NotFound(new { Success = false, Message = "Document detail not found" });
+                }
+
+                if (!await VerifyCompanyOwnsResource(detail.First().CompanyId))
+                {
+                    return Forbid();
                 }
                 _CreditLimitlogger.LogInformation("Document detail retrieved successfully.");
                 return Ok(new { Success = true, Data = detail });
@@ -429,6 +502,14 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new { Success = false, Message = "Invalid request" });
                 }
+
+                var userId = GetAuthenticatedUserId();
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { Success = false, Message = "Invalid authenticated user." });
+                }
+
+                request.createdBy = userId.ToString();
                 var documents = await _CreditLimitService.GetUserDocumentsAsync(request);
                 if (documents == null || !documents.Any())
                 {
@@ -464,6 +545,12 @@ namespace JSAPNEW.Controllers
                         Message = "Invalid request"
                     });
                 }
+                if (!await VerifyCompanyOwnsResource(request.Company))
+                {
+                    return Forbid();
+                }
+
+                request.UserId = GetAuthenticatedUserId();
 
                 // Step 1: Approve document
                 var result = await _CreditLimitService.ApproveDocumentAsync(request);
@@ -536,6 +623,12 @@ namespace JSAPNEW.Controllers
                     _CreditLimitlogger.LogWarning("Request is null");
                     return BadRequest(new CreditLimitApiResponse { Success = false, Message = "Invalid request" });
                 }
+                if (!await VerifyCompanyOwnsResource(request.Company))
+                {
+                    return Forbid();
+                }
+
+                request.UserId = GetAuthenticatedUserId();
                 var result = await _CreditLimitService.RejectDocumentAsync(request);
                 if (result == null)
                 {
@@ -572,6 +665,15 @@ namespace JSAPNEW.Controllers
                 {
                     _CreditLimitlogger.LogInformation("Document detail not found");
                     return NotFound(new { Success = false, Message = "Document detail not found" });
+                }
+                if (!detail.Any())
+                {
+                    return NotFound(new { Success = false, Message = "Document detail not found" });
+                }
+
+                if (!await VerifyCompanyOwnsResource(detail.First().CompanyId))
+                {
+                    return Forbid();
                 }
                 _CreditLimitlogger.LogInformation("Document detail retrieved successfully.");
                 return Ok(new { Success = true, Data = detail });

@@ -720,6 +720,10 @@ namespace JSAPNEW.Controllers
                     Email = existing.Email,
                     Phone = existing.Phone,
                     Designation = request.Designation,
+                    Gender = request.Gender,
+                    Qualification = request.Qualification,
+                    Area = request.Area,
+                    SikhNonSikh = request.SikhNonSikh,
                     RoleTypeId = existing.RoleTypeId,
                     PrimaryDepartmentId = existing.PrimaryDepartmentId,
                     DateOfJoining = request.DateOfJoining ?? existing.DateOfJoining,
@@ -1266,7 +1270,7 @@ namespace JSAPNEW.Controllers
                 ViewBag.InitialSalesStates = await _hierarchyService.GetSalesStatesAsync();
                 ViewBag.InitialSalesGroups = await _hierarchyService.GetSalesGroupsAsync();
                 ViewBag.InitialSalesDesignations = await _hierarchyService.GetSalesDesignationsAsync();
-                ViewBag.InitialSalesEmployees = await _hierarchyService.GetSalesEmployeeListAsync();
+                ViewBag.InitialSalesEmployees = await _hierarchyService.GetSalesEmployeeListAsync(companyId);
             }
             catch
             {
@@ -1356,7 +1360,8 @@ namespace JSAPNEW.Controllers
 
             try
             {
-                var result = await _hierarchyService.UpdateSalesRowAsync(request, userId.Value);
+                var companyId = HttpContext.Session.GetInt32("selectedCompanyId") ?? 1;
+                var result = await _hierarchyService.UpdateSalesRowAsync(request, userId.Value, companyId);
                 return Json(new { Success = result.Success, Message = result.Message });
             }
             catch (Exception ex) { return Json(new { Success = false, Message = ex.Message }); }
@@ -1391,7 +1396,8 @@ namespace JSAPNEW.Controllers
 
             try
             {
-                var result = await _hierarchyService.ShiftSalesEmployeeAsync(request, userId.Value);
+                var companyId = HttpContext.Session.GetInt32("selectedCompanyId") ?? 1;
+                var result = await _hierarchyService.ShiftSalesEmployeeAsync(request, userId.Value, companyId);
                 return Json(new { Success = result.Success, Message = result.Message });
             }
             catch (Exception ex) { return Json(new { Success = false, Message = ex.Message }); }
@@ -1435,7 +1441,8 @@ namespace JSAPNEW.Controllers
 
             try
             {
-                var data = await _hierarchyService.GetSalesEmployeeListAsync();
+                var companyId = HttpContext.Session.GetInt32("selectedCompanyId") ?? 1;
+                var data = await _hierarchyService.GetSalesEmployeeListAsync(companyId);
                 return Json(new { Success = true, Data = data });
             }
             catch (Exception ex) { return Json(new { Success = false, Message = ex.Message }); }

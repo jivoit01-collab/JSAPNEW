@@ -20,6 +20,7 @@ namespace JSAPNEW.Services.Interfaces
         Task<IEnumerable<GetVarietyModel>> GetVarietyAsync(string BRAND, int GroupCode, int company);
         Task<IEnumerable<GetsubgroupModel>> GetSubGroupAsync(string BRAND, string VARIETY, int GroupCode, int company);
         Task<IEnumerable<UnitModel>> GetUnitAsync(int GroupCode, int company);
+        Task<IEnumerable<UTypeModel>> GetUTypeAsync(int company);
         Task<IEnumerable<GetFAModel>> GetFaAsync(int GroupCode, int company);
         Task<IEnumerable<BuyUnitModel>> GetBuyUnitAsync(int company);
         Task<IEnumerable<GroupModel>> GetGroupAsync(int company);

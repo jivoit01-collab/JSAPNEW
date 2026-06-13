@@ -1,7 +1,8 @@
-﻿using Microsoft.Data.SqlClient;
-using System.Data;
-using JSAPNEW.Models;
+﻿using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.CodeAnalysis.Elfie.Diagnostics;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace JSAPNEW.Services.Implementation
 {
@@ -23,42 +24,13 @@ namespace JSAPNEW.Services.Implementation
 
             using (SqlConnection conn = new SqlConnection(connStr))
             {
-                string query = @"
-                    DECLARE @StartDate DATE = '2026-04-01';
-
-                    SELECT
-                        COUNT(DISTINCT A.VchNumber) AS TotalBills,
-
-                        COUNT(DISTINCT CASE
-                            WHEN AU.Status IS NULL OR AU.Status = 'Pending'
-                            THEN A.VchNumber
-                        END) AS PendingMaker,
-
-                        COUNT(DISTINCT CASE
-                            WHEN AU.CheckerStatus = 'Approved'
-                            THEN A.VchNumber
-                        END) AS ApprovedChecker,
-
-                        COUNT(DISTINCT CASE
-                            WHEN G.RefName IS NOT NULL
-                            THEN A.VchNumber
-                        END) AS TotalPaid
-
-                    FROM PurchaseHeader A
-
-                    LEFT JOIN AttachmentUpload AU
-                        ON AU.VchNumber = A.VchNumber
-
-                    LEFT JOIN RefMaster G
-                        ON G.RefName    = A.SupplierRef
-                        AND G.AccountID = A.AccountID
-                        AND G.ToBy      = 43
-
-                    WHERE A.VoucherDate >= @StartDate";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
+                using (SqlCommand cmd = new SqlCommand("GetSummaryData", conn))
                 {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@StartDate", new DateTime(2026, 4, 1));
+
                     conn.Open();
+
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {

@@ -4,10 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System;
-using JSAPNEW.Data.Entities;
-using JSAPNEW.Models;
-using JSAPNEW.Services.Interfaces;
 using System.Security.Claims;
+using JSAPNEW.Data.Entities;
+using JSAPNEW.Services.Interfaces;
 
 namespace JSAPNEW.Controllers
 {
@@ -27,36 +26,26 @@ namespace JSAPNEW.Controllers
         {
             try
             {
-                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
-                if (!int.TryParse(userIdClaim, out var userId) || userId <= 0)
+                var userId = GetAuthenticatedUserId();
+
+                if (userId <= 0)
                 {
-                    return Unauthorized(new { success = false, message = "Authentication required" });
+                    return Unauthorized(new { success = false, message = "Invalid authenticated user" });
                 }
 
-                // Fetch companies using the existing service
+                // Fetch companies using the authenticated user from JWT claims.
                 var companies = (await _userService.GetCompanyAsync(userId))?.ToList();
-                var user = await _userService.GetUserByIdAsync(userId);
 
                 if (companies == null || companies.Count == 0)
                 {
                     return BadRequest(new { success = false, message = "No companies found for user" });
                 }
 
-                var fullName = $"{user?.firstName} {user?.lastName}".Trim();
-                var displayName = !string.IsNullOrWhiteSpace(fullName)
-                    ? fullName
-                    : (!string.IsNullOrWhiteSpace(user?.userName)
-                        ? user.userName
-                        : (!string.IsNullOrWhiteSpace(user?.loginUser) ? user.loginUser : request?.UserName ?? "Guest"));
-
-                // Set session values
+                // Set session values from server-side claims only.
                 HttpContext.Session.SetInt32("userId", userId);
-                HttpContext.Session.SetString("username", displayName);
-                HttpContext.Session.SetString("userName", displayName);
-                HttpContext.Session.SetString("loginUser", !string.IsNullOrWhiteSpace(user?.loginUser) ? user.loginUser : displayName);
-                HttpContext.Session.SetString("userEmail", user?.userEmail ?? string.Empty);
+                HttpContext.Session.SetString("username", GetAuthenticatedUserName());
                 HttpContext.Session.SetString("companyList", JsonConvert.SerializeObject(companies));
-                HttpContext.Session.SetInt32("selectedCompanyId", companies[0].id);
+                HttpContext.Session.SetInt32("selectedCompanyId", companies[0].id); // Default to first
 
                 return Ok(new { success = true });
             }
@@ -68,7 +57,7 @@ namespace JSAPNEW.Controllers
         }
 
         [HttpPost("updateSelectedCompany")]
-        public IActionResult UpdateSelectedCompany([FromBody] CompanySelectRequest req)
+        public async Task<IActionResult> UpdateSelectedCompany([FromBody] CompanySelectRequest req)
         {
             try
             {
@@ -77,12 +66,16 @@ namespace JSAPNEW.Controllers
                     return BadRequest(new { success = false, message = "Invalid company ID" });
                 }
 
-                var companyListJson = HttpContext.Session.GetString("companyList");
-                var companies = string.IsNullOrWhiteSpace(companyListJson)
-                    ? new List<CompanyModel>()
-                    : JsonConvert.DeserializeObject<List<CompanyModel>>(companyListJson) ?? new List<CompanyModel>();
+                var userId = GetAuthenticatedUserId();
 
-                if (!companies.Any(c => c.id == req.CompanyId))
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "Invalid authenticated user" });
+                }
+
+                var companies = (await _userService.GetCompanyAsync(userId))?.ToList();
+
+                if (companies == null || !companies.Any(company => company.id == req.CompanyId))
                 {
                     return Forbid();
                 }
@@ -92,26 +85,20 @@ namespace JSAPNEW.Controllers
             }
             catch (Exception ex)
             {
+                // Log the exception
                 Console.WriteLine($"Error in UpdateSelectedCompany: {ex.Message}");
                 return StatusCode(500, new { success = false, message = "An error occurred while updating company selection" });
             }
         }
 
-        // Check if user is authenticated via cookie
+        // Add a method to check if session is valid
         [HttpGet("checksession")]
         public IActionResult CheckSession()
         {
             try
             {
-                // Check both cookie auth and session
                 var userId = HttpContext.Session.GetInt32("userId");
                 var companyList = HttpContext.Session.GetString("companyList");
-
-                // Also check if user is authenticated via cookie
-                if (User.Identity?.IsAuthenticated == true)
-                {
-                    return Json(new { valid = true, userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value });
-                }
 
                 if (!userId.HasValue || string.IsNullOrEmpty(companyList))
                 {
@@ -124,6 +111,19 @@ namespace JSAPNEW.Controllers
             {
                 return Json(new { valid = false });
             }
+        }
+
+        private int GetAuthenticatedUserId()
+        {
+            var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
+            return int.TryParse(claimValue, out var userId) ? userId : 0;
+        }
+
+        private string GetAuthenticatedUserName()
+        {
+            return User.FindFirstValue(ClaimTypes.Name)
+                ?? User.Identity?.Name
+                ?? "User";
         }
     }
 

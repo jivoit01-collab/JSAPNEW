@@ -1,0 +1,1177 @@
+﻿@{
+    ViewData["Title"] = "Maker Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="~/css/bill-verification.css" />
+<link rel="stylesheet" href="~/css/admin-premium.css" />
+
+<!-- PREMIUM CONTENT -->
+<div class="admin-dashboard-shell maker-dashboard-shell">
+    <nav class="premium-nav">
+        <div class="nav-glass">
+            <div class="nav-left-section">
+                <div class="brand-logo-wrap">
+                    <img src="~/images/logo.png" class="brand-logo" alt="Akal Rozgar Yojana logo" />
+                </div>
+                <div class="brand-content">
+                    <div class="ary-brand-header">Akal Rozgar Yojana A U/O JWPL</div>
+                    <div class="brand-title">Maker Upload Desk</div>
+                    <div class="brand-subtitle">Bill attachments • Remarks • Resubmission workflow</div>
+                </div>
+            </div>
+
+            <div class="product-slider" aria-label="Product showcase">
+                <div class="product-track">
+                    <img src="@Url.Content("~/images/canola.jpg")" class="product-img clickable-product" alt="Canola oil" />
+                    <img src="@Url.Content("~/images/js3.png")" class="product-img clickable-product" alt="Juice product" />
+                    <img src="@Url.Content("~/images/Pomace-2-1000x1000.png")" class="product-img clickable-product" alt="Pomace oil" />
+                    <img src="@Url.Content("~/images/Desi-Ghee.jpg")" class="product-img clickable-product" alt="Desi ghee" />
+                    <img src="@Url.Content("~/images/download.jpg")" class="product-img" alt="Wellness product" />
+                </div>
+            </div>
+        </div>
+
+            <div class="module-box maker">
+                <span class="module-dot"></span>
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Maker Dashboard</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- BODY -->
+    <div class="body admin-dashboard-body">
+
+        <!-- PRODUCT MODAL -->
+        <div class="product-modal" id="productModal">
+            <span class="close-modal">&times;</span>
+            <img id="modalImage" class="modal-product-image" />
+        </div>
+        <!-- =====================================================
+     MAKER KPI CARDS
+====================================================== -->
+
+        <div class="kpi-grid">
+
+            <!-- TOTAL ATTACHMENTS -->
+
+            <div class="kpi-card k-blue">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardTotalAttachments">
+                            0
+                        </div>
+                        <div class="kpi-label">
+                            Total Attachments
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-paperclip"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                                  stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-folder-open fa-xs"></i> Total</div>
+                </div>
+            </div>
+        </div>
+
+
+            <!-- PENDING -->
+
+            <div class="kpi-card k-amber">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardPending">
+                            0
+                        </div>
+                        <div class="kpi-label">
+                            Pending Entries
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                                  stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+                </div>
+            </div>
+
+
+            <!-- SUBMITTED -->
+
+            <div class="kpi-card k-green">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardSubmitted">
+                            0
+                        </div>
+                        <div class="kpi-label">
+                            Submitted Entries
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                                  stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Uploaded</div>
+                </div>
+            </div>
+
+
+            <!-- REJECTED -->
+
+            <div class="kpi-card k-purple">
+
+                <div class="kpi-top">
+                    <div>
+                        <div class="kpi-val"
+                             id="cardRejected">
+                            0
+                        </div>
+                        <div class="kpi-label">
+                            Rejected Entries
+                        </div>
+                    </div>
+                    <div class="kpi-icon">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                </div>
+                <div class="kpi-bottom">
+                    <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                        <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                                  stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="kpi-trend"><i class="fa-solid fa-rotate-right fa-xs"></i> Needs Action</div>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,14 24,18 36,8 48,14 60,6 72,12 80,8"
+                              stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-folder-open fa-xs"></i> Total</div>
+            </div>
+        </div>
+
+
+        <!-- PENDING -->
+
+        <div class="kpi-card k-amber">
+
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardPending">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Pending Entries
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,12 12,18 24,10 36,20 48,12 60,18 72,8 80,14"
+                              stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-hourglass-half fa-xs"></i> Awaiting</div>
+            </div>
+        </div>
+
+
+        <!-- SUBMITTED -->
+
+        <div class="kpi-card k-green">
+
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardSubmitted">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Submitted Entries
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,18 12,10 24,16 36,7 48,13 60,5 72,12 80,8"
+                              stroke="#22C55E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-check fa-xs"></i> Uploaded</div>
+            </div>
+        </div>
+
+
+        <!-- REJECTED -->
+
+        <div class="kpi-card k-purple">
+
+            <div class="kpi-top">
+                <div>
+                    <div class="kpi-val"
+                         id="cardRejected">
+                        0
+                    </div>
+                    <div class="kpi-label">
+                        Rejected Entries
+                    </div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <svg class="kpi-wave" viewBox="0 0 80 28" fill="none">
+                    <polyline points="0,20 12,12 24,18 36,10 48,18 60,8 72,15 80,9"
+                              stroke="#8B5CF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="kpi-trend"><i class="fa-solid fa-rotate-right fa-xs"></i> Needs Action</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- GLOBAL FILTER -->
+    <div class="filter-card maker-filter-card">
+        <div class="f-group">
+            <span class="f-label">From Date</span>
+            <input type="date" class="f-input" id="fromDate" />
+        </div>
+        <div class="f-group">
+            <span class="f-label">To Date</span>
+            <input type="date" class="f-input" id="toDate" />
+        </div>
+        <div class="f-group grow autocomplete-group">
+            <span class="f-label">Account Name</span>
+            <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
+            <div id="suggestionBox" class="suggestion-box"></div>
+        </div>
+       
+        <div class="f-group">
+            <span class="f-label">Entry Type</span>
+            <select id="entryFilter" class="f-input">
+                <option value="all">All Entries</option>
+                <option value="submitted">Submitted</option>
+                <option value="notsubmitted">Not Submitted</option>
+            </select>
+        </div>
+
+        <div class="f-group">
+            <span class="f-label">Due Date</span>
+            <select id="dueFilter" class="f-input">
+                <option value="">All</option>
+                <option value="overdue">Overdue</option>
+                <option value="today">Due Today</option>
+                <option value="upcoming">Upcoming</option>
+            </select>
+        </div>
+
+        <button class="btn btn-dark admin-search-btn" onclick="loadData()">
+            <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+
+        <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
+            <i class="fa-solid fa-file-excel"></i> Export
+        </button>
+   
+ </div>
+
+       
+
+    <!-- TABLE CARD -->
+    <div class="t-card maker-table-card">
+
+        <div class="t-header">
+            <span class="t-title">
+                <i class="fa-solid fa-list-check"></i> My Entries
+            </span>
+            <span class="t-count" id="maker-count">0 records</span>
+        </div>
+
+        <div class="table-slide-hint">
+            <i class="fa-solid fa-arrows-left-right"></i>
+            Slide horizontally to inspect all columns
+        </div>
+        <div class="top-scroll">
+            <div class="top-scroll-inner"></div>
+        </div>
+
+        <div class="t-wrap">
+            <table class="dt maker-workflow-table">
+                <colgroup>
+                    <col class="col-account" />
+                    <col class="col-voucher" />
+                    <col class="col-date" />
+                    <col class="col-amount" />
+                    <col class="col-supplier" />
+                    <col class="col-date" />
+                    <col class="col-date" />
+                    <col class="col-attachment" />
+                    <col class="col-maker-remark" />
+                    <col class="col-status" />
+                    <col class="col-action" />
+                    <col class="col-qty" />
+                    <col class="col-value" />
+                    <col class="col-items" />
+                    <col class="col-payment-status" />
+                    <col class="col-date" />
+                </colgroup>
+                <thead>
+                    <tr>
+
+                        <th>Account Name</th>
+                        <th>Voucher No</th>
+                        <th>Voucher Date</th>
+                        <th>Bill Amount</th>
+                        <th>Supplier Ref</th>
+                        <th>Supplier Ref Date</th>
+                        <th>Due Date</th>
+                        <th>Attachment</th>
+                        <th>Maker Remark</th>
+                        <th>Checker Status</th>
+                        <th>Action</th>
+                        <th>Total Qty</th>
+                        <th>Total Value</th>
+                        <th>Total Items</th>
+                        <th>Payment Status</th>
+                        <th>Payment Date</th>
+
+                    </tr>
+                </thead>
+                <tbody id="makerBody"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- SCROLL BUTTONS -->
+    <div id="scroll-btns">
+        <button class="scroll-btn"
+                onclick="window.scrollTo({top:0,behavior:'smooth'})"
+                title="Scroll to Top">
+            <i class="fa-solid fa-chevron-up"></i>
+        </button>
+        <button class="scroll-btn"
+                onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})"
+                title="Scroll to Bottom">
+            <i class="fa-solid fa-chevron-down"></i>
+        </button>
+    </div>
+    <!-- PDF MODAL -->
+
+    <div id="pdfContainer" class="pdf-modal">
+
+        <div class="pdf-box">
+
+            <button onclick="closePdf()" class="pdf-close">
+                ×
+            </button>
+
+            <iframe id="pdfFrame"></iframe>
+
+        </div>
+
+        <!-- GLOBAL FILTER -->
+        <div class="filter-card maker-filter-card">
+            <div class="f-group">
+                <span class="f-label">From Date</span>
+                <input type="date" class="f-input" id="fromDate" />
+            </div>
+            <div class="f-group">
+                <span class="f-label">To Date</span>
+                <input type="date" class="f-input" id="toDate" />
+            </div>
+            <div class="f-group grow autocomplete-group">
+                <span class="f-label">Account Name</span>
+                <input type="text" class="f-input" id="accountName" placeholder="Search vendor..." />
+                <div id="suggestionBox" class="suggestion-box"></div>
+            </div>
+
+            <div class="f-group">
+                <span class="f-label">Entry Type</span>
+                <select id="entryFilter" class="f-input">
+                    <option value="all">All Entries</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="notsubmitted">Not Submitted</option>
+                </select>
+            </div>
+
+            <div class="f-group">
+                <span class="f-label">Due Date</span>
+                <select id="dueFilter" class="f-input">
+                    <option value="">All</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="today">Due Today</option>
+                    <option value="upcoming">Upcoming</option>
+                </select>
+            </div>
+
+            <button class="btn btn-dark admin-search-btn" onclick="loadData()">
+                <i class="fa-solid fa-magnifying-glass"></i> Search
+            </button>
+
+            <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
+                <i class="fa-solid fa-file-excel"></i> Export
+            </button>
+
+        </div>
+
+       
+
+        <!-- TABLE CARD -->
+        <div class="t-card maker-table-card">
+
+            <div class="t-header">
+                <span class="t-title">
+                    <i class="fa-solid fa-list-check"></i> My Entries
+                </span>
+                <span class="t-count" id="maker-count">0 records</span>
+            </div>
+
+            <div class="table-slide-hint">
+                <i class="fa-solid fa-arrows-left-right"></i>
+                Slide horizontally to inspect all columns
+            </div>
+            <div class="top-scroll">
+                <div class="top-scroll-inner"></div>
+            </div>
+
+            <div class="t-wrap">
+                <table class="dt maker-workflow-table">
+                    <colgroup>
+                        <col class="col-account" />
+                        <col class="col-voucher" />
+                        <col class="col-date" />
+                        <col class="col-amount" />
+                        <col class="col-supplier" />
+                        <col class="col-date" />
+                        <col class="col-date" />
+                        <col class="col-attachment" />
+                        <col class="col-maker-remark" />
+                        <col class="col-status" />
+                        <col class="col-action" />
+                        <col class="col-qty" />
+                        <col class="col-value" />
+                        <col class="col-items" />
+                        <col class="col-payment-status" />
+                        <col class="col-date" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+
+                            <th>Account Name</th>
+                            <th>Voucher No</th>
+                            <th>Voucher Date</th>
+                            <th>Bill Amount</th>
+                            <th>Supplier Ref</th>
+                            <th>Supplier Ref Date</th>
+                            <th>Due Date</th>
+                            <th>Attachment</th>
+                            <th>Maker Remark</th>
+                            <th>Checker Status</th>
+                            <th>Action</th>
+                            <th>Total Qty</th>
+                            <th>Total Value</th>
+                            <th>Total Items</th>
+                            <th>Payment Status</th>
+                            <th>Payment Date</th>
+
+                        </tr>
+                    </thead>
+                    <tbody id="makerBody"></tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <!-- SCROLL BUTTONS -->
+        <div id="scroll-btns">
+            <button class="scroll-btn"
+                    onclick="window.scrollTo({top:0,behavior:'smooth'})"
+                    title="Scroll to Top">
+                <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="scroll-btn"
+                    onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})"
+                    title="Scroll to Bottom">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+        </div>
+        <!-- PDF MODAL -->
+
+        <div id="pdfContainer" class="pdf-modal">
+
+            <div class="pdf-box">
+
+                <button onclick="closePdf()" class="pdf-close">
+                    ×
+                </button>
+
+                <iframe id="pdfFrame"></iframe>
+
+            </div>
+
+        </div>
+
+    </div><!-- /.body -->
+</div><!-- /.maker-dashboard-shell -->
+
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+
+    /* ═══════════════════════════════════
+    BOOT
+    ═══════════════════════════════════ */
+    let makerDataCache = [];
+
+    $(document).ready(function () {
+
+    /* search button */
+    /*  $("#searchBtn").click(loadData);*/
+
+    /* account name autocomplete */
+    $("#accountName").on("keyup", function () {
+
+    let searchText = $(this).val().trim();
+
+    if (searchText.length < 2) {
+    $("#suggestionBox").empty();
+    return;
+    }
+
+    $.get("/Maker/GetAccountSuggestions", { term: searchText }, function (data) {
+    makerDataCache = data || [];
+
+
+
+    let html = "";
+
+    if (!data || data.length === 0) {
+    html = `<div class="suggest-item">No result</div>`;
+    } else {
+    data.forEach(x => {
+    html += `<div class="suggest-item">${x}</div>`;
+    });
+    }
+
+    $("#suggestionBox").html(html);
+    });
+    });
+
+    /* suggestion click — select item */
+    $(document).on("mousedown", ".suggest-item", function (e) {
+    e.preventDefault();
+    $("#accountName").val($(this).text().trim());
+    $("#suggestionBox").empty();
+    });
+
+    /* hide suggestion box on outside click */
+    $(document).on("click", function (e) {
+    if (!$(e.target).closest("#accountName, #suggestionBox").length) {
+    $("#suggestionBox").empty();
+    }
+    });
+
+    });
+
+    /* ═══════════════════════════════════
+    LOAD DATA  (your original logic — unchanged)
+    ═══════════════════════════════════ */
+    function loadData() {
+
+    let fromDate    = $("#fromDate").val();
+    let toDate      = $("#toDate").val();
+    let accountName = $("#accountName").val().trim() || null;
+
+    if (!fromDate || !toDate) {
+    alert("Select both dates");
+    return;
+    }
+
+    if (fromDate > toDate) {
+    alert("From Date cannot be greater than To Date");
+    return;
+    }
+
+    $("#makerBody").html(`<tr><td colspan="16" style="text-align:center;padding:30px;color:#9CA3AF">Loading...</td></tr>`);
+    resetMakerKPIs();
+
+    $.get("/Maker/GetBillDetails",
+    { fromDate, toDate, accountName },
+    function (data) {
+    renderTable(data || []);
+
+    updateMakerKPIs(data || []);
+    }
+    ).fail(function () {
+    $("#makerBody").html(`<tr><td colspan="16" style="text-align:center;padding:30px;color:#EF4444">Error loading data. Please try again.</td></tr>`);
+    });
+    }
+
+    function safeText(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    return $("<div>").text(value).html();
+    }
+
+    function safeAttr(value) {
+    return safeText(value).replace(/"/g, "&quot;");
+    }
+
+    function safeValueAttr(value) {
+    if (value === null || value === undefined) return "";
+    return $("<div>").text(value).html().replace(/"/g, "&quot;");
+    }
+
+    function safeJsString(value) {
+    return JSON.stringify(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    }
+
+    /* ═══════════════════════════════════
+    RENDER TABLE  (your original logic + improved UI)
+    ═══════════════════════════════════ */
+    function renderTable(data) {
+
+    if (!data || data.length === 0) {
+    $("#exportBtn").hide();
+    $("#makerBody").html(
+    `<tr><td colspan="16" class="empty-row">
+    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
+    No data found for the selected filters.
+    </td></tr>`
+    );
+    return;
+    }
+
+    let html    = "";
+    let seenVch = new Set();
+    $("#maker-count").text(data.length + " records");
+    let entryType =
+    $("#entryFilter").val();
+    let dueFilter =
+    $("#dueFilter").val();
+
+    let today =
+    new Date();
+
+    today.setHours(0,0,0,0);
+
+    data
+    .filter(item => item.paymentStatus !== "Paid")
+    .forEach(item => {
+
+   
+    /* hide approved */
+    if ((item.checkerStatus || "").toLowerCase() === "approved") {
+    return;
+    }
+
+    /* show rejected for re-upload */
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") {
+    // allow rejected entries
+    }
+    else {
+    /* hide submitted pending entries */
+    if (item.attachmentPath) {
+    return;
+    }
+    }
+
+   
+
+    if (seenVch.has(item.vchNumber)) return;
+    seenVch.add(item.vchNumber);
+    
+    let isSubmitted =
+    !!item.attachmentPath;
+
+    let isSubmitted =
+    !!item.attachmentPath;
+
+    if (
+    entryType === "submitted" &&
+    !isSubmitted
+    )
+    return;
+
+    if (
+    entryType === "notsubmitted" &&
+    isSubmitted
+    )
+    return;
+    /* DUE DATE FILTER */
+
+
+    if (dueFilter && item.dueDate) {
+
+    let dueDate =
+    new Date(item.dueDate);
+
+    dueDate.setHours(0,0,0,0);
+
+    if (
+    dueFilter === "overdue"
+    &&
+    !(dueDate < today)
+    ) {
+    return;
+    }
+
+    if (
+    dueFilter === "today"
+    &&
+    dueDate.getTime() !== today.getTime()
+    ) {
+    return;
+    }
+
+    if (
+    dueFilter === "upcoming"
+    &&
+    !(dueDate > today)
+    ) {
+    return;
+    }
+    }
+
+    /* status badge */
+    let checkerStatusValue = item.checkerStatus || "Pending";
+    let statusBadge =
+    checkerStatusValue === "Approved" ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>` :
+    checkerStatusValue === "Rejected" ? `<span class="status-badge sb-rejected"><i class="fa-solid fa-xmark"></i> Rejected</span>` :
+    `<span class="status-badge sb-pending"><i class="fa-solid fa-clock"></i> Pending</span>`;
+
+    /* payment badge */
+    let payBadge = item.paymentStatus === "Paid"
+    ? `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
+    : `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> Unpaid</span>`;
+
+  
+    /* attachment cell */
+
+    let attachCell =
+
+    item.checkerStatus === "Approved"
+
+    ? `<span class="status-badge sb-approved">
+    <i class="fa-solid fa-check"></i> Approved
+    </span>`
+
+    : `<div class="attach-group">
+
+    ${item.attachmentPath ?
+
+    `<a class="attach-view"
+    href="#"
+    onclick="openPdf(${safeJsString(item.attachmentPath)}); return false;">
+
+    <i class="fa-solid fa-eye"></i> View
+
+    </a>`
+
+    : ''}
+
+    <label class="upload-zone ${item.attachmentPath ? 'reupload-zone' : ''}">
+
+    <i class="fa-solid fa-rotate-right"></i>
+
+    ${item.attachmentPath ? 'Re-Upload' : 'Upload'}
+
+    <input type="file"
+    class="fileInput"
+    accept=".pdf,.jpg,.jpeg,.png">
+
+    </label>
+
+    </div>`;
+
+    /* remark cell */
+    let remarkCell = item.attachmentPath
+    ? `<span class="cell-text clamp-text">${safeText(item.makerRemark || "-")}</span>`
+    : `<input type="text" class="remarkInput f-input maker-remark-input" placeholder="Enter remark">`;
+
+    
+    /* action cell */
+
+    /* action cell */
+
+    let actionCell =
+
+    item.checkerStatus === "Approved"
+
+    ? `<span class="status-badge sb-approved">
+    <i class="fa-solid fa-lock"></i> Locked
+    </span>`
+
+    : `<button class="submitBtn btn btn-dark btn-sm"
+    data-vch="${safeValueAttr(item.vchNumber)}">
+
+    <i class="fa-solid fa-paper-plane"></i>
+
+    ${item.attachmentPath ? 'Update' : 'Submit'}
+
+    </button>`;
+
+    html += `
+    <tr>
+    <td class="td-account" title="${safeAttr(item.accountName || '')}"><span class="cell-text">${safeText(item.accountName || "")}</span></td>
+    <td class="td-voucher"><span class="cell-text">${safeText(item.vchNumber || "")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(formatDate(item.voucherDate))}</span></td>
+    <td class="td-amount"><span class="cell-text">&#8377;${safeText(item.billAmount || "")}</span></td>
+    <td class="td-supplier" title="${safeAttr(item.supplierRef || '-')}"><span class="cell-text">${safeText(item.supplierRef || "-")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(item.supplierRefDate ? formatDate(item.supplierRefDate) : "-")}</span></td>
+    <td class="td-date"><span class="cell-text">${safeText(item.dueDate ? formatDate(item.dueDate) : "-")}</span></td>
+    <td class="td-attachment">${attachCell}</td>
+    <td class="td-remark" title="${safeAttr(item.makerRemark || '-')}">${remarkCell}</td>
+    <td class="td-status">${statusBadge}</td>
+    <td class="td-action-cell">${actionCell}</td>
+    <td class="td-number"><span class="cell-text">${safeText(item.totalQuantity ?? 0)}</span></td>
+    <td class="td-number"><span class="cell-text">${safeText(item.totalItemValue ?? 0)}</span></td>
+    <td class="td-number"><span class="cell-text">${safeText(item.totalItems ?? 0)}</span></td>
+    <td class="td-status">${payBadge}</td>
+    <td class="td-date"><span class="cell-text">${safeText(item.paymentDate ? formatDate(item.paymentDate) : "-")}</span></td>
+    </tr>`;
+    });
+
+    $("#makerBody").html(html);
+    $("#exportBtn").show();
+    if (window._syncTopScroll) window._syncTopScroll();
+    }
+
+    /* ═══════════════════════════════════
+    FORMAT DATE  (your original — unchanged)
+    ═══════════════════════════════════ */
+    function formatDate(dateString) {
+    if (!dateString) return "";
+    let d = new Date(dateString);
+    if (isNaN(d)) return dateString;
+    return d.toISOString().split('T')[0];
+    }
+
+ 
+    /* ═══════════════════════════════════
+    PDF VIEWER  (your original — unchanged)
+    ═══════════════════════════════════ */
+    function openPdf(path) {
+    document.getElementById("pdfFrame").src = path;
+    document.getElementById("pdfContainer").style.display = "block";
+    }
+
+    function closePdf() {
+    document.getElementById("pdfContainer").style.display = "none";
+    document.getElementById("pdfFrame").src = "";
+    }
+
+    /* ═══════════════════════════════════
+    SUBMIT BUTTON  (your original logic — unchanged)
+    ═══════════════════════════════════ */
+    $(document).on("click", ".submitBtn", function () {
+
+    let row       = $(this).closest("tr");
+    let vchNumber = $(this).data("vch");
+    let fileInput = row.find(".fileInput")[0];
+    let remark    = row.find(".remarkInput").val();
+
+    if (!fileInput || !fileInput.files.length) {
+    alert("Please select a file");
+    return;
+    }
+
+    let btn      = $(this);
+    let origText = btn.html();
+    btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Uploading…').prop('disabled', true);
+
+    let formData = new FormData();
+    formData.append("vchNumber",   vchNumber);
+    formData.append("file",        fileInput.files[0]);
+    formData.append("makerRemark", remark);
+
+    $.ajax({
+    url:         "/Maker/SubmitBill",
+    type:        "POST",
+    data:        formData,
+    contentType: false,
+    processData: false,
+    success: function (res) {
+    if (res.success) {
+    showToast("Uploaded successfully", "success");
+    loadData();
+    } else {
+    btn.html(origText).prop('disabled', false);
+    showToast("Upload failed. Please try again.", "error");
+    }
+    },
+    error: function () {
+    btn.html(origText).prop('disabled', false);
+    showToast("An error occurred. Please try again.", "error");
+    }
+    });
+    });
+
+   
+
+    
+
+    /* ═══════════════════════════════════
+    TOAST
+    ═══════════════════════════════════ */
+    function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className   = 'toast toast-' + type;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('toast-show'), 10);
+    setTimeout(() => {
+    t.classList.remove('toast-show');
+    setTimeout(() => t.remove(), 300);
+    }, 3000);
+    }
+
+    /* ═══════════════════════════════════
+    SCROLL BUTTONS
+    ═══════════════════════════════════ */
+    window.addEventListener('scroll', function () {
+    document.getElementById('scroll-btns')
+    .classList.toggle('visible', window.scrollY > 200);
+    });
+    /* PRODUCT MODAL */
+
+    const modal =
+    document.getElementById('productModal');
+
+    const modalImage =
+    document.getElementById('modalImage');
+
+    const products =
+    document.querySelectorAll('.clickable-product');
+
+    products.forEach(product =>
+    {
+    product.addEventListener('click', () =>
+    {
+    modal.style.display = 'flex';
+    modalImage.src = product.src;
+    });
+    });
+
+    document
+    .querySelector('.close-modal')
+    .addEventListener('click', () =>
+    {
+    modal.style.display = 'none';
+    });
+
+    modal.addEventListener('click', (e) =>
+    {
+    if(e.target === modal)
+    {
+    modal.style.display = 'none';
+    }
+    });
+    /* TOP SCROLL SYNC */
+    (function () {
+    const top   = document.querySelector('.top-scroll');
+    const inner = document.querySelector('.top-scroll-inner');
+    const wrap  = document.querySelector('.maker-table-card .t-wrap');
+    const table = document.querySelector('.maker-table-card table.dt');
+    if (!top || !inner || !wrap || !table) return;
+
+    let lockTop = false, lockWrap = false;
+
+    top.addEventListener('scroll', function () {
+    if (lockWrap) return;
+    lockTop = true;
+    wrap.scrollLeft = top.scrollLeft;
+    lockTop = false;
+    });
+
+    wrap.addEventListener('scroll', function () {
+    if (lockTop) return;
+    lockWrap = true;
+    top.scrollLeft = wrap.scrollLeft;
+    lockWrap = false;
+    });
+
+    // call this after every renderTable()
+    window._syncTopScroll = function () {
+    requestAnimationFrame(function () {
+    inner.style.width = table.scrollWidth + 'px';
+    });
+    };
+    })();
+    /* ═══════════════════════════════════
+    KPI RESET
+    ═══════════════════════════════════ */
+
+    function resetMakerKPIs(){
+
+    $("#cardTotalAttachments").text("0");
+
+    $("#cardPending").text("0");
+
+    $("#cardSubmitted").text("0");
+
+    $("#cardRejected").text("0");
+
+    }
+
+
+    /* ═══════════════════════════════════
+    KPI UPDATE
+    ═══════════════════════════════════ */
+
+    function updateMakerKPIs(data) {
+
+    if (!data || data.length === 0) {
+
+    resetMakerKPIs();
+
+    return;
+    }
+
+    let total =
+    new Set(
+    data.map(x => x.vchNumber)
+    ).size;
+    let pending =
+    new Set(
+    data
+    .filter(x => !x.attachmentPath)
+    .map(x => x.vchNumber)
+    ).size;
+
+    let submitted =
+    new Set(
+    data
+    .filter(x => x.attachmentPath)
+    .map(x => x.vchNumber)
+    ).size;
+
+    let rejected =
+    data.filter(x =>
+    (x.checkerStatus || "")
+    .toLowerCase() === "rejected"
+    ).length;
+
+    $("#cardTotalAttachments").text(total);
+
+    $("#cardPending").text(pending);
+
+    $("#cardSubmitted").text(submitted);
+
+    $("#cardRejected").text(rejected);
+
+    }
+
+    function exportToExcel() {
+    if (!makerDataCache || !makerDataCache.length) {
+    showToast("No data to export", "error"); return;
+    }
+
+    var fromDate = $("#fromDate").val() || "all";
+    var toDate   = $("#toDate").val()   || "";
+    var filename = "maker-entries_" + fromDate + (toDate ? "_to_" + toDate : "") + ".csv";
+
+    var rows = [];
+    rows.push([
+    "Account Name","Voucher No","Voucher Date","Bill Amount",
+    "Supplier Ref","Supplier Ref Date","Due Date",
+    "Maker Remark","Checker Status",
+    "Total Qty","Total Value","Total Items",
+    "Payment Status","Payment Date"
+    ]);
+
+    var seenVch = new Set();
+    makerDataCache.forEach(function(item) {
+    if (seenVch.has(item.vchNumber)) return;
+    seenVch.add(item.vchNumber);
+    rows.push([
+    item.accountName      || "",
+    item.vchNumber        || "",
+    formatDate(item.voucherDate)      || "",
+    item.billAmount       || "",
+    item.supplierRef      || "",
+    formatDate(item.supplierRefDate)  || "",
+    formatDate(item.dueDate)          || "",
+    item.makerRemark      || "",
+    item.checkerStatus    || "Pending",
+    item.totalQuantity    != null ? item.totalQuantity  : "",
+    item.totalItemValue   != null ? item.totalItemValue : "",
+    item.totalItems       != null ? item.totalItems     : "",
+    item.paymentStatus    || "",
+    formatDate(item.paymentDate)      || ""
+    ]);
+    });
+
+    var totalAmt = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.billAmount)||0);},0);
+    var totalQty = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.totalQuantity)||0);},0);
+    var totalVal = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.totalItemValue)||0);},0);
+    var totalItm = makerDataCache.reduce(function(s,x){ return s+(parseFloat(x.totalItems)||0);},0);
+
+    rows.push([]);
+    rows.push(["TOTALS","","","₹"+totalAmt.toLocaleString("en-IN"),"","","","","",totalQty,totalVal,totalItm,"",""]);
+
+    downloadCSV(rows, filename);
+    showToast("Exported successfully!", "success");
+    }
+    /* ═══════════════════════════════════════
+    SHARED CSV EXPORT UTILITY
+    Add once per page — handles all escaping,
+    BOM, and clean formatting.
+    ═══════════════════════════════════════ */
+    function downloadCSV(rows, filename) {
+    var BOM = "\uFEFF"; // UTF-8 BOM — ensures Excel opens with correct encoding
+    var csv = BOM + rows.map(function(row) {
+    return row.map(function(cell) {
+    var v = (cell === null || cell === undefined) ? "" : String(cell);
+    // Normalise whitespace — remove line breaks, collapse spaces
+    v = v.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Escape double-quotes
+    v = v.replace(/"/g, '""');
+    // Always quote every cell for safety
+    return '"' + v + '"';
+    }).join(",");
+    }).join("\r\n");
+
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    }
+</script>

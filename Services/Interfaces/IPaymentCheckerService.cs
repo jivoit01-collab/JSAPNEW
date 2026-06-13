@@ -6,5 +6,8 @@ namespace JSAPNEW.Services.Interfaces
     {
         List<BillDetailDto> GetPaidBillDetails(DateTime? fromDate, DateTime? toDate, string accountName);
         List<InvoiceItemDto> GetInvoiceItemDetails(int vchNumber);
+        void MarkVerified(int vchNumber);
+        bool RejectPayment(int vchNumber, string remark);
+
     }
 }

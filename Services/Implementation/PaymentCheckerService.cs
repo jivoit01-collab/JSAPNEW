@@ -1,7 +1,8 @@
-﻿using Microsoft.Data.SqlClient;
-using System.Data;
-using JSAPNEW.Models;
+﻿using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
+using Microsoft.Data.SqlClient;
+using Org.BouncyCastle.Crypto;
+using System.Data;
 
 namespace JSAPNEW.Services.Implementation
 {
@@ -40,10 +41,15 @@ namespace JSAPNEW.Services.Implementation
                     {
                         while (reader.Read())
                         {
-                            string paymentStatus = reader["PaymentStatus"] == DBNull.Value ? string.Empty : reader["PaymentStatus"]?.ToString()?.Trim() ?? string.Empty;
+                            string paymentStatus = reader["PaymentStatus"]?.ToString();
+                            if (paymentStatus != "Paid") continue;
 
-                            // Only Paid records
-                            if (!string.Equals(paymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)) continue;
+                            bool isVerified =
+                                reader["IsPaymentVerified"] != DBNull.Value &&
+                                Convert.ToBoolean(reader["IsPaymentVerified"]);
+
+                            if (isVerified)
+                                continue;
 
                             data.Add(new BillDetailDto
                             {
@@ -101,10 +107,17 @@ namespace JSAPNEW.Services.Implementation
                             items.Add(new InvoiceItemDto
                             {
                                 ProductName = reader["ProductName"]?.ToString(),
+
+                                HSNSACID = reader["HSNSACID"]?.ToString(),
+
                                 Quantity = reader["Quantity"],
+
                                 WarehouseName = reader["WarehouseName"] == DBNull.Value ? "-" : reader["WarehouseName"].ToString(),
+
                                 Tax = reader["TaxRate"],
+
                                 TaxName = reader["TaxName"] == DBNull.Value ? "-" : reader["TaxName"].ToString(),
+
                                 ItemValue = reader["ItemValue"]
                             });
                         }
@@ -113,6 +126,54 @@ namespace JSAPNEW.Services.Implementation
             }
 
             return items;
+        }
+        public void MarkVerified(int vchNumber)
+        {
+            string connStr = _config.GetConnectionString("FHConnection");
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                string query = @"
+        UPDATE AttachmentUpload
+        SET IsPaymentVerified = 1
+        WHERE VchNumber = @VchNumber";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@VchNumber", vchNumber);
+
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public bool RejectPayment(int vchNumber, string remark)
+        {
+            string connStr = _config.GetConnectionString("FHConnection");
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                string query = @"
+        UPDATE AttachmentUpload
+        SET CheckerStatus = 'Rejected',
+            CheckerRemark = @Remark,
+            CheckerDate = GETDATE(),
+            PaymentStatus = 'UnPaid',
+            PaymentDate = NULL,
+            IsPaymentVerified = 0
+        WHERE VchNumber = @VchNumber";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@VchNumber", vchNumber);
+                    cmd.Parameters.AddWithValue("@Remark",
+                        string.IsNullOrWhiteSpace(remark) ? DBNull.Value : remark.Trim());
+
+                    conn.Open();
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
         }
     }
 }

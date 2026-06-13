@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using JSAPNEW.Data.Entities;
 using JSAPNEW.Models;
+using JSAPNEW.Services;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -20,25 +21,26 @@ namespace JSAPNEW.Services.Implementation
     public class UserService : IUserService
     {
         private readonly IConfiguration _configuration;
-        //private readonly Interfaces.ITokenService _tokenService;
+        private readonly Interfaces.ITokenService _tokenService;
         private readonly string _connectionString;
         private readonly INotificationService _notificationService;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IConfiguration configuration, INotificationService notificationService, ILogger<UserService> logger)
+        public UserService(IConfiguration configuration, Interfaces.ITokenService tokenService, INotificationService notificationService, ILogger<UserService> logger)
         {
             _configuration = configuration;
+            _tokenService = tokenService;
             _connectionString = _configuration.GetConnectionString("DefaultConnection");
             _notificationService = notificationService;
             _logger = logger;
         }
 
 
-        public async Task<LoginResult> ValidateUserAsync(LoginRequest request)
+        public async Task<LoginResponse> ValidateUserAsync(LoginRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.loginUser) || string.IsNullOrWhiteSpace(request.password))
             {
-                return new LoginResult
+                return new LoginResponse
                 {
                     Success = false,
                     Message = "Username and password must be provided"
@@ -47,146 +49,100 @@ namespace JSAPNEW.Services.Implementation
 
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-                await connection.OpenAsync();
-
-                var userData = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                    "SELECT * FROM jsUser WHERE LoginUser = @loginUser",
-                    new { loginUser = request.loginUser }
-                );
-
-                if (userData == null)
+                using (var connection = new SqlConnection(_connectionString))
                 {
-                    _logger.LogWarning("Login failed: User '{Username}' not found in database", request.loginUser);
-                    return new LoginResult
+                    await connection.OpenAsync();
+
+                    var userRow = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                        "SELECT TOP 1 * FROM jsUser WHERE LoginUser = @LoginUser",
+                        new { LoginUser = request.loginUser }
+                    );
+
+                    if (userRow == null)
                     {
-                        Success = false,
-                        Message = "Invalid username or password"
-                    };
-                }
+                        return new LoginResponse
+                        {
+                            Success = false,
+                            Message = "Invalid username or password"
+                        };
+                    }
 
-                var dict = (IDictionary<string, object>)userData;
-                var pwKey = dict.Keys.FirstOrDefault(k => k.Equals("password", StringComparison.OrdinalIgnoreCase));
-                if (pwKey == null)
-                {
-                    _logger.LogError("No password column found in jsUser table");
-                    return new LoginResult { Success = false, Message = "Invalid username or password" };
-                }
+                    var userValues = (IDictionary<string, object>)userRow;
+                    var userIdValue = AuthSecurity.GetValue(userValues, "UserId", "userId");
+                    var storedPassword = AuthSecurity.GetValue(userValues, "Password", "password")?.ToString();
 
-                var storedPassword = dict[pwKey]?.ToString();
-                if (string.IsNullOrWhiteSpace(storedPassword))
-                {
-                    _logger.LogWarning("Login failed: User '{Username}' has empty password", request.loginUser);
-                    return new LoginResult { Success = false, Message = "Invalid username or password" };
-                }
-
-                bool isValid;
-                string? format = null;
-
-                if (PasswordHasher.IsBcryptHash(storedPassword))
-                {
-                    isValid = PasswordHasher.VerifyPassword(request.password, storedPassword);
-                    format = "bcrypt";
-                }
-                else if (Encryption.IsLegacyEncrypted(storedPassword))
-                {
-                    var decrypted = Encryption.Decrypt(storedPassword);
-                    isValid = string.Equals(decrypted, request.password, StringComparison.Ordinal);
-                    format = "legacy_encrypted";
-                }
-                else
-                {
-                    var legacyHash = ComputeLegacyHash(request.password);
-                    isValid = storedPassword == legacyHash || string.Equals(storedPassword, request.password, StringComparison.Ordinal);
-                    format = storedPassword == request.password ? "plaintext" : "legacy_sha256";
-                }
-
-                _logger.LogInformation("Login '{User}': format={Fmt}, valid={Valid}", request.loginUser, format, isValid);
-
-                if (!isValid)
-                {
-                    _logger.LogWarning("Login failed: Password mismatch for user '{Username}' (format: {Format})", request.loginUser, format);
-                    return new LoginResult
+                    if (string.IsNullOrWhiteSpace(storedPassword)
+                        || !AuthSecurity.VerifyPassword(request.password, storedPassword)
+                        || !int.TryParse(userIdValue?.ToString(), out var userId))
                     {
-                        Success = false,
-                        Message = "Invalid username or password"
-                    };
-                }
+                        return new LoginResponse
+                        {
+                            Success = false,
+                            Message = "Invalid username or password"
+                        };
+                    }
 
-                if (format != "bcrypt")
-                {
-                    var hashedPw = PasswordHasher.HashPassword(request.password);
-                    try
+                    if (!AuthSecurity.IsBCryptHash(storedPassword))
                     {
+                        storedPassword = AuthSecurity.HashPassword(request.password);
                         await connection.ExecuteAsync(
-                            $"UPDATE jsUser SET {pwKey} = @hashedPassword WHERE LoginUser = @loginUser",
-                            new { hashedPassword = hashedPw, loginUser = request.loginUser });
-                        _logger.LogInformation("Upgraded password for '{User}' from {Format} to BCrypt", request.loginUser, format);
+                            "UPDATE jsUser SET Password = @Password WHERE UserId = @UserId",
+                            new { Password = storedPassword, UserId = userId }
+                        );
                     }
-                    catch (Exception ex)
+
+                    var user = await connection.QueryFirstOrDefaultAsync<UserDto>(
+                        "jsCheckLogin",
+                        new { loginUser = request.loginUser, password = storedPassword },
+                        commandType: CommandType.StoredProcedure
+                    );
+
+                    if (user == null)
                     {
-                        _logger.LogWarning(ex, "Failed to upgrade password for '{User}' to BCrypt", request.loginUser);
+                        return new LoginResponse
+                        {
+                            Success = false,
+                            Message = "Invalid username or password"
+                        };
                     }
+
+                    user.password = storedPassword;
+                    var currentUserRow = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                        "SELECT TOP 1 * FROM jsUser WHERE UserId = @UserId",
+                        new { UserId = user.userId }
+                    );
+                    var roleRows = await connection.QueryAsync<dynamic>(
+                        @"SELECT ur.userId, ur.roleId, r.roleName
+                          FROM jsUserRole ur
+                          LEFT JOIN jsRole r ON ur.roleId = r.roleId
+                          WHERE ur.userId = @UserId
+                          ORDER BY ur.roleId, r.roleName",
+                        new { UserId = user.userId }
+                    );
+                    var roleSnapshot = AuthSecurity.CreateRoleSnapshot(roleRows);
+                    user.securityStamp = currentUserRow == null
+                        ? AuthSecurity.CreateSecurityStamp(storedPassword, _configuration["Jwt:SecretKey"], user.userId)
+                        : AuthSecurity.CreateSecurityStamp((IDictionary<string, object>)currentUserRow, _configuration["Jwt:SecretKey"], roleSnapshot);
+                    var token = _tokenService.GenerateToken(user);
+
+                    return new LoginResponse
+                    {
+                        Success = true,
+                        Message = "Login successful",
+                        AccessToken = token,
+                        Token = token,
+                        User = user
+                    };
                 }
-
-                var createdOnStr = userData.CreatedOn?.ToString() ?? string.Empty;
-                _ = DateTime.TryParse(createdOnStr, out DateTime activeOn);
-                _ = DateTime.TryParse(createdOnStr, out DateTime createdOnVal);
-                var phoneStr = userData.UserPhoneNumber?.ToString() ?? "0";
-                int phone = 0;
-                _ = int.TryParse(phoneStr, out phone);
-
-                int ConvertToInt(object? val)
-                {
-                    if (val == null) return 0;
-                    var str = val.ToString();
-                    if (str == "True" || str == "true" || str == "1") return 1;
-                    if (str == "False" || str == "false" || str == "0") return 0;
-                    return 0;
-                }
-
-                var user = new UserDto
-                {
-                    userId = dict.TryGetValue("userId", out var uid) && uid != null ? Convert.ToInt32(uid) : 0,
-                    userName = dict.TryGetValue("userName", out var un) ? un?.ToString() ?? string.Empty : string.Empty,
-                    userEmail = dict.TryGetValue("userEmail", out var ue) ? ue?.ToString() ?? string.Empty : string.Empty,
-                    userPhoneNumber = phone,
-                    isActive = ConvertToInt(dict.TryGetValue("isActive", out var ia) ? ia : null),
-                    isActiveBy = string.Empty,
-                    isActiveOn = activeOn == default ? DateTime.MinValue : activeOn,
-                    loginUser = dict.TryGetValue("loginUser", out var lu) ? lu?.ToString() ?? string.Empty : string.Empty,
-                    createdOn = createdOnVal == default ? DateTime.MinValue : createdOnVal,
-                    createdBy = dict.TryGetValue("createdBy", out var cb) ? cb?.ToString() ?? string.Empty : string.Empty,
-                    Comment = dict.TryGetValue("Comment", out var cm) ? cm?.ToString() ?? string.Empty : string.Empty,
-                    firstName = dict.TryGetValue("firstName", out var fn) ? fn?.ToString() ?? string.Empty : string.Empty,
-                    lastName = dict.TryGetValue("lastName", out var ln) ? ln?.ToString() ?? string.Empty : string.Empty,
-                    changePassword = ConvertToInt(dict.TryGetValue("changePassword", out var cp) ? cp : null),
-                    Role = dict.TryGetValue("role", out var r) ? r?.ToString() ?? string.Empty : (dict.TryGetValue("Role", out var r2) ? r2?.ToString() ?? string.Empty : string.Empty)
-                };
-
-                return new LoginResult
-                {
-                    Success = true,
-                    Message = "Login successful",
-                    User = user
-                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login for user: {Username}", request.loginUser);
-                return new LoginResult
+                return new LoginResponse
                 {
                     Success = false,
                     Message = "An unexpected error occurred. Please try again."
                 };
             }
-        }
-
-        private string ComputeLegacyHash(string input)
-        {
-            using var sha = System.Security.Cryptography.SHA256.Create();
-            var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
-            return Convert.ToBase64String(bytes);
         }
 
         public async Task<UserDto> GetUserByIdAsync(int userId)
@@ -195,24 +151,15 @@ namespace JSAPNEW.Services.Implementation
             {
                 await connection.OpenAsync();
 
-                var user = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                var user = await connection.QueryFirstOrDefaultAsync<User>(
                     "SELECT * FROM jsUser WHERE UserId = @UserId",
                     new { UserId = userId }
                 );
 
-                if (user == null) return null;
-
-                var dict = (IDictionary<string, object>)user;
-
-                return new UserDto
+                return user == null ? null : new UserDto
                 {
-                    userId = dict.TryGetValue("userId", out var uid) && uid != null ? Convert.ToInt32(uid) : userId,
-                    userName = dict.TryGetValue("userName", out var un) ? un?.ToString() ?? string.Empty : string.Empty,
-                    userEmail = dict.TryGetValue("userEmail", out var ue) ? ue?.ToString() ?? string.Empty : string.Empty,
-                    loginUser = dict.TryGetValue("loginUser", out var lu) ? lu?.ToString() ?? string.Empty : string.Empty,
-                    firstName = dict.TryGetValue("firstName", out var fn) ? fn?.ToString() ?? string.Empty : string.Empty,
-                    lastName = dict.TryGetValue("lastName", out var ln) ? ln?.ToString() ?? string.Empty : string.Empty,
-                    Role = dict.TryGetValue("role", out var r) ? r?.ToString() ?? string.Empty : (dict.TryGetValue("Role", out var r2) ? r2?.ToString() ?? string.Empty : string.Empty)
+                    userId = user.UserId,
+                    loginUser = user.LoginUser
                 };
             }
         }
@@ -242,7 +189,7 @@ namespace JSAPNEW.Services.Implementation
                     Message = "New password must be different from current password"
                 };
             }
-            string hashedNewPassword = PasswordHasher.HashPassword(request.NewPassword);
+            string encryptedNewPassword = AuthSecurity.HashPassword(request.NewPassword);
 
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -250,8 +197,9 @@ namespace JSAPNEW.Services.Implementation
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", request.userId);
                 parameters.Add("@updatedBy", request.updatedBy);
-                parameters.Add("@newPassword", hashedNewPassword);
+                parameters.Add("@newPassword", encryptedNewPassword);
 
+                // Execute the stored procedure and get the result
                 var result = await connection.ExecuteScalarAsync<int>("jsResetPassword", parameters, commandType: CommandType.StoredProcedure);
 
                 return new ChangePasswordResponse
@@ -273,7 +221,7 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
 
-            string hashedNewPassword = PasswordHasher.HashPassword(request.NewPassword);
+            string encryptedNewPassword = AuthSecurity.HashPassword(request.NewPassword);
 
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -281,8 +229,9 @@ namespace JSAPNEW.Services.Implementation
                 var parameters = new DynamicParameters();
                 parameters.Add("@userId", request.userId);
                 parameters.Add("@updatedBy", request.updatedBy);
-                parameters.Add("@newPassword", hashedNewPassword);
+                parameters.Add("@newPassword", encryptedNewPassword);
 
+                // Execute the stored procedure and get the result
                 var result = await connection.ExecuteScalarAsync<int>("jsResetPassword", parameters, commandType: CommandType.StoredProcedure);
 
                 return new ChangePasswordResponse
@@ -292,6 +241,113 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
         }
+
+        public async Task<ChangePasswordResponse> UpdateOwnAccountAsync(OwnAccountUpdateRequest request)
+        {
+            var newLoginUser = request.NewLoginUser?.Trim();
+            var newPassword = request.NewPassword?.Trim();
+
+            if (request.UserId <= 0)
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "User not authenticated"
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "Current password is required"
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(newLoginUser))
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "Username is required"
+                };
+            }
+
+            if (!await ValidateCurrentPasswordAsync(request.UserId, request.CurrentPassword))
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "Current password is incorrect"
+                };
+            }
+
+            if (!string.IsNullOrWhiteSpace(newPassword) && newPassword != request.ConfirmPassword)
+            {
+                return new ChangePasswordResponse
+                {
+                    Success = false,
+                    Message = "New password and confirm password do not match"
+                };
+            }
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                var currentLoginUser = await connection.QueryFirstOrDefaultAsync<string>(
+                    "SELECT LoginUser FROM jsUser WHERE UserId = @UserId",
+                    new { request.UserId }
+                );
+
+                if (string.IsNullOrWhiteSpace(currentLoginUser))
+                {
+                    return new ChangePasswordResponse
+                    {
+                        Success = false,
+                        Message = "User not found"
+                    };
+                }
+
+                if (!currentLoginUser.Equals(newLoginUser, StringComparison.OrdinalIgnoreCase))
+                {
+                    var usernameValidation = await ValidateUsernameAsync(newLoginUser);
+                    if (!usernameValidation.Success)
+                    {
+                        return new ChangePasswordResponse
+                        {
+                            Success = false,
+                            Message = usernameValidation.Message
+                        };
+                    }
+                }
+
+                var encryptedPassword = string.IsNullOrWhiteSpace(newPassword)
+                    ? null
+                    : AuthSecurity.HashPassword(newPassword);
+
+                var rowsAffected = await connection.ExecuteAsync(
+                    @"UPDATE jsUser
+                      SET LoginUser = @LoginUser,
+                          Password = COALESCE(@Password, Password)
+                      WHERE UserId = @UserId",
+                    new
+                    {
+                        UserId = request.UserId,
+                        LoginUser = newLoginUser,
+                        Password = encryptedPassword
+                    }
+                );
+
+                return new ChangePasswordResponse
+                {
+                    Success = rowsAffected > 0,
+                    Message = rowsAffected > 0 ? "Account updated successfully" : "Account update failed"
+                };
+            }
+        }
+
         public async Task<bool> ValidateCurrentPasswordAsync(int userId, string currentPassword)
         {
             var sqlQuery = "SELECT Password FROM JSUser WHERE UserId = @UserId";
@@ -303,14 +359,26 @@ namespace JSAPNEW.Services.Implementation
                     new { UserId = userId }
                 );
 
-                if (string.IsNullOrEmpty(storedPassword))
+                if (string.IsNullOrWhiteSpace(storedPassword))
+                {
                     return false;
+                }
 
-                if (PasswordHasher.IsBcryptHash(storedPassword))
-                    return PasswordHasher.VerifyPassword(currentPassword, storedPassword);
+                var isValid = AuthSecurity.VerifyPassword(currentPassword, storedPassword);
 
-                var legacyHash = ComputeLegacyHash(currentPassword);
-                return storedPassword == legacyHash || storedPassword == currentPassword;
+                if (isValid && !AuthSecurity.IsBCryptHash(storedPassword))
+                {
+                    await connection.ExecuteAsync(
+                        "UPDATE jsUser SET Password = @Password WHERE UserId = @UserId",
+                        new
+                        {
+                            Password = AuthSecurity.HashPassword(currentPassword),
+                            UserId = userId
+                        }
+                    );
+                }
+
+                return isValid;
             }
         }
         public async Task<int> RegisterUserAsync(UserRegistrationDTO userDTO)
@@ -321,8 +389,8 @@ namespace JSAPNEW.Services.Implementation
                 {
                     await connection.OpenAsync();
 
-                    // Hash the password before saving it
-                    string hashedPassword = PasswordHasher.HashPassword(userDTO.password);
+                    // Hash the password before saving it.
+                    string encryptedPassword = AuthSecurity.HashPassword(userDTO.password);
 
                     var parameters = new DynamicParameters();
                     parameters.Add("@firstName", userDTO.firstName);
@@ -333,7 +401,7 @@ namespace JSAPNEW.Services.Implementation
                     parameters.Add("@deptIds", userDTO.deptIds);
                     parameters.Add("@EmpId", userDTO.empId);
                     parameters.Add("@createdBy", userDTO.createdBy);
-                    parameters.Add("@password", hashedPassword);
+                    parameters.Add("@password", encryptedPassword);
                     parameters.Add("@doj", userDTO.doj);
                     parameters.Add("@statusCode", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
@@ -1299,11 +1367,11 @@ namespace JSAPNEW.Services.Implementation
             {
                 return new Response { Success = false, Message = "New password is required." };
             }
-            if (request.newPassword.Length < 8)
+            if (request.newPassword.Length < 6)
             {
-                return new Response { Success = false, Message = "Password must be at least 8 characters long." };
+                return new Response { Success = false, Message = "Password must be at least 6 characters long." };
             }
-            if (!Regex.IsMatch(request.newPassword, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$"))
+            if (!Regex.IsMatch(request.newPassword, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$"))
             {
                 return new Response { Success = false, Message = "Password must contain at least one uppercase letter, one lowercase letter, and one number." };
             }
@@ -1312,15 +1380,16 @@ namespace JSAPNEW.Services.Implementation
             {
                 await connection.OpenAsync();
 
-                string hashedNewPassword = PasswordHasher.HashPassword(request.newPassword);
+                string encryptedNewPassword = AuthSecurity.HashPassword(request.newPassword);
 
                 using (SqlCommand command = new SqlCommand("[dbo].[jsResetAdminPassword]", connection))
                 {
                     command.CommandType = CommandType.StoredProcedure;
 
+                    // Add parameters
                     command.Parameters.AddWithValue("@userId", request.userId);
                     command.Parameters.AddWithValue("@updatedBy", request.updatedBy);
-                    command.Parameters.AddWithValue("@newPassword", hashedNewPassword);
+                    command.Parameters.AddWithValue("@newPassword", encryptedNewPassword);
 
                     try
                     {
@@ -2382,11 +2451,35 @@ namespace JSAPNEW.Services.Implementation
             var sqlQuery = "EXEC [bud].[jsGetBudgetSummary] @userId, @budgetCategory, @subBudget, @month, @company";
             using (var connection = new SqlConnection(_connectionString))
             {
-                return await connection.QueryAsync<BudgetSummaryModel>(
+                var results = (await connection.QueryAsync<BudgetSummaryModel>(
                     sqlQuery,
-                   new { userId, budgetCategory, subBudget, month, company } // Parameters for the stored procedure
-                );
+                   new { userId, budgetCategory, subBudget, month, company }
+                )).ToList();
+
+                foreach (var item in results)
+                {
+                    decimal totalBudget = SafeParseDecimal(item.TotalBudget);
+                    decimal approvedAmount = SafeParseDecimal(item.ApprovedAmount);
+                    decimal pendingAmount = SafeParseDecimal(item.PendingAmount);
+
+                    item.AvailableBalance = Math.Max(0, totalBudget - approvedAmount);
+                    item.ApprovedPercentage = totalBudget > 0 ? Math.Round((approvedAmount / totalBudget) * 100, 2) : 0;
+                    item.PendingPercentage = totalBudget > 0 ? Math.Round((pendingAmount / totalBudget) * 100, 2) : 0;
+                    item.AvailablePercentage = totalBudget > 0 ? Math.Round((item.AvailableBalance.Value / totalBudget) * 100, 2) : 0;
+                }
+
+                return results;
             }
+        }
+
+        private static decimal SafeParseDecimal(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+            if (decimal.TryParse(value, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal result))
+                return result;
+            return 0;
         }
 
         public async Task<CombinedBudgetDTO> GetCombinedBudgetsAsync(int userId, int company, string month)

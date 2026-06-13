@@ -35,7 +35,7 @@ namespace JSAPNEW.Services.Implementation
                         stages = (await multi.ReadAsync<stageCloning>()).ToList(),
                         approvals = (await multi.ReadAsync<approvalCloning>()).ToList(),
                         queries = (await multi.ReadAsync<queryCloning>()).ToList(),
-                        summary = await multi.ReadFirstOrDefaultAsync<summary>()
+                        summary = await multi.ReadFirstOrDefaultAsync<Summary>()
                     };
 
                     return result;

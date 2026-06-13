@@ -188,15 +188,59 @@ namespace JSAPNEW.Controllers
 
                 using (var stream = new FileStream(fullPath, FileMode.Create))
                     await file.CopyToAsync(stream);
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    throw new Exception("File upload failed");
+                }
 
                 string filePath = "/uploads/maker/" + uniqueFileName;
                 string connStr = _configuration.GetConnectionString("FHConnection");
 
                 using (SqlConnection conn = new SqlConnection(connStr))
                 {
-                    string query = @"INSERT INTO AttachmentUpload
-                        (VchNumber, AttachmentPath, MakerRemark, Status, CreatedDate)
-                        VALUES (@VchNumber, @AttachmentPath, @MakerRemark, 'Submitted', GETDATE())";
+                    string query = @"
+
+IF EXISTS (SELECT 1 FROM AttachmentUpload WHERE VchNumber = @VchNumber)
+
+BEGIN
+
+    UPDATE AttachmentUpload
+    SET
+        AttachmentPath = @AttachmentPath,
+        MakerRemark = @MakerRemark,
+        CheckerStatus = NULL,
+        CheckerRemark = NULL,
+        Status = 'Submitted',
+        CreatedDate = GETDATE()
+
+    WHERE VchNumber = @VchNumber
+
+END
+
+ELSE
+
+BEGIN
+
+    INSERT INTO AttachmentUpload
+    (
+        VchNumber,
+        AttachmentPath,
+        MakerRemark,
+        Status,
+        CreatedDate
+    )
+
+    VALUES
+    (
+        @VchNumber,
+        @AttachmentPath,
+        @MakerRemark,
+        'Submitted',
+        GETDATE()
+    )
+
+END
+";
 
                     SqlCommand cmd = new SqlCommand(query, conn);
                     cmd.Parameters.Add("@VchNumber", SqlDbType.Int).Value = vchNumber;

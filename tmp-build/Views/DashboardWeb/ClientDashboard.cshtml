@@ -1,0 +1,816 @@
+﻿@{
+    ViewData["Title"] = "IT Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    :root {
+        --primary: #0b2c4d;
+        --primary-light: #1a4a7a;
+        --primary-dark: #061d33;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-500: #6b7280;
+        --gray-700: #374151;
+        --gray-900: #111827;
+    }
+
+    body {
+        background: var(--gray-100);
+    }
+
+    .dashboard-container {
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+        font-size: 14px;
+        color: var(--gray-500);
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--primary);
+        margin: 28px 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+    /* Master Summary Cards */
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border-left: 5px solid var(--primary);
+        transition: all 0.3s ease;
+    }
+
+        .summary-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        .summary-card.total {
+            border-left-color: var(--success);
+            background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+        }
+
+    .summary-card-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .summary-card-title .icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+    .summary-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: var(--gray-500);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+
+        .stat-value.progress-val {
+            color: var(--info);
+        }
+
+    /* Company Accordion */
+    .company-accordion {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+
+    .company-header {
+        padding: 20px 24px;
+        background: var(--primary);
+        color: white;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.3s;
+    }
+
+        .company-header:hover {
+            background: var(--primary-light);
+        }
+
+        .company-header.collapsed {
+            background: white;
+            color: var(--primary);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+    .company-name {
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .company-name .icon {
+            font-size: 20px;
+        }
+
+    .company-toggle {
+        font-size: 24px;
+        font-weight: 300;
+        transition: transform 0.3s;
+    }
+
+    .company-header:not(.collapsed) .company-toggle {
+        transform: rotate(45deg);
+    }
+
+    .company-body {
+        padding: 0;
+        display: none;
+    }
+
+        .company-body.show {
+            display: block;
+        }
+
+    /* Project Table */
+    .project-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .project-table th {
+            background: var(--gray-100);
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .project-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 14px;
+            color: var(--gray-700);
+        }
+
+    .project-row {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+        .project-row:hover {
+            background: var(--gray-100);
+        }
+
+        .project-row.expanded {
+            background: #f0f7ff;
+        }
+
+    .project-name {
+        font-weight: 600;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .expand-icon {
+        width: 24px;
+        height: 24px;
+        background: var(--primary);
+        color: white;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .project-row.expanded .expand-icon {
+        background: var(--info);
+        transform: rotate(45deg);
+    }
+
+    /* Module Row */
+    .module-row {
+        display: none;
+        background: #fafbfc;
+    }
+
+        .module-row.show {
+            display: table-row;
+        }
+
+    .module-container {
+        padding: 16px 24px;
+    }
+
+    .module-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+        .module-table th {
+            background: var(--primary-light);
+            color: white;
+            padding: 12px 14px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .module-table td {
+            padding: 12px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+    /* Badges */
+    .badge {
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-high {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .badge-medium {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .badge-low {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .badge-critical {
+        background: #fecaca;
+        color: #b91c1c;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .status-inprogress {
+        background: #dbeafe;
+        color: #2563eb;
+    }
+
+    .status-completed {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .status-notstarted {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .progress-bar-wrapper {
+        flex: 1;
+        height: 8px;
+        background: var(--gray-200);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--info), var(--success));
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .progress-text {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--gray-700);
+        min-width: 40px;
+    }
+
+    /* Excel Button */
+    .btn-excel {
+        padding: 6px 14px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-excel:hover {
+            background: #059669;
+            transform: scale(1.02);
+        }
+
+    /* Loading */
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 40px;
+    }
+
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--gray-200);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .loading-text {
+        margin-left: 12px;
+        color: var(--gray-500);
+        font-size: 14px;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--gray-500);
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .project-table, .module-table {
+            font-size: 12px;
+        }
+
+            .project-table th, .project-table td,
+            .module-table th, .module-table td {
+                padding: 10px 8px;
+            }
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">🏢 IT Projects Dashboard</h1>
+        <p class="page-subtitle">Real-time overview of all projects and modules across companies</p>
+    </div>
+
+    <!-- Master Summary Section -->
+    <h2 class="section-title">Master Summary</h2>
+    <div class="summary-grid" id="summaryGrid">
+        <div class="loading">
+            <div class="spinner"></div>
+            <span class="loading-text">Loading summary...</span>
+        </div>
+    </div>
+
+    <!-- Projects by Company Section -->
+    <h2 class="section-title">Projects (Company Wise)</h2>
+    <div id="companyAccordion">
+        <div class="loading">
+            <div class="spinner"></div>
+            <span class="loading-text">Loading companies...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = '/api/Dashboard';
+
+    // Initialize Dashboard
+    document.addEventListener('DOMContentLoaded', function () {
+        loadMasterSummary();
+    });
+
+    // Load Master Summary
+    async function loadMasterSummary() {
+        try {
+            const response = await fetch(`${API_BASE}/GetDashboardMaster`);
+            const result = await response.json();
+
+            if (result.success) {
+                renderSummaryCards(result.data);
+                renderCompanyAccordions(result.data);
+            }
+        } catch (error) {
+            console.error('Error loading master summary:', error);
+            document.getElementById('summaryGrid').innerHTML =
+                '<div class="empty-state">❌ Failed to load summary</div>';
+        }
+    }
+
+    // Render Summary Cards
+    function renderSummaryCards(data) {
+        const container = document.getElementById('summaryGrid');
+
+        const cards = data.map(item => {
+            const isTotal = item.client === 'TOTAL (ALL)';
+            const icon = isTotal ? '📊' : '🏢';
+
+            return `
+                <div class="summary-card ${isTotal ? 'total' : ''}">
+                    <div class="summary-card-title">
+                        <span class="icon">${icon}</span>
+                        ${item.client}
+                    </div>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Projects</span>
+                            <span class="stat-value">${item.totalProjects}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Modules</span>
+                            <span class="stat-value">${item.totalModules}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Progress</span>
+                            <span class="stat-value progress-val">${item.overallProgress.toFixed(1)}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Planned Hrs</span>
+                            <span class="stat-value">${item.totalPlannedHours}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Spent Hrs</span>
+                            <span class="stat-value">${item.totalSpentHours}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = cards;
+    }
+
+    // Render Company Accordions
+    function renderCompanyAccordions(data) {
+        const container = document.getElementById('companyAccordion');
+
+        // Filter out TOTAL row
+        const companies = data.filter(item => item.client !== 'TOTAL (ALL)');
+
+        const accordions = companies.map((company, index) => {
+            const clientId = company.client.replace(/\s+/g, '_');
+            const isFirst = index === 0;
+
+            return `
+                <div class="company-accordion" id="accordion_${clientId}">
+                    <div class="company-header ${isFirst ? '' : 'collapsed'}"
+                         onclick="toggleCompany('${clientId}', '${company.client}')">
+                        <div class="company-name">
+                            <span class="icon">🏢</span>
+                            ${company.client}
+                            <span style="font-size:12px; font-weight:400; opacity:0.8;">
+                                (${company.totalProjects} Projects, ${company.totalModules} Modules)
+                            </span>
+                        </div>
+                        <span class="company-toggle">+</span>
+                    </div>
+                    <div class="company-body ${isFirst ? 'show' : ''}" id="body_${clientId}">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span class="loading-text">Loading projects...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = accordions;
+
+        // Load first company's projects automatically
+        if (companies.length > 0) {
+            const firstClientId = companies[0].client.replace(/\s+/g, '_');
+            loadCompanyProjects(firstClientId, companies[0].client);
+        }
+    }
+
+    // Toggle Company Accordion
+    function toggleCompany(clientId, clientName) {
+        const header = document.querySelector(`#accordion_${clientId} .company-header`);
+        const body = document.getElementById(`body_${clientId}`);
+
+        header.classList.toggle('collapsed');
+        body.classList.toggle('show');
+
+        // Load projects if opening and not loaded yet
+        if (body.classList.contains('show') && body.querySelector('.loading')) {
+            loadCompanyProjects(clientId, clientName);
+        }
+    }
+
+    // Load Company Projects
+    async function loadCompanyProjects(clientId, clientName) {
+        const container = document.getElementById(`body_${clientId}`);
+
+        try {
+            const response = await fetch(`${API_BASE}/GetDashboardByCompany?clientName=${encodeURIComponent(clientName)}`);
+            const result = await response.json();
+
+            if (result.success && result.data.length > 0) {
+                renderProjectTable(container, result.data, clientId);
+            } else {
+                container.innerHTML = '<div class="empty-state">No projects found</div>';
+            }
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            container.innerHTML = '<div class="empty-state">❌ Failed to load projects</div>';
+        }
+    }
+
+    // Render Project Table
+    function renderProjectTable(container, projects, clientId) {
+        const tableHtml = `
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th style="width:30%">Project</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th style="width:20%">Progress</th>
+                        <th>Modules</th>
+                        <th>Planned Hrs</th>
+                        <th>Spent Hrs</th>
+                        <th>Export</th>
+                    </tr>
+                </thead>
+                <tbody id="projectBody_${clientId}">
+                    ${projects.map(project => renderProjectRow(project, clientId)).join('')}
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = tableHtml;
+    }
+
+    // Render Project Row
+    function renderProjectRow(project, clientId) {
+        const priorityClass = getPriorityClass(project.priority);
+        const statusClass = getStatusClass(project.projectStatus);
+        const progress = project.projectProgress || 0;
+
+        return `
+            <tr class="project-row" id="project_${project.projectID}"
+                onclick="toggleProject(${project.projectID}, '${clientId}')">
+                <td>
+                    <div class="project-name">
+                        <span class="expand-icon">+</span>
+                        ${project.projectName}
+                    </div>
+                </td>
+                <td><span class="badge ${priorityClass}">${project.priority}</span></td>
+                <td><span class="status-badge ${statusClass}">${project.projectStatus}</span></td>
+                <td>
+                    <div class="progress-container">
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="progress-text">${progress.toFixed(0)}%</span>
+                    </div>
+                </td>
+                <td><strong>${project.totalModules}</strong></td>
+                <td>${project.plannedHours}</td>
+                <td>${project.spentHours}</td>
+                <td>
+                    <button class="btn-excel" onclick="event.stopPropagation(); exportProject(${project.projectID}, '${project.projectName}')">
+                        📥 Excel
+                    </button>
+                </td>
+            </tr>
+            <tr class="module-row" id="modules_${project.projectID}">
+                <td colspan="8">
+                    <div class="module-container" id="moduleContainer_${project.projectID}">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span class="loading-text">Loading modules...</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Toggle Project (Show/Hide Modules)
+    async function toggleProject(projectId, clientId) {
+        const projectRow = document.getElementById(`project_${projectId}`);
+        const moduleRow = document.getElementById(`modules_${projectId}`);
+        const moduleContainer = document.getElementById(`moduleContainer_${projectId}`);
+
+        projectRow.classList.toggle('expanded');
+        moduleRow.classList.toggle('show');
+
+        // Load modules if opening and not loaded yet
+        if (moduleRow.classList.contains('show') && moduleContainer.querySelector('.loading')) {
+            await loadProjectModules(projectId);
+        }
+    }
+
+    // Load Project Modules
+    async function loadProjectModules(projectId) {
+        const container = document.getElementById(`moduleContainer_${projectId}`);
+
+        try {
+            const response = await fetch(`${API_BASE}/GetDashboardProject?projectId=${projectId}`);
+            const result = await response.json();
+
+            if (result.success && result.data.length > 0) {
+                renderModuleTable(container, result.data);
+            } else {
+                container.innerHTML = '<div class="empty-state">No modules found</div>';
+            }
+        } catch (error) {
+            console.error('Error loading modules:', error);
+            container.innerHTML = '<div class="empty-state">❌ Failed to load modules</div>';
+        }
+    }
+
+    // Render Module Table
+    function renderModuleTable(container, modules) {
+        const tableHtml = `
+            <table class="module-table">
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Weightage</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th style="width:18%">Progress</th>
+                        <th>Planned Hrs</th>
+                        <th>Spent Hrs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${modules.map(module => {
+                        const priorityClass = getPriorityClass(module.priority);
+                        const statusClass = getStatusClass(module.status);
+                        const progress = module.progressPercent || 0;
+
+                        return `
+                            <tr>
+                                <td><strong>${module.moduleName}</strong></td>
+                                <td>${module.weightage.toFixed(0)}%</td>
+                                <td><span class="badge ${priorityClass}">${module.priority}</span></td>
+                                <td><span class="status-badge ${statusClass}">${module.status}</span></td>
+                                <td>
+                                    <div class="progress-container">
+                                        <div class="progress-bar-wrapper">
+                                            <div class="progress-bar-fill" style="width: ${progress}%"></div>
+                                        </div>
+                                        <span class="progress-text">${progress.toFixed(0)}%</span>
+                                    </div>
+                                </td>
+                                <td>${module.plannedHours}</td>
+                                <td>${module.spentHours}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = tableHtml;
+    }
+
+    // Helper: Get Priority Badge Class
+    function getPriorityClass(priority) {
+        const p = (priority || '').toLowerCase();
+        if (p === 'high' || p === 'critical') return 'badge-high';
+        if (p === 'medium') return 'badge-medium';
+        return 'badge-low';
+    }
+
+    // Helper: Get Status Badge Class
+    function getStatusClass(status) {
+        const s = (status || '').toLowerCase().replace(/\s+/g, '');
+        if (s === 'inprogress') return 'status-inprogress';
+        if (s === 'completed') return 'status-completed';
+        if (s === 'notstarted') return 'status-notstarted';
+        if (s === 'pending') return 'status-pending';
+        return 'status-notstarted';
+    }
+
+    // Export Project to Excel
+    function exportProject(projectId, projectName) {
+        // You can implement Excel export here
+        // For now, just show alert
+        alert(`Exporting "${projectName}" (ID: ${projectId}) to Excel...`);
+
+        // Example: Redirect to export endpoint
+        // window.location.href = `${API_BASE}/ExportProject?projectId=${projectId}`;
+    }
+</script>

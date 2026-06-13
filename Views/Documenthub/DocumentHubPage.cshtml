@@ -1,0 +1,2671 @@
+@using JSAPNEW.Models
+@{
+    ViewData["Title"] = "Document Hub";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var permissions = ViewBag.DocumentHubPermissions as DocumentHubPermissionDto ?? new DocumentHubPermissionDto();
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --hub-primary: #0f172a;
+        --hub-primary-light: #1e293b;
+        --hub-accent: #4f46e5;
+        --hub-accent-hover: #4338ca;
+        --hub-success: #10b981;
+        --hub-warning: #f59e0b;
+        --hub-danger: #ef4444;
+        --hub-bg: #f8fafc;
+        --hub-card: #ffffff;
+        --hub-border: #e2e8f0;
+        --hub-text: #0f172a;
+        --hub-muted: #64748b;
+        --hub-font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .doc-hub-container {
+        font-family: var(--hub-font);
+        color: var(--hub-text);
+        background: var(--hub-bg);
+        margin: -15px;
+        padding: 24px;
+        min-height: 100vh;
+    }
+
+    /* ── Toolbar ── */
+    .hub-toolbar {
+        background: var(--hub-card);
+        border: 1px solid var(--hub-border);
+        border-radius: 12px;
+        padding: 12px 18px;
+        box-shadow: 0 4px 20px -2px rgba(15,23,42,.04);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .toolbar-group { display: flex; align-items: center; gap: 8px; }
+
+    .hub-toolbar .btn {
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 8px 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all .2s;
+    }
+
+    /* ── Tabs ── */
+    .hub-tabs-row { margin-top: 16px; }
+    .hub-tabs-row .nav-tabs { border-bottom: 2px solid var(--hub-border); }
+    .hub-tabs-row .nav-link {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--hub-muted);
+        border: 0;
+        border-bottom: 2px solid transparent;
+        padding: 10px 18px;
+        transition: all .2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .hub-tabs-row .nav-link:hover { color: var(--hub-accent); border-bottom-color: var(--hub-border); }
+    .hub-tabs-row .nav-link.active { color: var(--hub-accent); background: transparent; border-bottom-color: var(--hub-accent); }
+
+    /* ── Shell ── */
+    .doc-shell {
+        display: grid;
+        grid-template-columns: 280px minmax(0,1fr) 320px;
+        gap: 20px;
+        margin-top: 20px;
+        align-items: start;
+    }
+
+    .doc-sidebar, .doc-main, .doc-detail-pane {
+        background: var(--hub-card);
+        border: 1px solid var(--hub-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px -2px rgba(15,23,42,.04);
+        overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .doc-sidebar {
+        padding: 16px;
+        position: sticky;
+        top: 86px;
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+    }
+
+    .sidebar-section { margin-bottom: 24px; }
+
+    .section-label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--hub-muted);
+        letter-spacing: .05em;
+        margin-bottom: 8px;
+        padding-left: 6px;
+    }
+
+    .nav-item-btn {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        border-radius: 8px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--hub-primary-light);
+        font-size: 13.5px;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .nav-item-btn:hover { background: #f1f5f9; color: var(--hub-accent); }
+    .nav-item-btn.active { background: #e0e7ff; color: var(--hub-accent); }
+
+    /* ── Tree ── */
+    .tree-container { padding-left: 4px; }
+    .tree-list { list-style: none; padding-left: 12px; margin: 0; }
+    .tree-node-item { margin-top: 2px; }
+
+    .tree-row {
+        display: flex;
+        align-items: center;
+        padding: 7px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 550;
+        color: #475569;
+        cursor: pointer;
+        transition: all .15s;
+        gap: 6px;
+        user-select: none;
+    }
+    .tree-row:hover, .tree-row.drag-over { background: #f8fafc; color: var(--hub-accent); }
+    .tree-row.active { background: #eef2ff; color: var(--hub-accent); font-weight: 600; }
+
+    .tree-arrow {
+        font-size: 10px;
+        width: 12px;
+        height: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform .2s;
+        color: var(--hub-muted);
+    }
+    .tree-arrow.rotate-90 { transform: rotate(90deg); }
+    .tree-arrow-spacer { width: 12px; height: 12px; display: inline-block; }
+
+    .tree-row .count {
+        margin-left: auto;
+        background: #f1f5f9;
+        color: var(--hub-muted);
+        font-size: 11px;
+        border-radius: 10px;
+        padding: 1px 6px;
+    }
+
+    .tree-node-children { display: none; }
+    .tree-node-children.show { display: block; }
+
+    /* ── Main ── */
+    .doc-main { padding: 20px; min-height: 500px; }
+
+    .search-breadcrumb-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        border-bottom: 1px solid var(--hub-border);
+        padding-bottom: 16px;
+    }
+
+    .hub-breadcrumb {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--hub-muted);
+    }
+    .hub-breadcrumb a { color: var(--hub-primary-light); text-decoration: none; cursor: pointer; transition: color .15s; }
+    .hub-breadcrumb a:hover { color: var(--hub-accent); }
+
+    .search-box { position: relative; min-width: 280px; max-width: 400px; flex: 1; }
+    .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--hub-muted); }
+    .search-box input {
+        width: 100%;
+        border: 1px solid var(--hub-border);
+        border-radius: 8px;
+        padding: 9px 12px 9px 36px;
+        font-size: 13.5px;
+        outline: none;
+        transition: all .2s;
+    }
+    .search-box input:focus { border-color: var(--hub-accent); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+
+    /* ── Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 16px; }
+
+    .stat-card {
+        background: var(--hub-card);
+        border: 1px solid var(--hub-border);
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .bg-soft-primary { background: #e0e7ff; }
+    .bg-soft-success { background: #d1fae5; }
+    .bg-soft-warning { background: #fef3c7; }
+    .bg-soft-danger  { background: #fee2e2; }
+
+    .stat-data { display: flex; flex-direction: column; }
+    .stat-value { font-size: 18px; font-weight: 800; color: var(--hub-primary); line-height: 1.2; }
+    .stat-label { font-size: 12px; color: var(--hub-muted); font-weight: 500; }
+
+    /* ── Content header ── */
+    .content-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--hub-border);
+        padding-bottom: 10px;
+        margin-top: 24px;
+    }
+
+    .section-title { font-size: 16px; font-weight: 700; margin: 0; color: var(--hub-primary); }
+
+    .view-toggle-container {
+        display: flex;
+        background: #f1f5f9;
+        padding: 2px;
+        border-radius: 8px;
+        border: 1px solid var(--hub-border);
+    }
+    .view-toggle-container .btn {
+        font-size: 12px;
+        font-weight: 600;
+        border: 0;
+        padding: 6px 12px;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--hub-muted);
+        transition: all .15s;
+    }
+    .view-toggle-container .btn.active-toggle {
+        background: #fff;
+        color: var(--hub-accent);
+        box-shadow: 0 2px 6px rgba(15,23,42,.08);
+    }
+
+    /* ── Cards (folder & file share base styles) ── */
+    .item-card {
+        background: var(--hub-card);
+        border: 1px solid var(--hub-border);
+        border-radius: 10px;
+        padding: 14px;
+        cursor: pointer;
+        transition: all .2s ease;
+        position: relative;
+    }
+    .item-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,23,42,.08); border-color: #cbd5e1; }
+    .item-card.selected { border-color: var(--hub-accent); background: #f5f3ff; box-shadow: 0 0 0 2px rgba(79,70,229,.15); }
+    .item-card.drag-over { border-color: var(--hub-accent); background: #f5f3ff; }
+
+    .card-top { display: flex; align-items: center; gap: 12px; }
+
+    .item-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: var(--hub-muted);
+        flex-shrink: 0;
+    }
+    .folder-card .item-icon { background: #fef3c7; color: #d97706; }
+
+    .item-info { min-width: 0; flex-grow: 1; }
+    .item-title { font-size: 13.5px; font-weight: 700; color: var(--hub-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+    .item-meta { font-size: 11.5px; color: var(--hub-muted); margin-top: 2px; }
+
+    .item-menu-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 0;
+        background: transparent;
+        color: var(--hub-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+    }
+    .item-menu-btn:hover { background: #f1f5f9; color: var(--hub-text); }
+
+    .item-menu-host {
+        flex-shrink: 0;
+        margin-left: auto;
+        position: relative;
+    }
+
+    .doc-hub-container .dropdown {
+        position: relative;
+    }
+    .doc-hub-container .dropdown-menu {
+        min-width: 160px;
+        padding: 6px;
+        border: 1px solid var(--hub-border);
+        border-radius: 8px;
+        box-shadow: 0 14px 30px rgba(15,23,42,.14);
+        z-index: 1080;
+    }
+    .doc-hub-container .dropdown-menu.show {
+        display: block;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        left: auto;
+        margin-top: 4px;
+    }
+    .doc-hub-container .item-card .dropdown > .dropdown-menu,
+    .doc-hub-container .file-list-view .dropdown > .dropdown-menu {
+        display: none !important;
+    }
+    #hubFloatingItemMenu.hub-floating-menu {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: auto;
+        min-width: 170px;
+        max-width: calc(100vw - 16px);
+        max-height: min(320px, calc(100vh - 16px));
+        overflow-y: auto;
+        padding: 6px;
+        border: 1px solid var(--hub-border);
+        border-radius: 8px;
+        box-shadow: 0 14px 30px rgba(15,23,42,.14);
+        z-index: 99999;
+        background: #fff;
+        list-style: none;
+        margin: 0;
+    }
+    #hubFloatingItemMenu.hub-floating-menu.show {
+        display: block;
+    }
+    .doc-hub-container .dropdown-item,
+    #hubFloatingItemMenu .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--hub-primary-light);
+        cursor: pointer;
+    }
+    .doc-hub-container .dropdown-item i,
+    #hubFloatingItemMenu .dropdown-item i {
+        width: 16px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    .doc-hub-container .dropdown-item:hover,
+    #hubFloatingItemMenu .dropdown-item:hover {
+        background: #f8fafc;
+        color: var(--hub-accent);
+    }
+    .doc-hub-container .dropdown-item.text-danger:hover,
+    #hubFloatingItemMenu .dropdown-item.text-danger:hover {
+        background: #fee2e2;
+        color: var(--hub-danger) !important;
+    }
+
+    /* ── List view ── */
+    .file-list-view table tr { cursor: pointer; transition: background .15s; }
+    .file-list-view table tr.selected { background-color: #f5f3ff !important; }
+    .file-list-view th { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--hub-muted); letter-spacing: .03em; }
+    .file-list-view td { font-size: 13px; padding: 12px; }
+
+    /* ── Detail pane ── */
+    .doc-detail-pane {
+        padding: 20px;
+        position: sticky;
+        top: 86px;
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+    }
+
+    .detail-empty { text-align: center; padding: 40px 10px; color: var(--hub-muted); }
+    .detail-empty-icon { font-size: 40px; margin-bottom: 12px; opacity: .3; }
+
+    .detail-header { text-align: center; border-bottom: 1px solid var(--hub-border); padding-bottom: 16px; margin-bottom: 16px; }
+    .detail-file-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 12px;
+        background: #f8fafc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin-bottom: 12px;
+        border: 1px solid var(--hub-border);
+    }
+    .detail-filename { font-size: 15px; font-weight: 700; margin: 0; word-break: break-all; }
+    .detail-table th { font-size: 12px; font-weight: 600; color: var(--hub-muted); padding: 6px 0; width: 40%; }
+    .detail-table td { font-size: 12.5px; color: var(--hub-primary); padding: 6px 0; text-align: right; }
+    .detail-actions { display: flex; flex-direction: column; gap: 8px; }
+    .detail-actions .btn { width: 100%; font-size: 13px; font-weight: 600; border-radius: 8px; padding: 8px 12px; }
+
+    /* ── Upload dropzone ── */
+    .upload-dropzone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        background: var(--hub-bg);
+        color: var(--hub-muted);
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .upload-dropzone:hover, .upload-dropzone.dragging { border-color: var(--hub-accent); background: #eef2ff; color: var(--hub-accent); }
+
+    .upload-progress { height: 6px; border-radius: 10px; background: #e2e8f0; overflow: hidden; margin-top: 16px; display: none; }
+    .upload-progress-bar { height: 100%; background: var(--hub-accent); width: 0; transition: width .15s; }
+
+    /* ── Badges ── */
+    .version-badge { background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 2px 6px; }
+
+    /* ── File icons ── */
+    .icon-pdf   { color: var(--hub-danger); }
+    .icon-excel { color: var(--hub-success); }
+    .icon-word  { color: #3b82f6; }
+    .icon-image { color: #8b5cf6; }
+    .icon-csv   { color: #0d9488; }
+    .icon-ppt   { color: var(--hub-warning); }
+    .icon-zip   { color: #64748b; }
+
+    /* ── Viewer ── */
+    .viewer-frame { width: 100%; height: 70vh; border: 0; border-radius: 8px; background: #1e293b; }
+    .viewer-img-container { display: flex; justify-content: center; align-items: center; height: 70vh; background: #0f172a; border-radius: 8px; }
+    .viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+    /* ── Move tree ── */
+    .move-tree-item { padding: 4px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .move-tree-item:hover { background: #eef2ff; color: var(--hub-accent); }
+    .move-tree-item.selected { background: #e0e7ff; color: var(--hub-accent); font-weight: 600; }
+
+    /* ── Toast ── */
+    .hub-toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 2000;
+        box-shadow: 0 10px 30px rgba(0,0,0,.1);
+        border-radius: 8px;
+        padding: 12px 18px;
+        color: white;
+        font-weight: 600;
+        font-size: 13.5px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        animation: slideUp .3s ease;
+    }
+    @@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .bg-toast-success { background: var(--hub-success); }
+    .bg-toast-error   { background: var(--hub-danger); }
+
+</style>
+
+<div class="doc-hub-container">
+
+    <!-- Toolbar -->
+    <header class="hub-toolbar mb-2">
+        <div class="toolbar-group">
+            <button class="btn btn-primary d-none dh-permission-action" data-dh-permission="upload" id="hdrUploadBtn"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+            <button class="btn btn-outline-primary d-none dh-permission-action" data-dh-permission="createFolder" id="hdrNewFolderBtn"><i class="fa-solid fa-folder-plus"></i> New Folder</button>
+        </div>
+        <div class="toolbar-group">
+            <button class="btn btn-light" onclick="requestLoadHub('toolbar-refresh')"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+            <button class="btn btn-light d-none" id="hdrDownloadBtn" disabled onclick="downloadSelected()"><i class="fa-solid fa-download"></i> Download</button>
+            <button class="btn btn-light d-none dh-permission-action" data-dh-permission="move" id="hdrMoveBtn" disabled onclick="openMoveModal()"><i class="fa-solid fa-arrows-up-down-left-right"></i> Move</button>
+            <button class="btn btn-light text-danger d-none dh-permission-action" data-dh-permission="delete" id="hdrDeleteBtn" disabled onclick="deleteSelected()"><i class="fa-solid fa-trash"></i> Delete</button>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="hub-tabs-row">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#explorerView" type="button" role="tab">
+                    <i class="fa-solid fa-folder-tree"></i> Explorer View
+                </button>
+            </li>
+            <li class="nav-item d-none dh-permission-action" data-dh-permission="backup" id="backupTabItem" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#backupView" type="button" role="tab" onclick="loadBackupList()">
+                    <i class="fa-solid fa-database"></i> Backup & Recovery
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="tab-content">
+
+        <!-- ─── EXPLORER TAB ─── -->
+        <div class="tab-pane fade show active" id="explorerView" role="tabpanel">
+            <div class="doc-shell">
+
+                <!-- Left sidebar -->
+                <aside class="doc-sidebar">
+                    <div class="sidebar-section">
+                        <div class="section-label">Quick Access</div>
+                        <button class="nav-item-btn active" onclick="selectNavFilter('', this)"><i class="fa-solid fa-layer-group"></i> All Documents</button>
+                        <button class="nav-item-btn" onclick="selectNavFilter('recent', this)"><i class="fa-solid fa-clock-rotate-left"></i> Recent Files</button>
+                         <button class="nav-item-btn" onclick="selectNavFilter('trash', this)"><i class="fa-solid fa-trash-can"></i> Trash / Deleted</button> 
+    
+                    </div>
+                    <div class="sidebar-section">
+                        <div class="section-label">Folder Hierarchy</div>
+                        <div id="folderTreeContainer" class="tree-container">
+                            <p class="text-muted small p-2">Loading hierarchy...</p>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main content -->
+                <main class="doc-main">
+                    <div class="search-breadcrumb-row">
+                        <div class="hub-breadcrumb" id="breadcrumb">
+                            <a onclick="goFolder(null)">Home</a>
+                        </div>
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="search" id="hubSearch" placeholder="Search files, folders, owner..." autocomplete="off" />
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats-grid mt-4 mb-4">
+                        <div class="stat-card">
+                            <span class="stat-icon bg-soft-primary"><i class="fa-solid fa-file-lines text-primary"></i></span>
+                            <div class="stat-data"><span class="stat-value" id="statFiles">0</span><span class="stat-label">Total Files</span></div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon bg-soft-success"><i class="fa-solid fa-folder-tree text-success"></i></span>
+                            <div class="stat-data"><span class="stat-value" id="statFolders">0</span><span class="stat-label">Folders</span></div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon bg-soft-warning"><i class="fa-solid fa-database text-warning"></i></span>
+                            <div class="stat-data"><span class="stat-value" id="statStorage">0 B</span><span class="stat-label">Storage Used</span></div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon bg-soft-danger"><i class="fa-solid fa-clock text-danger"></i></span>
+                            <div class="stat-data"><span class="stat-value" id="statRecent">0</span><span class="stat-label">Recent Uploads</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Folder / file header -->
+                    <div class="content-header-row">
+                        <h5 class="section-title" id="contentTitle">Files and Folders</h5>
+                        <div class="view-toggle-container">
+                            <button class="btn btn-sm active-toggle" id="toggleGridBtn" onclick="setViewMode('grid')"><i class="fa-solid fa-grip"></i> Grid</button>
+                            <button class="btn btn-sm" id="toggleListBtn" onclick="setViewMode('list')"><i class="fa-solid fa-list"></i> List</button>
+                        </div>
+                    </div> 
+                  
+
+                    <!-- Folders -->
+                    <div id="folderSection" class="mt-3 mb-4">
+                        <div class="row g-3" id="folderGrid"></div>
+                    </div>
+
+                    <!-- Files -->
+                    <div class="mt-3">
+                        <div id="fileGridView" class="row g-3"></div>
+                        <div id="fileListView" class="file-list-view border rounded shadow-sm bg-white" style="display:none;">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:35%">Name</th>
+                                        <th style="width:15%">Folder</th>
+                                        <th style="width:10%">Type</th>
+                                        <th style="width:10%">Size</th>
+                                        <th style="width:15%">Uploaded By</th>
+                                        <th style="width:15%">Date</th>
+                                        <th style="width:5%">Ver.</th>
+                                        <th style="width:5%" class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fileListBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </main>
+
+                <!-- Detail pane -->
+                <aside class="doc-detail-pane" id="detailPane">
+                    <div class="detail-empty">
+                        <div class="detail-empty-icon"><i class="fa-solid fa-file-invoice"></i></div>
+                        <h5>Select an item</h5>
+                        <p class="text-muted">Select a folder or document to view details.</p>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ─── BACKUP TAB ─── -->
+        <div class="tab-pane fade" id="backupView" role="tabpanel">
+            <div class="card border border-light shadow-sm rounded-lg p-4 mt-3" style="min-height:500px;">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                    <div>
+                        <h5 class="font-weight-bold text-primary mb-1"><i class="fa-solid fa-shield-halved"></i> Backup Management & Disaster Recovery</h5>
+                        <p class="small text-muted mb-0">Manage database snapshots, permissions logs, and physical file backups.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary btn-sm d-none dh-permission-action" data-dh-permission="backup" onclick="triggerManualBackup('Full')"><i class="fa-solid fa-cloud-arrow-down"></i> Create Full Backup</button>
+                        <button class="btn btn-outline-primary btn-sm d-none dh-permission-action" data-dh-permission="backup" onclick="triggerManualBackup('Incremental')"><i class="fa-solid fa-file-shield"></i> Incremental Backup</button>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-3"><div class="card bg-light border p-3"><span class="small text-muted font-weight-bold mb-1">Last Backup Taken</span><span class="fs-5 font-weight-bold" id="lblLastBackupTime">Calculating...</span></div></div>
+                    <div class="col-md-3"><div class="card bg-light border p-3"><span class="small text-muted font-weight-bold mb-1">Total System Size</span><span class="fs-5 font-weight-bold" id="lblBackupStorage">0.0 B</span></div></div>
+                    <div class="col-md-3"><div class="card bg-light border p-3"><span class="small text-muted font-weight-bold mb-1">Scheduled Jobs</span><span class="fs-5 font-weight-bold text-success"><i class="fa-solid fa-circle-check"></i> Enabled (Daily)</span></div></div>
+                    <div class="col-md-3"><div class="card bg-light border p-3"><span class="small text-muted font-weight-bold mb-1">Disaster Status</span><span class="fs-5 font-weight-bold text-success"><i class="fa-solid fa-shield-virus"></i> Protected</span></div></div>
+                </div>
+
+                <h6 class="font-weight-bold mb-2">System Restore Snapshots</h6>
+                <div class="table-responsive border rounded bg-white">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Backup ID</th>
+                                <th>Date/Time</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Items</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backupListBody">
+                            <tr><td colspan="7" class="text-center text-muted p-4 small">No backups found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tab-content -->
+</div><!-- /doc-hub-container -->
+
+
+<!-- ─── MODALS ─── -->
+
+<!-- Folder PIN -->
+<div class="modal fade" id="folderPinModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:14px;overflow:hidden;">
+            <div class="modal-header bg-warning text-dark border-0">
+                <h6 class="modal-title font-weight-bold"><i class="fa-solid fa-lock"></i> Folder PIN Verification</h6>
+            </div>
+            <div class="modal-body text-center p-4">
+                <p class="small text-muted mb-3">This folder is secure. Enter the PIN to open it:</p>
+                <input type="hidden" id="pinFolderId" />
+                <input type="password" id="folderAccessPin" class="form-control text-center font-monospace fs-3 py-2" maxlength="4" placeholder="••••" inputmode="numeric" style="letter-spacing:6px;" autocomplete="off" />
+                <div id="folderPinFeedback" class="text-danger small mt-2" style="display:none;">Incorrect PIN</div>
+            </div>
+            <div class="modal-footer border-0 bg-light justify-content-center p-3">
+                <button class="btn btn-secondary btn-sm" onclick="cancelFolderUnlock()">Cancel</button>
+                <button class="btn btn-warning btn-sm text-dark font-weight-bold" onclick="submitFolderUnlock()">Unlock Folder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confidential File Access -->
+<div class="modal fade" id="accessModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:14px;">
+            <div class="modal-header bg-danger text-white border-0">
+                <h6 class="modal-title font-weight-bold"><i class="fa-solid fa-shield-halved"></i> Confidential File Check</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-3">Confirm your username or enter PIN to proceed:</p>
+                <input type="hidden" id="accessFileId" />
+                <input type="hidden" id="accessMode" />
+                <div class="mb-3">
+                    <label class="small font-weight-bold">Username</label>
+                    <input class="form-control form-control-sm" id="accessUsername" autocomplete="off" />
+                </div>
+                <div>
+                    <label class="small font-weight-bold">4-digit PIN</label>
+                    <input class="form-control form-control-sm text-center font-monospace" id="accessPin" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off" />
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light p-3 justify-content-end">
+                <button class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmAccess()">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold"><i class="fa-solid fa-cloud-arrow-up text-primary"></i> Upload Document</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="upload-dropzone" id="dropzone">
+                    <i class="fa-solid fa-cloud-arrow-up fa-3x mb-3 text-primary"></i>
+                    <h6 class="font-weight-bold mb-1">Drop files here</h6>
+                    <small class="text-muted">Supports: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, JPEG (Max 10MB)</small>
+                    <input type="file" id="fileInput" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.csv" />
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-outline-primary btn-sm px-3" id="browseFilesBtn">
+                            <i class="fa-solid fa-folder-open"></i> Select from PC
+                        </button>
+                    </div>
+                    <div class="upload-progress" id="uploadProgress"><div class="upload-progress-bar" id="uploadProgressBar"></div></div>
+                    <div class="small text-muted mt-2" id="uploadStatusText" style="display:none;">Ready</div>
+                </div>
+                <div id="selectedFiles" class="mt-3" style="max-height:120px;overflow-y:auto;"></div>
+                <div class="row mt-3">
+                    <div class="col-6">
+                        <label class="small font-weight-bold mb-1">Access Level</label>
+                        <select id="uploadLevel" class="form-select form-select-sm">
+                            <option value="Public">Public (Read all)</option>
+                            <option value="Internal">Internal (Company)</option>
+                            <option value="Confidential">Confidential (PIN check)</option>
+                            <option value="Highly Restricted">Highly Restricted</option>
+                        </select>
+                    </div>
+                    <div class="col-6 d-flex align-items-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="isConfidentialInput">
+                            <label class="form-check-label small" for="isConfidentialInput">Lock Confidential</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm px-4" id="startUploadBtn" onclick="confirmUploadFiles()">Upload Now</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Confirmation -->
+<div class="modal fade" id="uploadConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold">Confirm Upload</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-3">Are you sure you want to upload the selected document(s)?</p>
+                <div class="small mb-2"><strong>Target Folder:</strong> <span id="uploadConfirmFolder">-</span></div>
+                <div id="uploadConfirmFiles" class="border rounded bg-light p-2" style="max-height:180px;overflow-y:auto;"></div>
+            </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm px-4" onclick="uploadFiles()">Upload Document</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation -->
+<div class="modal fade" id="hubConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold" id="hubConfirmTitle">Confirm</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-0" id="hubConfirmMessage"></p>
+            </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger btn-sm px-4" id="hubConfirmOkBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Folder PIN Management -->
+<div class="modal fade" id="pinManageModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold" id="pinManageTitle">Folder PIN</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="pinManageFolderId" />
+                <input type="hidden" id="pinManageMode" />
+                <div class="mb-3 pin-current-row">
+                    <label class="small font-weight-bold">Current PIN</label>
+                    <input class="form-control form-control-sm text-center font-monospace" id="pinCurrent" maxlength="4" inputmode="numeric" autocomplete="off" />
+                </div>
+                <div class="mb-3 pin-new-row">
+                    <label class="small font-weight-bold">New PIN</label>
+                    <input class="form-control form-control-sm text-center font-monospace" id="pinNew" maxlength="4" inputmode="numeric" autocomplete="off" />
+                </div>
+                <div class="pin-new-row">
+                    <label class="small font-weight-bold">Confirm New PIN</label>
+                    <input class="form-control form-control-sm text-center font-monospace" id="pinConfirm" maxlength="4" inputmode="numeric" autocomplete="off" />
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm" onclick="saveFolderPin()">Save PIN</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Folder Create / Rename -->
+<div class="modal fade" id="folderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold" id="folderModalTitle">New Folder</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="folderIdInput" />
+                <label class="small font-weight-bold mb-1">Folder Name</label>
+                <input type="text" id="folderNameInput" class="form-control form-control-sm" maxlength="100" placeholder="Enter folder name..." autocomplete="off" />
+            </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm" onclick="saveFolder()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Move -->
+<div class="modal fade" id="moveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold"><i class="fa-solid fa-arrows-up-down-left-right text-primary"></i> Move Location</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="small text-muted mb-2">Select destination folder:</p>
+                <div class="border rounded p-2 bg-light" style="max-height:250px;overflow-y:auto;">
+                    <div id="moveDestinationsTree"></div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm" onclick="executeMove()">Move Here</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Viewer -->
+<div class="modal fade" id="viewerModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;overflow:hidden;">
+            <div class="modal-header border-0 bg-dark text-white p-3">
+                <h6 class="modal-title font-weight-bold" id="viewerTitle">Document View</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" id="viewerBody" style="background:#1e293b;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History / Browse Backup -->
+<div class="modal fade" id="listModal" tabindex="-1">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold" id="listTitle">Details</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" id="listBody" style="max-height:400px;overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="hubToast" class="hub-toast shadow-lg">
+    <span id="toastIcon"></span>
+    <span id="toastText"></span>
+</div>
+
+<ul id="hubFloatingItemMenu" class="hub-floating-menu"></ul>
+
+
+@section scripts {
+<script>
+    if (window.jQuery && window.bootstrap && !$.fn.modal) {
+        $.fn.modal = function (action) {
+            return this.each(function () {
+                const modal = bootstrap.Modal.getOrCreateInstance(this);
+                if (typeof modal[action] === "function") modal[action]();
+            });
+        };
+    }
+
+    /* ─────────────────────────────────────────────
+       STATE
+    ───────────────────────────────────────────── */
+    const hub = {
+        folderId: null,
+        filter: "",
+        search: "",
+        viewMode: "grid",
+        selectedItem: null,        // { type, id, data }
+        allFolders: [],
+        currentFolders: [],
+        currentFiles: [],
+        uploadFiles: [],
+        folderMenus: {},
+        loadSeq: 0,
+        permissionsLoaded: false,
+        permissions: {
+            canView:          true,
+            canUpload:        @(permissions.CanUpload.ToString().ToLowerInvariant()),
+            canDownload:      @(permissions.CanDownload.ToString().ToLowerInvariant()),
+            canDelete:        @(permissions.CanDelete.ToString().ToLowerInvariant()),
+            canManageFolders: @(permissions.CanManageFolders.ToString().ToLowerInvariant()),
+            canRename:        @(permissions.CanRename.ToString().ToLowerInvariant()),
+            canShare:         @(permissions.CanShare.ToString().ToLowerInvariant()),
+            roleName:         "@permissions.RoleName"
+        }
+    };
+    let hubSearchInputHandler = null;
+    const documentHubPermissionRules = {
+        upload:       perms => !!perms.canUpload,
+        download:     perms => !!perms.canDownload,
+        createFolder: perms => !!perms.canManageFolders,
+        move:         perms => !!perms.canManageFolders,
+        delete:       perms => !!perms.canDelete,
+        rename:       perms => !!perms.canRename,
+        backup:       perms => !!perms.canManageFolders,
+        restore:      perms => !!perms.canManageFolders,
+        confidential: perms => !!perms.canDelete,
+        versionRestore: perms => !!perms.canRename,
+        favorite:     perms => !!perms.canRename
+    };
+
+    const DH_FOLDER_MENU_DEBUG = true;
+
+    function debugFolderMenu(label, data) {
+        if (!DH_FOLDER_MENU_DEBUG || !window.console) return;
+        console.log(`[DocumentHubFolderMenu] ${label}`, data || {});
+    }
+
+    function debugSearchReload(label, data) {
+        if (!window.console) return;
+        console.log(`[DocumentHubSearch] ${label}`, data || {});
+    }
+
+    function hasDocumentHubPermission(permissionName) {
+        if (!hub.permissionsLoaded) return false;
+        const rule = documentHubPermissionRules[permissionName];
+        return typeof rule === "function" ? rule(hub.permissions) : false;
+    }
+
+    function setDocumentHubActionVisibility(selector, visible, source) {
+        const $el = $(selector);
+        if (!$el.length) return;
+        $el.toggleClass("d-none", !visible).toggle(visible);
+    }
+
+    /* ─────────────────────────────────────────────
+       INIT
+    ───────────────────────────────────────────── */
+    $(function () {
+        requestLoadHub("init");
+
+        hubSearchInputHandler = debounce(function (e) {
+            const previousSearch = hub.search;
+            const eventType = e?.type || "unknown";
+            const isTrusted = e?.originalEvent?.isTrusted ?? e?.isTrusted ?? null;
+            hub.search = this.value;
+            debugSearchReload("debounced-input-fired", {
+                eventType,
+                isTrusted,
+                search: hub.search,
+                previousSearch,
+                activeElementId: document.activeElement?.id || "",
+                activeElementClass: document.activeElement?.className || ""
+            });
+            if (hub.search === previousSearch) {
+                debugSearchReload("debounced-input-skipped-same-value", { search: hub.search });
+                return;
+            }
+            requestLoadHub("search-input", { search: hub.search, eventType, isTrusted });
+        }, 250);
+
+        $("#hubSearch")
+            .off(".documentHubSearch")
+            .on("input.documentHubSearch", function (e) {
+                debugSearchReload("input-event", {
+                    eventType: e.type,
+                    isTrusted: e.originalEvent?.isTrusted ?? null,
+                    value: this.value,
+                    activeElementId: document.activeElement?.id || ""
+                });
+                hubSearchInputHandler.call(this, e);
+            })
+            .on("keyup.documentHubSearch change.documentHubSearch", function (e) {
+                debugSearchReload("non-reload-event", {
+                    eventType: e.type,
+                    isTrusted: e.originalEvent?.isTrusted ?? null,
+                    value: this.value
+                });
+            });
+
+        $("#hdrUploadBtn").on("click", openUploadModal);
+        $("#hdrNewFolderBtn").on("click", openNewFolderModal);
+
+        $("#browseFilesBtn").on("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const input = document.getElementById("fileInput");
+            if (input) input.click();
+        });
+        $("#fileInput")
+            .on("click", e => e.stopPropagation())
+            .on("change", function () { handleFileSelection(this.files); });
+        $("#uploadLevel").on("change", function () {
+            const level = ($(this).val() || "").toLowerCase();
+            $("#isConfidentialInput").prop("checked", level === "confidential" || level === "highly restricted");
+        });
+        $("#dropzone")
+            .on("dragover", e => { e.preventDefault(); $("#dropzone").addClass("dragging"); })
+            .on("dragleave", () => $("#dropzone").removeClass("dragging"))
+            .on("drop", function (e) {
+                e.preventDefault();
+                $(this).removeClass("dragging");
+                handleFileSelection(e.originalEvent.dataTransfer.files);
+            });
+
+        $(document)
+            .off("click.documentHubMenus")
+            .on("click.documentHubMenus", closeItemMenus);
+
+        bindFolderMenuCaptureHandlers();
+    });
+
+    /* ─────────────────────────────────────────────
+       CORE LOAD
+    ───────────────────────────────────────────── */
+    function loadHub() {
+        const requestSeq = ++hub.loadSeq;
+        console.trace("loadHub called", {
+            requestSeq,
+            folderId: hub.folderId,
+            currentFolderId: hub.folderId,
+            activeFolderId: hub.folderId,
+            selectedFolderId: hub.selectedItem?.type === "folder" ? hub.selectedItem.id : null,
+            filter: hub.filter,
+            search: hub.search,
+            selectedItem: hub.selectedItem,
+            currentSnapshot: hub.currentSnapshot || null,
+            folders: hub.currentFolders,
+            currentFolderCount: hub.currentFolders?.length,
+            currentFileCount: hub.currentFiles?.length
+        });
+        debugFolderMenu("loadHub:start", { requestSeq, folderId: hub.folderId, filter: hub.filter, search: hub.search });
+        $.get("/DocumentHub/GetHub", { folderId: hub.folderId, filter: hub.filter, search: hub.search })
+            .done(function (res) {
+                debugFolderMenu("loadHub:done", { requestSeq, activeSeq: hub.loadSeq, folderLockRequired: !!res?.folderLockRequired });
+                if (requestSeq !== hub.loadSeq) {
+                    debugFolderMenu("loadHub:ignored-stale-response", { requestSeq, activeSeq: hub.loadSeq });
+                    return;
+                }
+                hub.permissions = normalizePermissions(res?.permissions || {});
+                hub.permissionsLoaded = true;
+                applyDocumentHubPermissions("GetHub response");
+                if (res.folderLockRequired) {
+                    $("#pinFolderId").val(res.folderId);
+                    $("#folderAccessPin,#folderPinFeedback").val && $("#folderAccessPin").val("");
+                    $("#folderPinFeedback").hide();
+                    $("#folderPinModal").modal("show");
+                    return;
+                }
+                const d = res.data || {};
+                hub.currentFolders = d.folders || [];
+                hub.currentFiles   = d.files   || [];
+                debugFolderMenu("loadHub:data-applied", { folderCount: hub.currentFolders.length, fileCount: hub.currentFiles.length });
+
+                deselectItem();
+                renderStats(d.stats || {});
+                renderBreadcrumb(d.breadcrumb || []);
+                renderFolders();
+                renderFiles();
+                loadFolderTree();
+                setupDragAndDrop();
+                applyDocumentHubPermissions("loadHub render complete");
+            })
+            .fail(() => {
+                debugFolderMenu("loadHub:fail", { requestSeq, activeSeq: hub.loadSeq });
+                if (requestSeq === hub.loadSeq) showToast("Unable to load Document Hub.", "error");
+            });
+    }
+
+    function normalizePermissions(perms) {
+        if (!perms) {
+            return {
+                canView: false,
+                canUpload: false,
+                canDownload: false,
+                canDelete: false,
+                canManageFolders: false,
+                canRename: false,
+                canShare: false,
+                roleName: ""
+            };
+        }
+
+        const normalized = {
+            canView:       (perms.canView ?? perms.CanView) === true,
+            canUpload:     (perms.canUpload ?? perms.CanUpload) === true,
+            canDownload:   (perms.canDownload ?? perms.CanDownload) === true,
+            canDelete:     (perms.canDelete ?? perms.CanDelete) === true,
+            canManageFolders: (perms.canManageFolders ?? perms.CanManageFolders) === true,
+            canRename:     (perms.canRename ?? perms.CanRename) === true,
+            canShare:      (perms.canShare ?? perms.CanShare) === true,
+            roleName:      perms.roleName ?? perms.RoleName ?? ""
+        };
+        return normalized;
+    }
+
+    function loadFolderTree() {
+        $.get("/DocumentHub/GetFolders").done(function (folders) {
+            hub.allFolders = folders || [];
+            renderSidebarTree();
+        });
+    }
+
+    function applyDocumentHubPermissions(source) {
+        const selected = !!hub.selectedItem;
+        const decisions = {
+            upload: hasDocumentHubPermission("upload"),
+            createFolder: hasDocumentHubPermission("createFolder"),
+            move: hasDocumentHubPermission("move"),
+            delete: hasDocumentHubPermission("delete"),
+            download: hasDocumentHubPermission("download"),
+            backup: hasDocumentHubPermission("backup"),
+            confidential: hasDocumentHubPermission("confidential")
+        };
+
+        setDocumentHubActionVisibility("#hdrUploadBtn", decisions.upload, source);
+        setDocumentHubActionVisibility("#hdrNewFolderBtn", decisions.createFolder, source);
+        setDocumentHubActionVisibility("#hdrMoveBtn", decisions.move, source);
+        setDocumentHubActionVisibility("#hdrDeleteBtn", decisions.delete, source);
+        setDocumentHubActionVisibility("#hdrDownloadBtn", decisions.download && hub.selectedItem?.type === "file", source);
+        setDocumentHubActionVisibility("#backupTabItem", decisions.backup, source);
+        setDocumentHubActionVisibility(".pin-admin-only", decisions.confidential, source);
+        setDocumentHubActionVisibility(".dh-restore-action", hasDocumentHubPermission("restore"), source);
+        setDocumentHubActionVisibility(".dh-version-restore-action", hasDocumentHubPermission("versionRestore"), source);
+        $(".dh-permission-action[data-dh-permission]").each(function () {
+            const permissionName = $(this).data("dh-permission");
+            setDocumentHubActionVisibility(this, hasDocumentHubPermission(permissionName), `${source}:${permissionName}`);
+        });
+
+        $("#hdrMoveBtn").prop("disabled", !selected || !decisions.move);
+        $("#hdrDeleteBtn").prop("disabled", !selected || !decisions.delete);
+        $("#hdrDownloadBtn").prop("disabled", hub.selectedItem?.type !== "file" || !decisions.download);
+
+        if (!decisions.backup && $("#backupView").hasClass("active")) {
+            const explorerTab = document.querySelector('[data-bs-target="#explorerView"]');
+            if (explorerTab && window.bootstrap?.Tab) bootstrap.Tab.getOrCreateInstance(explorerTab).show();
+        }
+
+    }
+
+    function applyPermissions() {
+        applyDocumentHubPermissions("legacy applyPermissions wrapper");
+    }
+
+    function canCreateFolders() {
+        return hasDocumentHubPermission("createFolder");
+    }
+
+    function traceLoadHubCall(reason, data) {
+        console.trace("loadHub called", { reason, ...(data || {}) });
+    }
+
+    function requestLoadHub(reason, data) {
+        traceLoadHubCall(reason, data);
+        loadHub();
+    }
+
+    function openFolderFromGrid(folderId, e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
+        debugFolderMenu("openFolderFromGrid", {
+            folderId,
+            eventType: e?.type || "",
+            eventTarget: e?.target?.className || e?.target?.tagName,
+            currentFolderId: hub.folderId,
+            search: hub.search
+        });
+        goFolder(folderId);
+        return false;
+    }
+
+    function openFileFromGrid(fileId, e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
+        debugFolderMenu("openFileFromGrid", {
+            fileId,
+            eventType: e?.type || "",
+            eventTarget: e?.target?.className || e?.target?.tagName,
+            currentFolderId: hub.folderId,
+            search: hub.search
+        });
+        openFile(fileId, "view");
+        return false;
+    }
+
+    function cancelPendingSearchReload(reason) {
+        const canceled = !!hubSearchInputHandler?.cancel?.();
+        debugSearchReload("pending-search-cancel-check", {
+            reason,
+            canceled,
+            currentSearch: hub.search,
+            inputValue: $("#hubSearch").val(),
+            activeElementId: document.activeElement?.id || "",
+            activeElementClass: document.activeElement?.className || ""
+        });
+        return canceled;
+    }
+
+    function bindFolderMenuCaptureHandlers() {
+        const grid = document.getElementById("folderGrid");
+        if (!grid || grid.dataset.folderMenuCaptureBound === "1") return;
+        grid.dataset.folderMenuCaptureBound = "1";
+
+        grid.addEventListener("click", function (e) {
+            const btn = e.target.closest(".folder-menu-btn");
+            if (!btn || !grid.contains(btn)) return;
+
+            debugFolderMenu("folderGrid:capture-click-folder-menu", {
+                menuId: btn.dataset.menuId,
+                eventTarget: e.target?.className || e.target?.tagName,
+                folderGridChildren: $("#folderGrid").children().length
+            });
+            cancelPendingSearchReload("folder-menu-click");
+            toggleItemMenu(e, btn);
+        }, true);
+
+        ["mousedown", "dblclick", "dragstart"].forEach(eventName => {
+            grid.addEventListener(eventName, function (e) {
+                const menuHost = e.target.closest(".item-menu-host,.folder-menu-btn");
+                if (!menuHost || !grid.contains(menuHost)) return;
+
+                debugFolderMenu(`folderGrid:capture-${eventName}-blocked`, {
+                    menuId: menuHost.dataset.menuId || menuHost.querySelector?.(".folder-menu-btn")?.dataset?.menuId,
+                    eventTarget: e.target?.className || e.target?.tagName
+                });
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }, true);
+        });
+    }
+
+    function closeItemMenus(e) {
+        if (e?.target && $(e.target).closest(".item-menu-host,.folder-menu-btn,#hubFloatingItemMenu").length) {
+            cancelPendingSearchReload("folder-menu-close");
+        }
+        debugFolderMenu("closeItemMenus", { target: e?.target?.className || e?.target?.tagName });
+        $("#hubFloatingItemMenu").removeClass("show").empty();
+        $(".doc-hub-container .item-menu-btn[aria-expanded='true']").attr("aria-expanded", "false");
+    }
+
+    function toggleItemMenu(e, btn) {
+        cancelPendingSearchReload("toggle-item-menu");
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+        const menuId = $(btn).data("menuId");
+        const sourceMenuHtml = (menuId && hub.folderMenus[menuId]) || $(btn).siblings(".dropdown-menu").html();
+        const $floatingMenu = $("#hubFloatingItemMenu");
+        const wasOpen = $floatingMenu.hasClass("show") && btn.getAttribute("aria-expanded") === "true";
+        debugFolderMenu("toggleItemMenu:click", {
+            menuId,
+            wasOpen,
+            hasMenuHtml: !!sourceMenuHtml,
+            folderGridChildrenBefore: $("#folderGrid").children().length,
+            currentFoldersBefore: hub.currentFolders.length,
+            selectedItem: hub.selectedItem
+        });
+        closeItemMenus(e);
+
+        if (wasOpen || !sourceMenuHtml) {
+            debugFolderMenu("toggleItemMenu:exit", { wasOpen, hasMenuHtml: !!sourceMenuHtml });
+            return;
+        }
+
+        const rect = btn.getBoundingClientRect();
+        const menuWidth = 170;
+        const estimatedHeight = Math.min(320, Math.max(44, sourceMenuHtml.split("<li").length * 38));
+        const hasRoomBelow = rect.bottom + estimatedHeight + 8 <= window.innerHeight;
+        const top = hasRoomBelow
+            ? rect.bottom + 4
+            : Math.max(8, rect.top - estimatedHeight - 4);
+
+        $floatingMenu
+            .html(sourceMenuHtml)
+            .css({
+                top: Math.round(top) + "px",
+                left: Math.round(Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8))) + "px"
+            })
+            .addClass("show");
+
+        $(btn).attr("aria-expanded", "true");
+        debugFolderMenu("toggleItemMenu:opened", {
+            menuId,
+            folderGridChildrenAfter: $("#folderGrid").children().length,
+            currentFoldersAfter: hub.currentFolders.length,
+            selectedItem: hub.selectedItem
+        });
+    }
+
+    /* ─────────────────────────────────────────────
+       NAVIGATION
+    ───────────────────────────────────────────── */
+    function goFolder(folderId) {
+        debugFolderMenu("goFolder", { folderId, previousFolderId: hub.folderId, selectedItem: hub.selectedItem });
+        hub.folderId = folderId;
+        hub.filter = "";
+        $("#folderSection").show();
+        $("#contentTitle").text("Files and Folders");
+        $(".nav-item-btn").removeClass("active");
+        $(".nav-item-btn:first").addClass("active");
+        requestLoadHub("goFolder", { folderId });
+    }
+
+    function selectNavFilter(filter, el) {
+        $(".nav-item-btn").removeClass("active");
+        $(el).addClass("active");
+        hub.folderId = null;
+        hub.filter = filter;
+        // $("#folderSection").toggle(!filter);
+        $("#folderSection").toggle(!filter || filter === "trash");
+        $("#contentTitle").text(filter ? (filter.charAt(0).toUpperCase() + filter.slice(1) + " Items") : "Files and Folders");
+        requestLoadHub("selectNavFilter", { filter });
+    }
+
+    /* ─────────────────────────────────────────────
+       RENDER — Stats
+    ───────────────────────────────────────────── */
+    function renderStats(s) {
+        $("#statFiles").text(s.totalFiles || 0);
+        $("#statFolders").text(s.totalFolders || 0);
+        $("#statStorage").text(s.storageUsed || "0 B");
+        $("#statRecent").text(s.recentFiles || 0);
+    }
+
+    /* ─────────────────────────────────────────────
+       RENDER — Breadcrumb
+    ───────────────────────────────────────────── */
+    function renderBreadcrumb(items) {
+        const html = items.map((item, i) => {
+            const sep = i ? ` <i class="fa-solid fa-chevron-right mx-1 small text-muted"></i> ` : "";
+            return `${sep}<a onclick="goFolder(${item.folderId || 'null'})">${escHtml(item.folderName || "Home")}</a>`;
+        }).join("");
+        $("#breadcrumb").html(html || `<a onclick="goFolder(null)">Home</a>`);
+    }
+
+    /* ─────────────────────────────────────────────
+       RENDER — Sidebar tree
+    ───────────────────────────────────────────── */
+    function renderSidebarTree() {
+        const tree = buildTree(hub.allFolders.filter(x => !x.isDeleted));
+        const inner = renderTreeNodes(tree);
+        $("#folderTreeContainer").html(`
+            <ul class="tree-list" style="padding-left:0;">
+                <li class="tree-node-item">
+                    <div class="tree-row ${hub.folderId === null && !hub.filter ? "active" : ""}"
+                         onclick="goFolder(null)" data-tree-folder-id="null">
+                        <span class="tree-arrow-spacer"></span>
+                        <i class="fa-solid fa-house-laptop text-primary"></i>
+                        <span class="tree-label">Root Directory</span>
+                    </div>
+                    <div class="tree-node-children show">${inner}</div>
+                </li>
+            </ul>`
+         );
+    }
+
+    function buildTree(folders) {
+        const map = {};
+        folders.forEach(f => map[f.folderId] = { ...f, children: [] });
+        const roots = [];
+        folders.forEach(f => {
+            const node = map[f.folderId];
+            (f.parentFolderId && map[f.parentFolderId]) ? map[f.parentFolderId].children.push(node) : roots.push(node);
+        });
+        return roots;
+    }
+
+    function renderTreeNodes(nodes) {
+        if (!nodes || !nodes.length) return "";
+        return `<ul class="tree-list">` + nodes.map(n => {
+            const hasKids  = n.children && n.children.length;
+            const isActive = hub.folderId === n.folderId;
+            const isOpen   = sessionStorage.getItem(`fo_${n.folderId}`) === "1";
+            const arrow    = hasKids
+                ? `<i class="fa-solid fa-chevron-right tree-arrow ${isOpen ? "rotate-90" : ""}" onclick="toggleTree(${n.folderId},event)"></i>`
+                : `<span class="tree-arrow-spacer"></span>`;
+            const icon     = n.isConfidential ? "fa-solid fa-folder-lock text-warning"
+                           : (isActive        ? "fa-solid fa-folder-open text-primary"
+                                              : "fa-solid fa-folder text-secondary");
+            const kids     = hasKids
+                ? `<div class="tree-node-children ${isOpen ? "show" : ""}" id="treeKids_${n.folderId}">${renderTreeNodes(n.children)}</div>`
+                : "";
+            return `
+                <li class="tree-node-item">
+                    <div class="tree-row ${isActive ? "active" : ""}" onclick="goFolder(${n.folderId})" data-tree-folder-id="${n.folderId}">
+                        ${arrow}
+                        <i class="${icon}"></i>
+                        <span class="text-truncate" style="max-width:140px;" title="${escHtml(n.folderName)}">${escHtml(n.folderName)}</span>
+                        <span class="count">${n.fileCount}</span>
+                    </div>
+                    ${kids}
+                </li>`;
+        }).join("") + `</ul>`;
+    }
+
+    function toggleTree(folderId, e) {
+        e.stopPropagation();
+        const key = `fo_${folderId}`;
+        sessionStorage.setItem(key, sessionStorage.getItem(key) === "1" ? "0" : "1");
+        requestLoadHub("toggleTree", { folderId });
+    }
+
+    /* ─────────────────────────────────────────────
+       RENDER — Folders
+    ───────────────────────────────────────────── */
+    function renderFolders() {
+        const folders = hub.currentFolders;
+        const currentFolderId = hub.folderId;
+        const selectedFolderId = hub.selectedItem?.type === "folder" ? hub.selectedItem.id : null;
+        console.log(
+            "renderFolders data",
+            folders,
+            folders?.length,
+            currentFolderId,
+            selectedFolderId
+        );
+        debugFolderMenu("renderFolders:start", {
+            folderCount: hub.currentFolders.length,
+            existingGridChildren: $("#folderGrid").children().length,
+            selectedItem: hub.selectedItem
+        });
+        if (!hub.currentFolders.length) {
+            $("#folderGrid").html('<div class="col-12 text-center text-muted py-3 small">No folders in this directory</div>');
+            debugFolderMenu("renderFolders:empty-rendered", { gridChildren: $("#folderGrid").children().length });
+            return;
+        }
+        hub.folderMenus = {};
+        $("#folderGrid").html(hub.currentFolders.map(f => {
+            const sel  = isSelected('folder', f.folderId);
+            const lock = f.isConfidential ? `<span class="badge bg-soft-warning text-warning p-1 ms-1" title="Locked"><i class="fa-solid fa-lock" style="font-size:10px;"></i></span>` : "";
+            const menu = buildFolderMenu(f);
+            const menuId = `folder_${f.folderId}`;
+            hub.folderMenus[menuId] = menu;
+            return `
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="item-card folder-card ${sel ? "selected" : ""}"
+                         onclick="selectItem('folder',${f.folderId},event)"
+                         ondblclick="goFolder(${f.folderId})"
+                         draggable="true" data-drag-type="folder" data-drag-id="${f.folderId}"
+                         data-drop-folder-id="${f.folderId}">
+                        <div class="card-top">
+                            <span class="item-icon" onclick="return openFolderFromGrid(${f.folderId},event)" title="Open folder"><i class="fa-solid fa-folder"></i></span>
+                            <div class="item-info" onclick="return openFolderFromGrid(${f.folderId},event)" title="Open folder">
+                                <h6 class="item-title" style="max-width:140px;" title="${escHtml(f.folderName)}">${escHtml(f.folderName)} ${lock}</h6>
+                                <div class="item-meta">${f.fileCount} files · ${f.childFolderCount} folders</div>
+                            </div>
+                            <div class="item-menu-host">
+                                <button type="button" class="item-menu-btn folder-menu-btn" aria-expanded="false" data-menu-id="${menuId}" draggable="false"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }).join(""));
+        debugFolderMenu("renderFolders:complete", {
+            folderCount: hub.currentFolders.length,
+            gridChildren: $("#folderGrid").children().length,
+            folderIds: hub.currentFolders.map(f => f.folderId)
+        });
+    }
+
+    function buildFolderMenu(f) {
+
+
+          if (hub.filter === "trash") {
+        return `
+            <li>
+                <a class="dropdown-item text-success"
+                   onclick="restoreFolder(${f.folderId})">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    Recover
+                </a>
+            </li>
+
+            <li>
+                <a class="dropdown-item text-danger"
+                   onclick="permanentDeleteFolder(${f.folderId})">
+                    <i class="fa-solid fa-trash"></i>
+                    Delete Permanently
+                </a>
+            </li>
+        `;
+    }
+
+        let m = `<li><a class="dropdown-item" onclick="goFolder(${f.folderId})"><i class="fa-solid fa-folder-open text-primary"></i> Open</a></li>`;
+        if (canCreateFolders())
+            m += `<li><a class="dropdown-item" onclick="openFolderModal('subfolder',${f.folderId})"><i class="fa-solid fa-folder-plus text-success"></i> Create Subfolder</a></li>`;
+        if (hasDocumentHubPermission("rename"))
+            m += `<li><a class="dropdown-item" onclick="openFolderModal('rename',${f.folderId},'${escAttr(f.folderName)}')"><i class="fa-solid fa-pen text-info"></i> Rename</a></li>
+                  <li><a class="dropdown-item" onclick="openMoveModal('folder',${f.folderId})"><i class="fa-solid fa-arrows-up-down-left-right text-warning"></i> Move</a></li>`;
+        if (hasDocumentHubPermission("confidential")) {
+            m += `<li><a class="dropdown-item pin-admin-only" onclick="openPinManager('set',${f.folderId})"><i class="fa-solid fa-key text-warning"></i> Set PIN</a></li>
+                  <li><a class="dropdown-item pin-admin-only" onclick="openPinManager('change',${f.folderId})"><i class="fa-solid fa-lock text-warning"></i> Change PIN</a></li>
+                  <li><a class="dropdown-item pin-admin-only" onclick="openPinManager('reset',${f.folderId})"><i class="fa-solid fa-rotate text-warning"></i> Reset PIN</a></li>
+                  <li><a class="dropdown-item pin-admin-only" onclick="openPinManager('remove',${f.folderId})"><i class="fa-solid fa-unlock text-warning"></i> Remove PIN</a></li>`;
+        }
+        m += `
+              <li><a class="dropdown-item text-danger" onclick="deleteFolder(${f.folderId})"><i class="fa-solid fa-trash"></i> Delete Folder</a></li>`;
+        return m;
+    }
+
+    /* ─────────────────────────────────────────────
+       RENDER — Files
+    ───────────────────────────────────────────── */
+    function setViewMode(mode) {
+        hub.viewMode = mode;
+        $("#toggleGridBtn").toggleClass("active-toggle", mode === "grid");
+        $("#toggleListBtn").toggleClass("active-toggle", mode === "list");
+        $("#fileGridView").toggle(mode === "grid");
+        $("#fileListView").toggle(mode === "list");
+        renderFiles();
+        applyDocumentHubPermissions("setViewMode");
+    }
+
+    function renderFiles() {
+        if (!hub.currentFiles.length) {
+            const empty = `<div class="col-12 text-center text-muted py-5"><i class="fa-regular fa-folder-open fa-2x mb-2 opacity-50"></i><p class="small">No files in this directory</p></div>`;
+            $("#fileGridView").html(empty);
+            $("#fileListBody").html(`<tr><td colspan="8" class="text-center text-muted py-4 small">No files found</td></tr>`);
+            return;
+        }
+
+        // Grid
+        $("#fileGridView").html(hub.currentFiles.map(f => {
+            const sel  = isSelected('file', f.fileId);
+            const lock = f.isConfidential ? `<span class="badge bg-soft-danger text-danger p-1" title="Confidential"><i class="fa-solid fa-lock" style="font-size:9px;"></i></span>` : "";
+            const menu = buildFileMenu(f);
+            return `
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="item-card file-card ${sel ? "selected" : ""}"
+                         onclick="selectItem('file',${f.fileId},event)"
+                         ondblclick="openFile(${f.fileId},'view')"
+                         draggable="true" data-drag-type="file" data-drag-id="${f.fileId}">
+                        <div class="card-top">
+                            <span class="item-icon" onclick="return openFileFromGrid(${f.fileId},event)" title="Open file"><i class="${fileIcon(f.fileType)}"></i></span>
+                            <div class="item-info" onclick="return openFileFromGrid(${f.fileId},event)" title="Open file">
+                                <h6 class="item-title" style="max-width:140px;" title="${escHtml(f.fileName)}">${escHtml(f.fileName)}</h6>
+                                <div class="item-meta">v${f.versionNumber} · ${fmtSize(f.fileSize)} ${lock}</div>
+                            </div>
+                            <div class="dropdown" onclick="event.stopPropagation()">
+                                <button type="button" class="item-menu-btn" aria-expanded="false" onclick="toggleItemMenu(event,this)"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end">${menu}</ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }).join(""));
+
+        // List
+        $("#fileListBody").html(hub.currentFiles.map(f => {
+            const sel  = isSelected('file', f.fileId);
+            const lock = f.isConfidential ? `<span class="badge bg-soft-danger text-danger py-1 px-2 ms-1" style="font-size:10px;"><i class="fa-solid fa-lock"></i> Locked</span>` : "";
+            const menu = buildFileMenu(f);
+            return `
+                <tr class="${sel ? "selected" : ""}"
+                    onclick="selectItem('file',${f.fileId},event)"
+                    draggable="true" data-drag-type="file" data-drag-id="${f.fileId}">
+                    <td>
+                        <div class="d-flex align-items-center gap-2" onclick="return openFileFromGrid(${f.fileId},event)" title="Open file">
+                            <i class="${fileIcon(f.fileType)} fs-5"></i>
+                            <strong class="text-truncate" style="max-width:200px;" title="${escHtml(f.fileName)}">${escHtml(f.fileName)}</strong>
+                            ${lock}
+                        </div>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">${escHtml(f.department || 'Root')}</span></td>
+                    <td><span class="badge bg-secondary py-1 px-2" style="font-size:10px;">${escHtml(f.fileType)}</span></td>
+                    <td>${fmtSize(f.fileSize)}</td>
+                    <td>${escHtml(f.uploadedBy)}</td>
+                    <td>${fmtDate(f.uploadedDate)}</td>
+                    <td><span class="version-badge">v${f.versionNumber}</span></td>
+                    <td class="text-end">
+                        <div class="dropdown" onclick="event.stopPropagation()">
+                            <button type="button" class="item-menu-btn" aria-expanded="false" onclick="toggleItemMenu(event,this)"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end">${menu}</ul>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join(""));
+
+        setupDragAndDrop();
+    }
+
+    function buildFileMenu(f) {
+
+          // Trash view
+    if (hub.filter === "trash") {
+
+        return `
+            <li>
+                <a class="dropdown-item text-success"
+                   onclick="restoreFile(${f.fileId})">
+                   <i class="fa-solid fa-rotate-left"></i>
+                   Recover
+                </a>
+            </li>
+
+            <li>
+                <a class="dropdown-item text-danger"
+                   onclick="permanentDeleteFile(${f.fileId})">
+                   <i class="fa-solid fa-trash"></i>
+                   Delete Permanently
+                </a>
+            </li>
+        `;
+    }
+        let m = `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'view')"><i class="fa-solid fa-eye text-primary"></i> Preview</a></li>`;
+        if (hasDocumentHubPermission("download"))
+            m += `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'download')"><i class="fa-solid fa-download text-success"></i> Download</a></li>`;
+        if (hasDocumentHubPermission("move"))
+            m += `<li><a class="dropdown-item" onclick="openMoveModal('file',${f.fileId})"><i class="fa-solid fa-arrows-up-down-left-right text-warning"></i> Move File</a></li>`;
+        m += `<li><a class="dropdown-item text-danger" onclick="deleteFile(${f.fileId})"><i class="fa-solid fa-trash"></i> Delete File</a></li>`;
+        return m;
+    }
+
+    /* ─────────────────────────────────────────────
+       DRAG & DROP
+    ───────────────────────────────────────────── */
+    function setupDragAndDrop() {
+        if (!hasDocumentHubPermission("move")) return;
+        debugFolderMenu("setupDragAndDrop", { draggableCount: $("[draggable='true']").length });
+
+        $("[draggable='true']").off(".documentHubDrag").on("dragstart.documentHubDrag", function (e) {
+            debugFolderMenu("dragstart", {
+                type: $(this).data("drag-type"),
+                id: $(this).data("drag-id"),
+                targetClass: e.target?.className || e.target?.tagName
+            });
+            e.originalEvent.dataTransfer.setData("text/plain", JSON.stringify({
+                type: $(this).data("drag-type"),
+                id:   parseInt($(this).data("drag-id"))
+            }));
+        });
+
+        $("[data-drop-folder-id],[data-tree-folder-id]").off(".documentHubDrop").on("dragover.documentHubDrop", function (e) {
+            e.preventDefault();
+            $(this).addClass("drag-over");
+        }).on("dragleave.documentHubDrop", function () {
+            $(this).removeClass("drag-over");
+        }).on("drop.documentHubDrop", function (e) {
+            e.preventDefault();
+            $(this).removeClass("drag-over");
+            const raw = e.originalEvent.dataTransfer.getData("text/plain");
+            if (!raw) return;
+            let drag;
+            try {
+                drag = JSON.parse(raw);
+            } catch {
+                return;
+            }
+            const raw2 = $(this).data("drop-folder-id") !== undefined ? $(this).data("drop-folder-id") : $(this).data("tree-folder-id");
+            const targetId = (raw2 === "null" || raw2 === null) ? null : parseInt(raw2);
+            if (drag.type === 'folder' && drag.id === targetId) return;
+            if (!confirm(`Move selected ${drag.type} to this folder?`)) return;
+            doDrop(drag.type, drag.id, targetId);
+        });
+    }
+
+    function doDrop(type, id, targetId) {
+        if (!hasDocumentHubPermission("move")) {
+            showToast("You do not have permission to move items.", "error");
+            return;
+        }
+        if (type === 'file') {
+            if (!targetId) { showToast("Files must reside inside subfolders.", "error"); return; }
+            $.post("/DocumentHub/MoveFile", { fileId: id, targetFolderId: targetId }).done(onMutate);
+        } else {
+            $.post("/DocumentHub/MoveFolder", { folderId: id, targetParentFolderId: targetId }).done(onMutate);
+        }
+    }
+
+    /* ─────────────────────────────────────────────
+       SELECTION & DETAIL PANE
+    ───────────────────────────────────────────── */
+    function selectItem(type, id, e) {
+        debugFolderMenu("selectItem:attempt", {
+            type,
+            id,
+            targetClass: e?.target?.className || e?.target?.tagName,
+            fromFolderMenu: !!$(e?.target).closest(".item-menu-host,.folder-menu-btn,#hubFloatingItemMenu").length
+        });
+        if ($(e?.target).closest(".item-menu-host,.folder-menu-btn,#hubFloatingItemMenu").length) {
+            e.preventDefault();
+            e.stopPropagation();
+            debugFolderMenu("selectItem:blocked-menu-origin", { type, id });
+            return;
+        }
+        if (e) e.stopPropagation();
+        if (hub.selectedItem && hub.selectedItem.type === type && hub.selectedItem.id === id) { deselectItem(); return; }
+
+        const data = type === 'file'
+            ? hub.currentFiles.find(x => x.fileId === id)
+            : hub.currentFolders.find(x => x.folderId === id);
+        if (!data) return;
+
+        hub.selectedItem = { type, id, data };
+
+        $(".item-card,.file-list-view tr").removeClass("selected");
+        $(`.item-card[onclick*="'${type}',${id}"]`).addClass("selected");
+        $(`.file-list-view tr[onclick*="${id}"]`).addClass("selected");
+
+        renderDetailPane(type, data);
+        applyDocumentHubPermissions("selectItem");
+    }
+
+    function deselectItem() {
+        hub.selectedItem = null;
+        $(".item-card,.file-list-view tr").removeClass("selected");
+        $("#detailPane").html(`
+            <div class="detail-empty">
+                <div class="detail-empty-icon"><i class="fa-solid fa-file-invoice"></i></div>
+                <h5>Select an item</h5>
+                <p class="text-muted">Select a folder or document to view details.</p>
+            </div>`);
+        applyDocumentHubPermissions("deselectItem");
+    }
+
+    function renderDetailPane(type, item) {
+        if (type === 'file') {
+            const confBadge = item.isConfidential ? `<span class="badge bg-danger mb-2"><i class="fa-solid fa-lock"></i> Confidential</span>` : "";
+            $("#detailPane").html(`
+                <div class="detail-header">
+                    <div class="detail-file-icon"><i class="${fileIcon(item.fileType)}"></i></div>
+                    <h6 class="detail-filename" title="${escHtml(item.fileName)}">${escHtml(item.fileName)}</h6>
+                    <div class="mt-2">${confBadge}</div>
+                </div>
+                <table class="table table-borderless table-sm detail-table mb-3">
+                    <tbody>
+                        <tr><th>File Type</th><td>${escHtml(item.fileType)}</td></tr>
+                        <tr><th>File Size</th><td>${fmtSize(item.fileSize)}</td></tr>
+                        <tr><th>Owner</th><td>${escHtml(item.owner || item.uploadedBy)}</td></tr>
+                        <tr><th>Uploaded</th><td>${fmtDate(item.uploadedDate)}</td></tr>
+                        <tr><th>Access Level</th><td><span class="badge bg-light text-info border">${escHtml(item.accessLevel || 'Public')}</span></td></tr>
+                        <tr><th>Version</th><td><span class="version-badge">v${item.versionNumber}</span></td></tr>
+                    </tbody>
+                </table>
+                <div class="detail-actions">
+                    <button class="btn btn-primary" onclick="openFile(${item.fileId},'view')"><i class="fa-solid fa-eye"></i> Preview</button>
+                    ${hasDocumentHubPermission("download") ? `<button class="btn btn-outline-success" onclick="openFile(${item.fileId},'download')"><i class="fa-solid fa-download"></i> Download</button>` : ""}
+                    <button class="btn btn-outline-secondary" onclick="showVersions(${item.fileId})"><i class="fa-solid fa-code-branch"></i> Version History</button>
+                </div>`);
+        } else {
+            const confBadge = item.isConfidential ? `<span class="badge bg-warning text-dark mb-2"><i class="fa-solid fa-lock"></i> Confidential</span>` : "";
+            $("#detailPane").html(`
+                <div class="detail-header">
+                    <div class="detail-file-icon"><i class="fa-solid fa-folder text-warning"></i></div>
+                    <h6 class="detail-filename">${escHtml(item.folderName)}</h6>
+                    <div class="mt-2">${confBadge}</div>
+                </div>
+                <table class="table table-borderless table-sm detail-table mb-3">
+                    <tbody>
+                        <tr><th>Contains</th><td>${item.fileCount} files, ${item.childFolderCount} subfolders</td></tr>
+                        <tr><th>Last Updated</th><td>${fmtDate(item.lastUpdated || item.createdDate)}</td></tr>
+                    </tbody>
+                </table>
+                <div class="detail-actions">
+                    <button class="btn btn-primary" onclick="goFolder(${item.folderId})"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
+                    ${hasDocumentHubPermission("rename") ? `<button class="btn btn-outline-secondary" onclick="openFolderModal('rename',${item.folderId},'${escAttr(item.folderName)}')"><i class="fa-solid fa-pen"></i> Rename</button>` : ""}
+                    ${hasDocumentHubPermission("confidential") ? `<button class="btn btn-outline-warning pin-admin-only" onclick="openPinManager('set',${item.folderId})"><i class="fa-solid fa-key"></i> Manage PIN</button>` : ""}
+                </div>`);
+        }
+    }
+
+    /* ─────────────────────────────────────────────
+       TOOLBAR ACTIONS
+    ───────────────────────────────────────────── */
+    function downloadSelected() {
+        if (hub.selectedItem?.type === 'file') openFile(hub.selectedItem.id, 'download');
+    }
+
+    function deleteSelected() {
+        if (!hub.selectedItem) return;
+        if (!hasDocumentHubPermission("delete")) {
+            showToast("You do not have permission to delete items.", "error");
+            return;
+        }
+        hub.selectedItem.type === 'file' ? deleteFile(hub.selectedItem.id) : deleteFolder(hub.selectedItem.id);
+    }
+
+    /* ─────────────────────────────────────────────
+       FOLDER OPERATIONS
+    ───────────────────────────────────────────── */
+    function openNewFolderModal() {
+        if (!canCreateFolders()) {
+            showToast("You do not have permission to create folders.", "error");
+            return;
+        }
+        $("#folderIdInput").val("");
+        $("#folderNameInput").val("");
+        $("#folderModalTitle").text("New Folder");
+        $("#folderModal").data("mode", "create").modal("show");
+    }
+
+    function openFolderModal(mode, folderId, name) {
+        if (mode !== "rename" && !canCreateFolders()) {
+            showToast("You do not have permission to create folders.", "error");
+            return;
+        }
+        $("#folderIdInput").val(folderId || "");
+        $("#folderNameInput").val(name || "");
+        $("#folderModalTitle").text(mode === "rename" ? "Rename Folder" : "Create Subfolder");
+        $("#folderModal").data("mode", mode).modal("show");
+    }
+
+function saveFolder() {
+
+    const mode = $("#folderModal").data("mode");
+    const folderId = parseNullInt($("#folderIdInput").val());
+    const folderName = $("#folderNameInput").val().trim();
+
+    if (mode === "rename" && !hasDocumentHubPermission("rename")) {
+        return showToast("You do not have permission to rename folders.", "error");
+    }
+
+    if (mode !== "rename" && !hasDocumentHubPermission("createFolder")) {
+        return showToast("You do not have permission to create folders.", "error");
+    }
+
+    if (!folderName) {
+        return showToast("Folder name is required.", "error");
+    }
+
+    if (mode === "rename") {
+
+        $.post("/DocumentHub/RenameFolder", {
+            folderId: folderId,
+            folderName: folderName
+        }).done(afterMutation);
+
+        return;
+    }
+
+    const parentFolderId =
+        mode === "subfolder"
+            ? folderId
+            : hub.folderId;
+
+    $.ajax({
+        url: "/DocumentHub/CreateFolder",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+            parentFolderId: parentFolderId,
+            folderName: folderName,
+            department: null
+        })
+    })
+    .done(afterMutation)
+    .fail(function (xhr) {
+        showToast("Folder creation failed.", "error");
+    });
+}
+
+
+    function deleteFolder(folderId) {
+        if (!hasDocumentHubPermission("delete")) {
+            showToast("You do not have permission to delete folders.", "error");
+            return;
+        }
+        const folder = hub.allFolders.find(x => x.folderId === folderId) || hub.currentFolders.find(x => x.folderId === folderId);
+        if (folder && ((folder.fileCount || 0) > 0 || (folder.childFolderCount || 0) > 0)) {
+            showToast("Only empty folders can be deleted. Move or delete files and subfolders first.", "error");
+            return;
+        }
+        showConfirm("Delete Folder", "Are you sure you want to delete this empty folder?", "Delete Folder", function () {
+            $.post("/DocumentHub/DeleteFolder", { folderId }).done(afterMutation);
+        });
+    }
+
+    /* ─────────────────────────────────────────────
+       FILE OPERATIONS
+    ───────────────────────────────────────────── */
+    function renameFile(fileId, currentName) {
+        if (!hasDocumentHubPermission("rename")) {
+            showToast("You do not have permission to rename files.", "error");
+            return;
+        }
+        const fileName = prompt("New file name:", currentName);
+        if (!fileName) return;
+        $.post("/DocumentHub/RenameFile", { fileId, fileName }).done(afterMutation);
+    }
+
+    function deleteFile(fileId) {
+        if (!hasDocumentHubPermission("delete")) {
+            showToast("You do not have permission to delete files.", "error");
+            return;
+        }
+        showConfirm("Delete File", "Are you sure you want to delete this file?", "Delete File", function () {
+            $.post("/DocumentHub/DeleteFile", { fileId }).done(afterMutation);
+        });
+    }
+
+    function toggleFavorite(fileId) {
+        if (!hasDocumentHubPermission("favorite")) {
+            showToast("You do not have permission to update favorites.", "error");
+            return;
+        }
+        $.post("/DocumentHub/ToggleFavorite", { fileId }).done(onMutate)
+            .fail(() => showToast("Unable to update favorite.", "error"));
+    }
+
+    /* ─────────────────────────────────────────────
+       MOVE
+    ───────────────────────────────────────────── */
+    let _moveTarget = null;
+    let _moveItem   = null;
+
+    function openMoveModal(type, id) {
+        if (!hasDocumentHubPermission("move")) {
+            showToast("You do not have permission to move items.", "error");
+            return;
+        }
+        if (!type && hub.selectedItem) { type = hub.selectedItem.type; id = hub.selectedItem.id; }
+        if (!type) return;
+        _moveItem   = { type, id };
+        _moveTarget = null;
+
+        const invalid = [];
+        if (type === 'folder') {
+            invalid.push(id);
+            const getDesc = pid => hub.allFolders.filter(x => x.parentFolderId === pid).forEach(x => { invalid.push(x.folderId); getDesc(x.folderId); });
+            getDesc(id);
+        }
+
+        let html = `<div class="move-tree-item ${_moveTarget === null ? "selected" : ""}" onclick="pickMoveTarget(null,this)"><i class="fa-solid fa-house-laptop"></i> Home (Root)</div>`;
+        const addNodes = (parent, depth) => {
+            hub.allFolders.filter(x => !x.isDeleted && x.parentFolderId === parent && !invalid.includes(x.folderId)).forEach(n => {
+                html += `<div class="move-tree-item" style="padding-left:${20+depth*15}px" onclick="pickMoveTarget(${n.folderId},this)"><i class="fa-solid fa-folder text-warning"></i> ${escHtml(n.folderName)}</div>`;
+                addNodes(n.folderId, depth + 1);
+            });
+        };
+        addNodes(null, 0);
+
+        $("#moveDestinationsTree").html(html);
+        $("#moveModal").modal("show");
+    }
+
+    function pickMoveTarget(id, el) {
+        _moveTarget = id;
+        $(".move-tree-item").removeClass("selected");
+        $(el).addClass("selected");
+    }
+
+    function executeMove() {
+        if (!_moveItem) return;
+        if (!hasDocumentHubPermission("move")) {
+            showToast("You do not have permission to move items.", "error");
+            return;
+        }
+        const { type, id } = _moveItem;
+        if (type === 'file') {
+            if (_moveTarget === null) { showToast("Files must reside in a folder.", "error"); return; }
+            $.post("/DocumentHub/MoveFile", { fileId: id, targetFolderId: _moveTarget }).done(r => { onMutate(r); if (r.success) $("#moveModal").modal("hide"); });
+        } else {
+            $.post("/DocumentHub/MoveFolder", { folderId: id, targetParentFolderId: _moveTarget }).done(r => { onMutate(r); if (r.success) $("#moveModal").modal("hide"); });
+        }
+    }
+
+    /* ─────────────────────────────────────────────
+       UPLOAD
+    ───────────────────────────────────────────── */
+    function openUploadModal() {
+        if (!hasDocumentHubPermission("upload")) {
+            showToast("You do not have permission to upload documents.", "error");
+            return;
+        }
+        if (!hub.folderId) { showToast("Select a folder before uploading.", "error"); return; }
+        hub.uploadFiles = [];
+        $("#fileInput").val("");
+        $("#selectedFiles").empty();
+        $("#uploadProgressBar").css("width", "0");
+        $("#uploadProgress").hide();
+        $("#uploadStatusText").hide().text("Ready");
+        $("#isConfidentialInput").prop("checked", false);
+        $("#uploadLevel").val("Public");
+        $("#uploadModal").modal("show");
+    }
+
+    function handleFileSelection(files) {
+        const allowed = ['.pdf','.doc','.docx','.xls','.xlsx','.png','.jpg','.jpeg','.csv'];
+        const incoming = Array.from(files || []);
+        const validFiles = incoming.filter(f => allowed.includes("." + f.name.split('.').pop().toLowerCase()));
+        const rejectedCount = incoming.length - validFiles.length;
+        hub.uploadFiles = validFiles;
+        $("#selectedFiles").html(hub.uploadFiles.map(f => `
+            <div class="alert alert-light border d-flex align-items-center justify-content-between p-2 mb-1 rounded">
+                <span class="text-truncate small" style="max-width:320px;"><i class="${fileIcon(f.name.split('.').pop())} me-2"></i>${escHtml(f.name)} (${fmtSize(f.size)}, ${escHtml(f.name.split('.').pop().toUpperCase())})</span>
+                <button class="btn btn-link text-danger p-0" onclick="removeUploadFile('${escAttr(f.name)}')"><i class="fa-solid fa-times"></i></button>
+            </div>`).join(""));
+        if (rejectedCount) showToast(`${rejectedCount} unsupported file(s) ignored.`, "error");
+    }
+
+    function removeUploadFile(name) {
+        hub.uploadFiles = hub.uploadFiles.filter(f => f.name !== name);
+        handleFileSelection(hub.uploadFiles);
+    }
+
+    function confirmUploadFiles() {
+        if (!hub.folderId) return showToast("Select a folder first.", "error");
+        if (!hub.uploadFiles.length) return showToast("Choose at least one file.", "error");
+
+        const folder = hub.allFolders.find(x => x.folderId === hub.folderId);
+        $("#uploadConfirmFolder").text(folder ? folder.folderName : "Selected folder");
+        $("#uploadConfirmFiles").html(hub.uploadFiles.map(f => `
+            <div class="d-flex align-items-center justify-content-between border-bottom py-1 small">
+                <span class="text-truncate" style="max-width:300px;"><i class="${fileIcon(f.name.split('.').pop())} me-2"></i>${escHtml(f.name)}</span>
+                <span class="text-muted ms-2">${fmtSize(f.size)}</span>
+            </div>`).join(""));
+        $("#uploadConfirmModal").modal("show");
+    }
+
+    function uploadFiles() {
+        if (!hub.folderId)         return showToast("Select a folder first.", "error");
+        if (!hub.uploadFiles.length) return showToast("Choose at least one file.", "error");
+
+        const fd = new FormData();
+        const accessLevel = $("#uploadLevel").val();
+        fd.append("folderId",      hub.folderId);
+        fd.append("isConfidential", $("#isConfidentialInput").is(":checked") || accessLevel === "Confidential" || accessLevel === "Highly Restricted");
+        fd.append("accessLevel",   accessLevel);
+        hub.uploadFiles.forEach(f => fd.append("files", f));
+
+        $("#uploadConfirmModal").modal("hide");
+        $("#startUploadBtn").prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Uploading`);
+        $("#uploadProgress").show();
+        $("#uploadProgressBar").css("width", "10%");
+        $("#uploadStatusText").show().text("Uploading 10%");
+
+        $.ajax({
+            url: "/DocumentHub/Upload", type: "POST",
+            data: fd, processData: false, contentType: false,
+            xhr: function () {
+                const x = $.ajaxSettings.xhr();
+                if (x.upload) x.upload.addEventListener("progress", function (e) {
+                    if (e.lengthComputable) {
+                        const pct = Math.max(10, Math.round(e.loaded/e.total*100));
+                        $("#uploadProgressBar").css("width", pct + "%");
+                        $("#uploadStatusText").text("Uploading " + pct + "%");
+                    }
+                });
+                return x;
+            }
+        }).done(function (res) {
+            showToast(res.message || "Upload completed.", res.success ? "success" : "error");
+            if (res.success) {
+                $("#uploadProgressBar").css("width", "100%");
+                $("#uploadStatusText").text("Upload completed");
+                $("#uploadModal").modal("hide");
+            }
+            requestLoadHub("uploadFiles:done", { success: !!res.success });
+        }).fail(() => showToast("Upload failed.", "error")
+        ).always(() => {
+            $("#startUploadBtn").prop("disabled", false).html("Upload Now");
+            setTimeout(() => { $("#uploadProgress").hide(); $("#uploadProgressBar").css("width","0"); $("#uploadStatusText").hide(); }, 300);
+        });
+    }
+
+    /* ─────────────────────────────────────────────
+       FILE VIEWER / DOWNLOAD
+    ───────────────────────────────────────────── */
+    function openFile(fileId, mode) {
+    $.get("/DocumentHub/FileAccessInfo", { fileId: fileId })
+        .done(function (res) {
+
+            if (res.isConfidential && !res.accessGranted) {
+                $("#accessFileId").val(fileId);
+                $("#accessMode").val(mode);
+                $("#accessUsername").val("");
+                $("#accessPin").val("");
+                $("#accessModal").modal("show");
+                return;
+            }
+
+            launchFile(fileId, mode, res.file);
+        })
+        .fail(function () {
+            showToast("Unable to access file.", "error");
+        });
+}
+
+    function confirmAccess() {
+        const fileId = $("#accessFileId").val();
+        const mode   = $("#accessMode").val();
+        $.post("/DocumentHub/ConfirmAccess", {
+            fileId,
+            usernameConfirmation: $("#accessUsername").val(),
+            pin: $("#accessPin").val()
+        }).done(function (res) {
+            if (!res.success) return showToast(res.message, "error");
+            $("#accessModal").modal("hide");
+            $.get("/DocumentHub/FileAccessInfo", { fileId }).done(info => launchFile(fileId, mode, info.file));
+        });
+    }
+
+    function launchFile(fileId, mode, file) {
+        const ext = (file.fileType || "").toLowerCase();
+        if (mode === "download") {
+            window.location.href = `/DocumentHub/Download?fileId=${fileId}`;
+            return;
+        }
+
+        $("#viewerTitle").text(file.fileName);
+        if (ext === "pdf") {
+            $("#viewerBody").html(`<iframe class="viewer-frame" src="/DocumentHub/Preview?fileId=${fileId}"></iframe>`);
+        } else if (["png","jpg","jpeg","gif"].includes(ext)) {
+            $("#viewerBody").html(`<div class="viewer-img-container"><img class="viewer-img" src="/DocumentHub/Preview?fileId=${fileId}" alt="${escAttr(file.fileName)}" /></div>`);
+        // } else {
+        //     $("#viewerBody").html(`
+        //         <div class="p-4 bg-white text-dark">
+        //             <h6 class="font-weight-bold mb-3"><i class="${fileIcon(ext)}"></i> ${escHtml(file.fileName)}</h6>
+        //             <table class="table table-sm">
+        //                 <tbody>
+        //                     <tr><th>File Type</th><td>${escHtml(file.fileType)}</td></tr>
+        //                     <tr><th>File Size</th><td>${fmtSize(file.fileSize)}</td></tr>
+        //                     <tr><th>Uploaded By</th><td>${escHtml(file.uploadedBy)}</td></tr>
+        //                     <tr><th>Uploaded Date</th><td>${fmtDate(file.uploadedDate)}</td></tr>
+        //                     <tr><th>Version</th><td>v${file.versionNumber}</td></tr>
+        //                 </tbody>
+        //             </table>
+        //             <p class="small text-muted mb-0">Preview is available for PDF and image files. Word and Excel documents are shown as metadata only.</p>
+        //         </div>`);
+        // }
+        }
+        else if (["doc","docx","xls","xlsx","csv","ppt","pptx"].includes(ext)) {
+    window.open(`/DocumentHub/Preview?fileId=${fileId}`, "_blank");
+    return;
+}
+        $("#viewerModal").modal("show");
+    }
+
+    /* ─────────────────────────────────────────────
+       FOLDER PIN
+    ───────────────────────────────────────────── */
+    function submitFolderUnlock() {
+        const folderId = $("#pinFolderId").val();
+        const pin = $("#folderAccessPin").val().trim();
+        if (!pin) return;
+        $.post("/DocumentHub/ConfirmFolderAccess", { folderId, pin }).done(function (res) {
+            if (res.success) {
+                $("#folderPinModal").modal("hide");
+                showToast("Access granted.", "success");
+                requestLoadHub("submitFolderUnlock:success", { folderId });
+            } else {
+                $("#folderPinFeedback").show();
+            }
+        }).fail(() => showToast("Request failed.", "error"));
+    }
+
+    function cancelFolderUnlock() {
+        $("#folderPinModal").modal("hide");
+        goFolder(null);
+    }
+
+    /* ─────────────────────────────────────────────
+       VERSION HISTORY
+    ───────────────────────────────────────────── */
+    function showVersions(fileId) {
+        $.get("/DocumentHub/VersionHistory", { fileId }).done(function (res) {
+            const rows = (res.data || []).map(v => `
+                <tr>
+                    <td class="small font-weight-bold">v${v.versionNumber}</td>
+                    <td class="small">${escHtml(v.uploadedBy)}</td>
+                    <td class="small text-muted">${fmtDate(v.uploadedDate)}</td>
+                    <td class="small text-muted">${fmtSize(v.fileSize)}</td>
+                    <td class="text-end">
+                        ${hasDocumentHubPermission("versionRestore") ? `<button class="btn btn-warning text-dark btn-sm dh-version-restore-action" style="font-size:10px;padding:2px 6px;" onclick="restoreVersion(${fileId},${v.versionNumber})"><i class="fa-solid fa-rotate-left"></i> Restore</button>` : ""}
+                    </td>
+                </tr>`).join("");
+            $("#listTitle").text("Version History");
+            $("#listBody").html(`
+                <div class="p-3">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light"><tr><th>Ver.</th><th>Uploaded By</th><th>Date</th><th>Size</th><th class="text-end">Action</th></tr></thead>
+                        <tbody>${rows || '<tr><td colspan="5" class="text-center text-muted p-3 small">No previous versions</td></tr>'}</tbody>
+                    </table>
+                </div>`);
+            $("#listModal").modal("show");
+        });
+    }
+
+    function restoreVersion(fileId, versionNumber) {
+        if (!hasDocumentHubPermission("versionRestore")) {
+            showToast("You do not have permission to restore versions.", "error");
+            return;
+        }
+        showConfirm("Restore Version", `Restore version ${versionNumber} as the current active version?`, "Restore", function () {
+            $.post("/DocumentHub/RestoreVersion", { fileId, versionNumber }).done(function (res) {
+                showToast(res.message, res.success ? "success" : "error");
+                $("#listModal").modal("hide");
+                requestLoadHub("restoreVersion:done", { fileId, versionNumber });
+            });
+        });
+    }
+
+    function showActivityLog(fileId) {
+        $.get("/DocumentHub/ActivityLog", { fileId }).done(function (res) {
+            const rows = (res.data || []).map(a => `
+                <tr>
+                    <td class="small text-muted">${fmtDate(a.activityDate)}</td>
+                    <td class="small">${escHtml(a.userName)}</td>
+                    <td class="small font-weight-bold">${escHtml(a.action)}</td>
+                    <td class="small">${escHtml(a.details || "")}</td>
+                </tr>`).join("");
+            $("#listTitle").text("Activity Log");
+            $("#listBody").html(`
+                <div class="p-3">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light"><tr><th>Date</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+                        <tbody>${rows || '<tr><td colspan="4" class="text-center text-muted p-3 small">No activity found</td></tr>'}</tbody>
+                    </table>
+                </div>`);
+            $("#listModal").modal("show");
+        }).fail(() => showToast("Unable to load activity log.", "error"));
+    }
+
+    function openPinManager(mode, folderId) {
+        if (!hasDocumentHubPermission("confidential")) {
+            showToast("You do not have permission to manage confidential folders.", "error");
+            return;
+        }
+        $("#pinManageFolderId").val(folderId);
+        $("#pinManageMode").val(mode);
+        $("#pinCurrent,#pinNew,#pinConfirm").val("");
+        $(".pin-current-row").toggle(mode !== "set" && mode !== "reset");
+        $(".pin-new-row").toggle(mode !== "remove" && mode !== "reset");
+        $("#pinManageTitle").text(mode === "set" ? "Set Folder PIN" : (mode === "change" ? "Change Folder PIN" : (mode === "reset" ? "Reset Folder PIN" : "Remove Folder PIN")));
+        $("#pinManageModal").modal("show");
+    }
+
+    function saveFolderPin() {
+        if (!hasDocumentHubPermission("confidential")) {
+            showToast("You do not have permission to manage confidential folders.", "error");
+            return;
+        }
+        const mode = $("#pinManageMode").val();
+        const folderId = parseNullInt($("#pinManageFolderId").val());
+        const payload = {
+            folderId: folderId,
+            currentPin: $("#pinCurrent").val(),
+            newPin: $("#pinNew").val(),
+            confirmPin: $("#pinConfirm").val()
+        };
+
+        const url = mode === "set" ? "/DocumentHub/SetFolderPin"
+            : mode === "change" ? "/DocumentHub/ChangeFolderPin"
+            : mode === "reset" ? "/DocumentHub/ResetFolderPin"
+            : "/DocumentHub/RemoveFolderPin";
+
+        $.ajax({
+            url: url,
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(payload)
+        }).done(function (res) {
+            showToast(res.message, res.success ? "success" : "error");
+            if (res.success) {
+                $("#pinManageModal").modal("hide");
+                requestLoadHub("saveFolderPin:success", { folderId });
+            }
+        }).fail(() => showToast("PIN request failed.", "error"));
+    }
+
+    /* ─────────────────────────────────────────────
+       BACKUP & RECOVERY
+    ───────────────────────────────────────────── */
+    function loadBackupList() {
+        if (!hasDocumentHubPermission("backup")) {
+            showToast("You do not have permission to access Backup & Recovery.", "error");
+            return;
+        }
+        $.get("/DocumentHub/GetBackups").done(function (backups) {
+            if (backups && backups.success === false) {
+                showToast(backups.message || "Unable to retrieve backups.", "error");
+                return;
+            }
+            if (!backups || !backups.length) {
+                $("#backupListBody").html(`<tr><td colspan="7" class="text-center text-muted p-4 small">No backups found</td></tr>`);
+                $("#lblLastBackupTime").text("Never");
+                return;
+            }
+            $("#lblLastBackupTime").text(fmtDate(backups[0].backupDate));
+            $("#lblBackupStorage").text(fmtSize(backups.reduce((a, b) => a + b.fileSize, 0)));
+            $("#backupListBody").html(backups.map(b => `
+                <tr>
+                    <td><strong class="font-monospace text-primary small">${escHtml(b.backupId)}</strong></td>
+                    <td>${fmtDate(b.backupDate)}</td>
+                    <td><span class="badge bg-light text-dark border">${escHtml(b.backupType)}</span></td>
+                    <td>${fmtSize(b.fileSize)}</td>
+                    <td>${b.folderCount} folders, ${b.fileCount} files</td>
+                    <td><span class="badge bg-success-subtle text-success py-1 px-2 border border-success"><i class="fa-solid fa-circle-check"></i> ${escHtml(b.status)}</span></td>
+                    <td class="text-end d-flex justify-content-end gap-1">
+                        <button class="btn btn-sm btn-outline-primary" style="font-size:11px;padding:3px 8px;" onclick="browseBackup('${b.backupId}')"><i class="fa-solid fa-folder-open"></i> Browse</button>
+                        ${hasDocumentHubPermission("restore") ? `<button class="btn btn-sm btn-danger dh-restore-action" style="font-size:11px;padding:3px 8px;" onclick="restoreBackup('${b.backupId}')"><i class="fa-solid fa-trash-can-arrow-up"></i> Restore</button>` : ""}
+                    </td>
+                </tr>`).join(""));
+            applyDocumentHubPermissions("loadBackupList render");
+        }).fail(function (xhr) {
+            const message = xhr.responseJSON?.message || xhr.responseText || "Unable to retrieve backups.";
+            showToast(message, "error");
+        });
+    }
+
+    function triggerManualBackup(type) {
+        if (!hasDocumentHubPermission("backup")) {
+            showToast("You do not have permission to create backups.", "error");
+            return;
+        }
+        showToast("Generating backup snapshot...", "success");
+        $.post("/DocumentHub/CreateBackup", { type }).done(function (res) {
+            showToast(res.message, res.success ? "success" : "error");
+            loadBackupList();
+        }).fail(function (xhr) {
+            const message = xhr.responseJSON?.message || xhr.responseText || "Unable to create backup.";
+            showToast(message, "error");
+        });
+    }
+
+    function restoreBackup(backupId) {
+        if (!hasDocumentHubPermission("restore")) {
+            showToast("You do not have permission to restore backups.", "error");
+            return;
+        }
+        showConfirm("Restore Backup", "DANGER: This will overwrite current folder structure, documents, permissions, and logs. Proceed?", "Restore", function () {
+            $.post("/DocumentHub/RestoreBackup", { backupId }).done(function (res) {
+                showToast(res.message, res.success ? "success" : "error");
+                loadBackupList();
+                requestLoadHub("restoreBackup:done", { backupId });
+            });
+        });
+    }
+
+    function browseBackup(backupId) {
+        if (!hasDocumentHubPermission("backup")) {
+            showToast("You do not have permission to browse backups.", "error");
+            return;
+        }
+        $.ajax({
+            url: `/DocumentHub/GetBackupContent?backupId=${encodeURIComponent(backupId)}`,
+            type: "GET",
+            success: function (res) {
+                if (!res || res.success === false) {
+                    showToast(res?.message || "Unable to retrieve backup.", "error");
+                    return;
+                }
+
+                const d = res.data || res;
+                renderBackupBrowse(backupId, d.folders || d.Folders || [], d.files || d.Files || []);
+            },
+            error: function (xhr) {
+                const message = xhr.responseJSON?.message || xhr.responseText || "Unable to retrieve backup.";
+                showToast(message, "error");
+            }
+        });
+    }
+
+    function renderBackupBrowse(backupId, folders, files) {
+        const folderRows = folders.map(f => `
+            <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom small">
+                <span><i class="fa-solid fa-folder text-warning"></i> ${escHtml(f.folderName)}</span>
+                ${hasDocumentHubPermission("restore") ? `<button class="btn btn-xs btn-primary py-0 px-2 dh-restore-action" style="font-size:10px;" onclick="restoreSingleFolder('${backupId}',${f.folderId})">Restore</button>` : ""}
+            </div>`).join("") || `<span class="text-muted small">No folders</span>`;
+
+        const fileRows = files.map(f => `
+            <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom small">
+                <span><i class="${fileIcon(f.fileType)}"></i> ${escHtml(f.fileName)}</span>
+                ${hasDocumentHubPermission("restore") ? `<button class="btn btn-xs btn-primary py-0 px-2 dh-restore-action" style="font-size:10px;" onclick="restoreSingleFile('${backupId}',${f.fileId})">Restore</button>` : ""}
+            </div>`).join("") || `<span class="text-muted small">No files</span>`;
+
+        $("#listTitle").text("Browse Backup Snapshot");
+        $("#listBody").html(`
+            <div class="p-3">
+                <p class="small text-muted mb-3">Restore items from <strong>${escHtml(backupId)}</strong>:</p>
+                <h6 class="small text-primary font-weight-bold mb-1">Folders:</h6>
+                <div style="max-height:120px;overflow-y:auto;" class="border rounded bg-light p-2 mb-3">${folderRows}</div>
+                <h6 class="small text-primary font-weight-bold mb-1">Files:</h6>
+                <div style="max-height:150px;overflow-y:auto;" class="border rounded bg-light p-2">${fileRows}</div>
+            </div>`);
+        $("#listModal").modal("show");
+        applyDocumentHubPermissions("renderBackupBrowse");
+    }
+
+    function restoreSingleFolder(backupId, folderId) {
+        if (!hasDocumentHubPermission("restore")) {
+            showToast("You do not have permission to restore folders.", "error");
+            return;
+        }
+        showConfirm("Restore Folder", "Restore this folder from backup?", "Restore", function () {
+            $.post("/DocumentHub/RestoreSingleFolder", { backupId, folderId }).done(r => { showToast(r.message, r.success ? "success" : "error"); $("#listModal").modal("hide"); requestLoadHub("restoreSingleFolder:done", { backupId, folderId }); });
+        });
+    }
+
+    function restoreSingleFile(backupId, fileId) {
+        if (!hasDocumentHubPermission("restore")) {
+            showToast("You do not have permission to restore files.", "error");
+            return;
+        }
+        showConfirm("Restore File", "Restore this file from backup?", "Restore", function () {
+            $.post("/DocumentHub/RestoreSingleFile", { backupId, fileId }).done(r => { showToast(r.message, r.success ? "success" : "error"); $("#listModal").modal("hide"); requestLoadHub("restoreSingleFile:done", { backupId, fileId }); });
+        });
+    }
+
+    /* ─────────────────────────────────────────────
+       UTILITIES
+    ───────────────────────────────────────────── */
+    function fileIcon(ext) {
+        ext = (ext || "").toLowerCase();
+        if (ext === "pdf")                        return "fa-solid fa-file-pdf icon-pdf";
+        if (["png","jpg","jpeg","gif"].includes(ext)) return "fa-solid fa-file-image icon-image";
+        if (["xlsx","xls"].includes(ext))         return "fa-solid fa-file-excel icon-excel";
+        if (["docx","doc"].includes(ext))         return "fa-solid fa-file-word icon-word";
+        if (ext === "csv")                        return "fa-solid fa-file-csv icon-csv";
+        if (["pptx","ppt"].includes(ext))         return "fa-solid fa-file-powerpoint icon-ppt";
+        if (["zip","rar","tar"].includes(ext))    return "fa-solid fa-file-zipper icon-zip";
+        return "fa-solid fa-file text-secondary";
+    }
+
+    function fmtSize(bytes) {
+        bytes = Number(bytes || 0);
+        if (bytes < 1024)    return bytes + " B";
+        if (bytes < 1048576) return (bytes/1024).toFixed(1) + " KB";
+        return (bytes/1048576).toFixed(1) + " MB";
+    }
+
+    function fmtDate(v) {
+        if (!v) return "-";
+        const d = new Date(v);
+        return isNaN(d) ? v : d.toLocaleString("en-IN", { dateStyle:"medium", timeStyle:"short" });
+    }
+
+    function escHtml(v)  { return $("<div>").text(v == null ? "" : v).html(); }
+    function escAttr(v)  { return escHtml(v).replace(/'/g,"&#39;").replace(/"/g,"&quot;"); }
+    function parseNullInt(v) { const n = parseInt(v,10); return isFinite(n) ? n : null; }
+    function isSelected(type, id) { return hub.selectedItem?.type === type && hub.selectedItem?.id === id; }
+
+    function debounce(fn, wait) {
+        let t;
+        let ctx;
+        let args;
+        const debounced = function () {
+            clearTimeout(t);
+            ctx = this;
+            args = arguments;
+            t = setTimeout(() => {
+                const callCtx = ctx;
+                const callArgs = args;
+                t = null;
+                ctx = null;
+                args = null;
+                fn.apply(callCtx, callArgs);
+            }, wait);
+        };
+        debounced.cancel = function () {
+            if (!t) return false;
+            clearTimeout(t);
+            t = null;
+            ctx = null;
+            args = null;
+            return true;
+        };
+        debounced.pending = function () {
+            return !!t;
+        };
+        return debounced;
+    }
+
+    function showToast(msg, type) {
+        const ok = type === "success";
+        $("#hubToast")
+            .removeClass("bg-toast-success bg-toast-error")
+            .addClass(ok ? "bg-toast-success" : "bg-toast-error");
+        $("#toastIcon").html(ok ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-triangle-exclamation"></i>');
+        $("#toastText").text(msg);
+        $("#hubToast").fadeIn(150);
+        setTimeout(() => $("#hubToast").fadeOut(250), 3000);
+    }
+
+    function showConfirm(title, message, okText, onOk) {
+        $("#hubConfirmTitle").text(title);
+        $("#hubConfirmMessage").text(message);
+        $("#hubConfirmOkBtn").text(okText || "Confirm").off("click").on("click", function () {
+            $("#hubConfirmModal").modal("hide");
+            if (typeof onOk === "function") onOk();
+        });
+        $("#hubConfirmModal").modal("show");
+    }
+
+    function afterMutation(res) {
+        showToast(res.message || "Action processed.", res.success ? "success" : "error");
+        if (res.success) $(".modal").modal("hide");
+        requestLoadHub("afterMutation", { success: !!res?.success, message: res?.message });
+    }
+
+    function onMutate(res) {
+        showToast(res.message, res.success ? "success" : "error");
+        requestLoadHub("onMutate", { success: !!res?.success, message: res?.message });
+    }
+    function permanentDeleteFile(fileId) {
+
+    if (!confirm("Permanently delete this file? This cannot be undone.")) {
+        return;
+    }
+
+    $.post("/DocumentHub/PermanentDeleteFile", {
+        fileId: fileId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("permanentDelete");
+        }
+    });
+}
+function restoreFile(fileId) {
+
+    $.post("/DocumentHub/RestoreFile", {
+        fileId: fileId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("restore");
+        }
+    });
+}
+    function restoreFolder(folderId) {
+
+    $.post("/DocumentHub/RestoreFolder", {
+        folderId: folderId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("restoreFolder");
+        }
+    });
+
+    }
+
+    function permanentDeleteFolder(folderId) {
+
+    if (!confirm("Permanently delete this folder? This cannot be undone.")) {
+        return;
+    }
+
+    $.post("/DocumentHub/PermanentDeleteFolder", {
+        folderId: folderId
+    }).done(function (res) {
+
+        showToast(
+            res.message,
+            res.success ? "success" : "error"
+        );
+
+        if (res.success) {
+            requestLoadHub("permanentDeleteFolder");
+        }
+    });
+}
+</script>
+}

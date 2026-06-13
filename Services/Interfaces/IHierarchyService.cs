@@ -124,6 +124,8 @@ namespace JSAPNEW.Services
         #region Full Employee Edit
 
         Task<HierarchyApiResponse<bool>> UpdateEmployeeFullAsync(UpdateEmployeeFullRequest request, int updatedBy);
+        Task<HierarchyApiResponse<bool>> SyncHodDepartmentsAsync(SyncHodDepartmentsRequest request, int updatedBy);
+        Task<HierarchyApiResponse<bool>> SyncSubHodSubDepartmentsAsync(SyncSubHodSubDepartmentsRequest request, int updatedBy);
         Task<DepartmentChangeImpactDto> GetDepartmentChangeImpactAsync(DepartmentChangeImpactRequest request);
         Task<HierarchyApiResponse<BulkAssignTeamResult>> BulkAssignTeamAsync(BulkAssignTeamRequest request, int updatedBy);
         Task<List<EmployeeDropdownDto>> GetActiveHODsAsync();
@@ -161,6 +163,7 @@ namespace JSAPNEW.Services
         Task<HierarchyApiResponse<int>> AddCustomFieldAsync(AddCustomFieldRequest request, int createdBy);
         Task<HierarchyApiResponse<bool>> RemoveCustomFieldAsync(int fieldId);
         Task<List<EmployeeCustomValueDto>> GetEmployeeCustomValuesAsync(int? employeeId = null);
+        Task<EmployeeModalExtrasDto?> GetEmployeeModalExtrasAsync(int employeeId);
         Task<HierarchyApiResponse<bool>> SetEmployeeCustomValueAsync(SetCustomValueRequest request);
 
         #endregion
@@ -171,15 +174,15 @@ namespace JSAPNEW.Services
         Task<SalesHierarchyStatsDto> GetSalesHierarchyStatsAsync(int companyId);
         Task<SalesImportResult> ImportSalesHierarchyAsync(List<SalesImportRowRequest> rows, int createdBy, int companyId);
         Task<int> UpdateMissingSalesHierarchyCodesAsync(int companyId);
-        Task<HierarchyApiResponse<bool>> UpdateSalesRowAsync(SalesUpdateRowRequest request, int updatedBy);
-        Task<HierarchyApiResponse<bool>> ShiftSalesEmployeeAsync(SalesShiftRequest request, int updatedBy);
+        Task<HierarchyApiResponse<bool>> UpdateSalesRowAsync(SalesUpdateRowRequest request, int updatedBy, int companyId);
+        Task<HierarchyApiResponse<bool>> ShiftSalesEmployeeAsync(SalesShiftRequest request, int updatedBy, int companyId);
         Task<List<AuditLogDto>> GetSalesAuditLogsAsync(AuditLogRequest request);
         Task<List<SalesStateDto>> GetSalesStatesAsync();
         Task<List<SalesGroupDto>> GetSalesGroupsAsync();
         Task<List<SalesDesignationDto>> GetSalesDesignationsAsync();
         Task<HierarchyApiResponse<bool>> CreateSalesEmployeeAsync(CreateSalesEmployeeRequest request, int createdBy, int companyId);
         Task<object> GetSalesHierarchyForTreeAsync(int companyId);
-        Task<List<EmployeeDropdownDto>> GetSalesEmployeeListAsync();
+        Task<List<EmployeeDropdownDto>> GetSalesEmployeeListAsync(int companyId);
 
         #endregion
     }

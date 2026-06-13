@@ -1,0 +1,143 @@
+@{
+    ViewData["Title"] = "Account Settings";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .account-settings-wrap {
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .account-settings-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(11, 44, 77, 0.08);
+        overflow: hidden;
+    }
+
+    .account-settings-head {
+        background: #0b2c4d;
+        color: #fff;
+        padding: 18px 22px;
+    }
+
+    .account-settings-head h4 {
+        margin: 0;
+        font-size: 19px;
+        font-weight: 700;
+    }
+
+    .account-settings-body {
+        padding: 24px;
+    }
+
+    .account-settings-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+    }
+
+    .account-settings-note {
+        color: #64748b;
+        font-size: 13px;
+        margin-bottom: 18px;
+    }
+</style>
+
+<div class="account-settings-wrap">
+    <div class="account-settings-card">
+        <div class="account-settings-head">
+            <h4><i class="fas fa-user-cog"></i> Account Settings</h4>
+        </div>
+        <div class="account-settings-body">
+            <p class="account-settings-note">Change your own login username or password. Current password is required for both.</p>
+
+            <form id="ownAccountForm">
+                <input type="hidden" id="accountUserId" value="@ViewBag.UserId" />
+
+                <div class="form-group">
+                    <label for="newLoginUser">Username</label>
+                    <input type="text" class="form-control" id="newLoginUser" value="@ViewBag.LoginUser" autocomplete="off" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" class="form-control" id="currentPassword" autocomplete="current-password" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" class="form-control" id="newPassword" autocomplete="new-password" />
+                    <small class="form-text text-muted">Leave blank if you only want to change username.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" class="form-control" id="confirmPassword" autocomplete="new-password" />
+                </div>
+
+                <div id="accountSettingsMessage"></div>
+
+                <div class="account-settings-actions">
+                    <a href="@Url.Action("Index", "DashboardWeb")" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary" id="saveAccountBtn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $('#ownAccountForm').on('submit', function (e) {
+            e.preventDefault();
+
+            const newPassword = $('#newPassword').val();
+            const confirmPassword = $('#confirmPassword').val();
+            const message = $('#accountSettingsMessage');
+
+            message.empty();
+
+            if (newPassword && newPassword !== confirmPassword) {
+                message.html('<div class="alert alert-danger">New password and confirm password do not match.</div>');
+                return;
+            }
+
+            const payload = {
+                userId: parseInt($('#accountUserId').val(), 10),
+                currentPassword: $('#currentPassword').val(),
+                newLoginUser: $('#newLoginUser').val().trim(),
+                newPassword: newPassword || null,
+                confirmPassword: confirmPassword || null
+            };
+
+            $('#saveAccountBtn').prop('disabled', true).text('Saving...');
+
+            $.ajax({
+                url: '@Url.Action("UpdateOwnAccount", "Account")',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function (response) {
+                    message.html(`<div class="alert alert-success">${response.message}</div>`);
+                    $('#currentPassword, #newPassword, #confirmPassword').val('');
+                    setTimeout(function () {
+                        window.location.reload();
+                    }, 900);
+                },
+                error: function (xhr) {
+                    const errorMessage = xhr.responseJSON?.message || 'Unable to update account.';
+                    message.html(`<div class="alert alert-danger">${errorMessage}</div>`);
+                },
+                complete: function () {
+                    $('#saveAccountBtn').prop('disabled', false).html('<i class="fas fa-save"></i> Save Changes');
+                }
+            });
+        });
+    </script>
+}

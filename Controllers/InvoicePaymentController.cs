@@ -1,50 +1,4 @@
 ﻿
-
-//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.Data.SqlClient;
-//using System.Configuration;
-//using System.Data;
-
-//namespace JSAPNEW.Controllers
-//{
-//    public class InvoicePaymentController : Controller
-//    {
-
-//        private readonly IConfiguration _configuration;
-//        private readonly InvoicePaymentService _service;
-
-//        public InvoicePaymentController(IConfiguration configuration, InvoicePaymentService service)
-//        {
-//            _configuration = configuration;
-//            _service = service;
-//        }
-
-//        // ============================
-//        // LOAD PAGE
-//        // ============================
-//        public IActionResult InvoicePaymentPage()
-//        {
-//            return View();
-//        }
-
-//        // ============================
-//        // GET DATA (ONLY SEEN)
-//        // ============================
-
-//        [HttpGet]
-//        public IActionResult GetBillDetails(DateTime? fromDate, DateTime? toDate, string accountName)
-//        {
-//            var data = _service.GetBillDetails(fromDate, toDate, accountName, null);
-//            return Json(data);
-//        }
-//        [HttpGet]
-//        public IActionResult GetInvoiceItems(int vchNumber)
-//        {
-//            var data = _service.GetInvoiceItemDetails(vchNumber); // ✅ int pass
-//            return Json(data);
-//        }
-//    }
-//}
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using JSAPNEW.Services.Interfaces;
@@ -87,6 +41,21 @@ namespace JSAPNEW.Controllers
         {
             var data = _service.GetInvoiceItemDetails(vchNumber);
             return Json(data);
+        }
+        [HttpPost]
+        public IActionResult MarkAsPaid([FromBody] MarkPaidRequest req)
+        {
+            var result = _service.MarkAsPaid(req.VchNumber);
+
+            if (!result)
+                return NotFound();
+
+            return Ok();
+        }
+
+        public class MarkPaidRequest
+        {
+            public decimal VchNumber { get; set; }
         }
     }
 }
