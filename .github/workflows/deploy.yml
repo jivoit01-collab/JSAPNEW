@@ -1,3 +1,6 @@
+
+
+
 name: Deploy
 
 on:
@@ -61,29 +64,154 @@ jobs:
             "$SSH_USER@$SSH_HOST" \
             "powershell -NoProfile -Command \"Write-Host 'SSH connection successful'\""
 
-      - name: Stop IIS Website and Windows Service
+      - name: Stop IIS Website And Prepare Temp Folders
         run: |
           sshpass -p "$SSH_PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -p "$SSH_PORT" \
             "$SSH_USER@$SSH_HOST" \
-            "powershell -NoProfile -Command \"Import-Module WebAdministration; Stop-Website -Name 'JSAP Test' -ErrorAction SilentlyContinue; Stop-Service -Name 'jsapnew' -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 5; if (Test-Path 'C:\LiveProjects\JSAPTestDeployTemp') { Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue } else { New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAPTestDeployTemp' -Force }\""
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
+          Import-Module WebAdministration
 
-      - name: Upload Publish Files To Temp Folder
+          Stop-Website -Name "JSAP Test" -ErrorAction SilentlyContinue
+          Stop-Service -Name "jsapnew" -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 5
+
+          $Live = "C:\LiveProjects\JSAP"
+          $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
+          $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+
+          New-Item -ItemType Directory -Path $Live -Force | Out-Null
+          New-Item -ItemType Directory -Path $PublishTemp -Force | Out-Null
+          New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "Website stopped"
+          Write-Host "Service stopped"
+          Write-Host "Temp publish folder cleaned"
+          Write-Host "Backup folder is safe"
+          PS
+
+      - name: Upload Publish Files To Temp Publish Folder
         run: |
           sshpass -p "$SSH_PASSWORD" scp \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -P "$SSH_PORT" \
             -r ./publish/* \
-            "$SSH_USER@$SSH_HOST:C:/LiveProjects/JSAPTestDeployTemp/"
+            "$SSH_USER@$SSH_HOST:C:/LiveProjects/temp/Jsap-publish/"
 
-      - name: Move Files To Live Folder And Restart
+      - name: Backup Live Folder Replace Files And Restart
         run: |
           sshpass -p "$SSH_PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -p "$SSH_PORT" \
             "$SSH_USER@$SSH_HOST" \
-            "powershell -NoProfile -Command \"Import-Module WebAdministration; if (!(Test-Path 'C:\LiveProjects\JSAP Test')) { New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAP Test' -Force }; Remove-Item 'C:\LiveProjects\JSAP Test\*' -Recurse -Force -ErrorAction SilentlyContinue; Copy-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' 'C:\LiveProjects\JSAP Test\' -Recurse -Force; Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue; Start-Website -Name 'JSAP Test'; Start-Service -Name 'jsapnew'; Write-Host 'Deployment Completed Successfully'\""
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
+          $ErrorActionPreference = "Stop"
+
+          Import-Module WebAdministration
+
+          $Live = "C:\LiveProjects\JSAP"
+          $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
+          $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+
+          $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+          $BackupPath = Join-Path $BackupRoot $Timestamp
+
+          if (!(Test-Path $Live)) {
+              New-Item -ItemType Directory -Path $Live -Force | Out-Null
+          }
+
+          if (!(Test-Path $PublishTemp)) {
+              throw "Publish temp folder not found: $PublishTemp"
+          }
+
+          if (!(Test-Path "$PublishTemp\*")) {
+              throw "Publish temp folder is empty: $PublishTemp"
+          }
+
+          New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+
+          if (Test-Path "$Live\*") {
+              Copy-Item "$Live\*" $BackupPath -Recurse -Force
+              Write-Host "Backup created successfully at: $BackupPath"
+          } else {
+              Write-Host "Live folder is empty. Empty backup folder created at: $BackupPath"
+          }
+
+          $ProtectedFiles = @(
+              "appsettings.json",
+              "appsettings.Production.json",
+              "web.config",
+              ".env"
+          )
+
+          $ProtectedFolders = @(
+              "wwwroot",
+              "Logs",
+              "logs",
+              "Uploads",
+              "uploads",
+              "App_Data",
+              "Storage",
+              "storage",
+              "UserFiles",
+              "userfiles"
+          )
+
+          Write-Host "Removing old live files except protected files and folders..."
+
+          Get-ChildItem -Path $Live -Force | Where-Object {
+              ($ProtectedFiles -notcontains $_.Name) -and
+              ($ProtectedFolders -notcontains $_.Name)
+          } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "Copying new publish files to live folder..."
+
+          $RobocopyArgs = @(
+              $PublishTemp,
+              $Live,
+              "/E",
+              "/NFL",
+              "/NDL",
+              "/NJH",
+              "/NJS",
+              "/NC",
+              "/NS",
+              "/NP"
+          )
+
+          foreach ($file in $ProtectedFiles) {
+              $RobocopyArgs += "/XF"
+              $RobocopyArgs += $file
+          }
+
+          foreach ($folder in $ProtectedFolders) {
+              $RobocopyArgs += "/XD"
+              $RobocopyArgs += $folder
+          }
+
+          robocopy @RobocopyArgs
+
+          if ($LASTEXITCODE -gt 7) {
+              throw "Robocopy failed with exit code $LASTEXITCODE"
+          }
+
+          $global:LASTEXITCODE = 0
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Start-Website -Name "JSAP Test"
+          Start-Service -Name "jsapnew"
+
+          Write-Host "Deployment Completed Successfully"
+          Write-Host "Backup Location: $BackupPath"
+          Write-Host "Live Location: $Live"
+          PS
+
+
+
