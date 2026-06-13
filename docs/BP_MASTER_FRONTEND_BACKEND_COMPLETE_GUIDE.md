@@ -952,6 +952,226 @@ This happens when frontend code appends a JavaScript object directly, for exampl
 }
 ```
 
+### Critical create payload requirement for backend
+
+Before sending create requests, ensure these fields are always present:
+
+- `type`
+- `company` (SAP company DB id like `JIVO_OIL_HANADB`)
+- `companyId` (numeric SQL company id, e.g. `1`)
+- `cardName`
+- `industry`
+- `pan`
+- `contactFirst`
+- `contactLast`
+- `mobile`
+- `email`
+- `currency`
+- `isStaff`
+- `allBillAddresses`
+
+`allBillAddresses` is required in both JSON and form-data. If it is missing or empty, insert may fail during server-side parsing/address normalization.
+
+Use one of these exact payloads.
+
+Create BP (Customer) — JSON:
+
+```json
+{
+  "company": "JIVO_OIL_HANADB",
+  "companyId": 1,
+  "type": "C",
+  "customerType": "B2B",
+  "cardName": "TEST CUSTOMER BP 0611 01",
+  "foreignName": "TEST CUSTOMER FOREIGN",
+  "typeOfBusiness": "Company",
+  "industry": "FMCG",
+  "contactFirst": "RAMESH",
+  "contactLast": "KUMAR",
+  "contactTitle": "OWNER",
+  "mobile": "9876543210",
+  "email": "customer061101@example.com",
+  "contactEmail": "accounts061101@example.com",
+  "gstin": "03AAKCU6101F1Z5",
+  "pan": "AAKCU6101F",
+  "currency": "INR",
+  "remarks": "Customer registration test",
+  "isStaff": false,
+  "userId": 76,
+  "companyByUser": "JIVO_OIL_HANADB",
+  "sameAsBill": true,
+  "allBillAddresses": [
+    {
+      "addrName": "BILL-CUST-061101",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCU6101F1Z5"
+    }
+  ],
+  "allShipAddresses": [
+    {
+      "addrName": "SHIP-CUST-061101",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCU6101F1Z5"
+    }
+  ],
+  "hasMsme": false,
+  "msmeNo": "",
+  "msmeType": "",
+  "msmeBType": ""
+}
+```
+
+Create BP (Customer) — multipart/form-data (direct fields):
+
+```text
+company=JIVO_OIL_HANADB
+companyId=1
+type=C
+customerType=B2B
+cardName=TEST CUSTOMER BP 0611 01
+foreignName=TEST CUSTOMER FOREIGN
+typeOfBusiness=Company
+industry=FMCG
+contactFirst=RAMESH
+contactLast=KUMAR
+contactTitle=OWNER
+mobile=9876543210
+email=customer061101@example.com
+contactEmail=accounts061101@example.com
+gstin=03AAKCU6101F1Z5
+pan=AAKCU6101F
+currency=INR
+remarks=Customer registration test
+isStaff=false
+userId=76
+companyByUser=JIVO_OIL_HANADB
+sameAsBill=true
+allBillAddresses=[{"addrName":"BILL-CUST-061101","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCU6101F1Z5"}]
+allShipAddresses=[{"addrName":"SHIP-CUST-061101","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCU6101F1Z5"}]
+hasMsme=false
+msmeNo=
+msmeType=
+msmeBType=
+```
+
+Create BP (Vendor) — JSON:
+
+```json
+{
+  "type": "V",
+  "company": "JIVO_OIL_HANADB",
+  "companyId": 1,
+  "vendorType": "SUPPLIER",
+  "cardName": "TEST VENDOR BP 0611 02",
+  "foreignName": "TEST VENDOR FOREIGN",
+  "typeOfBusiness": "Partnership",
+  "industry": "IT Services",
+  "contactFirst": "ROHIT",
+  "contactLast": "RATHOD",
+  "contactTitle": "OWNER",
+  "mobile": "8571954685",
+  "altContact": "0161123456",
+  "email": "vendor061102@example.com",
+  "gstin": "03AAKCT6102F1Z5",
+  "pan": "AAKCT6102F",
+  "tan": "PTLA12345B",
+  "currency": "INR",
+  "remarks": "Vendor registration test",
+  "isStaff": false,
+  "userId": 76,
+  "companyByUser": "JIVO_OIL_HANADB",
+  "sameAsBill": true,
+  "allBillAddresses": [
+    {
+      "addrName": "BILL-VEND-061102",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCT6102F1Z5"
+    }
+  ],
+  "allShipAddresses": [
+    {
+      "addrName": "SHIP-VEND-061102",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCT6102F1Z5"
+    }
+  ],
+  "hasMsme": true,
+  "msmeNo": "UDYAM-PB-00-0611022",
+  "msmeType": "MICRO",
+  "msmeBType": "Manufacturing",
+  "fssaiNo": "10012022006112",
+  "bankAccounts": [
+    {
+      "bankCode": "HDFC",
+      "bankName": "HDFC BANK",
+      "vendorName": "TEST VENDOR BP 0611 02",
+      "branch": "LUDHIANA",
+      "accNo": "50100123456789",
+      "ifsc": "HDFC0001234",
+      "swiftCode": "HDFCINBB",
+      "accountType": "Current",
+      "isPrimary": true
+    }
+  ]
+}
+```
+
+Create BP (Vendor) — multipart/form-data (direct fields):
+
+```text
+type=V
+company=JIVO_OIL_HANADB
+companyId=1
+vendorType=SUPPLIER
+cardName=TEST VENDOR BP 0611 02
+foreignName=TEST VENDOR FOREIGN
+typeOfBusiness=Partnership
+industry=IT SERVICES
+contactFirst=ROHIT
+contactLast=RATHOD
+contactTitle=OWNER
+mobile=8571954685
+altContact=0161123456
+email=vendor061102@example.com
+gstin=03AAKCT6102F1Z5
+pan=AAKCT6102F
+tan=PTLA12345B
+currency=INR
+remarks=Vendor registration test
+isStaff=false
+userId=76
+companyByUser=JIVO_OIL_HANADB
+sameAsBill=true
+allBillAddresses=[{\"addrName\":\"BILL-VEND-061102\",\"street\":\"PLOT 14 INDUSTRIAL AREA\",\"block\":\"PHASE 2\",\"city\":\"LUDHIANA\",\"zip\":\"141001\",\"state\":\"PB\",\"country\":\"IN\",\"gstin\":\"03AAKCT6102F1Z5\"}]
+allShipAddresses=[{\"addrName\":\"SHIP-VEND-061102\",\"street\":\"PLOT 14 INDUSTRIAL AREA\",\"block\":\"PHASE 2\",\"city\":\"LUDHIANA\",\"zip\":\"141001\",\"state\":\"PB\",\"country\":\"IN\",\"gstin\":\"03AAKCT6102F1Z5\"}]
+bankAccounts=[{\"bankCode\":\"HDFC\",\"bankName\":\"HDFC BANK\",\"vendorName\":\"TEST VENDOR BP 0611 02\",\"branch\":\"LUDHIANA\",\"accNo\":\"50100123456789\",\"ifsc\":\"HDFC0001234\",\"swiftCode\":\"HDFCINBB\",\"accountType\":\"Current\",\"isPrimary\":true}]
+hasMsme=true
+msmeNo=UDYAM-PB-00-0611022
+msmeType=MICRO
+msmeBType=Manufacturing
+fssaiNo=10012022006112
+```
+
 Multipart compatibility fields:
 
 | Key | Type | Required | Meaning |
@@ -1351,6 +1571,342 @@ Rules:
 - For vendors, `sapBankCode` overrides the create-time bank code during SAP posting and must exist in SAP `ODSC`.
 - For vendors, `bpGroupCode` and `apAccountCode` must be a valid SAP combination. If SAP returns `(200002) Incorrect Group or Payable/Receivable Account`, the payload reached SAP but SAP rejected that group/account pair. Pick both values from the live dropdown APIs and retry.
 - Do not send retired fields `debPayAcct`, `wtLabel`, or `series`; SAP `DebitorAccount` is calculated during SAP payload creation from `arAccountCode` for customers and `apAccountCode` for vendors.
+
+### Frontend Copy-Paste Payloads (JSON + Form-Data)
+
+Use these payloads to test quickly from both body types.
+
+Important:
+
+- `allBillAddresses` is required in both Create APIs.
+- `allBillAddresses` can be empty only when business rules allow zero addresses in the environment.
+- Create APIs must not send SAP approval fields (`cardCodePrefix`, `bpGroupCode`, `arAccountCode`, `apAccountCode`, `paymentTermCode`, `salesEmployeeCode`, `territoryId`, `sapBankCode`).
+- Use `masterId` from Create response for SAP and approval endpoints.
+
+#### Create BP (Customer) JSON
+
+```json
+{
+  "company": "JIVO_OIL_HANADB",
+  "companyId": 1,
+  "type": "C",
+  "customerType": "B2B",
+  "cardName": "TEST CUSTOMER BP 0612 01",
+  "foreignName": "TEST CUSTOMER FOREIGN",
+  "typeOfBusiness": "Company",
+  "industry": "FMCG",
+  "contactFirst": "RAMESH",
+  "contactLast": "KUMAR",
+  "contactTitle": "OWNER",
+  "mobile": "9876543210",
+  "email": "customer061201@example.com",
+  "contactEmail": "accounts061201@example.com",
+  "gstin": "03AAKCU6101F1Z5",
+  "pan": "AAKCU6101F",
+  "currency": "INR",
+  "remarks": "Customer registration test",
+  "isStaff": false,
+  "userId": 76,
+  "companyByUser": "JIVO_OIL_HANADB",
+  "sameAsBill": true,
+  "allBillAddresses": [
+    {
+      "addrName": "BILL-CUST-061201",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCU6101F1Z5"
+    }
+  ],
+  "allShipAddresses": [
+    {
+      "addrName": "SHIP-CUST-061201",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCU6101F1Z5"
+    }
+  ],
+  "hasMsme": false,
+  "msmeNo": "",
+  "msmeType": "",
+  "msmeBType": ""
+}
+```
+
+Create BP (Customer) Form-Data direct fields
+
+```text
+company=JIVO_OIL_HANADB
+companyId=1
+type=C
+customerType=B2B
+cardName=TEST CUSTOMER BP 0612 01
+foreignName=TEST CUSTOMER FOREIGN
+typeOfBusiness=Company
+industry=FMCG
+contactFirst=RAMESH
+contactLast=KUMAR
+contactTitle=OWNER
+mobile=9876543210
+email=customer061201@example.com
+contactEmail=accounts061201@example.com
+gstin=03AAKCU6101F1Z5
+pan=AAKCU6101F
+currency=INR
+remarks=Customer registration test
+isStaff=false
+userId=76
+companyByUser=JIVO_OIL_HANADB
+sameAsBill=true
+allBillAddresses=[{"addrName":"BILL-CUST-061201","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCU6101F1Z5"}]
+allShipAddresses=[{"addrName":"SHIP-CUST-061201","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCU6101F1Z5"}]
+hasMsme=false
+msmeNo=
+msmeType=
+msmeBType=
+```
+
+#### Create BP (Vendor) JSON
+
+```json
+{
+  "type": "V",
+  "company": "JIVO_OIL_HANADB",
+  "companyId": 1,
+  "vendorType": "SUPPLIER",
+  "cardName": "TEST VENDOR BP 0612 02",
+  "foreignName": "TEST VENDOR FOREIGN",
+  "typeOfBusiness": "Partnership",
+  "industry": "IT Services",
+  "contactFirst": "ROHIT",
+  "contactLast": "RATHOD",
+  "contactTitle": "OWNER",
+  "mobile": "8571954685",
+  "altContact": "0161123456",
+  "email": "vendor061202@example.com",
+  "gstin": "03AAKCT6102F1Z5",
+  "pan": "AAKCT6102F",
+  "tan": "PTLA12345B",
+  "currency": "INR",
+  "remarks": "Vendor registration test",
+  "isStaff": false,
+  "userId": 76,
+  "companyByUser": "JIVO_OIL_HANADB",
+  "sameAsBill": true,
+  "allBillAddresses": [
+    {
+      "addrName": "BILL-VEND-061202",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCT6102F1Z5"
+    }
+  ],
+  "allShipAddresses": [
+    {
+      "addrName": "SHIP-VEND-061202",
+      "street": "PLOT 14 INDUSTRIAL AREA",
+      "block": "PHASE 2",
+      "city": "LUDHIANA",
+      "zip": "141001",
+      "state": "PB",
+      "country": "IN",
+      "gstin": "03AAKCT6102F1Z5"
+    }
+  ],
+  "hasMsme": true,
+  "msmeNo": "UDYAM-PB-00-0612022",
+  "msmeType": "MICRO",
+  "msmeBType": "Manufacturing",
+  "fssaiNo": "10012022006112",
+  "bankAccounts": [
+    {
+      "bankCode": "HDFC",
+      "bankName": "HDFC BANK",
+      "vendorName": "TEST VENDOR BP 0612 02",
+      "branch": "LUDHIANA",
+      "accNo": "50100123456789",
+      "ifsc": "HDFC0001234",
+      "swiftCode": "HDFCINBB",
+      "accountType": "Current",
+      "isPrimary": true
+    }
+  ]
+}
+```
+
+Create BP (Vendor) Form-Data direct fields
+
+```text
+type=V
+company=JIVO_OIL_HANADB
+companyId=1
+vendorType=SUPPLIER
+cardName=TEST VENDOR BP 0612 02
+foreignName=TEST VENDOR FOREIGN
+typeOfBusiness=Partnership
+industry=IT SERVICES
+contactFirst=ROHIT
+contactLast=RATHOD
+contactTitle=OWNER
+mobile=8571954685
+altContact=0161123456
+email=vendor061202@example.com
+gstin=03AAKCT6102F1Z5
+pan=AAKCT6102F
+tan=PTLA12345B
+currency=INR
+remarks=Vendor registration test
+isStaff=false
+userId=76
+companyByUser=JIVO_OIL_HANADB
+sameAsBill=true
+allBillAddresses=[{"addrName":"BILL-VEND-061202","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCT6102F1Z5"}]
+allShipAddresses=[{"addrName":"SHIP-VEND-061202","street":"PLOT 14 INDUSTRIAL AREA","block":"PHASE 2","city":"LUDHIANA","zip":"141001","state":"PB","country":"IN","gstin":"03AAKCT6102F1Z5"}]
+hasMsme=true
+msmeNo=UDYAM-PB-00-0612022
+msmeType=MICRO
+msmeBType=Manufacturing
+fssaiNo=10012022006112
+bankAccounts=[{"bankCode":"HDFC","bankName":"HDFC BANK","vendorName":"TEST VENDOR BP 0612 02","branch":"LUDHIANA","accNo":"50100123456789","ifsc":"HDFC0001234","swiftCode":"HDFCINBB","accountType":"Current","isPrimary":true}]
+```
+
+#### UpdateSAPData (Customer) JSON
+
+```json
+{
+  "masterId": 1254,
+  "userId": 76,
+  "cardCodePrefix": "CUSTA",
+  "bpGroupCode": 132,
+  "bpGroupName": "ANDHRA PRADESH",
+  "arAccountCode": "1101001",
+  "paymentTermCode": 29,
+  "salesEmployeeCode": 78,
+  "territoryId": -2,
+  "sapBankCode": ""
+}
+```
+
+UpdateSAPData (Customer) Form-Data
+
+```text
+masterId=1254
+userId=76
+cardCodePrefix=CUSTA
+bpGroupCode=132
+bpGroupName=ANDHRA PRADESH
+arAccountCode=1101001
+paymentTermCode=29
+salesEmployeeCode=78
+territoryId=-2
+```
+
+#### UpdateSAPData (Vendor) JSON
+
+```json
+{
+  "masterId": 1255,
+  "userId": 76,
+  "cardCodePrefix": "VENDA",
+  "bpGroupCode": 101,
+  "bpGroupName": "BRANCH VENDOR",
+  "apAccountCode": "2110005",
+  "paymentTermCode": 29,
+  "sapBankCode": "HDFC"
+}
+```
+
+UpdateSAPData (Vendor) Form-Data
+
+```text
+masterId=1255
+userId=76
+cardCodePrefix=VENDA
+bpGroupCode=101
+bpGroupName=BRANCH VENDOR
+apAccountCode=2110005
+paymentTermCode=29
+sapBankCode=HDFC
+```
+
+#### Approve / Reject / Retry examples
+
+Approve:
+
+```json
+{
+  "flowId": 1155,
+  "company": 1,
+  "userId": 70,
+  "remarks": "Approved by manager.",
+  "action": "Approve"
+}
+```
+
+```text
+flowId=1155
+company=1
+userId=70
+remarks=Approved by manager.
+action=Approve
+```
+
+Reject:
+
+```json
+{
+  "flowId": 1155,
+  "company": 1,
+  "userId": 70,
+  "remarks": "Missing tax document.",
+  "action": "Reject"
+}
+```
+
+```text
+flowId=1155
+company=1
+userId=70
+remarks=Missing tax document.
+action=Reject
+```
+
+Retry SAP:
+
+```json
+{
+  "flowId": 1155,
+  "company": 1,
+  "userId": 108,
+  "remarks": "Retry after correction in SAP approval fields."
+}
+```
+
+```text
+flowId=1155
+company=1
+userId=108
+remarks=Retry after correction in SAP approval fields.
+```
+
+GetSAPData:
+
+```text
+GET /api/BPmaster/GetSAPData?masterId=1255
+```
+
+- JSON returns same data in `data` node, with `apiStatusTag`, `cardCodePrefix`, `bpGroupCode`, `bpGroupName`, `arAccountCode`, `apAccountCode`, `paymentTermCode`, `salesEmployeeCode`, `territoryId`, `sapBankCode`, `retryCount`.
 
 ### Get Single BP Data
 
