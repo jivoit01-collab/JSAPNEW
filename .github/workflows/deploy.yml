@@ -1,6 +1,3 @@
-
-
-
 name: Deploy
 
 on:
@@ -50,10 +47,18 @@ jobs:
           echo "VERIFY PUBLISH IS NOT EMPTY"
           test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
 
-      - name: Install sshpass
+      - name: Install sshpass and zip
         run: |
           sudo apt-get update
-          sudo apt-get install -y sshpass
+          sudo apt-get install -y sshpass zip
+
+      - name: Compress Publish Folder
+        run: |
+          cd publish
+          zip -r ../publish.zip .
+          cd ..
+          echo "ZIP FILE CREATED"
+          ls -lh publish.zip
 
       - name: Test SSH Connection
         run: |
@@ -79,31 +84,38 @@ jobs:
           Start-Sleep -Seconds 5
 
           $Live = "C:\LiveProjects\JSAP"
+          $TempRoot = "C:\LiveProjects\temp"
           $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
           $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+          $ZipPath = "C:\LiveProjects\temp\publish.zip"
 
           New-Item -ItemType Directory -Path $Live -Force | Out-Null
+          New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
           New-Item -ItemType Directory -Path $PublishTemp -Force | Out-Null
           New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
 
           Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
 
+          if (Test-Path $ZipPath) {
+              Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+          }
+
           Write-Host "Website stopped"
           Write-Host "Service stopped"
           Write-Host "Temp publish folder cleaned"
-          Write-Host "Backup folder is safe"
+          Write-Host "Old zip removed"
           PS
 
-      - name: Upload Publish Files To Temp Publish Folder
+      - name: Upload Publish ZIP To Server
         run: |
           sshpass -p "$SSH_PASSWORD" scp \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -P "$SSH_PORT" \
-            -r ./publish/* \
-            "$SSH_USER@$SSH_HOST:C:/LiveProjects/temp/Jsap-publish/"
+            publish.zip \
+            "$SSH_USER@$SSH_HOST:C:/LiveProjects/temp/publish.zip"
 
-      - name: Backup Live Folder Replace Files And Restart
+      - name: Extract Backup Replace Files And Restart
         run: |
           sshpass -p "$SSH_PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
@@ -118,6 +130,7 @@ jobs:
           $Live = "C:\LiveProjects\JSAP"
           $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
           $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+          $ZipPath = "C:\LiveProjects\temp\publish.zip"
 
           $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
           $BackupPath = Join-Path $BackupRoot $Timestamp
@@ -126,21 +139,17 @@ jobs:
               New-Item -ItemType Directory -Path $Live -Force | Out-Null
           }
 
-          if (!(Test-Path $PublishTemp)) {
-              throw "Publish temp folder not found: $PublishTemp"
+          if (!(Test-Path $ZipPath)) {
+              throw "Publish zip not found: $ZipPath"
           }
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "Extracting publish zip..."
+          Expand-Archive -Path $ZipPath -DestinationPath $PublishTemp -Force
 
           if (!(Test-Path "$PublishTemp\*")) {
-              throw "Publish temp folder is empty: $PublishTemp"
-          }
-
-          New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
-
-          if (Test-Path "$Live\*") {
-              Copy-Item "$Live\*" $BackupPath -Recurse -Force
-              Write-Host "Backup created successfully at: $BackupPath"
-          } else {
-              Write-Host "Live folder is empty. Empty backup folder created at: $BackupPath"
+              throw "Publish temp folder is empty after extract: $PublishTemp"
           }
 
           $ProtectedFiles = @(
@@ -163,6 +172,43 @@ jobs:
               "userfiles"
           )
 
+          New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+
+          Write-Host "Creating backup of replaceable files only..."
+
+          $BackupArgs = @(
+              $Live,
+              $BackupPath,
+              "/E",
+              "/NFL",
+              "/NDL",
+              "/NJH",
+              "/NJS",
+              "/NC",
+              "/NS",
+              "/NP"
+          )
+
+          foreach ($file in $ProtectedFiles) {
+              $BackupArgs += "/XF"
+              $BackupArgs += $file
+          }
+
+          foreach ($folder in $ProtectedFolders) {
+              $BackupArgs += "/XD"
+              $BackupArgs += $folder
+          }
+
+          robocopy @BackupArgs
+
+          if ($LASTEXITCODE -gt 7) {
+              throw "Backup robocopy failed with exit code $LASTEXITCODE"
+          }
+
+          $global:LASTEXITCODE = 0
+
+          Write-Host "Backup created at: $BackupPath"
+
           Write-Host "Removing old live files except protected files and folders..."
 
           Get-ChildItem -Path $Live -Force | Where-Object {
@@ -172,7 +218,7 @@ jobs:
 
           Write-Host "Copying new publish files to live folder..."
 
-          $RobocopyArgs = @(
+          $DeployArgs = @(
               $PublishTemp,
               $Live,
               "/E",
@@ -186,24 +232,25 @@ jobs:
           )
 
           foreach ($file in $ProtectedFiles) {
-              $RobocopyArgs += "/XF"
-              $RobocopyArgs += $file
+              $DeployArgs += "/XF"
+              $DeployArgs += $file
           }
 
           foreach ($folder in $ProtectedFolders) {
-              $RobocopyArgs += "/XD"
-              $RobocopyArgs += $folder
+              $DeployArgs += "/XD"
+              $DeployArgs += $folder
           }
 
-          robocopy @RobocopyArgs
+          robocopy @DeployArgs
 
           if ($LASTEXITCODE -gt 7) {
-              throw "Robocopy failed with exit code $LASTEXITCODE"
+              throw "Deploy robocopy failed with exit code $LASTEXITCODE"
           }
 
           $global:LASTEXITCODE = 0
 
           Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
 
           Start-Website -Name "JSAP Test"
           Start-Service -Name "jsapnew"
@@ -212,6 +259,3 @@ jobs:
           Write-Host "Backup Location: $BackupPath"
           Write-Host "Live Location: $Live"
           PS
-
-
-
