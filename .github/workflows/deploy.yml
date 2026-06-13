@@ -1,26 +1,19 @@
 name: Deploy
 
 on:
-workflow_dispatch:
-
-concurrency:
-group: jsap-production-deploy
-cancel-in-progress: false
+  workflow_dispatch:
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
-```
-env:
-  SSH_HOST: ${{ secrets.HOST }}
-  SSH_USER: ${{ secrets.USERNAME }}
-  SSH_PASSWORD: ${{ secrets.PASSWORD }}
-  SSH_PORT: ${{ secrets.PORT }}
-  DOTNET_NOLOGO: "true"
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+    env:
+      SSH_HOST: ${{ secrets.HOST }}
+      SSH_USER: ${{ secrets.USERNAME }}
+      SSH_PASSWORD: ${{ secrets.PASSWORD }}
+      SSH_PORT: ${{ secrets.PORT }}
 
-steps:
+   steps:
   - name: Checkout Main Branch
     uses: actions/checkout@v4
     with:
@@ -187,7 +180,7 @@ steps:
           "userfiles"
       )
 
-      Write-Host "Creating compressed backup of replaceable files only..."
+      Write-Host "Creating fast compressed backup of replaceable files only..."
 
       $TarExcludes = @(
           "--exclude=appsettings.json",
@@ -259,4 +252,3 @@ steps:
       Write-Host "Backup File: $BackupFile"
       Write-Host "Live Location: $Live"
       PS
-```
