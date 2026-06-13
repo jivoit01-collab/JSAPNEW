@@ -47,10 +47,18 @@ jobs:
           echo "VERIFY PUBLISH IS NOT EMPTY"
           test "$(ls -A ./publish)" || (echo "Publish folder is empty" && exit 1)
 
-      - name: Install sshpass
+      - name: Install sshpass and zip
         run: |
           sudo apt-get update
-          sudo apt-get install -y sshpass
+          sudo apt-get install -y sshpass zip
+
+      - name: Compress Publish Folder
+        run: |
+          cd publish
+          zip -r ../publish.zip .
+          cd ..
+          echo "ZIP FILE CREATED"
+          ls -lh publish.zip
 
       - name: Test SSH Connection
         run: |
@@ -61,29 +69,193 @@ jobs:
             "$SSH_USER@$SSH_HOST" \
             "powershell -NoProfile -Command \"Write-Host 'SSH connection successful'\""
 
-      - name: Stop IIS Website and Windows Service
+      - name: Stop IIS Website And Prepare Temp Folders
         run: |
           sshpass -p "$SSH_PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -p "$SSH_PORT" \
             "$SSH_USER@$SSH_HOST" \
-            "powershell -NoProfile -Command \"Import-Module WebAdministration; Stop-Website -Name 'JSAP Test' -ErrorAction SilentlyContinue; Stop-Service -Name 'jsapnew' -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 5; if (Test-Path 'C:\LiveProjects\JSAPTestDeployTemp') { Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue } else { New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAPTestDeployTemp' -Force }\""
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
+          Import-Module WebAdministration
 
-      - name: Upload Publish Files To Temp Folder
+          Stop-Website -Name "JSAP Test" -ErrorAction SilentlyContinue
+          Stop-Service -Name "jsapnew" -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 5
+
+          $Live = "C:\LiveProjects\JSAP"
+          $TempRoot = "C:\LiveProjects\temp"
+          $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
+          $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+          $ZipPath = "C:\LiveProjects\temp\publish.zip"
+
+          New-Item -ItemType Directory -Path $Live -Force | Out-Null
+          New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path $PublishTemp -Force | Out-Null
+          New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          if (Test-Path $ZipPath) {
+              Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+          }
+
+          Write-Host "Website stopped"
+          Write-Host "Service stopped"
+          Write-Host "Temp publish folder cleaned"
+          Write-Host "Old zip removed"
+          PS
+
+      - name: Upload Publish ZIP To Server
         run: |
           sshpass -p "$SSH_PASSWORD" scp \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -P "$SSH_PORT" \
-            -r ./publish/* \
-            "$SSH_USER@$SSH_HOST:C:/LiveProjects/JSAPTestDeployTemp/"
+            publish.zip \
+            "$SSH_USER@$SSH_HOST:C:/LiveProjects/temp/publish.zip"
 
-      - name: Move Files To Live Folder And Restart
+      - name: Extract Backup Replace Files And Restart
         run: |
           sshpass -p "$SSH_PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -p "$SSH_PORT" \
             "$SSH_USER@$SSH_HOST" \
-            "powershell -NoProfile -Command \"Import-Module WebAdministration; if (!(Test-Path 'C:\LiveProjects\JSAP Test')) { New-Item -ItemType Directory -Path 'C:\LiveProjects\JSAP Test' -Force }; Remove-Item 'C:\LiveProjects\JSAP Test\*' -Recurse -Force -ErrorAction SilentlyContinue; Copy-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' 'C:\LiveProjects\JSAP Test\' -Recurse -Force; Remove-Item 'C:\LiveProjects\JSAPTestDeployTemp\*' -Recurse -Force -ErrorAction SilentlyContinue; Start-Website -Name 'JSAP Test'; Start-Service -Name 'jsapnew'; Write-Host 'Deployment Completed Successfully'\""
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command -' <<'PS'
+          $ErrorActionPreference = "Stop"
+
+          Import-Module WebAdministration
+
+          $Live = "C:\LiveProjects\JSAP"
+          $PublishTemp = "C:\LiveProjects\temp\Jsap-publish"
+          $BackupRoot = "C:\LiveProjects\temp\Jsap-backup"
+          $ZipPath = "C:\LiveProjects\temp\publish.zip"
+
+          $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+          $BackupPath = Join-Path $BackupRoot $Timestamp
+
+          if (!(Test-Path $Live)) {
+              New-Item -ItemType Directory -Path $Live -Force | Out-Null
+          }
+
+          if (!(Test-Path $ZipPath)) {
+              throw "Publish zip not found: $ZipPath"
+          }
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "Extracting publish zip..."
+          Expand-Archive -Path $ZipPath -DestinationPath $PublishTemp -Force
+
+          if (!(Test-Path "$PublishTemp\*")) {
+              throw "Publish temp folder is empty after extract: $PublishTemp"
+          }
+
+          $ProtectedFiles = @(
+              "appsettings.json",
+              "appsettings.Production.json",
+              "web.config",
+              ".env"
+          )
+
+          $ProtectedFolders = @(
+              "wwwroot",
+              "Logs",
+              "logs",
+              "Uploads",
+              "uploads",
+              "App_Data",
+              "Storage",
+              "storage",
+              "UserFiles",
+              "userfiles"
+          )
+
+          New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+
+          Write-Host "Creating backup of replaceable files only..."
+
+          $BackupArgs = @(
+              $Live,
+              $BackupPath,
+              "/E",
+              "/NFL",
+              "/NDL",
+              "/NJH",
+              "/NJS",
+              "/NC",
+              "/NS",
+              "/NP"
+          )
+
+          foreach ($file in $ProtectedFiles) {
+              $BackupArgs += "/XF"
+              $BackupArgs += $file
+          }
+
+          foreach ($folder in $ProtectedFolders) {
+              $BackupArgs += "/XD"
+              $BackupArgs += $folder
+          }
+
+          robocopy @BackupArgs
+
+          if ($LASTEXITCODE -gt 7) {
+              throw "Backup robocopy failed with exit code $LASTEXITCODE"
+          }
+
+          $global:LASTEXITCODE = 0
+
+          Write-Host "Backup created at: $BackupPath"
+
+          Write-Host "Removing old live files except protected files and folders..."
+
+          Get-ChildItem -Path $Live -Force | Where-Object {
+              ($ProtectedFiles -notcontains $_.Name) -and
+              ($ProtectedFolders -notcontains $_.Name)
+          } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "Copying new publish files to live folder..."
+
+          $DeployArgs = @(
+              $PublishTemp,
+              $Live,
+              "/E",
+              "/NFL",
+              "/NDL",
+              "/NJH",
+              "/NJS",
+              "/NC",
+              "/NS",
+              "/NP"
+          )
+
+          foreach ($file in $ProtectedFiles) {
+              $DeployArgs += "/XF"
+              $DeployArgs += $file
+          }
+
+          foreach ($folder in $ProtectedFolders) {
+              $DeployArgs += "/XD"
+              $DeployArgs += $folder
+          }
+
+          robocopy @DeployArgs
+
+          if ($LASTEXITCODE -gt 7) {
+              throw "Deploy robocopy failed with exit code $LASTEXITCODE"
+          }
+
+          $global:LASTEXITCODE = 0
+
+          Remove-Item "$PublishTemp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+
+          Start-Website -Name "JSAP Test"
+          Start-Service -Name "jsapnew"
+
+          Write-Host "Deployment Completed Successfully"
+          Write-Host "Backup Location: $BackupPath"
+          Write-Host "Live Location: $Live"
+          PS
