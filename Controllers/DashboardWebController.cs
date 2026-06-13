@@ -9,110 +9,65 @@ namespace JSAPNEW.Controllers
     {
         public IActionResult Index()
         {
-            var userId = HttpContext.Session.GetInt32("userId");
-            var username = HttpContext.Session.GetString("username");
-            var companiesJson = HttpContext.Session.GetString("companyList");
-            var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
-
-            List<CompanyDto> companies = new List<CompanyDto>();
-            if (!string.IsNullOrEmpty(companiesJson))
+            if (!TrySetDashboardIdentity())
             {
-                companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companiesJson);
+                return RedirectToAction("Index", "Login");
             }
-
-            ViewBag.UserId = userId;
-            ViewBag.Username = username;
-            ViewBag.Companies = companies;
-            ViewBag.SelectedCompanyId = selectedCompanyId;
 
             return View();
         }
 
         public IActionResult ITdashboard()
         {
-            var userId = HttpContext.Session.GetInt32("userId");
-            var username = HttpContext.Session.GetString("username");
-            var companiesJson = HttpContext.Session.GetString("companyList");
-            var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
-
-            List<CompanyDto> companies = new List<CompanyDto>();
-            if (!string.IsNullOrEmpty(companiesJson))
+            if (!TrySetDashboardIdentity())
             {
-                companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companiesJson);
+                return RedirectToAction("Index", "Login");
             }
-
-            ViewBag.UserId = userId;
-            ViewBag.Username = username;
-            ViewBag.Companies = companies;
-            ViewBag.SelectedCompanyId = selectedCompanyId;
 
             return View();
         }
 
         public IActionResult TaskDashboard()
         {
-            var userId = HttpContext.Session.GetInt32("userId");
-            var username = HttpContext.Session.GetString("username");
-            var companiesJson = HttpContext.Session.GetString("companyList");
-            var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
-
-            List<CompanyDto> companies = new List<CompanyDto>();
-            if (!string.IsNullOrEmpty(companiesJson))
+            if (!TrySetDashboardIdentity())
             {
-                companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companiesJson);
+                return RedirectToAction("Index", "Login");
             }
-
-            ViewBag.UserId = userId;
-            ViewBag.Username = username;
-            ViewBag.Companies = companies;
-            ViewBag.SelectedCompanyId = selectedCompanyId;
 
             return View();
         }
 
         public IActionResult ClientDashboard()
         {
-            var userId = HttpContext.Session.GetInt32("userId");
-            var username = HttpContext.Session.GetString("username");
-            var companiesJson = HttpContext.Session.GetString("companyList");
-            var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
-
-            List<CompanyDto> companies = new List<CompanyDto>();
-            if (!string.IsNullOrEmpty(companiesJson))
+            if (!TrySetDashboardIdentity())
             {
-                companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companiesJson);
+                return RedirectToAction("Index", "Login");
             }
-
-            ViewBag.UserId = userId;
-            ViewBag.Username = username;
-            ViewBag.Companies = companies;
-            ViewBag.SelectedCompanyId = selectedCompanyId;
 
             return View();
         }
 
         public IActionResult MomDashboard()
         {
-            var userId = HttpContext.Session.GetInt32("userId");
-            var username = HttpContext.Session.GetString("username");
-            var companiesJson = HttpContext.Session.GetString("companyList");
-            var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
-
-            List<CompanyDto> companies = new List<CompanyDto>();
-            if (!string.IsNullOrEmpty(companiesJson))
+            if (!TrySetDashboardIdentity())
             {
-                companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companiesJson);
+                return RedirectToAction("Index", "Login");
             }
-
-            ViewBag.UserId = userId;
-            ViewBag.Username = username;
-            ViewBag.Companies = companies;
-            ViewBag.SelectedCompanyId = selectedCompanyId;
 
             return View();
         }
 
         public IActionResult AvtarDashboard()
+        {
+            if (!TrySetDashboardIdentity())
+            {
+                return RedirectToAction("Index", "Login");
+            }
+
+            return View();
+        }
+
+        private bool TrySetDashboardIdentity()
         {
             var userId = HttpContext.Session.GetInt32("userId");
             var username = HttpContext.Session.GetString("username");
@@ -125,12 +80,22 @@ namespace JSAPNEW.Controllers
                 companies = JsonConvert.DeserializeObject<List<CompanyDto>>(companiesJson);
             }
 
+            if (!userId.HasValue
+                || userId.Value <= 0
+                || string.IsNullOrWhiteSpace(username)
+                || !selectedCompanyId.HasValue
+                || selectedCompanyId.Value <= 0
+                || companies.Count == 0
+                || companies.All(company => company.id != selectedCompanyId.Value))
+            {
+                return false;
+            }
+
             ViewBag.UserId = userId;
             ViewBag.Username = username;
             ViewBag.Companies = companies;
             ViewBag.SelectedCompanyId = selectedCompanyId;
-
-            return View();
+            return true;
         }
 
         public IActionResult Overview()

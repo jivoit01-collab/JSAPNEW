@@ -47,6 +47,8 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
 
+            var loginUser = request.loginUser.Trim();
+
             try
             {
                 using (var connection = new SqlConnection(_connectionString))
@@ -55,7 +57,7 @@ namespace JSAPNEW.Services.Implementation
 
                     var userRow = await connection.QueryFirstOrDefaultAsync<dynamic>(
                         "SELECT TOP 1 * FROM jsUser WHERE LoginUser = @LoginUser",
-                        new { LoginUser = request.loginUser }
+                        new { LoginUser = loginUser }
                     );
 
                     if (userRow == null)
@@ -68,6 +70,7 @@ namespace JSAPNEW.Services.Implementation
                     }
 
                     var userValues = (IDictionary<string, object>)userRow;
+                    var canonicalLoginUser = AuthSecurity.GetValue(userValues, "LoginUser", "loginUser")?.ToString() ?? loginUser;
                     var userIdValue = AuthSecurity.GetValue(userValues, "UserId", "userId");
                     var storedPassword = AuthSecurity.GetValue(userValues, "Password", "password")?.ToString();
 
@@ -92,9 +95,8 @@ namespace JSAPNEW.Services.Implementation
                     }
 
                     var user = await connection.QueryFirstOrDefaultAsync<UserDto>(
-                        "jsCheckLogin",
-                        new { loginUser = request.loginUser, password = storedPassword },
-                        commandType: CommandType.StoredProcedure
+                        "SELECT TOP 1 * FROM jsUser WHERE UserId = @UserId",
+                        new { UserId = userId }
                     );
 
                     if (user == null)
@@ -106,11 +108,9 @@ namespace JSAPNEW.Services.Implementation
                         };
                     }
 
+                    user.loginUser = canonicalLoginUser;
                     user.password = storedPassword;
-                    var currentUserRow = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                        "SELECT TOP 1 * FROM jsUser WHERE UserId = @UserId",
-                        new { UserId = user.userId }
-                    );
+                    var currentUserRow = userValues;
                     var roleRows = await connection.QueryAsync<dynamic>(
                         @"SELECT ur.userId, ur.roleId, r.roleName
                           FROM jsUserRole ur
@@ -120,6 +120,46 @@ namespace JSAPNEW.Services.Implementation
                         new { UserId = user.userId }
                     );
                     var roleSnapshot = AuthSecurity.CreateRoleSnapshot(roleRows);
+                    var currentUserDict = currentUserRow as IDictionary<string, object>;
+
+                    if (string.IsNullOrWhiteSpace(user.userEmail))
+                    {
+                        user.userEmail = AuthSecurity.GetValue(currentUserDict!, "userEmail", "email", "UserEmail", "Email")?.ToString();
+                    }
+
+                    if (string.IsNullOrWhiteSpace(user.userName))
+                    {
+                        user.userName = AuthSecurity.GetValue(
+                                currentUserDict!,
+                                "userName",
+                                "UserName",
+                                "firstName",
+                                "lastName",
+                                "loginUser",
+                                "username",
+                                "UserLogin")?.ToString()
+                            ?? canonicalLoginUser;
+                    }
+
+                    user.userName = string.IsNullOrWhiteSpace(user.userName)
+                        ? canonicalLoginUser
+                        : user.userName;
+
+                    if (string.IsNullOrWhiteSpace(user.Role) && string.IsNullOrWhiteSpace(user.role))
+                    {
+                        var roleList = roleRows.ToList();
+                        if (roleList.Any())
+                        {
+                            var firstRole = (IDictionary<string, object>)roleList.First();
+                            var fallbackRole = AuthSecurity.GetValue(firstRole, "roleName", "role", "RoleName")?.ToString();
+                            if (!string.IsNullOrWhiteSpace(fallbackRole))
+                            {
+                                user.role = fallbackRole;
+                                user.Role = fallbackRole;
+                            }
+                        }
+                    }
+
                     user.securityStamp = currentUserRow == null
                         ? AuthSecurity.CreateSecurityStamp(storedPassword, _configuration["Jwt:SecretKey"], user.userId)
                         : AuthSecurity.CreateSecurityStamp((IDictionary<string, object>)currentUserRow, _configuration["Jwt:SecretKey"], roleSnapshot);
@@ -137,6 +177,7 @@ namespace JSAPNEW.Services.Implementation
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Login validation failed for user {LoginUser}", loginUser);
                 return new LoginResponse
                 {
                     Success = false,
@@ -151,15 +192,60 @@ namespace JSAPNEW.Services.Implementation
             {
                 await connection.OpenAsync();
 
-                var user = await connection.QueryFirstOrDefaultAsync<User>(
+                var userRow = await connection.QueryFirstOrDefaultAsync<dynamic>(
                     "SELECT * FROM jsUser WHERE UserId = @UserId",
                     new { UserId = userId }
                 );
 
-                return user == null ? null : new UserDto
+                if (userRow == null)
                 {
-                    userId = user.UserId,
-                    loginUser = user.LoginUser
+                    return null;
+                }
+
+                var userValues = (IDictionary<string, object>)userRow;
+                var roleRows = await connection.QueryAsync<dynamic>(
+                    @"SELECT ur.userId, ur.roleId, r.roleName
+                      FROM jsUserRole ur
+                      LEFT JOIN jsRole r ON ur.roleId = r.roleId
+                      WHERE ur.userId = @UserId
+                      ORDER BY ur.roleId, r.roleName",
+                    new { UserId = userId }
+                );
+                var roleSnapshot = AuthSecurity.CreateRoleSnapshot(roleRows);
+                var roleList = roleRows.ToList();
+                var role = string.Empty;
+                if (roleList.Any())
+                {
+                    var firstRole = (IDictionary<string, object>)roleList.First();
+                    role = AuthSecurity.GetValue(firstRole, "roleName", "role", "RoleName")?.ToString() ?? string.Empty;
+                }
+
+                var loginUser = AuthSecurity.GetValue(userValues, "LoginUser", "loginUser")?.ToString() ?? string.Empty;
+                var userName = AuthSecurity.GetValue(
+                        userValues,
+                        "userName",
+                        "UserName",
+                        "firstName",
+                        "lastName",
+                        "loginUser",
+                        "username",
+                        "UserLogin")?.ToString()
+                    ?? loginUser;
+
+                return new UserDto
+                {
+                    userId = userId,
+                    userName = userName,
+                    userEmail = AuthSecurity.GetValue(userValues, "userEmail", "email", "UserEmail", "Email")?.ToString(),
+                    userPhoneNumber = AuthSecurity.GetValue(userValues, "userPhoneNumber", "UserPhoneNumber")?.ToString(),
+                    password = AuthSecurity.GetValue(userValues, "Password", "password")?.ToString(),
+                    loginUser = loginUser,
+                    firstName = AuthSecurity.GetValue(userValues, "firstName", "FirstName")?.ToString(),
+                    lastName = AuthSecurity.GetValue(userValues, "lastName", "LastName")?.ToString(),
+                    role = role,
+                    Role = role,
+                    securityStamp = AuthSecurity.CreateSecurityStamp(userValues, _configuration["Jwt:SecretKey"], roleSnapshot),
+                    SecurityStamp = AuthSecurity.CreateSecurityStamp(userValues, _configuration["Jwt:SecretKey"], roleSnapshot)
                 };
             }
         }

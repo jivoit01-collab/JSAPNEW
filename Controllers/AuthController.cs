@@ -2,6 +2,7 @@
 using Dapper;
 using JSAPNEW.Data.Entities;
 using JSAPNEW.Models;
+using JSAPNEW.Security;
 using JSAPNEW.Services;
 using JSAPNEW.Services.Implementation;
 using JSAPNEW.Services.Interfaces;
@@ -18,20 +19,31 @@ namespace JSAPNEW.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService; //An interface for user-related operations
+        private readonly ITokenService _tokenService;
+        private readonly IRefreshTokenService _refreshTokenService;
         private readonly ILogger<AuthController> _logger; //for recording events or errors
+        private readonly IWebHostEnvironment _environment;
 
-        public AuthController(IUserService userService, ILogger<AuthController> logger)
+        public AuthController(
+            IUserService userService,
+            ITokenService tokenService,
+            IRefreshTokenService refreshTokenService,
+            ILogger<AuthController> logger,
+            IWebHostEnvironment environment)
         {
             _userService = userService;
+            _tokenService = tokenService;
+            _refreshTokenService = refreshTokenService;
             _logger = logger;
+            _environment = environment;
         }
 
         [HttpPost("login")]
         [AllowAnonymous]
-        [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PublicLoginResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
+        public async Task<ActionResult> Login([FromBody] LoginRequest request)
         {
             try
             {
@@ -42,17 +54,35 @@ namespace JSAPNEW.Controllers
 
                 if (response.Success)
                 {
+                    var token = response.AccessToken ?? response.Token;
+                    var refreshToken = await _refreshTokenService.CreateRefreshTokenAsync(
+                        response.User.userId,
+                        GetRequestIpAddress(),
+                        response.User.SecurityStamp ?? response.User.securityStamp ?? string.Empty);
+                    var publicResponse = CreatePublicLoginResponse(response);
+                    if (IsMobileClient())
+                    {
+                        _logger.LogInformation($"Successful mobile login attempt for user: {request.loginUser}");
+                        return Ok(CreateMobileLoginResponse(publicResponse, token, refreshToken));
+                    }
+
+                    SetAuthCookie(token);
+                    SetRefreshCookie(refreshToken);
                     _logger.LogInformation($"Successful login attempt for user: {request.loginUser}");
-                    return Ok(response);
+                    return Ok(publicResponse);
                 }
 
                 _logger.LogWarning($"Failed login attempt for user: {request.loginUser}");
-                return Unauthorized(response);
+                return Unauthorized(new PublicLoginResponse
+                {
+                    Success = false,
+                    Message = response.Message
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error during login attempt for user: {request.loginUser}");
-                return StatusCode(500, new LoginResponse
+                return StatusCode(500, new PublicLoginResponse
                 {
                     Success = false,
 
@@ -125,6 +155,13 @@ namespace JSAPNEW.Controllers
                 request.updatedBy = authenticatedUserId;
 
                 var result = await _userService.ChangePasswordAsync(request);
+                if (result.Success)
+                {
+                    await _refreshTokenService.RevokeAllRefreshTokensForUserAsync(
+                        authenticatedUserId,
+                        "Password changed by user");
+                    ClearAuthCookies();
+                }
 
                 return result.Success
                     ? Ok(result)
@@ -158,6 +195,12 @@ namespace JSAPNEW.Controllers
                 request.updatedBy = authenticatedUserId;
 
                 var result = await _userService.ChangePasswordAsync2(request);
+                if (result.Success)
+                {
+                    await _refreshTokenService.RevokeAllRefreshTokensForUserAsync(
+                        request.userId,
+                        "Password changed by admin");
+                }
 
                 return result.Success
                     ? Ok(result)
@@ -752,7 +795,12 @@ namespace JSAPNEW.Controllers
             var result = await _userService.UpdateUserStatus(model);
 
             if (result)
+            {
+                await _refreshTokenService.RevokeAllRefreshTokensForUserAsync(
+                    model.UserId,
+                    "User active/lock status changed");
                 return Ok(new { message = "User status updated successfully" });
+            }
             else
                 return StatusCode(500, new { message = "Failed to update user status" });
         }
@@ -1188,6 +1236,12 @@ namespace JSAPNEW.Controllers
             try
             {
                 var userrole = await _userService.UpdateUserRoleAsync(userId, roleId, company);
+                if (userrole > 0)
+                {
+                    await _refreshTokenService.RevokeAllRefreshTokensForUserAsync(
+                        userId,
+                        "User role changed");
+                }
 
                 //if (budget > 0)
                 //{
@@ -1855,6 +1909,9 @@ namespace JSAPNEW.Controllers
                 var result = await _userService.ResetAdminPasswordAsync(request);
                 if (result.Success)
                 {
+                    await _refreshTokenService.RevokeAllRefreshTokensForUserAsync(
+                        request.userId,
+                        "Password reset by admin");
                     return Ok(result);
                 }
                 else
@@ -2876,22 +2933,215 @@ namespace JSAPNEW.Controllers
             }
         }
 
-        [HttpPost("Logout")]
-        public IActionResult Logout()
+        [HttpPost("refresh")]
+        [AllowAnonymous]
+        public async Task<ActionResult<AuthRefreshResponse>> Refresh([FromBody] RefreshTokenRequest? request)
         {
+            var refreshToken = IsMobileClient()
+                ? request?.RefreshToken
+                : Request.Cookies[AuthCookieNames.RefreshToken];
+
+            var rotation = await _refreshTokenService.RotateRefreshTokenAsync(
+                refreshToken ?? string.Empty,
+                GetRequestIpAddress());
+
+            if (!rotation.Success)
+            {
+                if (rotation.ReplayDetected)
+                {
+                    _logger.LogWarning("Refresh token replay detected for user {UserId}.", rotation.UserId);
+                }
+
+                ClearAuthCookies();
+                return Unauthorized(new AuthRefreshResponse
+                {
+                    Success = false,
+                    Message = "Invalid refresh token"
+                });
+            }
+
+            var user = await _userService.GetUserByIdAsync(rotation.UserId);
+            if (user == null)
+            {
+                ClearAuthCookies();
+                return Unauthorized(new AuthRefreshResponse
+                {
+                    Success = false,
+                    Message = "Invalid refresh token"
+                });
+            }
+
+            var accessToken = _tokenService.GenerateToken(user);
+
+            if (IsMobileClient())
+            {
+                return Ok(new AuthRefreshResponse
+                {
+                    Success = true,
+                    Message = "Token refreshed",
+                    AccessToken = accessToken,
+                    RefreshToken = rotation.RefreshToken,
+                    ExpiresInMinutes = 15
+                });
+            }
+
+            SetAuthCookie(accessToken);
+            SetRefreshCookie(rotation.RefreshToken);
+            return Ok(new AuthRefreshResponse
+            {
+                Success = true,
+                Message = "Token refreshed",
+                ExpiresInMinutes = 15
+            });
+        }
+
+        [HttpPost("Logout")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Logout([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RevokeTokenRequest? request = null)
+        {
+            var refreshToken = IsMobileClient()
+                ? request?.Token
+                : Request.Cookies[AuthCookieNames.RefreshToken];
+
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                await _refreshTokenService.RevokeRefreshTokenAsync(refreshToken, GetRequestIpAddress());
+            }
+
             // Clear all session data
             HttpContext.Session.Clear();
+            ClearAuthCookies();
 
             // Optionally remove the session cookie
             if (Request.Cookies.ContainsKey(".AspNetCore.Session"))
             {
-                Response.Cookies.Delete(".AspNetCore.Session");
+                Response.Cookies.Delete(".AspNetCore.Session", new CookieOptions
+                {
+                    HttpOnly = true,
+                    Path = "/",
+                    IsEssential = true
+                });
             }
 
             // If you're using authentication (e.g., Identity or cookies):
             // await HttpContext.SignOutAsync();
 
             return Ok(new { success = true, message = "Successfully logged out" });
+        }
+
+        private void SetAuthCookie(string? token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new InvalidOperationException("Login succeeded without a JWT.");
+            }
+
+            Response.Cookies.Append(AuthCookieNames.AccessToken, token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !_environment.IsDevelopment() || Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+                IsEssential = true,
+                Expires = DateTimeOffset.UtcNow.AddMinutes(15)
+            });
+        }
+
+        private void SetRefreshCookie(string? refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                throw new InvalidOperationException("Refresh token was not generated.");
+            }
+
+            Response.Cookies.Append(AuthCookieNames.RefreshToken, refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !_environment.IsDevelopment() || Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+                IsEssential = true,
+                Expires = DateTimeOffset.UtcNow.AddDays(7)
+            });
+        }
+
+        private void ClearAuthCookies()
+        {
+            var options = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !_environment.IsDevelopment() || Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+                IsEssential = true
+            };
+
+            Response.Cookies.Delete(AuthCookieNames.AccessToken, options);
+            Response.Cookies.Delete(AuthCookieNames.RefreshToken, options);
+        }
+
+        private bool IsMobileClient()
+        {
+            return Request.Headers.TryGetValue("X-Client-Type", out var clientType)
+                && string.Equals(clientType.ToString(), "Mobile", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string GetRequestIpAddress()
+        {
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        }
+
+        private static PublicLoginResponse CreatePublicLoginResponse(LoginResponse response)
+        {
+            var user = response.User;
+            var resolvedUserName = !string.IsNullOrWhiteSpace(user?.userName)
+                ? user!.userName
+                : !string.IsNullOrWhiteSpace(user?.firstName) || !string.IsNullOrWhiteSpace(user?.lastName)
+                    ? string.Join(" ", new[] { user?.firstName, user?.lastName }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                    : !string.IsNullOrWhiteSpace(user?.loginUser)
+                        ? user!.loginUser
+                        : "User";
+            var resolvedRole = !string.IsNullOrWhiteSpace(user?.Role)
+                ? user!.Role
+                : !string.IsNullOrWhiteSpace(user?.role)
+                    ? user!.role
+                    : "User";
+
+            return new PublicLoginResponse
+            {
+                Success = response.Success,
+                Message = response.Message,
+                User = user == null ? null : new PublicLoginUserDto
+                {
+                    UserId = user.userId,
+                    UserName = resolvedUserName,
+                    UserEmail = user.userEmail,
+                    Role = resolvedRole
+                }
+            };
+        }
+
+        private static MobileLoginResponse CreateMobileLoginResponse(PublicLoginResponse response, string? token, string? refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new InvalidOperationException("Login succeeded without a JWT.");
+            }
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                throw new InvalidOperationException("Login succeeded without a refresh token.");
+            }
+
+            return new MobileLoginResponse
+            {
+                Success = response.Success,
+                Message = response.Message,
+                AccessToken = token,
+                RefreshToken = refreshToken,
+                ExpiresInMinutes = 15,
+                RefreshExpiresInDays = 7,
+                User = response.User
+            };
         }
 
         [HttpGet("getUsersByDepartment")]

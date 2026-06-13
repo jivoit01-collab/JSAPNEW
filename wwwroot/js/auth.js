@@ -5,6 +5,7 @@
     var refreshPromise = null;
     var authInitPromise = null;
     var authReady = false;
+    var authSessionState = null;
 
     function isAuthUrl(url) {
         var value = typeof url === "string" ? url : (url && url.url) || "";
@@ -26,21 +27,27 @@
     async function refreshAuthCookie() {
         if (refreshPromise) return refreshPromise;
 
-        refreshPromise = window.__nativeFetch("/api/Auth/refresh", {
-            method: "POST",
+        refreshPromise = window.__nativeFetch("/websession/checksession", {
+            method: "GET",
             credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({})
+            headers: { "Content-Type": "application/json" }
         })
             .then(async function (response) {
                 if (!response.ok) {
-                    throw new Error("Unable to refresh authentication");
+                    throw new Error("Unable to verify authentication");
                 }
 
                 var data = await response.json();
-                if (!data || !data.success) {
-                    throw new Error("Invalid refresh response");
+                if (!data || data.valid !== true) {
+                    throw new Error("Invalid session");
                 }
+
+                authSessionState = {
+                    userId: Number(data.userId) || 0,
+                    userName: data.userName || "",
+                    selectedCompanyId: Number(data.selectedCompanyId) || 0,
+                    companies: Array.isArray(data.companies) ? data.companies : []
+                };
 
                 authReady = true;
                 return true;
@@ -83,17 +90,13 @@
         options.credentials = options.credentials || "include";
 
         var response = await window.__nativeFetch(input, options);
-        if (response.status !== 401 || retrying || isAuthUrl(input)) {
+        if ((response.status === 401 || response.status === 403) && !isAuthUrl(input)) {
+            authReady = false;
+            redirectToLogin();
             return response;
         }
 
-        try {
-            await refreshAuthCookie();
-            return authFetch(input, init, true);
-        } catch (error) {
-            console.warn("Authentication refresh failed.");
-            return response;
-        }
+        return response;
     }
 
     window.__nativeFetch = window.__nativeFetch || window.fetch.bind(window);
@@ -113,6 +116,9 @@
 
     window.APP.ensureAccessToken = refreshAuthCookie;
     window.APP.initializeAuth = initializeAuth;
+    window.APP.getSessionState = function () {
+        return authSessionState;
+    };
     window.APP.isAuthReady = function () {
         return authReady;
     };
@@ -180,13 +186,9 @@
                         })
                         .fail(function (jqXHR, textStatus, errorThrown) {
                             if (jqXHR && jqXHR.status === 401 && !retrying) {
-                                willRetry = true;
-                                initializeAuth({ redirectOnFailure: false })
-                                    .then(function () { run(true); })
-                                    .catch(function () {
-                                        invoke(error, [jqXHR, textStatus, errorThrown]);
-                                        deferred.rejectWith(context, [jqXHR, textStatus, errorThrown]);
-                                    });
+                                authReady = false;
+                                redirectToLogin();
+                                deferred.rejectWith(context, [jqXHR, textStatus, errorThrown]);
                                 return;
                             }
 
@@ -222,12 +224,13 @@
             if (xhr.status === 0 || thrownError === "abort") return;
             if (xhr.status === 401) {
                 console.warn("API returned 401 (unauthorized).");
+                authReady = false;
+                redirectToLogin();
                 return;
             }
             if (xhr.status === 403) {
-                if (window.APP && window.APP.showError) {
-                    window.APP.showError("Access Denied", "You do not have permission to view this resource.");
-                }
+                authReady = false;
+                redirectToLogin();
                 return;
             }
             if (xhr.status === 429) {
@@ -251,6 +254,11 @@
     }
 
     window.APP.showError = function (title, message) {
+        if (title === "Access Denied") {
+            redirectToLogin();
+            return;
+        }
+
         var overlay = document.getElementById("appErrorOverlay");
         if (!overlay) {
             overlay = document.createElement("div");
@@ -293,8 +301,9 @@
     if (typeof document !== "undefined") {
         document.addEventListener("DOMContentLoaded", function () {
             setupJQueryAuth();
-            if (!window.location.pathname.toLowerCase().includes("/login")) {
-                initializeAuth({ redirectOnFailure: false }).catch(function () { });
+            var skipStartupAuthCheck = window.APP && window.APP.skipStartupAuthCheck === true;
+            if (!window.location.pathname.toLowerCase().includes("/login") && !skipStartupAuthCheck) {
+                initializeAuth({ redirectOnFailure: true }).catch(function () { });
             }
         });
     }

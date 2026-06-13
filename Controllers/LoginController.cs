@@ -8,6 +8,11 @@ namespace JSAPNEW.Controllers
     {
         public IActionResult Index()
         {
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Index", "DashboardWeb");
+            }
+
             return View();
         }
     }

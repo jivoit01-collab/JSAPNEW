@@ -8,7 +8,7 @@ namespace JSAPNEW.Controllers
     {
         public IActionResult Index()
         {
-            return View();
+            return RedirectToAction("Index", "DashboardWeb");
         }
     }
 }

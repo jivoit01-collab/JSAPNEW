@@ -244,12 +244,34 @@
 </div>
 
 <script>
-    function renderDashboardUserInfo() {
+    function resolveDashboardSession() {
         const appState = window.APP || {};
-        const userId = appState.userId || "N/A";
-        const userName = appState.userName || "Guest";
-        const companies = appState.companies || [];
+        return {
+            userId: Number(appState.userId) || 0,
+            userName: (appState.userName || "").trim(),
+            companies: Array.isArray(appState.companies) ? appState.companies : []
+        };
+    }
 
+    function redirectToLoginIfInvalid() {
+        const { userId, userName, companies } = resolveDashboardSession();
+        if (!userId || !userName || !Array.isArray(companies) || companies.length === 0) {
+            if (window.APP && typeof window.APP.redirectToLogin === "function") {
+                window.APP.redirectToLogin();
+            } else {
+                window.location.href = "/Login";
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function renderDashboardUserInfo() {
+        if (redirectToLoginIfInvalid()) {
+            return;
+        }
+
+        const { userId, userName, companies } = resolveDashboardSession();
         document.getElementById("welcomeUserName").textContent = userName;
         document.getElementById("userId").textContent = userId;
         document.getElementById("userName").textContent = userName;
@@ -271,4 +293,5 @@
 
     document.addEventListener("DOMContentLoaded", renderDashboardUserInfo);
     document.addEventListener("app:userProfileReady", renderDashboardUserInfo);
+    document.addEventListener("auth:ready", renderDashboardUserInfo);
 </script>

@@ -1,0 +1,619 @@
+# JSAP Authentication & Authorization Guide
+
+Generated from the current JSAPNEW backend codebase.
+
+Audience: backend developers, Flutter developers, frontend developers, QA testers, and security auditors.
+
+## 1. Authentication Overview
+
+JSAP uses ASP.NET Core JWT bearer authentication. The API authenticates users through `POST /api/Auth/login`, verifies the submitted password against `jsUser.Password`, issues a signed JWT, stores that JWT in an HttpOnly cookie, and requires that JWT on protected requests.
+
+Authentication and authorization are enforced globally in `Program.cs`:
+
+- `AddControllers(...)` and `AddControllersWithViews(...)` both add an `AuthorizeFilter`.
+- `AuthorizationOptions.FallbackPolicy` requires an authenticated JWT user.
+- Controllers/actions can still use explicit `[Authorize]`, `[Authorize(Policy = "AdminOnly")]`, or `[AllowAnonymous]`.
+
+Text architecture diagram:
+
+```text
+User / Flutter / Frontend
+  |
+  | POST /api/Auth/login
+  v
+AuthController.Login
+  |
+  v
+UserService.ValidateUserAsync
+  |
+  | BCrypt or legacy encrypted password verification
+  v
+TokenService.GenerateToken
+  |
+  | JWT written to HttpOnly cookie: JSAP.Auth
+  v
+Browser stores cookie automatically
+  |
+  | Cookie sent with credentials: include
+  v
+ASP.NET Core JwtBearer Middleware
+  |
+  | reads Authorization bearer token or JSAP.Auth cookie
+  |
+  | issuer, audience, signature, lifetime, securityStamp
+  v
+Authorization Fallback Policy / AdminOnly Policy
+  |
+  v
+Controller Action
+```
+
+### Password Verification
+
+Implemented in `Services/AuthSecurity.cs`.
+
+- New passwords are hashed with BCrypt work factor `12`.
+- Login accepts BCrypt hashes.
+- Legacy encrypted passwords are still accepted by comparing `Encryption.Encrypt(password)` to the stored password.
+- After successful legacy login, `UserService.ValidateUserAsync` migrates the stored password to BCrypt.
+- Failed login does not migrate the password.
+
+### Security Stamp Validation
+
+Implemented in `Program.cs` under `JwtBearerEvents.OnTokenValidated`.
+
+For every validated JWT, the backend:
+
+1. Reads `userId` from `ClaimTypes.NameIdentifier` or `userId`.
+2. Reads `securityStamp`.
+3. Loads the current `jsUser` row.
+4. Loads current role rows from `jsUserRole` joined to `jsRole`.
+5. Builds a current role snapshot.
+6. Recomputes the security stamp.
+7. Fails the token if the token stamp does not match the current stamp.
+
+This means password changes, user state changes stored in the user row, and role changes invalidate old JWTs once the underlying database row/role rows change.
+
+### Global Authorization Policy
+
+`Program.cs` builds:
+
+```csharp
+new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+    .RequireAuthenticatedUser()
+    .Build();
+```
+
+This policy is applied as:
+
+- MVC/API global filter
+- authorization fallback policy
+
+Therefore every controller/action is protected unless it is explicitly `[AllowAnonymous]`.
+
+### AdminOnly Policy
+
+`Program.cs` defines:
+
+```csharp
+options.AddPolicy("AdminOnly", policy =>
+    policy.RequireRole("Admin", "SuperAdmin", "Super User"));
+```
+
+Any endpoint marked `[Authorize(Policy = "AdminOnly")]` requires one of:
+
+- `Admin`
+- `SuperAdmin`
+- `Super User`
+
+### Token Lifetime
+
+Actual JWT lifetime is defined in `TokenService.GenerateToken`:
+
+```csharp
+expires: issuedAt.AddMinutes(15).UtcDateTime
+```
+
+Effective access token lifetime: **15 minutes**.
+
+Note: `appsettings.json` still contains `Jwt:ExpiryInMinutes = 60`, but the current token generation code does not use that setting.
+
+## 2. Login API
+
+| Item | Value |
+|---|---|
+| Endpoint | `/api/Auth/login` |
+| Method | `POST` |
+| Authentication | Public, `[AllowAnonymous]` |
+| Controller | `AuthController.Login` |
+| Service | `UserService.ValidateUserAsync` |
+
+### Request Body
+
+Model: `LoginRequest`
+
+```json
+{
+  "loginUser": "admin",
+  "password": "password"
+}
+```
+
+### Example Success Response
+
+Model: `PublicLoginResponse`
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "userId": 1,
+    "userName": "admin",
+    "userEmail": "admin@example.com",
+    "role": "Admin"
+  }
+}
+```
+
+The response body does not expose the JWT, password hash, security stamp, audit fields, or internal user state. The JWT is stored by the browser as the `JSAP.Auth` HttpOnly cookie.
+
+### Login Cookie
+
+`AuthController.Login` appends the JWT to cookie `JSAP.Auth` with:
+
+| Cookie Setting | Value |
+|---|---|
+| `HttpOnly` | `true` |
+| `Secure` | `true` outside Development, or when the request is HTTPS |
+| `SameSite` | `Strict` |
+| `Path` | `/` |
+| `Expires` | 15 minutes |
+
+### Example Failed Response
+
+Invalid credentials return HTTP `401`:
+
+```json
+{
+  "success": false,
+  "message": "Invalid username or password"
+}
+```
+
+Missing username/password returns a failed response from `UserService`:
+
+```json
+{
+  "success": false,
+  "message": "Username and password must be provided"
+}
+```
+
+### Returned JWT Claims
+
+The JWT generated by `TokenService.GenerateToken` contains:
+
+| Claim | Source | Purpose |
+|---|---|---|
+| `nameidentifier` / `ClaimTypes.NameIdentifier` | `user.userId` | ASP.NET identity user id |
+| `userId` | `user.userId` | JSAP application user id |
+| `name` / `ClaimTypes.Name` | `user.loginUser` | ASP.NET username |
+| `username` | `user.loginUser` | JSAP username |
+| `securityStamp` | computed security stamp | invalidates old tokens when user/role state changes |
+| `jti` | new GUID | unique JWT id |
+| `iat` | current Unix timestamp | issued-at timestamp |
+| `role` / `ClaimTypes.Role` | `user.Role` or `user.role` | role authorization |
+
+## 3. Logout API
+
+| Item | Value |
+|---|---|
+| Endpoint | `/api/Auth/Logout` |
+| Method | `POST` |
+| Authentication | Requires JWT through global fallback |
+| Controller | `AuthController.Logout` |
+
+### Behavior
+
+Current logout implementation:
+
+- Clears ASP.NET session data using `HttpContext.Session.Clear()`.
+- Deletes `.AspNetCore.Session` cookie if present.
+- Returns success JSON.
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Successfully logged out"
+}
+```
+
+### JWT Revocation
+
+JWT is **not revoked** by logout in the current code. A JWT remains valid until:
+
+- it expires after 15 minutes,
+- the user row changes in a way that changes `securityStamp`,
+- role rows change in a way that changes the role snapshot,
+- the user is removed,
+- issuer/audience/signature/lifetime validation fails.
+
+### Refresh Tokens
+
+No refresh-token flow is implemented in the active authentication flow. `appsettings.json` contains `RefreshTokenExpiryInDays`, and token revocation service interfaces/classes exist, but the login/logout flow does not issue or consume refresh tokens.
+
+## 4. Public Endpoints
+
+These are the current auth-bypassed/public surfaces found in code.
+
+| Endpoint | Method | Purpose |
+|---|---:|---|
+| `/api/Auth/login` | POST | User login and JWT issuance |
+| `/Login/Index` | GET by MVC convention | MVC login page, `LoginController` has `[AllowAnonymous]` |
+| `/health` | GET | Basic health check mapped in `Program.cs` with `.AllowAnonymous()` |
+
+Development-only public tooling:
+
+| Endpoint | Condition | Purpose |
+|---|---|---|
+| Swagger UI | Only when `app.Environment.IsDevelopment()` | API exploration/testing |
+
+## 5. Authenticated Endpoints
+
+All endpoints not listed in Section 4 require authentication because of global authorization filters and fallback policy. Some controllers also have explicit `[Authorize]`.
+
+| Controller | Base Route | Protected By | Endpoint Coverage |
+|---|---|---|---|
+| `AccountController` | `/Account/*` | Global fallback | account settings/update actions |
+| `AdvanceRequestController` | `/api/AdvanceRequest/*` | `[Authorize]` | advance payment request APIs |
+| `Auth2Controller` | `/api/Auth2/*` | Global fallback, one AdminOnly action | budget allocation APIs |
+| `AuthController` | `/api/Auth/*` | Global fallback except login, plus AdminOnly actions | auth, budgets, users, templates, delegation |
+| `BomController` | `/api/Bom/*` | `[Authorize]` | BOM APIs |
+| `Bom2Controller` | `/api/Bom2/*` | `[Authorize]` | BOM2 APIs |
+| `BPmasterController` | `/api/BPmaster/*` | `[Authorize]` | BP master APIs |
+| `BPmasterwebController` | `/BPmasterweb/*` | `[Authorize]` | BP master MVC/web actions |
+| `CheckerController` | `/Checker/*` | `[Authorize]` | checker APIs/pages |
+| `CreditLimitController` | `/api/CreditLimit/*` | `[Authorize]` | credit-limit APIs |
+| `DashboardController` | `/Dashboard/*` | `[Authorize]` | dashboard APIs |
+| `DashboardWebController` | `/DashboardWeb/*` | `[Authorize]` | dashboard web pages |
+| `DocumentDispatchController` | `/api/DocumentDispatch/*` | `[Authorize]` | document dispatch APIs |
+| `FileController` | `/File/*` | `[Authorize]`, some AdminOnly | file download/debug APIs |
+| `GIGOController` | `/api/GIGO/*` | `[Authorize]` | gate-in/gate-out APIs |
+| `GIGOwebController` | `/GIGOweb/*` | `[Authorize]` | GIGO web pages |
+| `HierarchyController` | `/api/Hierarchy/*` | `[Authorize]` | hierarchy APIs |
+| `HierarchyWebController` | `/HierarchyWeb/*` | `[Authorize]` | hierarchy web pages |
+| `HomeController` | `/Home/*` | `[Authorize]` | home MVC actions |
+| `InventoryAuditController` | `/api/InventoryAudit/*` | `[Authorize]` | inventory audit APIs |
+| `InventoryAuditWebController` | `/InventoryAuditWeb/*` | `[Authorize]` | inventory web pages |
+| `InvoicePaymentController` | `/InvoicePayment/*` | `[Authorize]` | invoice payment APIs/pages |
+| `ItemMasterController` | `/api/ItemMaster/*` | `[Authorize]` | item master and BKDT APIs |
+| `MakerController` | `/Maker/*` | `[Authorize]` | maker APIs/pages |
+| `NotificationController` | `/api/Notification/*` | `[Authorize]` | notification APIs |
+| `PaymentCheckerController` | `/PaymentChecker/*` | `[Authorize]` | payment checker APIs/pages |
+| `PaymentController` | `/api/Payment/*` | `[Authorize]` | payment workflow APIs |
+| `PrdoController` | `/api/Prdo/*` | `[Authorize]` | production order APIs |
+| `QcController` | `/api/Qc/*` | Global fallback | QC APIs |
+| `QcWebController` | `/QcWeb/*` | `[Authorize]` | QC web pages |
+| `ReportsController` | `/api/Reports/*` | `[Authorize]` | reports APIs |
+| `ReportsWebController` | `/ReportsWeb/*` | `[Authorize]` | report web pages |
+| `TaskController` | `/api/Task/*` | `[Authorize]` | task APIs |
+| `TaskWebController` | `/TaskWeb/*` | `[Authorize]` | task web APIs/pages |
+| `TicketController` | `/api/Ticket/*` | `[Authorize]` | legacy ticket APIs |
+| `TicketsController` | `/api/Tickets/*` | `[Authorize]` | ticket system APIs |
+| `TicketsWebController` | `/TicketsWeb/*` | `[Authorize]` | ticket web pages |
+| `WebSessionController` | `/websession/*` | `[Authorize]` | web session/company selection |
+
+## 6. AdminOnly Endpoints
+
+Required role: `Admin`, `SuperAdmin`, or `Super User`.
+
+### AdminController
+
+The full `AdminController` class is marked `[Authorize(Policy = "AdminOnly")]`.
+
+| Endpoint | Method | Required Role |
+|---|---:|---|
+| `/Admin/AdminPage` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/Admin/GetSummary` | GET | Admin/SuperAdmin/Super User |
+| `/Admin/GetMakerActivity` | GET | Admin/SuperAdmin/Super User |
+| `/Admin/GetCheckerActivity` | GET | Admin/SuperAdmin/Super User |
+| `/Admin/GetInvoicePaymentActivity` | GET | Admin/SuperAdmin/Super User |
+| `/Admin/GetPaymentCheckerActivity` | GET | Admin/SuperAdmin/Super User |
+| `/Admin/RejectCheckerEntry` | POST | Admin/SuperAdmin/Super User |
+| `/Admin/DeleteAttachment` | POST | Admin/SuperAdmin/Super User |
+
+### PermissionController
+
+The full `PermissionController` class is marked `[Authorize(Policy = "AdminOnly")]`.
+
+| Endpoint | Method | Required Role |
+|---|---:|---|
+| `/api/Permission/AddUserGroup` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/RemoveUserGroup` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetUserGroup` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetUsersByGroupAndCompany` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/AddPermissionToGroup` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/RemovePermissionGroup` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetPermissionsByGroup` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetModulesAndPermissionsByGroup` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/CheckUserPermission` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetUserEffectivePermissions` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/CreateModuleWithPermissions` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/CreateGroup` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetAllGroups` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetAllModules` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetPermissionsByModule` | GET | Admin/SuperAdmin/Super User |
+| `/api/Permission/CreatePermission` | POST | Admin/SuperAdmin/Super User |
+| `/api/Permission/GetAllPermissions` | GET | Admin/SuperAdmin/Super User |
+
+### UserManagementController
+
+The full `UserManagementController` class is marked `[Authorize(Policy = "AdminOnly")]`.
+
+| Endpoint | Method | Required Role |
+|---|---:|---|
+| `/UserManagement/AllUsers` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/UserRegistration` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/UserPermission` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/EditUser` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/Index` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/DocumentDispatch` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/DocumentRecieve` | GET by MVC convention | Admin/SuperAdmin/Super User |
+| `/UserManagement/RejectDocument` | GET by MVC convention | Admin/SuperAdmin/Super User |
+
+### AuthController Admin Operations
+
+| Endpoint | Method | Required Role | Area |
+|---|---:|---|---|
+| `/api/Auth/register` | POST | Admin/SuperAdmin/Super User | user management |
+| `/api/Auth/change-password2` | POST | Admin/SuperAdmin/Super User | admin password reset/change |
+| `/api/Auth/getusers` | GET | Admin/SuperAdmin/Super User | user management |
+| `/api/Auth/addStage` | POST | Admin/SuperAdmin/Super User | workflow configuration |
+| `/api/Auth/addUserPermissions` | POST | Admin/SuperAdmin/Super User | permission management |
+| `/api/Auth/getallusers` | GET | Admin/SuperAdmin/Super User | user management |
+| `/api/Auth/getusernotregisterincompany` | GET | Admin/SuperAdmin/Super User | user management |
+| `/api/Auth/changelockprofile` | POST | Admin/SuperAdmin/Super User | lock/disable user |
+| `/api/Auth/addtemplate` | POST | Admin/SuperAdmin/Super User | template management |
+| `/api/Auth/addpage` | POST | Admin/SuperAdmin/Super User | page management |
+| `/api/Auth/addrole` | POST | Admin/SuperAdmin/Super User | role management |
+| `/api/Auth/updatebudget` | POST | Admin/SuperAdmin/Super User | budget admin |
+| `/api/Auth/updateuserapproval` | POST | Admin/SuperAdmin/Super User | user approval |
+| `/api/Auth/updatestate` | POST | Admin/SuperAdmin/Super User | state master |
+| `/api/Auth/updatesubbudget` | POST | Admin/SuperAdmin/Super User | budget admin |
+| `/api/Auth/updatefromtodate` | POST | Admin/SuperAdmin/Super User | budget admin |
+| `/api/Auth/updatebranch` | POST | Admin/SuperAdmin/Super User | branch master |
+| `/api/Auth/updatereport` | POST | Admin/SuperAdmin/Super User | report permission/master |
+| `/api/Auth/updatevariety` | POST | Admin/SuperAdmin/Super User | variety master |
+| `/api/Auth/updateuserrole` | POST | Admin/SuperAdmin/Super User | role management |
+| `/api/Auth/getallpermissionsofoneuser` | GET | Admin/SuperAdmin/Super User | permission review |
+| `/api/Auth/addquery` | POST | Admin/SuperAdmin/Super User | query management |
+| `/api/Auth/validatequery` | POST | Admin/SuperAdmin/Super User | query management |
+| `/api/Auth/adminresetpassword` | POST | Admin/SuperAdmin/Super User | password reset |
+| `/api/Auth/AddAlternativeUserToStages` | POST | Admin/SuperAdmin/Super User | delegation |
+| `/api/Auth/DeactivateDelegation` | POST | Admin/SuperAdmin/Super User | delegation |
+| `/api/Auth/DelegateApprovalStagesTwo` | POST | Admin/SuperAdmin/Super User | delegation |
+| `/api/Auth/UpdateDelegationDatesTwo` | POST | Admin/SuperAdmin/Super User | delegation |
+| `/api/Auth/UpdateUserStageStatusTwo` | POST | Admin/SuperAdmin/Super User | workflow user status |
+| `/api/Auth/UpdateUserInfo` | POST | Admin/SuperAdmin/Super User | user management |
+
+### Other AdminOnly APIs
+
+| Endpoint | Method | Required Role |
+|---|---:|---|
+| `/api/Auth2/GetAllBudgetAllocationRequests` | GET | Admin/SuperAdmin/Super User |
+| `/File/debug-file-location` | GET | Admin/SuperAdmin/Super User |
+| `/File/debug-uploads-structure` | GET | Admin/SuperAdmin/Super User |
+
+## 7. JWT Claims
+
+| Claim | Actual Code Source | Purpose |
+|---|---|---|
+| `ClaimTypes.NameIdentifier` | `new Claim(ClaimTypes.NameIdentifier, user.userId.ToString())` | ASP.NET primary user id |
+| `userId` | `new Claim("userId", user.userId.ToString())` | application user id for controller/service identity |
+| `ClaimTypes.Name` | `new Claim(ClaimTypes.Name, user.loginUser)` | ASP.NET username |
+| `username` | `new Claim("username", user.loginUser)` | application username |
+| `securityStamp` | computed by `AuthSecurity.CreateSecurityStamp` | detects stale tokens after user/role/password state changes |
+| `JwtRegisteredClaimNames.Jti` | `Guid.NewGuid().ToString()` | unique token id |
+| `JwtRegisteredClaimNames.Iat` | Unix timestamp | token issued-at time |
+| `ClaimTypes.Role` | `user.Role` or `user.role` | ASP.NET role policy checks |
+| `role` | same role value | application-readable role |
+
+## 8. Authorization Rules
+
+### Normal User
+
+Can access endpoints protected by normal JWT authentication, subject to module-level checks in controllers/services. Current code also includes company membership checks and object ownership checks in several modules.
+
+### Admin
+
+Can access normal authenticated endpoints and AdminOnly endpoints.
+
+### SuperAdmin
+
+Can access normal authenticated endpoints and AdminOnly endpoints.
+
+### Super User
+
+Can access normal authenticated endpoints and AdminOnly endpoints.
+
+Important: There is no separate policy distinction between `Admin`, `SuperAdmin`, and `Super User` in the current `AdminOnly` policy. All three satisfy the same policy.
+
+## 9. Security Features
+
+| Feature | Current Implementation |
+|---|---|
+| BCrypt | `AuthSecurity.HashPassword`, work factor 12 |
+| Password verification | `AuthSecurity.VerifyPassword` checks BCrypt or legacy encrypted password |
+| Legacy migration | successful legacy login updates `jsUser.Password` to BCrypt |
+| JWT signing | HMAC SHA-256 using `Jwt:SecretKey` |
+| JWT storage | `AuthController.Login` writes JWT to `JSAP.Auth` HttpOnly cookie |
+| Token transport | `JwtBearerEvents.OnMessageReceived` accepts bearer header or `JSAP.Auth` cookie |
+| Issuer validation | enabled in `Program.cs` and `TokenService.ValidateToken` |
+| Audience validation | enabled in `Program.cs` and `TokenService.ValidateToken` |
+| Lifetime validation | enabled in JWT bearer options |
+| Clock skew | `TimeSpan.Zero` |
+| Security stamp validation | `JwtBearerEvents.OnTokenValidated` recomputes stamp from current DB state |
+| Role invalidation | role snapshot is included in security stamp calculation |
+| Global auth | global MVC/API authorize filter plus fallback policy |
+| AdminOnly | role policy accepts `Admin`, `SuperAdmin`, `Super User` |
+| Company membership validation | present in Auth, Auth2, BOM, BOM2, ItemMaster, QC, CreditLimit and related recent fixes |
+| IDOR/object authorization | present in several self/company-scoped endpoints; BOM, ticket, BKDT, QC, and CreditLimit have explicit checks in current code |
+
+## 10. Postman Testing Guide
+
+### Login Request
+
+```http
+POST {{baseUrl}}/api/Auth/login
+Content-Type: application/json
+```
+
+```json
+{
+  "loginUser": "admin",
+  "password": "password"
+}
+```
+
+### Use Cookie Authentication
+
+The login response sets `JSAP.Auth` as an HttpOnly cookie. Browser frontends should send API calls with credentials enabled and should not manually store the JWT in `localStorage`, `sessionStorage`, or JavaScript-accessible state.
+
+Fetch example:
+
+```javascript
+fetch("/api/Auth/getcompanies", {
+  credentials: "include"
+});
+```
+
+Postman example:
+
+1. Send the login request.
+2. Let Postman store the `Set-Cookie: JSAP.Auth=...` response cookie.
+3. Send protected API calls to the same host.
+
+### Optional Bearer Header
+
+The backend still accepts a standard bearer token for API clients that cannot use cookies:
+
+```http
+Authorization: Bearer {{accessToken}}
+```
+
+### Protected API Example
+
+```http
+GET {{baseUrl}}/api/Auth/getcompanies
+```
+
+Expected success: HTTP `200` when the `JSAP.Auth` cookie or bearer token is valid.
+
+### Admin API Example
+
+```http
+GET {{baseUrl}}/api/Auth/getusers?company=1
+```
+
+Expected:
+
+- Admin/SuperAdmin/Super User: `200`
+- normal user: `403 Forbidden`
+- missing/invalid token: `401 Unauthorized`
+
+### Expected 401
+
+Call a protected endpoint with no token:
+
+```http
+GET {{baseUrl}}/api/Auth/getcompanies
+```
+
+Expected: HTTP `401 Unauthorized`.
+
+### Expected 403
+
+Call an AdminOnly endpoint with a valid non-admin token:
+
+```http
+POST {{baseUrl}}/api/Auth/adminresetpassword
+Content-Type: application/json
+```
+
+Expected: HTTP `403 Forbidden`.
+
+## 11. QA Test Cases
+
+| ID | Test | Steps | Expected Result |
+|---|---|---|---|
+| AUTH-001 | Login success | POST `/api/Auth/login` with valid user | HTTP 200, JWT returned |
+| AUTH-002 | Login bad password | POST `/api/Auth/login` with wrong password | HTTP 401, `success=false` |
+| AUTH-003 | Missing credentials | POST login with empty fields | failed response, no JWT |
+| AUTH-004 | Protected endpoint without JWT | GET `/api/Auth/getcompanies` without header | HTTP 401 |
+| AUTH-005 | Invalid JWT | Send malformed bearer token | HTTP 401 |
+| AUTH-006 | Expired JWT | Use token older than 15 minutes | HTTP 401 |
+| AUTH-007 | Wrong role | Normal user calls `/api/Auth/getusers` | HTTP 403 |
+| AUTH-008 | Admin role access | Admin calls `/api/Auth/getusers` | HTTP 200 |
+| AUTH-009 | Password change invalidates token | Login, change password, reuse old token | old token rejected |
+| AUTH-010 | Admin password reset invalidates token | Admin resets user's password, user reuses old token | old token rejected |
+| AUTH-011 | Role removal invalidates admin token | Login as admin, remove admin role, reuse old token | old token rejected |
+| AUTH-012 | Disabled/locked user invalidation | Change user row status/lock state, reuse token | old token rejected if user row changes stamp |
+| AUTH-013 | Cross-user self endpoint | Change `userId` query/body to another user | controller should use claim user id or return forbidden |
+| AUTH-014 | Cross-company access | Use valid token for company A and request company B | HTTP 403 where company validation exists |
+| AUTH-015 | BOM IDOR | User requests another company's `bomId` details/files/approve/update | HTTP 403 |
+| AUTH-016 | Ticket IDOR | User requests ticket details/comments/attachments from another company | HTTP 403 |
+| AUTH-017 | BKDT document IDOR | User requests another company's BKDT `documentId` or `flowId` detail | HTTP 403 |
+| AUTH-018 | Credit Limit company check | User requests documents for unauthorized `companyId` | HTTP 403 |
+| AUTH-019 | Logout behavior | POST `/api/Auth/Logout`, then reuse JWT | session cleared; JWT remains valid until expiry/stamp invalidation |
+
+## 12. Security Audit Summary
+
+### Public Surface Area
+
+Public endpoints are minimal:
+
+- `POST /api/Auth/login`
+- MVC login page via `LoginController`
+- `/health`
+- Swagger UI only in development
+
+### Protected Surface Area
+
+The majority of controllers/actions are protected by:
+
+- explicit `[Authorize]`, or
+- global authorization filter, or
+- fallback policy.
+
+### Admin Surface Area
+
+AdminOnly protection exists for:
+
+- `AdminController`
+- `PermissionController`
+- `UserManagementController`
+- sensitive AuthController user/role/password/permission/delegation operations
+- `Auth2Controller.GetAllBudgetAllocationRequests`
+- File debug endpoints
+
+### Remaining Known Risks
+
+These are based on current code behavior:
+
+- Logout does not revoke JWTs.
+- Refresh tokens are not implemented in active login flow.
+- `Jwt:ExpiryInMinutes` in config says `60`, but actual token lifetime is hard-coded to 15 minutes in `TokenService`.
+- Some endpoints rely on global fallback rather than explicit `[Authorize]`, which is secure in current `Program.cs` but easy to weaken if global filters are removed later.
+- Some legacy MVC/session flows still exist alongside JWT.
+- Some object-level protections are present, but continued endpoint-level IDOR review is recommended for every endpoint that accepts opaque IDs such as `flowId`, `docEntry`, `documentId`, `sessionId`, or attachment IDs.
+
+### Scores
+
+| Area | Score | Rationale |
+|---|---:|---|
+| Authentication Score | 8.5/10 | BCrypt, JWT validation, zero clock skew, security stamp validation, role-stamp invalidation. No refresh-token lifecycle or logout revocation. |
+| Authorization Score | 8/10 | Global fallback, AdminOnly, many claim/company/object checks. Some legacy and opaque-id endpoints still need periodic review. |
+| Overall Security Score | 8.2/10 | Strong baseline after hardening; remaining risks are mostly lifecycle/logout and continued IDOR review. |

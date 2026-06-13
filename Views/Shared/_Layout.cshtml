@@ -1,13 +1,24 @@
 ﻿@using Newtonsoft.Json
 @using JSAPNEW.Controllers
+@using System.Security.Claims
 @{
     Layout = null;
+
+    // Use claims as primary identity source, then session as cache.
+    var claimUserId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? Context.User?.FindFirstValue("userId")
+        ?? "0";
+    int.TryParse(claimUserId, out var authenticatedUserId);
+    var claimUserName = Context.User?.FindFirstValue(ClaimTypes.Name)
+        ?? Context.User?.Identity?.Name
+        ?? "";
+    var pageUserNameFromClaims = claimUserName?.Trim();
 
     // Safe access to session values with null checks
     var companyJson = Context.Session.GetString("companyList");
     var selectedCompanyId = Context.Session.GetInt32("selectedCompanyId");
-    var username = Context.Session.GetString("username") ?? "Guest";
-    var userId = Context.Session.GetInt32("userId"); // Get userId from session
+    var sessionUserName = Context.Session.GetString("username") ?? string.Empty;
+    var sessionUserId = Context.Session.GetInt32("userId"); // cached session userId
 
     List<CompanyDto> companies = new List<CompanyDto>();
     if (!string.IsNullOrEmpty(companyJson))
@@ -24,14 +35,49 @@
         }
     }
 
-    // If companies list is empty or session is invalid, you might want to redirect
-    if (companies.Count == 0)
+    if (authenticatedUserId <= 0 || string.IsNullOrWhiteSpace(pageUserNameFromClaims))
     {
-        // Option 1: Redirect to login
-        // return Redirect("/Login/Index");
-
-        // Option 2: Just display a message (we'll handle with JS later)
+        // If the request reaches view rendering without a valid identity/identity context,
+        // stop immediately and redirect to login to avoid any guest/partial dashboard flash.
+        Context.Response.Redirect("/Login");
+        return;
     }
+
+    // If the session belongs to a different user, do not render stale dashboard data.
+    if (sessionUserId.HasValue && sessionUserId.Value > 0 && sessionUserId.Value != authenticatedUserId)
+    {
+        Context.Session.Clear();
+        Context.Response.Redirect("/Login");
+        return;
+    }
+
+    if (!sessionUserId.HasValue
+        || sessionUserId.Value != authenticatedUserId
+        || string.IsNullOrWhiteSpace(companyJson)
+        || !companies.Any()
+        || !selectedCompanyId.HasValue
+        || selectedCompanyId.Value <= 0
+        || companies.All(c => c.id != selectedCompanyId.Value))
+    {
+        Context.Response.Redirect("/Login");
+        return;
+    }
+
+    var normalizedSessionUserName = sessionUserName?.Trim();
+    var pageUserName = !string.IsNullOrWhiteSpace(pageUserNameFromClaims)
+        ? pageUserNameFromClaims
+        : normalizedSessionUserName;
+
+    if (string.IsNullOrWhiteSpace(pageUserName))
+    {
+        Context.Response.Redirect("/Login");
+        return;
+    }
+
+    var pageUserId = authenticatedUserId;
+    var pageSelectedCompanyId = selectedCompanyId.Value;
+    var pageCompaniesJson = JsonConvert.SerializeObject(companies);
+    var resolvedUsername = JsonConvert.SerializeObject(pageUserName);
 }
 
 <!DOCTYPE html>
@@ -1012,7 +1058,7 @@
             }
     </style>
 </head>
-<body>
+<body style="visibility: hidden;">
     <div id="wrapper">
         <!-- HEADER -->
         <div class="header">
@@ -1048,10 +1094,6 @@
                                         <option value="@company.id" data-name="@company.company">@company.company</option>
                                     }
                                 }
-                            }
-                            else
-                            {
-                                <option value="">No companies available</option>
                             }
                         </select>
                     </div>
@@ -1090,7 +1132,7 @@
                 <!-- User section at bottom -->
                 <div class="sidebar-user">
                     <i class="fas fa-user-circle"></i>
-                    <h6>@username</h6>
+            <h6>@pageUserName</h6>
                 </div>
             </div>
         </div>
@@ -1188,7 +1230,7 @@
                     <form id="layoutProfileForm">
                         <div class="form-group">
                             <label for="layoutProfileUsername">Username</label>
-                            <input type="text" class="form-control" id="layoutProfileUsername" value="@username" autocomplete="off" required />
+                            <input type="text" class="form-control" id="layoutProfileUsername" value="@pageUserName" autocomplete="off" required />
                         </div>
                         <div class="form-group">
                             <label for="layoutCurrentPassword">Current Password</label>
@@ -1222,8 +1264,72 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        window.APP = window.APP || {};
+        window.APP.skipStartupAuthCheck = false;
+    </script>
+    <script src="~/js/auth.js"></script>
     <!-- At the end of body -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        window.APP = window.APP || {};
+        window.APP.skipStartupAuthCheck = false;
+        window.APP.userId = @pageUserId;
+        window.APP.userName = @Html.Raw(JsonConvert.SerializeObject(pageUserName ?? string.Empty));
+        window.APP.selectedCompanyId = @pageSelectedCompanyId;
+        window.APP.companies = @Html.Raw(pageCompaniesJson);
+        window.APP.redirectToLogin = window.APP.redirectToLogin || function () {
+            window.location.replace('/Login');
+        };
+
+        (function () {
+            const fallbackState = {
+                userId: Number(window.APP.userId) || 0,
+                userName: (window.APP.userName || "").trim(),
+                selectedCompanyId: Number(window.APP.selectedCompanyId) || 0,
+                companies: Array.isArray(window.APP.companies) ? window.APP.companies : []
+            };
+
+            function applyAuthenticatedState() {
+                const sessionState = window.APP.getSessionState ? window.APP.getSessionState() : null;
+                const authState = sessionState && typeof sessionState === "object" ? sessionState : {};
+                const userId = Number(authState.userId || fallbackState.userId) || 0;
+                const selectedCompanyId = Number(authState.selectedCompanyId || fallbackState.selectedCompanyId) || 0;
+                const companies = Array.isArray(authState.companies)
+                    ? authState.companies
+                    : (Array.isArray(fallbackState.companies) ? fallbackState.companies : []);
+                const userName = (authState.userName || fallbackState.userName || "").trim();
+
+                if (!Number.isInteger(userId) || userId <= 0 || !Number.isInteger(selectedCompanyId) || selectedCompanyId <= 0 || companies.length === 0 || !userName) {
+                    window.APP.redirectToLogin();
+                    return;
+                }
+
+                window.APP.userId = userId;
+                window.APP.userName = userName;
+                window.APP.username = window.APP.userName;
+                window.APP.selectedCompanyId = selectedCompanyId;
+                window.APP.companies = companies;
+                window.APP.profile = {
+                    userId,
+                    userName,
+                    selectedCompanyId,
+                    companies
+                };
+
+                document.body.style.visibility = 'visible';
+                document.dispatchEvent(new CustomEvent("auth:ready", { detail: window.APP.profile }));
+                document.dispatchEvent(new CustomEvent("app:userProfileReady", { detail: window.APP.profile }));
+            }
+
+            (window.APP.initializeAuth || window.APP.ensureAccessToken || (() => Promise.resolve()))
+                ({ redirectOnFailure: true })
+                .then(applyAuthenticatedState)
+                .catch(function () {
+                    window.APP.redirectToLogin();
+                });
+        })();
+    </script>
 
     <script>
         const GLOBAL_PAGE_SETTINGS_BASE = 13;
@@ -1803,19 +1909,26 @@
         // MAIN SCRIPT - NO NEED TO MODIFY BELOW THIS LINE
         // ============================================================
 
-        $(document).ready(function() {
-        // Get userId and companyId from session
-        const userId = @userId;
-        const companyId = @(selectedCompanyId ?? 1);
+        let isProtectedLayoutInitialized = false;
 
-        // Load dynamic menu
-        loadDynamicMenu(userId, companyId);
+        function initializeProtectedLayout() {
+            if (isProtectedLayoutInitialized) return;
+            isProtectedLayoutInitialized = true;
 
-        // Check if session is valid
-        if (@(companies.Count == 0 ? "true" : "false")) {
-        $("#sessionError").show();
-        $("#dashboard-content").hide();
-        }
+            const userId = Number(window.APP && Number.isFinite(window.APP.userId) ? window.APP.userId : 0);
+            const companyId = Number(window.APP && Number.isFinite(window.APP.selectedCompanyId) ? window.APP.selectedCompanyId : 0);
+            const hasCompanies = Array.isArray(window.APP && window.APP.companies) && window.APP.companies.length > 0;
+
+            if (!userId || !companyId || !hasCompanies) {
+                if (window.APP && window.APP.redirectToLogin) {
+                    window.APP.redirectToLogin();
+                } else {
+                    window.location.href = '/Login';
+                }
+                return;
+            }
+
+            loadDynamicMenu(userId, companyId);
 
         // Company dropdown change handler
         $('#companyDropdown').on('change', function () {
@@ -1858,6 +1971,10 @@
         }
         },
         error: function() {
+        if (arguments[0] && arguments[0].status === 401) {
+        window.APP.redirectToLogin();
+        return;
+        }
         // If permission check fails, reload anyway
         location.reload();
         }
@@ -1867,7 +1984,11 @@
         $('#mainBody').html(originalHtml);
         }
         },
-        error: function () {
+        error: function (xhr) {
+        if (xhr && xhr.status === 401) {
+        window.APP.redirectToLogin();
+        return;
+        }
         alert('Failed to update company selection.');
         $('#mainBody').html(originalHtml);
         }
@@ -1939,7 +2060,7 @@
         }
 
         const payload = {
-        userId: @((userId ?? 0)),
+        userId: window.APP && Number.isFinite(window.APP.userId) ? window.APP.userId : 0,
         currentPassword: $('#layoutCurrentPassword').val(),
         newLoginUser: $('#layoutProfileUsername').val().trim(),
         newPassword: newPassword || null,
@@ -1969,6 +2090,19 @@
         }
         });
         });
+
+        }
+
+        document.addEventListener("app:userProfileReady", function () {
+            if (window.APP && window.APP.isAuthReady && window.APP.isAuthReady()) {
+                initializeProtectedLayout();
+            }
+        });
+
+        $(document).ready(function () {
+            if (window.APP && window.APP.isAuthReady && window.APP.isAuthReady()) {
+                initializeProtectedLayout();
+            }
         });
 
         function loadDynamicMenu(userId, companyId) {
@@ -1980,12 +2114,16 @@
         userPermissions = response.data;
         generateMenuFromPermissions(response.data);
         } else {
-        $('#menuLoading').html('<p style="color: #ff6b6b;">Failed to load menu permissions</p>');
+        window.APP.redirectToLogin();
         }
         },
         error: function(error) {
+        if (error && error.status === 401) {
+        window.APP.redirectToLogin();
+        return;
+        }
         console.error('Error loading permissions:', error);
-        $('#menuLoading').html('<p style="color: #ff6b6b;">Error loading menu. Please refresh the page.</p>');
+        window.APP.redirectToLogin();
         }
         });
         }

@@ -452,10 +452,16 @@
                 }
 
                 const userId = loginData.user.userId;
-                const userName = loginData.user.userName || loginData.user.firstName + " " + loginData.user.lastName;
+                const userName = (loginData.user.userName
+                    || [loginData.user.firstName, loginData.user.lastName].filter(Boolean).join(" ")
+                    || loginData.user.loginUser
+                    || loginUser).trim();
 
                 if (!userId || userId === 0) {
                     throw new Error("Invalid user data received");
+                }
+                if (!userName) {
+                    throw new Error("Invalid user name received");
                 }
 
                 const authHeaders = {
@@ -499,6 +505,9 @@
                 }
 
                 const sessionData = await sessionRes.json();
+                if (!sessionData || sessionData.success !== true) {
+                    throw new Error(sessionData?.message || "Session initialization failed");
+                }
                 console.log("Session set response:", sessionData);
 
                 window.location.replace(getRedirectUrl());

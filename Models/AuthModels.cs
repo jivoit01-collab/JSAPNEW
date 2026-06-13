@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
+using System.Text.Json.Serialization;
+
 namespace JSAPNEW.Models
 {
     public class LoginRequest
@@ -18,6 +20,37 @@ namespace JSAPNEW.Models
         public string? Token { get; set; }
         public string Message { get; set; }
         public UserDto User { get; set; }
+    }
+    public class PublicLoginResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public PublicLoginUserDto? User { get; set; }
+    }
+    public class MobileLoginResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
+        public int ExpiresInMinutes { get; set; }
+        public int RefreshExpiresInDays { get; set; }
+        public PublicLoginUserDto? User { get; set; }
+    }
+    public class AuthRefreshResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
+        public int ExpiresInMinutes { get; set; }
+    }
+    public class PublicLoginUserDto
+    {
+        public int UserId { get; set; }
+        public string? UserName { get; set; }
+        public string? UserEmail { get; set; }
+        public string? Role { get; set; }
     }
     public class UserRegistrationDTO
     {
@@ -47,7 +80,7 @@ namespace JSAPNEW.Models
     {
         public int userId { get; set; }
         public string userName { get; set; }
-        public int userPhoneNumber { get; set; }
+        public string userPhoneNumber { get; set; }
         public string userEmail { get; set; }
         public string password { get; set; }
         public int isActive { get; set; }
@@ -61,8 +94,10 @@ namespace JSAPNEW.Models
         public string lastName { get; set; }
         public int changePassword { get; set; }
         public string? role { get; set; }
+        [JsonIgnore]
         public string? Role { get; set; }
         public string? securityStamp { get; set; }
+        [JsonIgnore]
         public string? SecurityStamp { get; set; }
 
     }

@@ -93,19 +93,68 @@ namespace JSAPNEW.Controllers
 
         // Add a method to check if session is valid
         [HttpGet("checksession")]
-        public IActionResult CheckSession()
+        public async Task<IActionResult> CheckSession()
         {
             try
             {
-                var userId = HttpContext.Session.GetInt32("userId");
-                var companyList = HttpContext.Session.GetString("companyList");
+                var userId = GetAuthenticatedUserId();
 
-                if (!userId.HasValue || string.IsNullOrEmpty(companyList))
+                if (userId <= 0)
                 {
-                    return Json(new { valid = false });
+                    return Unauthorized(new { valid = false, message = "Invalid authenticated user" });
                 }
 
-                return Json(new { valid = true });
+                var sessionUserId = HttpContext.Session.GetInt32("userId");
+                var sessionUserName = HttpContext.Session.GetString("username");
+                var companyList = HttpContext.Session.GetString("companyList");
+                var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
+
+                if (sessionUserId != userId || string.IsNullOrWhiteSpace(companyList))
+                {
+                    var companies = (await _userService.GetCompanyAsync(userId))?.ToList();
+                    if (companies == null || companies.Count == 0)
+                    {
+                        HttpContext.Session.Clear();
+                        return Json(new { valid = false, message = "No companies found for user" });
+                    }
+
+                    HttpContext.Session.SetInt32("userId", userId);
+                    sessionUserName = GetAuthenticatedUserName();
+                    HttpContext.Session.SetString("username", sessionUserName);
+                    HttpContext.Session.SetString("companyList", JsonConvert.SerializeObject(companies));
+                    HttpContext.Session.SetInt32("selectedCompanyId", companies[0].id);
+                    return Json(new
+                    {
+                        valid = true,
+                        userId,
+                        userName = sessionUserName,
+                        selectedCompanyId = companies[0].id,
+                        companyCount = companies.Count,
+                        companies = companies
+                    });
+                }
+
+                var fallbackCompanies = string.IsNullOrWhiteSpace(companyList)
+                    ? new List<CompanyDto>()
+                    : JsonConvert.DeserializeObject<List<CompanyDto>>(companyList) ?? new List<CompanyDto>();
+                if (!selectedCompanyId.HasValue)
+                {
+                    selectedCompanyId = fallbackCompanies.FirstOrDefault()?.id;
+                    if (selectedCompanyId.HasValue)
+                    {
+                        HttpContext.Session.SetInt32("selectedCompanyId", selectedCompanyId.Value);
+                    }
+                }
+
+                return Json(new
+                {
+                    valid = true,
+                    userId = sessionUserId ?? userId,
+                    userName = sessionUserName ?? GetAuthenticatedUserName(),
+                    selectedCompanyId = selectedCompanyId,
+                    companyCount = fallbackCompanies.Count,
+                    companies = fallbackCompanies
+                });
             }
             catch (Exception)
             {
