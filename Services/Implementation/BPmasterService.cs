@@ -574,7 +574,7 @@ namespace JSAPNEW.Services.Implementation
             AddRows(billAddresses, "B");
 
             if ((shipAddresses == null || shipAddresses.Count == 0) && model.SameAsBill && billAddresses?.Count > 0)
-                shipAddresses = billAddresses;
+                shipAddresses = billAddresses.ToList();  // 🔧 FIX: Create copy, not reference
 
             AddRows(shipAddresses, "S");
             return rows;

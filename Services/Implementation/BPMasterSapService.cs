@@ -1054,7 +1054,7 @@ LIMIT 1";
                 result.Add(BuildAddress(address, "bo_BillTo", bp.Master.Name));
 
             if (shipTo.Count == 0 && billTo.Count > 0)
-                shipTo = billTo;
+                shipTo = billTo.ToList();  // 🔧 FIX: Create copy, not reference
 
             foreach (var address in shipTo)
                 result.Add(BuildAddress(address, "bo_ShipTo", bp.Master.Name));
