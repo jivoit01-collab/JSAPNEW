@@ -174,6 +174,10 @@ namespace JSAPNEW.Services.Implementation
                     payloadHash,
                     payloadJson);
 
+                _logger.LogInformation(
+                    "BusinessPartner SAP Payload: {Payload}",
+                    JsonConvert.SerializeObject(payload, Formatting.Indented));
+
                 var response = await SendSapRequestAsync(HttpMethod.Post, "BusinessPartners", session, payloadJson, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
@@ -223,6 +227,11 @@ namespace JSAPNEW.Services.Implementation
                 }
 
                 var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "SAP BP POST Response: {Response}",
+                    responseBody);
+
                 var confirmedCardCode = ExtractConfirmedCardCode(responseBody);
                 if (string.IsNullOrWhiteSpace(confirmedCardCode))
                 {
@@ -934,7 +943,7 @@ LIMIT 1";
                 payload["GroupCode"] = request.SapData.bpGroupCode.Value;
             if (request.SapData?.paymentTermCode.HasValue == true && request.SapData.paymentTermCode.Value >= 0)
                 payload["PayTermsGrpCode"] = request.SapData.paymentTermCode.Value;
-            if (!isVendor && request.SapData?.salesEmployeeCode.HasValue == true && request.SapData.salesEmployeeCode.Value > 0)
+            if (request.SapData?.salesEmployeeCode.HasValue == true && request.SapData.salesEmployeeCode.Value > 0)
                 payload["SalesPersonCode"] = request.SapData.salesEmployeeCode.Value;
             if (!isVendor && request.SapData?.territoryId.HasValue == true && request.SapData.territoryId.Value > 0)
                 payload["Territory"] = request.SapData.territoryId.Value;
