@@ -220,7 +220,8 @@ namespace JSAPNEW.Controllers
             if (!System.IO.File.Exists(path))
                 return await MissingPhysicalFileResultAsync(file, "Download");
 
-            return PhysicalFile(path, file.ContentType, file.FileName);
+            //return PhysicalFile(path, file.ContentType, file.FileName);
+            return PhysicalFile(path, file.ContentType);
         }
 
         [HttpPost]
