@@ -31,6 +31,7 @@ namespace JSAPNEW.Controllers
                 return RedirectToAction("Index", "DashboardWeb");
 
             ViewBag.DocumentHubPermissions = permissions;
+            ViewBag.CurrentUserName = CurrentUserName();
             return View("~/Views/Documenthub/DocumentHubPage.cshtml");
         }
 
@@ -220,7 +221,8 @@ namespace JSAPNEW.Controllers
             if (!System.IO.File.Exists(path))
                 return await MissingPhysicalFileResultAsync(file, "Download");
 
-            return PhysicalFile(path, file.ContentType, file.FileName);
+            //return PhysicalFile(path, file.ContentType, file.FileName);
+            return PhysicalFile(path, file.ContentType);
         }
 
         [HttpPost]

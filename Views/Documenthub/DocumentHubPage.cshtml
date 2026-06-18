@@ -510,10 +510,113 @@
         animation: slideUp .3s ease;
     }
     @@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+   
+
+
     .bg-toast-success { background: var(--hub-success); }
     .bg-toast-error   { background: var(--hub-danger); }
 
+
+    
+    .hub-user-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 16px 6px 6px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+        border: 1px solid #c7d2fe;
+        box-shadow: 0 2px 6px rgba(79,70,229,.15);
+        white-space: nowrap;
+    }
+    .hub-user-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--hub-accent), #7c3aed);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+    .hub-user-info { display: flex; flex-direction: column; line-height: 1.15; }
+    .hub-user-label {
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--hub-muted);
+        font-weight: 700;
+    }
+    .hub-user-name { font-size: 13px; font-weight: 700; color: var(--hub-primary); }
+
+    /* ── Responsive ── */
+
+    /* Large tablets / small laptops: shrink side columns */
+    @@media (max-width: 1200px) {
+        .doc-shell { grid-template-columns: 230px minmax(0,1fr) 260px; gap: 14px; }
+    }
+
+    /* Tablets: stack sidebar, main, detail pane vertically */
+    @@media (max-width: 992px) {
+        .doc-shell { grid-template-columns: 1fr; }
+        .doc-sidebar, .doc-detail-pane {
+            position: static;
+            max-height: none;
+            top: auto;
+        }
+        .doc-main   { order: 1; }
+        .doc-sidebar { order: 2; }
+        .doc-detail-pane { order: 3; }
+        .hub-toolbar { position: static; }
+    }
+
+    /* Small tablets / large phones */
+    @@media (max-width: 768px) {
+        .doc-hub-container { padding: 14px; margin: -15px -15px 0; }
+        .hub-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+        .toolbar-group { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+        .search-breadcrumb-row { flex-direction: column; align-items: stretch; gap: 10px; }
+        .search-box { min-width: 0; max-width: 100%; width: 100%; }
+        .stats-grid { grid-template-columns: repeat(2,minmax(140px,1fr)); }
+        .content-header-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .view-toggle-container { width: 100%; }
+        .view-toggle-container .btn { flex: 1; }
+        .hub-tabs-row .nav-link { padding: 8px 12px; font-size: 12.5px; }
+    }
+
+    /* Phones */
+    @@media (max-width: 576px) {
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-card { padding: 12px; gap: 10px; }
+        .stat-icon { width: 36px; height: 36px; font-size: 15px; }
+        .stat-value { font-size: 15px; }
+        .stat-label { font-size: 11px; }
+
+        .item-card .item-title,
+        .tree-row .text-truncate,
+        .detail-filename { max-width: 100% !important; }
+
+        .viewer-frame, .viewer-img-container { height: 50vh; }
+
+        .file-list-view { overflow-x: auto; }
+        .file-list-view table { min-width: 720px; }
+
+        .modal-dialog { margin: 10px; }
+        .detail-table th, .detail-table td { font-size: 11.5px; }
+    }
+
+    /* Very small phones */
+    @@media (max-width: 380px) {
+        .hub-toolbar .btn { font-size: 12px; padding: 6px 10px; }
+        .stats-grid { grid-template-columns: 1fr; }
+    }
+
 </style>
+
 
 <div class="doc-hub-container">
 
@@ -524,10 +627,17 @@
             <button class="btn btn-outline-primary d-none dh-permission-action" data-dh-permission="createFolder" id="hdrNewFolderBtn"><i class="fa-solid fa-folder-plus"></i> New Folder</button>
         </div>
         <div class="toolbar-group">
-            <button class="btn btn-light" onclick="requestLoadHub('toolbar-refresh')"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+           <span class="hub-user-badge" title="Logged in user">
+    <span class="hub-user-avatar">@(ViewBag.CurrentUserName != null && ViewBag.CurrentUserName.ToString().Length > 0 ? ViewBag.CurrentUserName.ToString().Substring(0,1).ToUpper() : "?")</span>
+    <span class="hub-user-info">
+        <span class="hub-user-label">Logged in as</span>
+        <span class="hub-user-name">@ViewBag.CurrentUserName</span>
+    </span>
+</span>
+            @* <button class="btn btn-light" onclick="requestLoadHub('toolbar-refresh')"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button> *@
             <button class="btn btn-light d-none" id="hdrDownloadBtn" disabled onclick="downloadSelected()"><i class="fa-solid fa-download"></i> Download</button>
-            <button class="btn btn-light d-none dh-permission-action" data-dh-permission="move" id="hdrMoveBtn" disabled onclick="openMoveModal()"><i class="fa-solid fa-arrows-up-down-left-right"></i> Move</button>
-            <button class="btn btn-light text-danger d-none dh-permission-action" data-dh-permission="delete" id="hdrDeleteBtn" disabled onclick="deleteSelected()"><i class="fa-solid fa-trash"></i> Delete</button>
+            @* <button class="btn btn-light d-none dh-permission-action" data-dh-permission="move" id="hdrMoveBtn" disabled onclick="openMoveModal()"><i class="fa-solid fa-arrows-up-down-left-right"></i> Move</button> *@
+            @* <button class="btn btn-light text-danger d-none dh-permission-action" data-dh-permission="delete" id="hdrDeleteBtn" disabled onclick="deleteSelected()"><i class="fa-solid fa-trash"></i> Delete</button> *@
         </div>
     </header>
 
@@ -578,7 +688,7 @@
                         </div>
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="search" id="hubSearch" placeholder="Search files, folders, owner..." autocomplete="off" />
+                            <input type="search" id="hubSearch" placeholder="Search files, folders... " autocomplete="off" />
                         </div>
                     </div>
 
@@ -710,7 +820,25 @@
             <div class="modal-body text-center p-4">
                 <p class="small text-muted mb-3">This folder is secure. Enter the PIN to open it:</p>
                 <input type="hidden" id="pinFolderId" />
-                <input type="password" id="folderAccessPin" class="form-control text-center font-monospace fs-3 py-2" maxlength="4" placeholder="••••" inputmode="numeric" style="letter-spacing:6px;" autocomplete="off" />
+                @* <input type="password" id="folderAccessPin" class="form-control text-center font-monospace fs-3 py-2" maxlength="4" placeholder="••••" inputmode="numeric" style="letter-spacing:6px;" autocomplete="off" /> *@
+                
+                <div class="input-group">
+    <input type="password"
+           id="folderAccessPin"
+           class="form-control text-center font-monospace fs-3 py-2"
+           maxlength="4"
+           placeholder="••••"
+           inputmode="numeric"
+           style="letter-spacing:6px;"
+           autocomplete="off" />
+
+    <button type="button"
+            class="btn btn-outline-secondary"
+            onclick="toggleFolderPinVisibility()">
+        <i id="folderPinEye" class="fa-solid fa-eye"></i>
+    </button>
+</div>
+
                 <div id="folderPinFeedback" class="text-danger small mt-2" style="display:none;">Incorrect PIN</div>
             </div>
             <div class="modal-footer border-0 bg-light justify-content-center p-3">
@@ -730,16 +858,32 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="small text-muted mb-3">Confirm your username or enter PIN to proceed:</p>
+                <p class="small text-muted mb-3"> enter PIN to proceed:</p>
                 <input type="hidden" id="accessFileId" />
                 <input type="hidden" id="accessMode" />
-                <div class="mb-3">
+                @* <div class="mb-3">
                     <label class="small font-weight-bold">Username</label>
                     <input class="form-control form-control-sm" id="accessUsername" autocomplete="off" />
-                </div>
+                </div> *@
                 <div>
                     <label class="small font-weight-bold">4-digit PIN</label>
-                    <input class="form-control form-control-sm text-center font-monospace" id="accessPin" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off" />
+                    @* <input class="form-control form-control-sm text-center font-monospace" id="accessPin" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off" />  *@
+
+                    <div class="input-group">
+    <input type="password"
+           class="form-control form-control-sm text-center font-monospace"
+           id="accessPin"
+           maxlength="4"
+           placeholder="••••"
+           inputmode="numeric"
+           autocomplete="off" />
+
+    <button type="button"
+            class="btn btn-outline-secondary"
+            onclick="toggleAccessPinVisibility()">
+        <i id="accessPinEye" class="fa-solid fa-eye"></i>
+    </button>
+</div>
                 </div>
             </div>
             <div class="modal-footer border-0 bg-light p-3 justify-content-end">
@@ -839,7 +983,7 @@
     </div>
 </div>
 
-<!-- Folder PIN Management -->
+@* <!-- Folder PIN Management -->
 <div class="modal fade" id="pinManageModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
@@ -863,6 +1007,59 @@
                     <input class="form-control form-control-sm text-center font-monospace" id="pinConfirm" maxlength="4" inputmode="numeric" autocomplete="off" />
                 </div>
             </div>
+            <div class="modal-footer border-0 bg-light p-3">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm" onclick="saveFolderPin()">Save PIN</button>
+            </div>
+        </div>
+    </div>
+</div> *@
+
+
+<!-- Folder PIN Management -->
+<div class="modal fade" id="pinManageModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg border-0" style="border-radius:12px;">
+            <div class="modal-header border-0 bg-light">
+                <h6 class="modal-title font-weight-bold" id="pinManageTitle">Folder PIN</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <input type="hidden" id="pinManageFolderId" />
+                <input type="hidden" id="pinManageMode" />
+
+                <div class="mb-3 pin-current-row">
+                    <label class="small font-weight-bold">Current PIN</label>
+                    <input type="password"
+                           class="form-control form-control-sm text-center font-monospace"
+                           id="pinCurrent"
+                           maxlength="4"
+                           inputmode="numeric"
+                           autocomplete="off" />
+                </div>
+
+                <div class="mb-3 pin-new-row">
+                    <label class="small font-weight-bold">New PIN</label>
+                    <input type="password"
+                           class="form-control form-control-sm text-center font-monospace"
+                           id="pinNew"
+                           maxlength="4"
+                           inputmode="numeric"
+                           autocomplete="off" />
+                </div>
+
+                <div class="pin-new-row">
+                    <label class="small font-weight-bold">Confirm New PIN</label>
+                    <input type="password"
+                           class="form-control form-control-sm text-center font-monospace"
+                           id="pinConfirm"
+                           maxlength="4"
+                           inputmode="numeric"
+                           autocomplete="off" />
+                </div>
+            </div>
+
             <div class="modal-footer border-0 bg-light p-3">
                 <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                 <button class="btn btn-primary btn-sm" onclick="saveFolderPin()">Save PIN</button>
@@ -973,6 +1170,7 @@
         currentFolders: [],
         currentFiles: [],
         uploadFiles: [],
+        downloadedFiles: new Set(),
         folderMenus: {},
         loadSeq: 0,
         permissionsLoaded: false,
@@ -1157,7 +1355,7 @@
             .fail(() => {
                 debugFolderMenu("loadHub:fail", { requestSeq, activeSeq: hub.loadSeq });
                 if (requestSeq === hub.loadSeq) showToast("Unable to load Document Hub.", "error");
-            });
+            }); 
     }
 
     function normalizePermissions(perms) {
@@ -2180,53 +2378,94 @@ function saveFolder() {
     function confirmAccess() {
         const fileId = $("#accessFileId").val();
         const mode   = $("#accessMode").val();
-        $.post("/DocumentHub/ConfirmAccess", {
-            fileId,
-            usernameConfirmation: $("#accessUsername").val(),
-            pin: $("#accessPin").val()
-        }).done(function (res) {
+       $.post("/DocumentHub/ConfirmAccess", {
+    fileId: fileId,
+    pin: $("#accessPin").val()
+}).done(function (res) {
             if (!res.success) return showToast(res.message, "error");
             $("#accessModal").modal("hide");
             $.get("/DocumentHub/FileAccessInfo", { fileId }).done(info => launchFile(fileId, mode, info.file));
         });
     }
 
-    function launchFile(fileId, mode, file) {
-        const ext = (file.fileType || "").toLowerCase();
-        if (mode === "download") {
-            window.location.href = `/DocumentHub/Download?fileId=${fileId}`;
+//     function launchFile(fileId, mode, file) {
+//         const ext = (file.fileType || "").toLowerCase();
+//         if (mode === "download") {
+//             window.location.href = `/DocumentHub/Download?fileId=${fileId}`;
+//             return;
+//         }
+
+//         $("#viewerTitle").text(file.fileName);
+//         if (ext === "pdf") {
+//             $("#viewerBody").html(`<iframe class="viewer-frame" src="/DocumentHub/Preview?fileId=${fileId}"></iframe>`);
+//         } else if (["png","jpg","jpeg","gif"].includes(ext)) {
+//             $("#viewerBody").html(`<div class="viewer-img-container"><img class="viewer-img" src="/DocumentHub/Preview?fileId=${fileId}" alt="${escAttr(file.fileName)}" /></div>`);
+//         } else {
+//             $("#viewerBody").html(`
+//                 <div class="p-4 bg-white text-dark">
+//                     <h6 class="font-weight-bold mb-3"><i class="${fileIcon(ext)}"></i> ${escHtml(file.fileName)}</h6>
+//                     <table class="table table-sm">
+//                         <tbody>
+//                             <tr><th>File Type</th><td>${escHtml(file.fileType)}</td></tr>
+//                             <tr><th>File Size</th><td>${fmtSize(file.fileSize)}</td></tr>
+//                             <tr><th>Uploaded By</th><td>${escHtml(file.uploadedBy)}</td></tr>
+//                             <tr><th>Uploaded Date</th><td>${fmtDate(file.uploadedDate)}</td></tr>
+//                             <tr><th>Version</th><td>v${file.versionNumber}</td></tr>
+//                         </tbody>
+//                     </table>
+//                     <p class="small text-muted mb-0">Preview is available for PDF and image files. Word and Excel documents are shown as metadata only.</p>
+//                 </div>`);
+         
+//         }
+//         else if (["doc","docx","xls","xlsx","csv","ppt","pptx"].includes(ext)) {
+//     window.open(`/DocumentHub/Preview?fileId=${fileId}`, "_blank");
+//     return;
+//     else if (["doc","docx","xls","xlsx"].includes(ext)) {
+//     window.open(`/DocumentHub/Download?fileId=${fileId}`, "_blank");
+//     return;
+// }
+
+//         $("#viewerModal").modal("show");
+//     }
+
+
+function launchFile(fileId, mode, file) {
+
+    const ext = (file.fileType || "").toLowerCase();
+
+    if (mode === "download") {
+        window.location.href = `/DocumentHub/Download?fileId=${fileId}`;
+        return;
+    }
+
+    $("#viewerTitle").text(file.fileName);
+
+    if (ext === "pdf") {
+        $("#viewerBody").html(
+            `<iframe class="viewer-frame" src="/DocumentHub/Preview?fileId=${fileId}"></iframe>`
+        );
+    } else if (["png","jpg","jpeg","gif"].includes(ext)) {
+        $("#viewerBody").html(
+            `<div class="viewer-img-container">
+                <img class="viewer-img"
+                     src="/DocumentHub/Preview?fileId=${fileId}"
+                     alt="${escAttr(file.fileName)}" />
+            </div>`
+        );
+    } else if (["doc","docx","xls","xlsx","csv"].includes(ext)) {
+
+        if (hub.downloadedFiles.has(fileId)) {
+            showToast("Already downloaded earlier. Check your Downloads folder.", "success");
             return;
         }
 
-        $("#viewerTitle").text(file.fileName);
-        if (ext === "pdf") {
-            $("#viewerBody").html(`<iframe class="viewer-frame" src="/DocumentHub/Preview?fileId=${fileId}"></iframe>`);
-        } else if (["png","jpg","jpeg","gif"].includes(ext)) {
-            $("#viewerBody").html(`<div class="viewer-img-container"><img class="viewer-img" src="/DocumentHub/Preview?fileId=${fileId}" alt="${escAttr(file.fileName)}" /></div>`);
-        // } else {
-        //     $("#viewerBody").html(`
-        //         <div class="p-4 bg-white text-dark">
-        //             <h6 class="font-weight-bold mb-3"><i class="${fileIcon(ext)}"></i> ${escHtml(file.fileName)}</h6>
-        //             <table class="table table-sm">
-        //                 <tbody>
-        //                     <tr><th>File Type</th><td>${escHtml(file.fileType)}</td></tr>
-        //                     <tr><th>File Size</th><td>${fmtSize(file.fileSize)}</td></tr>
-        //                     <tr><th>Uploaded By</th><td>${escHtml(file.uploadedBy)}</td></tr>
-        //                     <tr><th>Uploaded Date</th><td>${fmtDate(file.uploadedDate)}</td></tr>
-        //                     <tr><th>Version</th><td>v${file.versionNumber}</td></tr>
-        //                 </tbody>
-        //             </table>
-        //             <p class="small text-muted mb-0">Preview is available for PDF and image files. Word and Excel documents are shown as metadata only.</p>
-        //         </div>`);
-        // }
-        }
-        else if (["doc","docx","xls","xlsx","csv","ppt","pptx"].includes(ext)) {
-    window.open(`/DocumentHub/Preview?fileId=${fileId}`, "_blank");
-    return;
-}
-        $("#viewerModal").modal("show");
+        hub.downloadedFiles.add(fileId);
+        window.open(`/DocumentHub/Download?fileId=${fileId}`, "_blank");
+        return;
     }
 
+    $("#viewerModal").modal("show");
+}
     /* ─────────────────────────────────────────────
        FOLDER PIN
     ───────────────────────────────────────────── */
@@ -2667,5 +2906,37 @@ function restoreFile(fileId) {
         }
     });
 }
+
+
+function toggleFolderPinVisibility() {
+    const input = document.getElementById("folderAccessPin");
+    const eye = document.getElementById("folderPinEye");
+
+    if (input.type === "password") {
+        input.type = "text";
+        eye.classList.remove("fa-eye");
+        eye.classList.add("fa-eye-slash");
+    } else {
+        input.type = "password";
+        eye.classList.remove("fa-eye-slash");
+        eye.classList.add("fa-eye");
+    }
+}
+
+function toggleAccessPinVisibility() {
+    const input = document.getElementById("accessPin");
+    const eye = document.getElementById("accessPinEye");
+
+    if (input.type === "password") {
+        input.type = "text";
+        eye.classList.remove("fa-eye");
+        eye.classList.add("fa-eye-slash");
+    } else {
+        input.type = "password";
+        eye.classList.remove("fa-eye-slash");
+        eye.classList.add("fa-eye");
+    }
+}
+ 
 </script>
 }
