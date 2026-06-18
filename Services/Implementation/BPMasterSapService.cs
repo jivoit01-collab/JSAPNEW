@@ -49,7 +49,10 @@ namespace JSAPNEW.Services.Implementation
             var session = await GetSessionAsync(request.Company);
             var cardType = IsVendor(request.BpType) ? "cSupplier" : "cCustomer";
             var bpType = cardType == "cSupplier" ? "V" : "C";
-            var accountResolution = await ResolveControlAccountAsync(request.Company, bpType, cancellationToken);
+            var selectedControlAccount = bpType == "V"
+                ? FirstText(request.SapData?.apAccountCode)
+                : FirstText(request.SapData?.arAccountCode);
+            var accountResolution = await ResolveControlAccountAsync(request.Company, bpType, selectedControlAccount, cancellationToken);
             if (!accountResolution.Success)
             {
                 _logger.LogWarning(
@@ -110,6 +113,7 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
 
+            ApplySapBankCodeOverride(request.BpData, request.SapData?.sapBankCode);
             var bankValidation = await ValidateVendorBankDetailsAsync(request.Company, request.BpData, cardType, cancellationToken);
             if (!bankValidation.IsValid)
             {
@@ -135,79 +139,127 @@ namespace JSAPNEW.Services.Implementation
             }
 
             var prefix = ResolveCardCodePrefix(request, cardType);
-            var cardCode = await GetNextCardCodeAsync(prefix, cardType, session, cancellationToken);
             var warnings = new List<string>();
             var attachmentEntry = await UploadAttachmentsAsync(request.BpData, session, warnings, cancellationToken);
             var controlAccountCode = accountValidation.IsValid
                 ? accountValidation.AccountCode
                 : accountResolution.AccountCode;
-            var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, controlAccountCode, attachmentEntry, bankValidation.BankCodeByInput, warnings);
-            var payloadJson = payload.ToString(Formatting.None);
-            var payloadHash = ComputeHash(payloadJson);
 
-            _logger.LogInformation(
-                "Posting BP to SAP. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, UserId={UserId}, CardType={CardType}, CandidateCardCode={CandidateCardCode}, ControlAccount={ControlAccount}, AttachmentEntry={AttachmentEntry}, PayloadHash={PayloadHash}",
-                request.FlowId,
-                request.BpCode,
-                request.Company,
-                request.UserId,
-                cardType,
-                cardCode,
-                controlAccountCode,
-                attachmentEntry,
-                payloadHash);
-
-            _logger.LogDebug(
-                "BP SAP payload. FlowId={FlowId}, BpCode={BpCode}, PayloadHash={PayloadHash}, Payload={Payload}",
-                request.FlowId,
-                request.BpCode,
-                payloadHash,
-                payloadJson);
-
-            var response = await SendSapRequestAsync(HttpMethod.Post, "BusinessPartners", session, payloadJson, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            for (var attempt = 1; attempt <= 3; attempt++)
             {
-                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                var sapError = MapSapError(errorBody);
-                var clientError = BuildSapClientFailureInfo(sapError, payload);
+                var cardCode = await GetNextCardCodeAsync(prefix, cardType, session, cancellationToken);
+                var payload = BuildBusinessPartnerPayload(request, cardCode, cardType, controlAccountCode, attachmentEntry, bankValidation.BankCodeByInput, warnings);
+                var payloadJson = payload.ToString(Formatting.None);
+                var payloadHash = ComputeHash(payloadJson);
 
-                _logger.LogWarning(
-                    "SAP BP POST FAILED FlowId={FlowId} BpCode={BpCode} HttpStatus={HttpStatus} SapCode={SapCode} SapMessage={SapMessage} CandidateCardCode={CandidateCardCode} PayloadHash={PayloadHash} RawResponse={RawResponse}",
+                _logger.LogInformation(
+                    "Posting BP to SAP. FlowId={FlowId}, BpCode={BpCode}, Company={Company}, UserId={UserId}, CardType={CardType}, CandidateCardCode={CandidateCardCode}, ControlAccount={ControlAccount}, AttachmentEntry={AttachmentEntry}, PayloadHash={PayloadHash}, Attempt={Attempt}",
                     request.FlowId,
                     request.BpCode,
-                    (int)response.StatusCode,
-                    sapError.SapCode,
-                    sapError.Message,
+                    request.Company,
+                    request.UserId,
+                    cardType,
                     cardCode,
+                    controlAccountCode,
+                    attachmentEntry,
                     payloadHash,
-                    sapError.RawResponse);
+                    attempt);
+
+                LogSapObjectOperations(request, payload);
+
+                _logger.LogDebug(
+                    "BP SAP payload. FlowId={FlowId}, BpCode={BpCode}, PayloadHash={PayloadHash}, Payload={Payload}",
+                    request.FlowId,
+                    request.BpCode,
+                    payloadHash,
+                    payloadJson);
+
+                _logger.LogInformation(
+                    "BusinessPartner SAP Payload: {Payload}",
+                    JsonConvert.SerializeObject(payload, Formatting.Indented));
+
+                var response = await SendSapRequestAsync(HttpMethod.Post, "BusinessPartners", session, payloadJson, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    var sapError = MapSapError(errorBody);
+                    var clientError = BuildSapClientFailureInfo(sapError, payload);
+                    var cardCodeAlreadyExists = sapError.SapCode == -2035
+                        && await SapBusinessPartnerExistsAsync(cardCode, session, cancellationToken);
+
+                    _logger.LogWarning(
+                        "SAP BP POST FAILED FlowId={FlowId} BpCode={BpCode} HttpStatus={HttpStatus} SapCode={SapCode} SapMessage={SapMessage} CandidateCardCode={CandidateCardCode} CandidateCardCodeExists={CandidateCardCodeExists} PossibleDuplicateTable={PossibleDuplicateTable} PayloadHash={PayloadHash} RawResponse={RawResponse}",
+                        request.FlowId,
+                        request.BpCode,
+                        (int)response.StatusCode,
+                        sapError.SapCode,
+                        sapError.Message,
+                        cardCode,
+                        cardCodeAlreadyExists,
+                        cardCodeAlreadyExists ? "OCRD" : "CRD1/OCPR/OCRB or duplicate child payload row",
+                        payloadHash,
+                        sapError.RawResponse);
+
+                    if (cardCodeAlreadyExists && attempt < 3)
+                    {
+                        _logger.LogInformation(
+                            "Retrying SAP BP post with next CardCode because candidate already exists in OCRD. FlowId={FlowId}, BpCode={BpCode}, PreviousCandidateCardCode={CandidateCardCode}, Attempt={Attempt}",
+                            request.FlowId,
+                            request.BpCode,
+                            cardCode,
+                            attempt);
+                        continue;
+                    }
+
+                    return new BpSapPostResult
+                    {
+                        Success = false,
+                        Message = clientError.message,
+                        ErrorCode = sapError.ErrorCode,
+                        SapError = clientError,
+                        CardCode = string.Empty,
+                        AttachmentEntry = attachmentEntry,
+                        Payload = payload,
+                        PayloadHash = payloadHash,
+                        CardType = cardType,
+                        RawResponse = errorBody
+                    };
+                }
+
+                var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "SAP BP POST Response: {Response}",
+                    responseBody);
+
+                var confirmedCardCode = ExtractConfirmedCardCode(responseBody);
+                if (string.IsNullOrWhiteSpace(confirmedCardCode))
+                {
+                    return new BpSapPostResult
+                    {
+                        Success = false,
+                        Message = "SAP BP creation response did not include confirmed CardCode.",
+                        ErrorCode = "SAP_MISSING_CONFIRMED_CARD_CODE",
+                        SapError = BpSapErrorMapper.BuildResponseInfo(null, "SAP BP creation response did not include confirmed CardCode."),
+                        CardCode = string.Empty,
+                        AttachmentEntry = attachmentEntry,
+                        Payload = payload,
+                        PayloadHash = payloadHash,
+                        CardType = cardType,
+                        RawResponse = responseBody
+                    };
+                }
+
+                var message = $"SAP Business Partner created as {confirmedCardCode}.";
+
+                if (warnings.Count > 0)
+                    message += " Warnings: " + string.Join(" ", warnings);
 
                 return new BpSapPostResult
                 {
-                    Success = false,
-                    Message = clientError.message,
-                    ErrorCode = sapError.ErrorCode,
-                    SapError = clientError,
-                    CardCode = string.Empty,
-                    AttachmentEntry = attachmentEntry,
-                    Payload = payload,
-                    PayloadHash = payloadHash,
-                    CardType = cardType,
-                    RawResponse = errorBody
-                };
-            }
-
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            var confirmedCardCode = ExtractConfirmedCardCode(responseBody);
-            if (string.IsNullOrWhiteSpace(confirmedCardCode))
-            {
-                return new BpSapPostResult
-                {
-                    Success = false,
-                    Message = "SAP BP creation response did not include confirmed CardCode.",
-                    ErrorCode = "SAP_MISSING_CONFIRMED_CARD_CODE",
-                    SapError = BpSapErrorMapper.BuildResponseInfo(null, "SAP BP creation response did not include confirmed CardCode."),
-                    CardCode = string.Empty,
+                    Success = true,
+                    Message = message,
+                    CardCode = confirmedCardCode,
                     AttachmentEntry = attachmentEntry,
                     Payload = payload,
                     PayloadHash = payloadHash,
@@ -216,21 +268,14 @@ namespace JSAPNEW.Services.Implementation
                 };
             }
 
-            var message = $"SAP Business Partner created as {confirmedCardCode}.";
-
-            if (warnings.Count > 0)
-                message += " Warnings: " + string.Join(" ", warnings);
-
             return new BpSapPostResult
             {
-                Success = true,
-                Message = message,
-                CardCode = confirmedCardCode,
+                Success = false,
+                Message = "SAP BP creation failed after retrying duplicate CardCode candidates.",
+                ErrorCode = "SAP_DUPLICATE_CARD_CODE_RETRY_EXHAUSTED",
+                CardCode = string.Empty,
                 AttachmentEntry = attachmentEntry,
-                Payload = payload,
-                PayloadHash = payloadHash,
-                CardType = cardType,
-                RawResponse = responseBody
+                CardType = cardType
             };
         }
 
@@ -259,10 +304,22 @@ namespace JSAPNEW.Services.Implementation
             return settings;
         }
 
-        private async Task<BpControlAccountResolution> ResolveControlAccountAsync(int companyId, string bpType, CancellationToken cancellationToken)
+        private async Task<BpControlAccountResolution> ResolveControlAccountAsync(
+            int companyId,
+            string bpType,
+            string? selectedAccountCode,
+            CancellationToken cancellationToken)
         {
             var normalizedBpType = NormalizeControlAccountBpType(bpType);
             var label = GetBpTypeLabel(normalizedBpType);
+
+            if (!string.IsNullOrWhiteSpace(selectedAccountCode))
+            {
+                return BpControlAccountResolution.Ok(
+                    selectedAccountCode.Trim(),
+                    string.Empty,
+                    "BP.jsSAPData");
+            }
 
             var configRow = await GetControlAccountConfigRowAsync(companyId, normalizedBpType, cancellationToken);
             if (!string.IsNullOrWhiteSpace(configRow?.AccountCode))
@@ -453,6 +510,71 @@ LIMIT 1";
                     $"{label} control account validation failed.",
                     "CONTROL_ACCOUNT_VALIDATION_FAILED");
             }
+        }
+
+        public async Task<IEnumerable<GroupNameResponse>> GetBusinessPartnerGroupsAsync(
+            int companyId,
+            string bpType,
+            CancellationToken cancellationToken = default)
+        {
+            var session = await GetSessionAsync(companyId);
+            var groupType = NormalizeControlAccountBpType(bpType) == "V"
+                ? "bbpgt_VendorGroup"
+                : "bbpgt_CustomerGroup";
+            var endpoint = $"BusinessPartnerGroups?$filter=Type eq '{groupType}'&$select=Code,Name&$orderby=Name";
+            var response = await SendSapRequestAsync(HttpMethod.Get, endpoint, session, null, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                throw new BpSapException("SAP BP group lookup failed", MapSapError(body));
+
+            var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+            return (json["value"] ?? new JArray())
+                .OfType<JObject>()
+                .Select(row =>
+                {
+                    var codeText = row["Code"]?.ToString() ?? string.Empty;
+                    int.TryParse(codeText, out var code);
+                    var name = row["Name"]?.ToString() ?? string.Empty;
+
+                    return new GroupNameResponse
+                    {
+                        GroupCode = code == 0 && codeText != "0" ? null : code,
+                        GroupName = name
+                    };
+                })
+                .ToList();
+        }
+
+        public async Task<IEnumerable<DistinctBankNameModel>> GetBankCodesAsync(
+            int companyId,
+            string countryCode = "IN",
+            CancellationToken cancellationToken = default)
+        {
+            var session = await GetSessionAsync(companyId);
+            var country = string.IsNullOrWhiteSpace(countryCode)
+                ? "IN"
+                : countryCode.Trim().ToUpperInvariant();
+            var filter = Uri.EscapeDataString($"CountryCode eq '{country.Replace("'", "''")}'");
+            var endpoint = $"Banks?$filter={filter}&$select=BankCode,BankName,SwiftNo,CountryCode&$orderby=BankName";
+            var response = await SendSapRequestAsync(HttpMethod.Get, endpoint, session, null, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                throw new BpSapException("SAP bank code lookup failed", MapSapError(body));
+
+            var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+            return (json["value"] ?? new JArray())
+                .OfType<JObject>()
+                .Select(row => new DistinctBankNameModel
+                {
+                    BankCode = row["BankCode"]?.ToString() ?? string.Empty,
+                    BankName = row["BankName"]?.ToString() ?? string.Empty,
+                    SwiftNo = row["SwiftNo"]?.ToString() ?? string.Empty,
+                    CountryCode = row["CountryCode"]?.ToString() ?? country
+                })
+                .Where(row => !string.IsNullOrWhiteSpace(row.BankCode))
+                .ToList();
         }
 
         private BpControlAccountValidationResult ControlAccountInvalid(
@@ -668,6 +790,18 @@ LIMIT 1";
             return BpBankValidationResult.Ok(resolvedBanks);
         }
 
+        private static void ApplySapBankCodeOverride(SingleBPDataModel bp, string? sapBankCode)
+        {
+            if (bp?.BankDetails == null || string.IsNullOrWhiteSpace(sapBankCode))
+                return;
+
+            var normalizedBankCode = sapBankCode.Trim();
+            foreach (var bank in bp.BankDetails.Where(bank => !string.IsNullOrWhiteSpace(bank.AccountNumber)))
+            {
+                bank.BankCode = normalizedBankCode;
+            }
+        }
+
         private async Task<BpSapBankRow?> ResolveSapBankAsync(
             int companyId,
             string bankNameOrCode,
@@ -709,7 +843,7 @@ LIMIT 1";
         {
             var safePrefix = prefix.Replace("'", "''").Trim();
             var filter = $"startswith(CardCode,'{safePrefix}') and CardType eq '{cardType}'";
-            var endpoint = $"BusinessPartners?$filter={Uri.EscapeDataString(filter)}&$select=CardCode&$orderby=CardCode desc&$top=1";
+            var endpoint = $"BusinessPartners?$filter={Uri.EscapeDataString(filter)}&$select=CardCode&$orderby=CardCode desc&$top=1000";
             var response = await SendSapRequestAsync(HttpMethod.Get, endpoint, session, null, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -717,17 +851,59 @@ LIMIT 1";
                 throw new BpSapException("Unable to generate SAP CardCode", MapSapError(body));
 
             var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
-            var lastCode = json["value"]?.FirstOrDefault()?["CardCode"]?.ToString();
-            if (string.IsNullOrWhiteSpace(lastCode) || !lastCode.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                return prefix + "000001";
+            var existingCodes = json["value"]?
+                .Select(row => row?["CardCode"]?.ToString())
+                .Where(code => !string.IsNullOrWhiteSpace(code) && code.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToList() ?? new List<string>();
 
-            var suffix = lastCode[prefix.Length..];
-            var digits = Regex.Match(suffix, "\\d+").Value;
-            if (!int.TryParse(digits, out var current))
-                return prefix + "000001";
+            var current = 0;
+            var width = 6;
+            foreach (var existingCode in existingCodes)
+            {
+                var suffix = existingCode![prefix.Length..];
+                var digits = Regex.Match(suffix, "\\d+").Value;
+                if (!int.TryParse(digits, out var parsed))
+                    continue;
 
-            var width = Math.Max(digits.Length, 6);
-            return prefix + (current + 1).ToString().PadLeft(width, '0');
+                if (parsed > current)
+                    current = parsed;
+                width = Math.Max(width, digits.Length);
+            }
+
+            for (var offset = 1; offset <= 1000; offset++)
+            {
+                var candidate = prefix + (current + offset).ToString().PadLeft(width, '0');
+                if (!await SapBusinessPartnerExistsAsync(candidate, session, cancellationToken))
+                    return candidate;
+            }
+
+            throw new BpSapException(
+                "Unable to generate SAP CardCode",
+                BpSapErrorMapper.Map(null, $"No available CardCode found for prefix {prefix}."));
+        }
+
+        private async Task<bool> SapBusinessPartnerExistsAsync(string cardCode, SAPSessionModel session, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(cardCode))
+                return false;
+
+            var escapedCardCode = cardCode.Trim().Replace("'", "''");
+            var endpoint = $"BusinessPartners('{Uri.EscapeDataString(escapedCardCode)}')?$select=CardCode";
+            var response = await SendSapRequestAsync(HttpMethod.Get, endpoint, session, null, cancellationToken);
+
+            if ((int)response.StatusCode == 404)
+                return false;
+
+            if (response.IsSuccessStatusCode)
+                return true;
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning(
+                "SAP CardCode existence check failed. CardCode={CardCode}, HttpStatus={HttpStatus}, RawResponse={RawResponse}",
+                cardCode,
+                (int)response.StatusCode,
+                body);
+            return false;
         }
 
         private JObject BuildBusinessPartnerPayload(
@@ -753,9 +929,6 @@ LIMIT 1";
                 ["DebitorAccount"] = controlAccountCode.Trim()
             };
 
-            var sapData = request.SapData;
-            if (int.TryParse(sapData?.grpCode, out var groupCode) && groupCode > 0)
-                payload["GroupCode"] = groupCode;
             if (!string.IsNullOrWhiteSpace(master.ForeignName))
                 payload["CardForeignName"] = master.ForeignName.Trim();
             if (!string.IsNullOrWhiteSpace(master.MobileNumber))
@@ -766,6 +939,14 @@ LIMIT 1";
                 payload["Notes"] = master.Remarks.Trim();
             if (master.CreditLimit > 0)
                 payload["CreditLimit"] = master.CreditLimit;
+            if (request.SapData?.bpGroupCode.HasValue == true && request.SapData.bpGroupCode.Value > 0)
+                payload["GroupCode"] = request.SapData.bpGroupCode.Value;
+            if (request.SapData?.paymentTermCode.HasValue == true && request.SapData.paymentTermCode.Value >= 0)
+                payload["PayTermsGrpCode"] = request.SapData.paymentTermCode.Value;
+            if (request.SapData?.salesEmployeeCode.HasValue == true && request.SapData.salesEmployeeCode.Value > 0)
+                payload["SalesPersonCode"] = request.SapData.salesEmployeeCode.Value;
+            if (!isVendor && request.SapData?.territoryId.HasValue == true && request.SapData.territoryId.Value > 0)
+                payload["Territory"] = request.SapData.territoryId.Value;
             if (!string.IsNullOrWhiteSpace(master.MainGroup))
                 payload["U_Main_Group"] = master.MainGroup.Trim();
             if (!string.IsNullOrWhiteSpace(master.Chain))
@@ -797,6 +978,51 @@ LIMIT 1";
             }
 
             return payload;
+        }
+
+        private void LogSapObjectOperations(BpSapPostRequest request, JObject payload)
+        {
+            var cardCode = payload["CardCode"]?.ToString() ?? string.Empty;
+            var cardName = payload["CardName"]?.ToString() ?? string.Empty;
+
+            _logger.LogInformation(
+                "Adding BP. FlowId={FlowId}, BpCode={BpCode}, CardCode={CardCode}, CardName={CardName}",
+                request.FlowId,
+                request.BpCode,
+                cardCode,
+                cardName);
+
+            foreach (var address in payload["BPAddresses"]?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
+            {
+                _logger.LogInformation(
+                    "Adding Address. FlowId={FlowId}, BpCode={BpCode}, CardCode={CardCode}, Address={AddressName}, AddressType={AddressType}",
+                    request.FlowId,
+                    request.BpCode,
+                    cardCode,
+                    address["AddressName"]?.ToString(),
+                    address["AddressType"]?.ToString());
+            }
+
+            foreach (var contact in payload["ContactEmployees"]?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
+            {
+                _logger.LogInformation(
+                    "Adding Contact. FlowId={FlowId}, BpCode={BpCode}, CardCode={CardCode}, Contact={ContactName}",
+                    request.FlowId,
+                    request.BpCode,
+                    cardCode,
+                    contact["Name"]?.ToString());
+            }
+
+            foreach (var bank in payload["BPBankAccounts"]?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
+            {
+                _logger.LogInformation(
+                    "Adding Bank Account. FlowId={FlowId}, BpCode={BpCode}, CardCode={CardCode}, BankCode={BankCode}, Account={AccountNo}",
+                    request.FlowId,
+                    request.BpCode,
+                    cardCode,
+                    bank["BankCode"]?.ToString(),
+                    bank["AccountNo"]?.ToString());
+            }
         }
 
         private JArray BuildContacts(SingleBPDataModel bp)
@@ -837,7 +1063,7 @@ LIMIT 1";
                 result.Add(BuildAddress(address, "bo_BillTo", bp.Master.Name));
 
             if (shipTo.Count == 0 && billTo.Count > 0)
-                shipTo = billTo;
+                shipTo = billTo.ToList();  // 🔧 FIX: Create copy, not reference
 
             foreach (var address in shipTo)
                 result.Add(BuildAddress(address, "bo_ShipTo", bp.Master.Name));
@@ -1043,12 +1269,8 @@ LIMIT 1";
 
         private static string ResolveCardCodePrefix(BpSapPostRequest request, string cardType)
         {
-            if (!string.IsNullOrWhiteSpace(request.CardCodePrefix))
-                return request.CardCodePrefix.Trim().ToUpperInvariant();
-
-            var series = request.SapData?.series;
-            if (!string.IsNullOrWhiteSpace(series) && !series.All(char.IsDigit))
-                return series.Trim().ToUpperInvariant();
+            if (!string.IsNullOrWhiteSpace(request.SapData?.cardCodePrefix))
+                return request.SapData.cardCodePrefix.Trim().ToUpperInvariant();
 
             return cardType == "cSupplier" ? "VENDA" : "CUSTA";
         }

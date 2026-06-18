@@ -2393,11 +2393,35 @@ namespace JSAPNEW.Services.Implementation
             var sqlQuery = "EXEC [bud].[jsGetBudgetSummary] @userId, @budgetCategory, @subBudget, @month, @company";
             using (var connection = new SqlConnection(_connectionString))
             {
-                return await connection.QueryAsync<BudgetSummaryModel>(
+                var results = (await connection.QueryAsync<BudgetSummaryModel>(
                     sqlQuery,
-                   new { userId, budgetCategory, subBudget, month, company } // Parameters for the stored procedure
-                );
+                   new { userId, budgetCategory, subBudget, month, company }
+                )).ToList();
+
+                foreach (var item in results)
+                {
+                    decimal totalBudget = SafeParseDecimal(item.TotalBudget);
+                    decimal approvedAmount = SafeParseDecimal(item.ApprovedAmount);
+                    decimal pendingAmount = SafeParseDecimal(item.PendingAmount);
+
+                    item.AvailableBalance = Math.Max(0, totalBudget - approvedAmount);
+                    item.ApprovedPercentage = totalBudget > 0 ? Math.Round((approvedAmount / totalBudget) * 100, 2) : 0;
+                    item.PendingPercentage = totalBudget > 0 ? Math.Round((pendingAmount / totalBudget) * 100, 2) : 0;
+                    item.AvailablePercentage = totalBudget > 0 ? Math.Round((item.AvailableBalance.Value / totalBudget) * 100, 2) : 0;
+                }
+
+                return results;
             }
+        }
+
+        private static decimal SafeParseDecimal(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+            if (decimal.TryParse(value, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal result))
+                return result;
+            return 0;
         }
 
         public async Task<CombinedBudgetDTO> GetCombinedBudgetsAsync(int userId, int company, string month)

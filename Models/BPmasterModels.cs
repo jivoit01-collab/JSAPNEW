@@ -55,8 +55,6 @@ namespace JSAPNEW.Models
         public string SapCardCode { get; set; } = string.Empty;
         public int? SapAttachmentEntry { get; set; }
         public string PayloadHash { get; set; } = string.Empty;
-        public DateTime? LastAttemptOn { get; set; }
-        public int? LastAttemptBy { get; set; }
         public int RetryCount { get; set; }
         public bool CanRetrySap { get; set; }
         public BP_Master Master { get; set; } = new();
@@ -155,6 +153,22 @@ namespace JSAPNEW.Models
         public string MgrChain { get; set; } = string.Empty;
         public string CreditLimit { get; set; } = string.Empty;
         public string MgrCreditLimit { get; set; } = string.Empty;
+        public string CardCodePrefix { get; set; } = string.Empty;
+        public string MgrCardCodePrefix { get; set; } = string.Empty;
+        public string BpGroupCode { get; set; } = string.Empty;
+        public string MgrGroupCode { get; set; } = string.Empty;
+        public string BpGroupName { get; set; } = string.Empty;
+        public string MgrGroup { get; set; } = string.Empty;
+        public string ArAccountCode { get; set; } = string.Empty;
+        public string MgrArAccount { get; set; } = string.Empty;
+        public string ApAccountCode { get; set; } = string.Empty;
+        public string MgrPurchaseAccount { get; set; } = string.Empty;
+        public string PaymentTermCode { get; set; } = string.Empty;
+        public string MgrPayTermsCode { get; set; } = string.Empty;
+        public string SalesEmployeeCode { get; set; } = string.Empty;
+        public string MgrSalesPersonCode { get; set; } = string.Empty;
+        public string TerritoryId { get; set; } = string.Empty;
+        public string MgrTerritory { get; set; } = string.Empty;
         public bool IsStaff { get; set; }
         public int UserId { get; set; }
         public bool SameAsBill { get; set; }
@@ -238,6 +252,10 @@ namespace JSAPNEW.Models
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
         public int GeneratedCode { get; set; }
+        public int MasterId { get; set; }
+        public int SapDataId { get; set; }
+        public int FlowId { get; set; }
+        public string Status { get; set; } = string.Empty;
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? ErrorCode { get; set; }
     }
@@ -253,7 +271,16 @@ namespace JSAPNEW.Models
     public class SLPnameModel
     {
         public int SlpCode { get; set; }
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public string SlpName { get; set; } = string.Empty;
+
+        public string SalesEmployeeName
+        {
+            get => SlpName;
+            set => SlpName = value;
+        }
     }
 
     public class ChainModel
@@ -289,17 +316,59 @@ namespace JSAPNEW.Models
     public class GroupNameResponse
     {
         public int? GroupCode { get; set; }
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public string Code { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public string Name { get; set; } = string.Empty;
+
         public string GroupName { get; set; } = string.Empty;
     }
 
     public class PaymentGroupModel
     {
         public int? GroupNum { get; set; }
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public string Code { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public string Name { get; set; } = string.Empty;
+
         public string PymntGroup { get; set; } = string.Empty;
+    }
+
+    public class BpAccountOptionModel
+    {
+        public string AcctCode { get; set; } = string.Empty;
+        public string AcctName { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        public string Code { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class BpTerritoryOptionModel
+    {
+        public int? TerritoryId { get; set; }
+        public string TerritoryName { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        public string Code { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        public string Name { get; set; } = string.Empty;
     }
 
     public class BPStateModel
@@ -337,6 +406,14 @@ namespace JSAPNEW.Models
         public string MainGroup { get; set; } = string.Empty;
         public string Chain { get; set; } = string.Empty;
         public decimal CreditLimit { get; set; }
+        public string CardCodePrefix { get; set; } = string.Empty;
+        public int? BpGroupCode { get; set; }
+        public string BpGroupName { get; set; } = string.Empty;
+        public string ArAccountCode { get; set; } = string.Empty;
+        public string ApAccountCode { get; set; } = string.Empty;
+        public int? PaymentTermCode { get; set; }
+        public int? SalesEmployeeCode { get; set; }
+        public int? TerritoryId { get; set; }
         public int UserId { get; set; }
         public DateTime? CreateDate { get; set; }
         public DateTime? UpdationDate { get; set; }
@@ -501,10 +578,25 @@ namespace JSAPNEW.Models
     public class SPAData
     {
         public int id { get; set; }
-        public string debPayAcct { get; set; } = string.Empty;
-        public string wtLabel { get; set; } = string.Empty;
-        public string series { get; set; } = string.Empty;
-        public string grpCode { get; set; } = string.Empty;
+        public int masterId { get; set; }
+        public string apiStatusTag { get; set; } = string.Empty;
+        public string apiMessage { get; set; } = string.Empty;
+        public string sapCardCode { get; set; } = string.Empty;
+        public int? sapAttachmentEntry { get; set; }
+        public string payloadHash { get; set; } = string.Empty;
+        public int retryCount { get; set; }
+        public string cardCodePrefix { get; set; } = string.Empty;
+        public int? bpGroupCode { get; set; }
+        public string bpGroupName { get; set; } = string.Empty;
+        public string arAccountCode { get; set; } = string.Empty;
+        public string apAccountCode { get; set; } = string.Empty;
+        public int? paymentTermCode { get; set; }
+        public int? salesEmployeeCode { get; set; }
+        public int? territoryId { get; set; }
+        public string sapBankCode { get; set; } = string.Empty;
+        public int? updatedBy { get; set; }
+        public DateTime? createdOn { get; set; }
+        public DateTime? updatedOn { get; set; }
     }
 
     public class BPMasterUpdateRequest : InsertBPMasterDataModel
@@ -520,10 +612,16 @@ namespace JSAPNEW.Models
     {
         public int Id { get; set; }
         public int MasterId { get; set; }
-        public string DebPayAcct { get; set; } = string.Empty;
-        public string WtLabel { get; set; } = string.Empty;
-        public string Series { get; set; } = string.Empty;
-        public string GrpCode { get; set; } = string.Empty;
+        public string CardCodePrefix { get; set; } = string.Empty;
+        public int? BpGroupCode { get; set; }
+        public string BpGroupName { get; set; } = string.Empty;
+        public string ArAccountCode { get; set; } = string.Empty;
+        public string ApAccountCode { get; set; } = string.Empty;
+        public int? PaymentTermCode { get; set; }
+        public int? SalesEmployeeCode { get; set; }
+        public int? TerritoryId { get; set; }
+        public string SapBankCode { get; set; } = string.Empty;
+        public int UserId { get; set; }
     }
 
     public class BPinsightsModel

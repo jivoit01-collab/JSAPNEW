@@ -9,7 +9,6 @@ namespace JSAPNEW.Models
         public int Company { get; set; }
         public int UserId { get; set; }
         public string BpType { get; set; } = string.Empty;
-        public string CardCodePrefix { get; set; } = string.Empty;
         public SingleBPDataModel BpData { get; set; } = new();
         public SPAData? SapData { get; set; }
     }

@@ -817,6 +817,10 @@ namespace JSAPNEW.Models
         public string ApprovedAmount { get; set; }
         public string RejectedAmount { get; set; }
         public string PendingAmount { get; set; }
+        public decimal? AvailableBalance { get; set; }
+        public decimal? ApprovedPercentage { get; set; }
+        public decimal? PendingPercentage { get; set; }
+        public decimal? AvailablePercentage { get; set; }
     }
     public class CombinedBudgetDTO
     {
