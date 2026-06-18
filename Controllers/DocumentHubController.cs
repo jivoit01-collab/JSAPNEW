@@ -31,6 +31,7 @@ namespace JSAPNEW.Controllers
                 return RedirectToAction("Index", "DashboardWeb");
 
             ViewBag.DocumentHubPermissions = permissions;
+            ViewBag.CurrentUserName = CurrentUserName();
             return View("~/Views/Documenthub/DocumentHubPage.cshtml");
         }
 
