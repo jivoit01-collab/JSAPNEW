@@ -39,7 +39,7 @@ namespace JSAPNEW.Services.Implementation
 
         private static object GetUTypeDbValue(object? itemGroupCode, string? utype)
         {
-            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupCode = GetGroupCode(itemGroupCode);
             var value = (utype ?? "").Trim();
 
             return groupCode == "112"
@@ -51,11 +51,173 @@ namespace JSAPNEW.Services.Implementation
 
         private static bool IsPackagingMaterialGroup(object? itemGroupCode, string? itemGroupName)
         {
-            var groupCode = Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim();
+            var groupCode = GetGroupCode(itemGroupCode);
             var groupName = (itemGroupName ?? "").Trim();
 
             return groupName.Equals("PACKAGING MATERIAL", StringComparison.OrdinalIgnoreCase)
                 && groupCode == "105";
+        }
+
+        private static string GetGroupCode(object? itemGroupCode)
+        {
+            return Convert.ToString(itemGroupCode, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        }
+
+        private static string? NormalizeYesNo(string? value)
+        {
+            var text = value?.Trim();
+            return string.IsNullOrEmpty(text) ? null : text.ToUpperInvariant();
+        }
+
+        private static bool HasValue(string? value)
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        private static decimal? ToDecimal(int? value)
+        {
+            return value.HasValue ? value.Value : null;
+        }
+
+        private static bool IsOneOfGroupCodes(object? itemGroupCode, params string[] groupCodes)
+        {
+            var groupCode = GetGroupCode(itemGroupCode);
+            return groupCodes.Any(code => groupCode == code);
+        }
+
+        private static bool GroupNameContains(string? itemGroupName, string value)
+        {
+            return (itemGroupName ?? "").IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool RequiresPackType(object? itemGroupCode, string? itemGroupName)
+        {
+            return IsOneOfGroupCodes(itemGroupCode, "102", "105", "106")
+                || GroupNameContains(itemGroupName, "FINISHED")
+                || IsPackagingMaterialGroup(itemGroupCode, itemGroupName);
+        }
+
+        private static bool RequiresPackingType(object? itemGroupCode, string? itemGroupName)
+        {
+            return IsOneOfGroupCodes(itemGroupCode, "102", "106", "114")
+                || GroupNameContains(itemGroupName, "FINISHED")
+                || GroupNameContains(itemGroupName, "SCHEME");
+        }
+
+        private static bool RequiresFaType(object? itemGroupCode, string? itemGroupName)
+        {
+            return IsOneOfGroupCodes(itemGroupCode, "109", "110")
+                || GroupNameContains(itemGroupName, "FIXED ASSET");
+        }
+
+        private static bool RequiresUomGroup(object? itemGroupCode, string? itemGroupName)
+        {
+            return IsOneOfGroupCodes(itemGroupCode, "112")
+                || GroupNameContains(itemGroupName, "RAW MATERIAL");
+        }
+
+        private static bool RequiresGrossWeight(object? itemGroupCode)
+        {
+            return IsOneOfGroupCodes(itemGroupCode, "102", "107");
+        }
+
+        private static string? ValidateItemMasterData(
+            int? company,
+            string? itemName,
+            object? itemGroupCode,
+            string? itemGroupName,
+            string? taxRate,
+            string? chapterId,
+            string? unit,
+            string? brand,
+            string? variety,
+            string? subGroup,
+            string? isLitre,
+            decimal? grossWeight,
+            decimal? mrp,
+            string? packType,
+            string? packingType,
+            string? faType,
+            string? utype,
+            string? salesUom,
+            string? invUom,
+            string? purchaseUom,
+            decimal? litre = null,
+            decimal? boxSize = null,
+            decimal? unitSize = null,
+            string? uomGroup = null,
+            bool validateExtendedFields = true)
+        {
+            var errors = new List<string>();
+            var groupCode = GetGroupCode(itemGroupCode);
+            var normalizedIsLitre = NormalizeYesNo(isLitre);
+            var isLitreEnabled = normalizedIsLitre == "Y";
+
+            if (!company.HasValue || company.Value <= 0)
+                errors.Add("Company/Branch is required.");
+            if (!HasValue(itemName))
+                errors.Add("Item Name is required.");
+            if (string.IsNullOrEmpty(groupCode) || groupCode == "0")
+                errors.Add("Item Group is required.");
+            if (!HasValue(unit))
+                errors.Add("Unit is required.");
+            if (!HasValue(invUom))
+                errors.Add("Inventory UOM is required.");
+            if (!HasValue(brand))
+                errors.Add("Brand is required.");
+            if (!HasValue(variety))
+                errors.Add("Variety is required.");
+            if (!HasValue(subGroup))
+                errors.Add("Sub Group is required.");
+            if (!HasValue(taxRate))
+                errors.Add("Tax Rate is required.");
+            if (!HasValue(purchaseUom))
+                errors.Add("Purchase UOM is required.");
+            if (!HasValue(salesUom))
+                errors.Add("Sale UOM is required.");
+            if (!HasValue(chapterId) || chapterId.Trim() == "0")
+                errors.Add("HSN Code is required.");
+
+            if (HasValue(isLitre) && normalizedIsLitre is not ("Y" or "N"))
+                errors.Add("IsLitre must be either Y or N.");
+
+            if (RequiresPackType(itemGroupCode, itemGroupName) && !HasValue(packType))
+                errors.Add("Pack Type is required for this item group.");
+
+            if (company == 1 && RequiresPackingType(itemGroupCode, itemGroupName) && !HasValue(packingType))
+                errors.Add("Packing Type is required for this item group.");
+
+            if (RequiresFaType(itemGroupCode, itemGroupName) && !HasValue(faType))
+                errors.Add("FA Type is required for fixed asset groups.");
+
+            if (isLitreEnabled && groupCode != "112" && !HasValue(utype))
+                errors.Add("U-Type is required when LTR Countable is enabled.");
+
+            if (validateExtendedFields)
+            {
+                if (isLitreEnabled && (!litre.HasValue || litre.Value <= 0))
+                    errors.Add("Litre Value must be greater than 0 when LTR Countable is enabled.");
+
+                if (RequiresUomGroup(itemGroupCode, itemGroupName) && !HasValue(uomGroup))
+                    errors.Add("UOM Group is required for raw material groups.");
+
+                if (boxSize.HasValue && boxSize.Value < 0)
+                    errors.Add("Box Size cannot be negative.");
+
+                if (unitSize.HasValue && unitSize.Value < 0)
+                    errors.Add("Unit Size cannot be negative.");
+            }
+
+            if (grossWeight.HasValue && grossWeight.Value < 0)
+                errors.Add("Gross Weight cannot be negative.");
+
+            if (RequiresGrossWeight(itemGroupCode) && (!grossWeight.HasValue || grossWeight.Value <= 0))
+                errors.Add("Gross Weight must be greater than 0 for item group 102 or 107.");
+
+            if (mrp.HasValue && mrp.Value < 0)
+                errors.Add("MRP cannot be negative.");
+
+            return errors.Count == 0 ? null : string.Join(" ", errors);
         }
 
 
@@ -790,6 +952,38 @@ namespace JSAPNEW.Services.Implementation
                 if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
                     request.IsLitre = "N";
 
+                request.IsLitre = NormalizeYesNo(request.IsLitre);
+
+                var validationError = ValidateItemMasterData(
+                    request.Company,
+                    request.ItemName,
+                    request.ItemGroupCode,
+                    request.itemGroupName,
+                    request.TaxRate,
+                    request.ChapterId,
+                    request.Unit,
+                    request.Brand,
+                    request.Variety,
+                    request.SubGroup,
+                    request.IsLitre,
+                    request.GrossWeight,
+                    ToDecimal(request.Mrp),
+                    request.PackType,
+                    request.PackingType,
+                    request.FaType,
+                    request.Utype,
+                    request.SalesUom,
+                    request.InvUom,
+                    request.PurchaseUom,
+                    validateExtendedFields: false);
+
+                if (validationError != null)
+                {
+                    response.Success = false;
+                    response.Message = $"Validation Error: {validationError}";
+                    return response;
+                }
+
                 cmd.Parameters.AddWithValue("@userId", request.UserId);
                 cmd.Parameters.AddWithValue("@company", request.Company);
                 cmd.Parameters.AddWithValue("@itemName", (object?)request.ItemName ?? DBNull.Value);
@@ -962,6 +1156,41 @@ namespace JSAPNEW.Services.Implementation
 
                 if (IsPackagingMaterialGroup(request.ItemGroupCode, request.itemGroupName))
                     request.IsLitre = "N";
+
+                request.IsLitre = NormalizeYesNo(request.IsLitre);
+
+                var validationError = ValidateItemMasterData(
+                    request.Company,
+                    request.ItemName,
+                    request.ItemGroupCode,
+                    request.itemGroupName,
+                    request.TaxRate,
+                    request.ChapterId,
+                    request.Unit,
+                    request.Brand,
+                    request.Variety,
+                    request.SubGroup,
+                    request.IsLitre,
+                    request.GrossWeight,
+                    ToDecimal(request.Mrp),
+                    request.PackType,
+                    request.PackingType,
+                    request.FaType,
+                    request.Utype,
+                    request.SalesUom,
+                    request.InvUom,
+                    request.PurchaseUom,
+                    ToDecimal(request.Litre),
+                    request.BoxSize,
+                    request.UnitSize,
+                    request.UomGroup);
+
+                if (validationError != null)
+                {
+                    response.Success = false;
+                    response.Message = $"Validation Error: {validationError}";
+                    return response;
+                }
 
                 cmd.Parameters.AddWithValue("@id", request.Id);
                 cmd.Parameters.AddWithValue("@company", (object?)request.Company ?? DBNull.Value);
@@ -1237,6 +1466,44 @@ namespace JSAPNEW.Services.Implementation
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
+                    if (IsPackagingMaterialGroup(model.ItemGroupCode, model.itemGroupName))
+                        model.IsLitre = "N";
+
+                    model.IsLitre = NormalizeYesNo(model.IsLitre);
+
+                    var validationError = ValidateItemMasterData(
+                        model.Company,
+                        model.ItemName,
+                        model.ItemGroupCode,
+                        model.itemGroupName,
+                        model.TaxRate,
+                        model.ChapterId,
+                        model.Unit,
+                        model.Brand,
+                        model.Variety,
+                        model.SubGroup,
+                        model.IsLitre,
+                        model.GrossWeight,
+                        model.Mrp,
+                        model.PackType,
+                        model.PackingType,
+                        model.FaType,
+                        model.Utype,
+                        model.SalesUom,
+                        model.InvUom,
+                        model.PurchaseUom,
+                        model.Litre,
+                        model.BoxSize,
+                        model.UnitSize,
+                        model.UomGroup);
+
+                    if (validationError != null)
+                    {
+                        response.Success = false;
+                        response.Message = $"Validation Error: {validationError}";
+                        return response;
+                    }
+
                     // Input Parameters
                     cmd.Parameters.AddWithValue("@userId", model.UserId);
                     cmd.Parameters.AddWithValue("@company", model.Company);
@@ -1495,6 +1762,52 @@ namespace JSAPNEW.Services.Implementation
                 var itemList = group.ToList();
                 var first = itemList.First();
                 int company = first.Company;
+
+                if (IsPackagingMaterialGroup(first.ItemGroupCode, first.itemGroupName))
+                    first.IsLitre = "N";
+                else
+                    first.IsLitre = NormalizeYesNo(first.IsLitre) ?? first.IsLitre;
+
+                if (IsOneOfGroupCodes(first.ItemGroupCode, "112"))
+                    first.Utype = "";
+
+                var validationError = ValidateItemMasterData(
+                    first.Company,
+                    first.ItemName,
+                    first.ItemGroupCode,
+                    first.itemGroupName,
+                    first.TaxRate,
+                    first.ChapterId,
+                    first.Unit,
+                    first.Brand,
+                    first.Variety,
+                    first.SubGroup,
+                    first.IsLitre,
+                    first.GrossWeight,
+                    first.Mrp,
+                    first.PackType,
+                    first.PackingType,
+                    first.FaType,
+                    first.Utype,
+                    first.SalesUom,
+                    first.InvUom,
+                    first.PurchaseUom,
+                    first.Litre,
+                    first.BoxSize,
+                    first.UnitSize,
+                    first.UomGroup);
+
+                if (validationError != null)
+                {
+                    results.Add(new SapItemSyncResult
+                    {
+                        ItemId = first.InitId,
+                        IsSuccess = false,
+                        Message = $"Validation Error: {validationError}",
+                        MartStatus = "Skipped - validation failed"
+                    });
+                    continue;
+                }
 
                 // ── Per-InitId gate: blocks a second concurrent POST for the same item,
                 //    regardless of entry point (approval flow, manual /Items endpoint, SFTP

@@ -574,7 +574,7 @@ namespace JSAPNEW.Services.Implementation
             AddRows(billAddresses, "B");
 
             if ((shipAddresses == null || shipAddresses.Count == 0) && model.SameAsBill && billAddresses?.Count > 0)
-                shipAddresses = billAddresses;
+                shipAddresses = billAddresses.ToList();  // 🔧 FIX: Create copy, not reference
 
             AddRows(shipAddresses, "S");
             return rows;
@@ -1157,6 +1157,66 @@ VALUES ({string.Join(", ", values)});";
             return 0;
         }
 
+        private async Task ApplyCreateSapDataFieldsAsync(
+            SqlConnection connection,
+            int masterId,
+            int sapDataId,
+            InsertBPMasterDataModel model)
+        {
+            if (masterId <= 0)
+                return;
+
+            string? cardCodePrefix = NullIfBlank(FirstText(model.CardCodePrefix, model.MgrCardCodePrefix));
+            string? bpGroupName = NullIfBlank(FirstText(model.BpGroupName, model.MgrGroup));
+            string? arAccountCode = NullIfBlank(FirstText(model.ArAccountCode, model.MgrArAccount));
+            string? apAccountCode = NullIfBlank(FirstText(model.ApAccountCode, model.MgrPurchaseAccount));
+
+            int? bpGroupCode = TryParseNullableInt(FirstText(model.BpGroupCode, model.MgrGroupCode));
+            int? paymentTermCode = TryParseNullableInt(FirstText(model.PaymentTermCode, model.MgrPayTermsCode));
+            int? salesEmployeeCode = TryParseNullableInt(FirstText(model.SalesEmployeeCode, model.MgrSalesPersonCode));
+            int? territoryId = TryParseNullableInt(FirstText(model.TerritoryId, model.MgrTerritory));
+
+            if (cardCodePrefix == null
+                && bpGroupCode == null
+                && bpGroupName == null
+                && arAccountCode == null
+                && apAccountCode == null
+                && paymentTermCode == null
+                && salesEmployeeCode == null
+                && territoryId == null)
+            {
+                return;
+            }
+
+            using var cmd = new SqlCommand("[BP].[jsUpdateSAPData]", connection);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            var updateProcedureParameters = await GetStoredProcedureParameterNamesAsync(connection, "BP", "jsUpdateSAPData");
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@id", sapDataId > 0 ? sapDataId : null);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@masterId", masterId);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@cardCodePrefix", cardCodePrefix);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupCode", bpGroupCode);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@bpGroupName", bpGroupName);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@arAccountCode", arAccountCode);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@apAccountCode", apAccountCode);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@paymentTermCode", paymentTermCode);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@salesEmployeeCode", salesEmployeeCode);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@territoryId", territoryId);
+            AddProcedureParameterIfPresent(cmd, updateProcedureParameters, "@userId", model.UserId > 0 ? model.UserId : null);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static int? TryParseNullableInt(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            return int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : null;
+        }
+
         private async Task<BpCreateRuntimeRow?> GetBpCreateRuntimeAsync(int bpCode)
         {
             if (bpCode <= 0)
@@ -1493,6 +1553,7 @@ WHERE code = @Code
                     await SaveBpAuditFieldsAsync(conn, response.GeneratedCode, model.UserId, "C");
                     await SaveBpBankCodeAsync(conn, response.GeneratedCode, primaryBank);
                     response.SapDataId = await EnsureSapDataRowAsync(conn, response.GeneratedCode, bpType, model.UserId);
+                    await ApplyCreateSapDataFieldsAsync(conn, response.GeneratedCode, response.SapDataId, model);
                 }
 
                 if (response.GeneratedCode > 0)

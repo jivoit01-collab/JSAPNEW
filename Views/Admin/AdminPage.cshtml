@@ -397,9 +397,11 @@
                         <col class="col-attachment" />
                         <col class="col-remark" />
                         <col class="col-status" />
+                            <col class="col-action" />
+                            <col class="col-remark" />
                         <col class="col-checker-remark" />
                         <col class="col-action" />
-                        <col class="col-serial" />
+                        @* <col class="col-serial" /> *@
                     </colgroup>
                     <thead>
                         <tr>
@@ -410,11 +412,13 @@
                             <th>Supplier Ref</th>
                             <th>Due Date</th>
                             <th>Attachment</th>
-                            <th>Maker Remark</th>
+                            
                             <th>Status</th>
+                                <th>Action</th>
+                                <th>Maker Remark</th>
                             <th>Checker Remark</th>
-                            <th>Action</th>
-                            <th>Serial No</th>
+                            @* <th>Action</th> *@
+                            @* <th>Serial No</th> *@
                         </tr>
                     </thead>
                     <tbody id="checkerBody"></tbody>
@@ -976,9 +980,17 @@
 
     <td class="td-attachment">${attachmentLink(x.attachmentPath)}</td>
 
-    <td class="td-remark" title="${safeAttr(x.makerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.makerRemark ?? '-')}</span></td>
+    <td class="td-status">
+    ${statusBadge(checkerStatus)}
+    </td>
 
-    <td class="td-status">${statusBadge(checkerStatus)}</td>
+    <td class="td-action-cell">
+    ${checkerRejectButton(x, checkerStatus)}
+    </td>
+
+    <td class="td-remark">
+    ${safeText(x.makerRemark ?? '-')}
+    </td>
 
     <td class="td-checker-remark">
     <input type="text"
@@ -986,10 +998,6 @@
     value="${safeValueAttr(x.checkerRemark ?? '')}"
     placeholder="Admin remark" />
     </td>
-
-    <td class="td-action-cell">${checkerRejectButton(x, checkerStatus)}</td>
-
-    <td class="td-serial"><span class="cell-text">${safeText(x.serialNumber ?? '-')}</span></td>
 
     </tr>
     `;
@@ -1917,3 +1925,4 @@
     window.addEventListener('load', initAdminTopScroll);
 </script>
 
+    
