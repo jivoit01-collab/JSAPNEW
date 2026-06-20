@@ -71,7 +71,7 @@ namespace JSAPNEW.Services.Implementation
             using (SqlConnection conn = new SqlConnection(connStr))
             {
                 string query = @"
-                    UPDATE 
+                    UPDATE AttachmentUpload
 
                     SET
                         CheckerStatus = @Status,
@@ -86,7 +86,14 @@ namespace JSAPNEW.Services.Implementation
                 cmd.Parameters.AddWithValue("@Remark", string.IsNullOrWhiteSpace(remark) ? DBNull.Value : remark);
 
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                int rowsAffected = cmd.ExecuteNonQuery();
+
+                if (rowsAffected == 0)
+                {
+                    throw new Exception(
+                        $"No rows updated. Voucher={vchNumber}"
+                    );
+                }
             }
         }
 

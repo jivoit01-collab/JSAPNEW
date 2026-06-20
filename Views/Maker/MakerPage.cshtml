@@ -246,9 +246,9 @@
                     <col class="col-date" />
                     <col class="col-date" />
                     <col class="col-attachment" />
-                    <col class="col-maker-remark" />
+                        <col class="col-action" />
                     <col class="col-status" />
-                    <col class="col-action" />
+                   
                     <col class="col-qty" />
                     <col class="col-value" />
                     <col class="col-items" />
@@ -259,16 +259,15 @@
                     <tr>
 
                         <th>Account Name</th>
-                        <th>Voucher No</th>
-                        <th>Voucher Date</th>
+                        <th>MRN</th>
+                        <th>MRN Date</th>
                         <th>Bill Amount</th>
                         <th>Supplier Ref</th>
-                        <th>Supplier Ref Date</th>
+                        <th> Ref Date</th>
                         <th>Due Date</th>
                         <th>Attachment</th>
-                        <th>Maker Remark</th>
-                        <th>Checker Status</th>
-                        <th>Action</th>
+                      <th>Action</th>
+                            <th>Checker Status</th>
                         <th>Total Qty</th>
                         <th>Total Value</th>
                         <th>Total Items</th>
@@ -392,7 +391,7 @@
     return;
     }
 
-    $("#makerBody").html(`<tr><td colspan="16" style="text-align:center;padding:30px;color:#9CA3AF">Loading...</td></tr>`);
+    $("#makerBody").html(`<tr><td colspan="15" style="text-align:center;padding:30px;color:#9CA3AF">Loading...</td></tr>`);
     resetMakerKPIs();
 
     $.get("/Maker/GetBillDetails",
@@ -403,7 +402,7 @@
     updateMakerKPIs(data || []);
     }
     ).fail(function () {
-    $("#makerBody").html(`<tr><td colspan="16" style="text-align:center;padding:30px;color:#EF4444">Error loading data. Please try again.</td></tr>`);
+    $("#makerBody").html(`<tr><td colspan="15" style="text-align:center;padding:30px;color:#EF4444">Error loading data. Please try again.</td></tr>`);
     });
     }
 
@@ -433,7 +432,7 @@
     if (!data || data.length === 0) {
     $("#exportBtn").hide();
     $("#makerBody").html(
-    `<tr><td colspan="16" class="empty-row">
+    `<tr><td colspan="15" class="empty-row">
     <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
     No data found for the selected filters.
     </td></tr>`
@@ -580,10 +579,10 @@
 
     </div>`;
 
-    /* remark cell */
-    let remarkCell = item.attachmentPath
-    ? `<span class="cell-text clamp-text">${safeText(item.makerRemark || "-")}</span>`
-    : `<input type="text" class="remarkInput f-input maker-remark-input" placeholder="Enter remark">`;
+    // remark cell
+    // let remarkCell = item.attachmentPath
+    // ? `<span class="cell-text clamp-text">${safeText(item.makerRemark || "-")}</span>`
+    // : `<input type="text" class="remarkInput f-input maker-remark-input" placeholder="Enter remark">`;
 
     
     /* action cell */
@@ -617,9 +616,9 @@
     <td class="td-date"><span class="cell-text">${safeText(item.supplierRefDate ? formatDate(item.supplierRefDate) : "-")}</span></td>
     <td class="td-date"><span class="cell-text">${safeText(item.dueDate ? formatDate(item.dueDate) : "-")}</span></td>
     <td class="td-attachment">${attachCell}</td>
-    <td class="td-remark" title="${safeAttr(item.makerRemark || '-')}">${remarkCell}</td>
-    <td class="td-status">${statusBadge}</td>
     <td class="td-action-cell">${actionCell}</td>
+    <td class="td-status">${statusBadge}</td>
+   
     <td class="td-number"><span class="cell-text">${safeText(item.totalQuantity ?? 0)}</span></td>
     <td class="td-number"><span class="cell-text">${safeText(item.totalItemValue ?? 0)}</span></td>
     <td class="td-number"><span class="cell-text">${safeText(item.totalItems ?? 0)}</span></td>
@@ -875,7 +874,7 @@
     rows.push([
     "Account Name","Voucher No","Voucher Date","Bill Amount",
     "Supplier Ref","Supplier Ref Date","Due Date",
-    "Maker Remark","Checker Status",
+    ,"Checker Status",
     "Total Qty","Total Value","Total Items",
     "Payment Status","Payment Date"
     ]);

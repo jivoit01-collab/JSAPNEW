@@ -300,10 +300,10 @@
                 <table class="dt dt-maker">
                     <colgroup>
                         <col class="col-account" />
-                        <col class="col-voucher" />
+                        <col class="col-MRN" />
                         <col class="col-date" />
                         <col class="col-amount" />
-                        <col class="col-remark" />
+                    
                         <col class="col-status" />
 
 
@@ -315,10 +315,9 @@
                     <thead>
                         <tr>
                             <th>Account Name</th>
-                            <th>Voucher No</th>
+                            <th>MRN</th>
                             <th>Date</th>
                             <th>Amount</th>
-                            <th>Remark</th>
                             <th>Status</th>
                             <th>Attachment</th>
                             <th>Delete</th>
@@ -389,13 +388,13 @@
                 <table class="dt dt-checker">
                     <colgroup>
                         <col class="col-account" />
-                        <col class="col-voucher" />
+                        <col class="col-MRN" />
                         <col class="col-date" />
                         <col class="col-amount" />
                         <col class="col-supplier" />
                         <col class="col-date" />
-                        <col class="col-attachment" />
-                        <col class="col-remark" />
+                            <col class="col-attachment" />
+
                         <col class="col-status" />
                             <col class="col-action" />
                             <col class="col-remark" />
@@ -406,7 +405,7 @@
                     <thead>
                         <tr>
                             <th>Account Name</th>
-                            <th>Voucher No</th>
+                            <th>MRN</th>
                             <th>Date</th>
                             <th>Amount</th>
                             <th>Supplier Ref</th>
@@ -415,7 +414,7 @@
                             
                             <th>Status</th>
                                 <th>Action</th>
-                                <th>Maker Remark</th>
+                                
                             <th>Checker Remark</th>
                             @* <th>Action</th> *@
                             @* <th>Serial No</th> *@
@@ -524,7 +523,7 @@
 
                         <colgroup>
                             <col class="col-account" />
-                            <col class="col-voucher" />
+                            <col class="col-MRN" />
                             <col class="col-date" />
                             <col class="col-amount" />
                             <col class="col-status" />
@@ -537,7 +536,7 @@
                         <thead>
                             <tr>
                                 <th>Account Name</th>
-                                <th>Voucher No</th>
+                                <th>MRN</th>
                                 <th>Date</th>
                                 <th>Amount</th>
                                 <th>Checker Status</th>
@@ -607,7 +606,7 @@
                 <table class="dt dt-paymentchecker">
                     <colgroup>
                         <col class="col-account" />
-                        <col class="col-voucher" />
+                        <col class="col-MRN" />
                         <col class="col-date" />
                         <col class="col-amount" />
                         <col class="col-date" />
@@ -616,7 +615,7 @@
                     <thead>
                         <tr>
                             <th>Account Name</th>
-                            <th>Voucher No</th>
+                            <th>MRN</th>
                             <th>Date</th>
                             <th>Amount</th>
                             <th>Payment Date</th>
@@ -693,7 +692,7 @@
                 </div>
                 <div class="confirm-meta" id="confirmMeta">
                     <div class="confirm-meta-row">
-                        <span>Voucher No</span>
+                        <span>MRN</span>
                         <span id="meta-vch">—</span>
                     </div>
                     <div class="confirm-meta-row">
@@ -936,7 +935,6 @@
 
     <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
 
-    <td class="td-remark" title="${safeAttr(x.makerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.makerRemark ?? '-')}</span></td>
 
     <td class="td-status">${statusBadge(x.makerStatus ?? '-')}</td>
 
@@ -948,7 +946,7 @@
     `;
     });
 
-    $('#makerBody').html(rows || emptyRow(8));
+    $('#makerBody').html(rows || emptyRow(7));
     }
 
     if(tab === 'checker')
@@ -988,9 +986,6 @@
     ${checkerRejectButton(x, checkerStatus)}
     </td>
 
-    <td class="td-remark">
-    ${safeText(x.makerRemark ?? '-')}
-    </td>
 
     <td class="td-checker-remark">
     <input type="text"
@@ -1003,7 +998,7 @@
     `;
     });
 
-    $('#checkerBody').html(rows || emptyRow(12));
+    $('#checkerBody').html(rows || emptyRow(10));
     }
 
     // if(tab === 'invoice')
@@ -1221,7 +1216,7 @@
 
     row.insertAdjacentHTML("afterend", `
     <tr id="admin-details-${safeValueAttr(vchNumber)}" class="detail-row">
-    <td colspan="12">
+    <td colspan="10">
     <div class="detail-inner">
     <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
     Loading items...
@@ -1238,63 +1233,79 @@
     clearTimeout(timeout);
 
     const items = Array.isArray(data) ? data : [];
-    const bodyRows = items.length ? items.map((item, idx) => `
+    let totalQty = 0;
+    let totalTax = 0;
+    let totalAmount = 0;
+
+    items.forEach(item => {
+    totalQty += Number(item.quantity) || 0;
+    totalTax += Number(item.taxAmount) || 0;
+    totalAmount += Number(item.amount) || 0;
+    });
+
+    const bodyRows = items.length
+    ? items.map((item, idx) => `
     <tr class="erp-item-row">
-    <td class="erp-product" title="${safeAttr(item.productName ?? "-")}">${safeText(item.productName ?? "-")}</td>
-    <td class="erp-hsn">${safeText(item.hsnsacid ?? "-")}</td>
+    <td class="erp-product">${safeText(item.productName ?? "-")}</td>
     <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
-    <td class="erp-rate">&#8377;${safeText(item.purchaseRate ?? 0)}</td>
+    <td class="erp-rate">₹${safeText(item.purchaseRate ?? 0)}</td>
     <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
     <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
-    
-    <td class="erp-taxname">${safeText(item.taxName ?? "-")}</td>
-
     <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
-
-    <td class="erp-taxamount">&#8377;${safeText(item.taxAmount ?? 0)}</td>
-    <td class="erp-mrp">&#8377;${safeText(item.mrp ?? "-")}</td>
-    <td class="erp-amount">&#8377;${safeText(item.amount ?? 0)}</td>
+    <td class="erp-taxamount">₹${safeText(item.taxAmount ?? 0)}</td>
+    <td class="erp-mrp">₹${safeText(item.mrp ?? 0)}</td>
+    <td class="erp-amount">₹${safeText(item.amount ?? 0)}</td>
     <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
-    </tr>`).join("") : `
+    </tr>
+    `).join("") + `
+    <tr style="background:#f8fafc;font-weight:700;border-top:2px solid #ccc;">
+    <td>TOTAL</td>
+    <td>${totalQty.toFixed(2)}</td>
+    <td colspan="4"></td>
+    <td>₹${totalTax.toFixed(2)}</td>
+    <td></td>
+    <td>₹${totalAmount.toFixed(2)}</td>
+    <td></td>
+    </tr>`
+    : `
     <tr class="erp-item-row">
-    <td colspan="12" class="erp-empty">No items found.</td>
+    <td colspan="10" class="erp-empty">No items found.</td>
     </tr>`;
 
     const el = document.getElementById("admin-details-" + vchNumber);
     if (el) {
     el.outerHTML = `
     <tr id="admin-details-${safeValueAttr(vchNumber)}" class="detail-row">
-    <td colspan="12" class="erp-detail-cell">
+    <td colspan="10" class="erp-detail-cell">
     <div class="erp-detail-wrap">
     <table class="erp-detail-table">
     <colgroup>
     <col class="erp-col-product" />
-    <col class="erp-col-hsn" />
+  
     <col class="erp-col-qty" />
     <col class="erp-col-rate" />
     <col class="erp-col-disc" />
     <col class="erp-col-margin" />
-    <col class="erp-col-taxname" />
+ 
     <col class="erp-col-taxrate" />
     <col class="erp-col-taxamount" />
-    <col class="erp-col-mrp" />
+    <col class="erp-col-"Selling rate"/>
     <col class="erp-col-amount" />
     <col class="erp-col-sno" />
     </colgroup>
     <thead>
     <tr>
     <th class="erp-product">Product Name</th>
-    <th class="erp-hsn">HSN/SAC</th>
+  
     <th class="erp-qty">Qty</th>
     <th class="erp-rate">Pur. Rate</th>
     <th class="erp-disc">Disc %</th>
     <th class="erp-margin">Margin %</th>
-    <th class="erp-taxname">Tax Name</th>
 
     <th class="erp-taxrate">Tax Rate</th>
 
     <th class="erp-taxamount">Tax Amount</th>
-    <th class="erp-mrp">MRP</th>
+    <th class="erp-mrp">Selling rate</th>
     <th class="erp-amount">Amount</th>
     <th class="erp-sno">Serial No</th>
     </tr>
@@ -1310,7 +1321,7 @@
     clearTimeout(timeout);
     const el = document.getElementById("admin-details-" + vchNumber);
     if (el) {
-    el.innerHTML = `<td colspan="12" class="empty-row" style="color:#EF4444">
+    el.innerHTML = `<td colspan="10" class="empty-row" style="color:#EF4444">
     ${err.name === "AbortError" ? "Request timed out" : "Error loading items"}
     </td>`;
     }
@@ -1766,7 +1777,7 @@
     var rows = [];
 
     if (tab === "maker") {
-    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Maker Remark","Maker Status","Attachment"]);
+    rows.push(["Account Name","MRN","Voucher Date","Bill Amount","Maker Status","Attachment"]);
     data.forEach(function(x) {
     rows.push([
     x.accountName    || "",
@@ -1785,7 +1796,7 @@
     }
 
     else if (tab === "checker") {
-    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Supplier Ref","Due Date","Attachment","Maker Remark","Checker Status","Checker Remark","Serial No"]);
+    rows.push(["Account Name","MRN","Voucher Date","Bill Amount","Supplier Ref","Due Date","Attachment","Checker Status","Checker Remark","Serial No"]);
     data.forEach(function(x) {
     rows.push([
     x.accountName    || "",
@@ -1807,7 +1818,7 @@
     }
 
     else if (tab === "invoice") {
-    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Checker Status","Payment Status"]);
+    rows.push(["Account Name","MRN","Voucher Date","Bill Amount","Checker Status","Payment Status"]);
     data.forEach(function(x) {
     rows.push([
     x.accountName   || "",
@@ -1827,7 +1838,7 @@
     }
 
     else if (tab === "paymentchecker") {
-    rows.push(["Account Name","Voucher No","Voucher Date","Bill Amount","Payment Date","Payment Status"]);
+    rows.push(["Account Name","MRN","Voucher Date","Bill Amount","Payment Date","Payment Status"]);
     data.forEach(function(x) {
     rows.push([
     x.accountName   || "",
