@@ -650,10 +650,13 @@ body {
     border-spacing: 0;
 }
 
-.admin-dashboard-shell .dt-maker {
+/*.admin-dashboard-shell .dt-maker {
     min-width: 980px;
 }
-
+*/
+.admin-dashboard-shell .dt-maker {
+    min-width: 1100px;
+}
 .admin-dashboard-shell .dt-checker {
     min-width: 1660px;
 }
@@ -694,20 +697,29 @@ body {
 .admin-dashboard-shell .dt-maker .col-delete {
     width: 6%;
 }*/
-.admin-dashboard-shell .dt-maker .col-account {
-    width: 260px;
+
+
+.dt-maker td,
+.dt-maker th {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.admin-dashboard-shell .dt-maker .col-voucher {
-    width: 90px;
+.admin-dashboard-shell .dt-maker .col-account {
+    width: 180px;
+}
+
+.admin-dashboard-shell .dt-maker .col-MRN {
+    width: 80px;
 }
 
 .admin-dashboard-shell .dt-maker .col-date {
-    width: 120px;
+    width: 90px;
 }
 
 .admin-dashboard-shell .dt-maker .col-amount {
-    width: 120px;
+    width: 90px;
 }
 
 .admin-dashboard-shell .dt-maker .col-remark {
@@ -715,11 +727,11 @@ body {
 }
 
 .admin-dashboard-shell .dt-maker .col-status {
-    width: 120px;
+    width: 90px;
 }
 
 .admin-dashboard-shell .dt-maker .col-attachment {
-    width: 120px;
+    width: 90px;
 }
 
 .admin-dashboard-shell .dt-maker .col-delete {
@@ -727,11 +739,11 @@ body {
 }
 
 .admin-dashboard-shell .dt-checker .col-account {
-    width: 260px;
+    width: 180px;
 }
 
-.admin-dashboard-shell .dt-checker .col-voucher {
-    width: 100px;
+.admin-dashboard-shell .dt-checker .col-MRN {
+    width: 80px;
 }
 
 .admin-dashboard-shell .dt-checker .col-date {
@@ -775,8 +787,8 @@ body {
     width: 28%;
 }
 
-.admin-dashboard-shell .dt-invoice .col-voucher,
-.admin-dashboard-shell .dt-paymentchecker .col-voucher {
+.admin-dashboard-shell .dt-invoice .col-MRN,
+.admin-dashboard-shell .dt-paymentchecker .col-MRN {
     width: 12%;
 }
 
@@ -1457,56 +1469,38 @@ body {
     scrollbar-color: #93c5fd rgba(226, 232, 240, .72);
 }
 
-.checker-dashboard-shell .checker-table-card table.dt,
-.checker-dashboard-shell .checker-workflow-table {
+/*.checker-dashboard-shell .checker-table-card table.dt,*/
+/*.checker-dashboard-shell .checker-workflow-table {*/
+/*{
     width: max-content;
-    min-width: 1500px;
-    table-layout: auto;
+    min-width: 1100px;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
+}*/
+
+/*.checker-dashboard-shell .checker-table-card table.dt {
+    width: max-content;
+    min-width: 1100px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}*/
+
+
+.checker-dashboard-shell .dt-checker {
+    min-width: 1750px;
+}
+
+.checker-dashboard-shell .td-account,
+.checker-dashboard-shell .td-voucher,
+.checker-dashboard-shell .td-supplier {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 
-
-    .checker-dashboard-shell .checker-workflow-table .col-account {
-        width: 240px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-voucher {
-        width: 120px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-date {
-        width: 120px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-amount {
-        width: 130px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-supplier {
-        width: 200px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-attachment {
-        width: 120px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-maker-remark {
-        width: 50px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-status {
-        width: 125px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-checker-remark {
-        width: 50px;
-    }
-
-    .checker-dashboard-shell .checker-workflow-table .col-action {
-        width: 220px;
-    }
 
     .checker-dashboard-shell .checker-table-card table.dt th:first-child,
     .checker-dashboard-shell .checker-table-card table.dt td:first-child,
@@ -1810,50 +1804,51 @@ body {
 .invoice-payment-shell .invoice-table-card table.dt,
 .invoice-payment-shell .invoice-payment-table {
     width: 100%;
-    min-width: 1840px;
+    min-width: 1350px;
     table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
 }
 
     .invoice-payment-shell .invoice-payment-table .col-account {
-        width: 235px;
+        width: 160px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-voucher {
-        width: 116px;
+        width: 70px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-date {
-        width: 114px;
+        width: 95px !important;
+        
     }
 
     .invoice-payment-shell .invoice-payment-table .col-amount {
-        width: 130px;
+        width: 120px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-supplier {
-        width: 190px;
+        width: 120px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-attachment {
-        width: 118px;
+        width: 100px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-checker-status {
-        width: 132px;
+        width: 100px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-payment-status {
-        width: 132px;
+        width: 90px;
     }
 
-    .invoice-payment-shell .invoice-payment-table .col-maker-remark {
+/*    .invoice-payment-shell .invoice-payment-table .col-maker-remark {
         width: 255px;
-    }
+    }*/
 
     .invoice-payment-shell .invoice-payment-table .col-checker-remark {
-        width: 255px;
+        width: 90px;
     }
 
     .invoice-payment-shell .invoice-table-card table.dt thead th {
@@ -2120,62 +2115,62 @@ body {
 .maker-dashboard-shell .maker-table-card table.dt,
 .maker-dashboard-shell .maker-workflow-table {
     width: 100%;
-    min-width: 2265px;
+    min-width: 1350px;
     table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
 }
 
     .maker-dashboard-shell .maker-workflow-table .col-account {
-        width: 240px;
+        width: 160px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-voucher {
-        width: 112px;
+        width: 70px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-date {
-        width: 112px;
+        width: 120px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-amount {
-        width: 125px;
+        width: 100px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-supplier {
-        width: 180px;
+        width: 120px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-attachment {
-        width: 210px;
+        width: 110px;
     }
 
-    .maker-dashboard-shell .maker-workflow-table .col-maker-remark {
+/*    .maker-dashboard-shell .maker-workflow-table .col-maker-remark {
         width: 230px;
-    }
+    }*/
 
     .maker-dashboard-shell .maker-workflow-table .col-status {
-        width: 125px;
+        width: 120px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-action {
-        width: 135px;
+        width: 120px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-qty {
-        width: 105px;
+        width: 100px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-value {
-        width: 125px;
+        width: 100px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-items {
-        width: 105px;
+        width: 85px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-payment-status {
-        width: 125px;
+        width: 110px;
     }
 
     .maker-dashboard-shell .maker-table-card table.dt th:first-child,
@@ -2436,50 +2431,50 @@ body {
 .payment-checker-shell .payment-checker-table-card table.dt,
 .payment-checker-shell .payment-checker-table {
     width: 100%;
-    min-width: 1845px;
+    min-width: 1180px;
     table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
 }
 
     .payment-checker-shell .payment-checker-table .col-account {
-        width: 235px;
+        width: 140px;
     }
 
     .payment-checker-shell .payment-checker-table .col-voucher {
-        width: 112px;
+        width: 60px;
     }
 
     .payment-checker-shell .payment-checker-table .col-date {
-        width: 114px;
+        width: 95px;
     }
 
     .payment-checker-shell .payment-checker-table .col-amount {
-        width: 128px;
+        width: 90px;
     }
 
     .payment-checker-shell .payment-checker-table .col-supplier {
-        width: 190px;
+        width: 90px;
     }
 
     .payment-checker-shell .payment-checker-table .col-attachment {
-        width: 118px;
+        width: 95px;
     }
 
     .payment-checker-shell .payment-checker-table .col-checker-status {
-        width: 132px;
+        width: 90px;
     }
 
     .payment-checker-shell .payment-checker-table .col-payment-status {
-        width: 132px;
+        width: 90px;
     }
 
     .payment-checker-shell .payment-checker-table .col-action {
-        width: 180px;
+        width: 90px;
     }
 
     .payment-checker-shell .payment-checker-table .col-checker-remark {
-        width: 275px;
+        width: 95px;
     }
 
     .payment-checker-shell .payment-checker-table-card table.dt thead th {
@@ -2792,7 +2787,7 @@ body {
         }
 
         .admin-dashboard-shell .dt-maker {
-            min-width: 1080px;
+            min-width: 920px;
         }
 
         .admin-dashboard-shell .dt-checker {
@@ -2854,10 +2849,10 @@ body {
     .checker-dashboard-shell .checker-workflow-table .col-attachment {
         width: 100px;
     }
-
+/*
     .checker-dashboard-shell .checker-workflow-table .col-maker-remark {
         width: 50px;
-    }
+    }*/
 
     .checker-dashboard-shell .checker-workflow-table .col-status {
         width: 100px;
@@ -2887,11 +2882,11 @@ body {
     }
 
     .invoice-payment-shell .invoice-payment-table .col-account {
-        width: 205px;
+        width: 180px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-voucher {
-        width: 104px;
+        width: 70px;
     }
 
     .invoice-payment-shell .invoice-payment-table .col-date {
@@ -2917,17 +2912,17 @@ body {
     .invoice-payment-shell .invoice-payment-table .col-payment-status {
         width: 120px;
     }
-
+/*
     .invoice-payment-shell .invoice-payment-table .col-maker-remark {
         width: 210px;
-    }
+    }*/
 
     .invoice-payment-shell .invoice-payment-table .col-checker-remark {
         width: 210px;
     }
 
     .maker-dashboard-shell .maker-workflow-table {
-        min-width: 1940px;
+        min-width: 1140px;
     }
 
     .maker-dashboard-shell .maker-table-card table.dt thead th {
@@ -2942,27 +2937,27 @@ body {
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-account {
-        width: 210px;
+        width: 140px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-voucher {
-        width: 104px;
+        width: 85px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-date {
-        width: 104px;
+        width: 90px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-amount {
-        width: 116px;
+        width: 90px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-supplier {
-        width: 160px;
+        width: 90px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-attachment {
-        width: 190px;
+        width: 100px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-maker-remark {
@@ -2970,11 +2965,11 @@ body {
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-status {
-        width: 116px;
+        width: 95px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-action {
-        width: 126px;
+        width: 100px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-qty {
@@ -2982,7 +2977,7 @@ body {
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-value {
-        width: 112px;
+        width: 90px;
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-items {
@@ -2990,7 +2985,7 @@ body {
     }
 
     .maker-dashboard-shell .maker-workflow-table .col-payment-status {
-        width: 116px;
+        width: 90px;
     }
 
     .maker-dashboard-shell .upload-zone {
@@ -3013,11 +3008,11 @@ body {
     }
 
     .payment-checker-shell .payment-checker-table .col-account {
-        width: 205px;
+        width: 180px;
     }
 
     .payment-checker-shell .payment-checker-table .col-voucher {
-        width: 104px;
+        width: 70px;
     }
 
     .payment-checker-shell .payment-checker-table .col-date {
@@ -3282,11 +3277,24 @@ body {
 .admin-dashboard-shell .erp-detail-table col.erp-col-sno {
     width: 44px;
 }
-
-.checker-dashboard-shell .erp-detail-table col.erp-col-product,
+    .checker-dashboard-shell .erp-detail-table td.erp-product,
+    .admin-dashboard-shell .erp-detail-table td.erp-product,
+    .checker-dashboard-shell .erp-detail-table th.erp-product,
+    .admin-dashboard-shell .erp-detail-table th.erp-product {
+        width: 160px !important;
+        max-width: 160px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+/*.checker-dashboard-shell .erp-detail-table col.erp-col-product,
 .admin-dashboard-shell .erp-detail-table col.erp-col-product {
     width: clamp(280px, 40vw, 520px);
-}
+}*/
+    .checker-dashboard-shell .erp-detail-table col.erp-col-product,
+    .admin-dashboard-shell .erp-detail-table col.erp-col-product {
+        width: 160px;
+    }
 
 .checker-dashboard-shell .erp-detail-table col.erp-col-hsn,
 .admin-dashboard-shell .erp-detail-table col.erp-col-hsn {
@@ -3389,23 +3397,18 @@ body {
     color: #64748b !important;
 }
 
-.checker-dashboard-shell .erp-detail-table .erp-product,
-.admin-dashboard-shell .erp-detail-table .erp-product {
-    min-width: 280px;
-    max-width: 520px;
-    color: #0f2b5b !important;
-    font-weight: 700 !important;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+    .checker-dashboard-shell .erp-detail-table .erp-product,
+    .admin-dashboard-shell .erp-detail-table .erp-product {
+        width: 140px;
+        max-width: 140px;
+        color: #0f2b5b !important;
+        font-weight: 700 !important;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 
-.checker-dashboard-shell .erp-detail-table .erp-hsn,
-.admin-dashboard-shell .erp-detail-table .erp-hsn {
-    color: #475569 !important;
-    font-family: Consolas, 'Courier New', monospace;
-    text-align: center;
-}
 
 .checker-dashboard-shell .erp-detail-table .erp-empty,
 .admin-dashboard-shell .erp-detail-table .erp-empty {
@@ -3599,4 +3602,98 @@ body {
     align-items: center;
     padding: 14px 0;
     border-bottom: 1px solid #e5e7eb;
+}
+
+
+
+
+/* =========================================
+   CHECKER PAGE FIXES
+   ========================================= */
+
+/* Date Column */
+.checker-dashboard-shell .col-date,
+.checker-dashboard-shell .td-date {
+    width: 170px !important;
+    min-width: 170px !important;
+    max-width: 170px !important;
+}
+
+    .checker-dashboard-shell .td-date .cell-text {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: unset;
+    }
+
+/* Due Date Column */
+.checker-dashboard-shell .dt-checker th:last-child,
+.checker-dashboard-shell .dt-checker td:last-child {
+    width: 140px !important;
+    min-width: 140px !important;
+}
+
+/* Checker Remark */
+.checker-dashboard-shell .col-checker-remark {
+    width: 170px !important;
+    min-width: 170px !important;
+}
+
+/* Action Column */
+.checker-dashboard-shell .col-action,
+.checker-dashboard-shell .td-action-cell {
+    width: 230px !important;
+    min-width: 230px !important;
+}
+
+/* Approve / Reject Container */
+.checker-dashboard-shell .action-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+}
+
+/* Approve / Reject Buttons */
+.checker-dashboard-shell .btn-approve,
+.checker-dashboard-shell .btn-reject {
+    width: 95px !important;
+    min-width: 95px !important;
+    height: 38px !important;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Overall Column Balancing */
+.checker-dashboard-shell .col-MRN {
+    width: 70px !important;
+    min-width: 70px !important;
+}
+
+.checker-dashboard-shell .col-amount {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
+.checker-dashboard-shell .col-supplier {
+    width: 150px !important;
+    min-width: 150px !important;
+}
+
+.checker-dashboard-shell .col-attachment {
+    width: 110px !important;
+    min-width: 110px !important;
+}
+
+.checker-dashboard-shell .col-status {
+    width: 110px !important;
+    min-width: 110px !important;
+}
+
+/* Prevent Column Overlap */
+.checker-dashboard-shell .dt-checker td,
+.checker-dashboard-shell .dt-checker th {
+    white-space: nowrap;
 }

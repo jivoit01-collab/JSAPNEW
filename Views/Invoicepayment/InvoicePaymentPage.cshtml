@@ -274,7 +274,7 @@
                         <col class="col-attachment" />
                         <col class="col-checker-status" />
                         <col class="col-payment-status" />
-                        <col class="col-maker-remark" />
+                      
                         <col class="col-checker-remark" />
                     </colgroup>
 
@@ -283,7 +283,7 @@
                         <tr>
 
                             <th>Account</th>
-                            <th>Voucher</th>
+                            <th>MRN</th>
                             <th>Date</th>
                             <th>Amount</th>
                             <th>Supplier Ref</th>
@@ -293,7 +293,7 @@
 
                             <th>Checker Status</th>
                             <th>Payment Status</th>
-                            <th>Maker Remark</th>
+                           
                             <th>Checker Remark</th>
 
                         </tr>
@@ -304,7 +304,7 @@
 
                         <tr>
 
-                            <td colspan="12"
+                            <td colspan="11"
                                 class="empty-row">
 
                                 <i class="fa-solid fa-spinner fa-spin"></i>
@@ -462,7 +462,7 @@
 
     $("#PaymentTable").html(`
     <tr>
-    <td colspan="12"
+    <td colspan="11"
     class="empty-row">
 
     <i class="fa-solid fa-spinner fa-spin"></i>
@@ -489,7 +489,7 @@
 
     $("#PaymentTable").html(`
     <tr>
-    <td colspan="12"
+    <td colspan="11"
     class="empty-row"
     style="color:#EF4444">
 
@@ -553,7 +553,7 @@
 
     $("#PaymentTable").html(`
     <tr>
-    <td colspan="12"
+    <td colspan="11"
     class="empty-row">
 
     No Data Found
@@ -582,7 +582,7 @@
 
     $("#PaymentTable").html(`
     <tr>
-    <td colspan="12"
+    <td colspan="11"
     class="empty-row">
 
     No Approved Records
@@ -672,9 +672,7 @@
     <td class="td-status">
     ${paymentBadge}
     </td>
-    <td class="td-remark" title="${safeAttr(item.makerRemark ?? '-')}">
-    <span class="cell-text clamp-text">${safeText(item.makerRemark ?? "-")}</span>
-    </td>
+    
 
     <td class="td-remark" title="${safeAttr(item.checkerRemark ?? '-')}">
     <span class="cell-text clamp-text">${safeText(item.checkerRemark ?? "-")}</span>
@@ -839,7 +837,7 @@
     "Account Name","Voucher No","Voucher Date","Bill Amount",
     "Supplier Ref","Ref Date","Due Date",
     "Checker Status","Payment Status",
-    "Maker Remark","Checker Remark"
+  ,"Checker Remark"
     ]);
 
     data.forEach(function(item) {
@@ -853,7 +851,7 @@
     formatDate(item.dueDate)          || "",
     item.checkerStatus || "",
     item.paymentStatus || "",
-    item.makerRemark   || "",
+ 
     item.checkerRemark || ""
     ]);
     });
