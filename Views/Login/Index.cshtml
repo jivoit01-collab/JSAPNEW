@@ -206,9 +206,11 @@
                 });
 
 
-                if (!loginRes.ok) throw new Error("Invalid login");
-
                 const loginData = await loginRes.json();
+                if (!loginRes.ok || !loginData.success) {
+                    throw new Error(loginData.message || "Invalid login");
+                }
+
                 console.log("Login Response:", loginData);
 
                 const userId = loginData.user.userId;

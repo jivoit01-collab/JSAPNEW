@@ -54,11 +54,38 @@ namespace JSAPNEW.Services.Implementation
 
                     string EncryptedPassword = Encryption.Encrypt(request.password);
 
-                    var user = await connection.QueryFirstOrDefaultAsync<UserDto>(
-                        "jsCheckLogin",
-                        new { loginUser = request.loginUser, password = EncryptedPassword },
-                        commandType: CommandType.StoredProcedure
-                    );
+                    UserDto user;
+
+                    try
+                    {
+                        user = await connection.QueryFirstOrDefaultAsync<UserDto>(
+                            "jsCheckLogin",
+                            new { loginUser = request.loginUser, password = EncryptedPassword },
+                            commandType: CommandType.StoredProcedure
+                        );
+                    }
+                    catch (SqlException ex) when (IsSqlLoginError(ex, "Wrong Password"))
+                    {
+                        var legacyResponse = await ValidateLegacyPasswordUserAsync(connection, request.loginUser, request.password);
+                        if (legacyResponse != null)
+                        {
+                            return legacyResponse;
+                        }
+
+                        return new LoginResponse
+                        {
+                            Success = false,
+                            Message = "Wrong Password"
+                        };
+                    }
+                    catch (SqlException ex) when (IsKnownLoginError(ex))
+                    {
+                        return new LoginResponse
+                        {
+                            Success = false,
+                            Message = GetLoginErrorMessage(ex)
+                        };
+                    }
 
                     if (user == null)
                     {
@@ -79,12 +106,155 @@ namespace JSAPNEW.Services.Implementation
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error validating login for user {LoginUser}", request.loginUser);
                 return new LoginResponse
                 {
                     Success = false,
                     Message = "An unexpected error occurred. Please try again."
                 };
             }
+        }
+
+        private async Task<LoginResponse?> ValidateLegacyPasswordUserAsync(SqlConnection connection, string loginUser, string plainPassword)
+        {
+            var user = await connection.QueryFirstOrDefaultAsync<LoginPasswordRow>(
+                @"SELECT TOP (1)
+                    userId AS UserId,
+                    loginUser AS LoginUser,
+                    [password] AS Password
+                  FROM jsUser
+                  WHERE loginUser = @loginUser",
+                new { loginUser });
+
+            if (user == null)
+            {
+                return null;
+            }
+
+            bool isPasswordValid;
+            if (IsBCryptHash(user.Password))
+            {
+                try
+                {
+                    isPasswordValid = BCrypt.Net.BCrypt.Verify(plainPassword, user.Password);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Unable to verify BCrypt password for user {LoginUser}", loginUser);
+                    return null;
+                }
+            }
+            else if (IsLegacyPlainTextPassword(user.Password, plainPassword))
+            {
+                isPasswordValid = true;
+            }
+            else
+            {
+                return null;
+            }
+
+            if (!isPasswordValid)
+            {
+                return null;
+            }
+
+            var activeCompanies = await connection.ExecuteScalarAsync<int>(
+                @"SELECT ISNULL(SUM(CAST(isActive AS INT)), 0)
+                  FROM jsUserCompany juc
+                  JOIN jsUser ju ON juc.userId = ju.userId
+                  WHERE ju.loginUser = @loginUser",
+                new { loginUser = user.LoginUser });
+
+            if (activeCompanies < 1)
+            {
+                return new LoginResponse
+                {
+                    Success = false,
+                    Message = "User Not Active"
+                };
+            }
+
+            return new LoginResponse
+            {
+                Success = true,
+                Message = "Login successful",
+                User = new UserDto
+                {
+                    userId = user.UserId,
+                    userName = user.LoginUser,
+                    loginUser = user.LoginUser
+                }
+            };
+        }
+
+        private static bool IsBCryptHash(string password)
+        {
+            return !string.IsNullOrWhiteSpace(password)
+                && (password.StartsWith("$2a$", StringComparison.Ordinal)
+                    || password.StartsWith("$2b$", StringComparison.Ordinal)
+                    || password.StartsWith("$2y$", StringComparison.Ordinal));
+        }
+
+        private static bool IsLegacyPlainTextPassword(string storedPassword, string plainPassword)
+        {
+            return !LooksLikeAesPassword(storedPassword)
+                && string.Equals(storedPassword, plainPassword, StringComparison.Ordinal);
+        }
+
+        private static bool LooksLikeAesPassword(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length != 24)
+            {
+                return false;
+            }
+
+            try
+            {
+                return Convert.FromBase64String(password).Length == 16;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        private static bool IsKnownLoginError(SqlException ex)
+        {
+            return IsSqlLoginError(ex, "User not found")
+                || IsSqlLoginError(ex, "Wrong Password")
+                || IsSqlLoginError(ex, "User Not Active");
+        }
+
+        private static bool IsSqlLoginError(SqlException ex, string message)
+        {
+            return ex.Message.Contains(message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string GetLoginErrorMessage(SqlException ex)
+        {
+            if (IsSqlLoginError(ex, "User not found"))
+            {
+                return "User not found.";
+            }
+
+            if (IsSqlLoginError(ex, "User Not Active"))
+            {
+                return "User Not Active";
+            }
+
+            if (IsSqlLoginError(ex, "Wrong Password"))
+            {
+                return "Wrong Password";
+            }
+
+            return "Invalid username or password";
+        }
+
+        private sealed class LoginPasswordRow
+        {
+            public int UserId { get; set; }
+            public string LoginUser { get; set; } = string.Empty;
+            public string Password { get; set; } = string.Empty;
         }
 
         public async Task<UserDto> GetUserByIdAsync(int userId)
