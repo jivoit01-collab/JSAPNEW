@@ -193,7 +193,7 @@
         </div>
 
         <div class="t-wrap" id="tableWrap">
-                <table class="dt dt-checker" id="checkerDt">
+                <table class="dt dt-checker checker-workflow-table" id="checkerDt">
                 <colgroup>
                     <col class="col-account" />
                         <col class="col-MRN" />
@@ -462,6 +462,106 @@
     function safeValueAttr(value) {
     if (value === null || value === undefined) return "";
     return $("<div>").text(value).html().replace(/"/g, "&quot;");
+    }
+
+    function toInvoiceNumber(value) {
+    if (value === null || value === undefined || value === "") return 0;
+    const normalized = String(value).replace(/[₹,\s%]/g, "");
+    const numberValue = Number(normalized);
+    return Number.isFinite(numberValue) ? numberValue : 0;
+    }
+
+    function roundInvoiceAmount(value) {
+    return Math.round((Number(value) || 0) * 100) / 100;
+    }
+
+    function formatInvoiceAmount(value) {
+    return roundInvoiceAmount(value).toFixed(2);
+    }
+
+    function getTaxableValue(item) {
+    const direct = toInvoiceNumber(item.itemValue ?? item.amount);
+    if (direct) return direct;
+
+    const quantity = toInvoiceNumber(item.quantity);
+    const rate = toInvoiceNumber(item.purchaseRate);
+    const discountAmount = toInvoiceNumber(item.discountAmount);
+    return Math.max(0, (quantity * rate) - discountAmount);
+    }
+
+    function buildGstTaxSummary(items) {
+    const groups = new Map();
+
+    (items || []).forEach(item => {
+    const rate = roundInvoiceAmount(toInvoiceNumber(item.taxRate ?? item.tax));
+    const key = rate.toFixed(2);
+    const taxable = getTaxableValue(item);
+    const taxNameRaw = String(item.taxName || "").trim();
+    const taxName = taxNameRaw && taxNameRaw !== "-"
+    ? taxNameRaw
+    : (rate === 0 ? "Input GST 0%" : `Input GST ${formatInvoiceAmount(rate).replace(/\.00$/, "")}% (Excl)`);
+    const calculatedTax = taxable * rate / 100;
+    const itemTax = toInvoiceNumber(item.taxAmount) || calculatedTax;
+    const isIgst = /igst/i.test(taxNameRaw);
+
+    if (!groups.has(key)) {
+    groups.set(key, { rate, taxName, taxable: 0, cgst: 0, sgst: 0, igst: 0 });
+    }
+
+    const group = groups.get(key);
+    group.taxable += taxable;
+    if (isIgst) {
+    group.igst += itemTax;
+    } else {
+    group.cgst += itemTax / 2;
+    group.sgst += itemTax / 2;
+    }
+    });
+
+    const rows = Array.from(groups.values()).sort((a, b) => b.rate - a.rate);
+    const total = rows.reduce((sum, row) => ({
+    taxable: sum.taxable + row.taxable,
+    cgst: sum.cgst + row.cgst,
+    sgst: sum.sgst + row.sgst,
+    igst: sum.igst + row.igst
+    }), { taxable: 0, cgst: 0, sgst: 0, igst: 0 });
+
+    const body = rows.length
+    ? rows.map(row => `
+    <tr>
+    <td class="tax-name">${safeText(row.taxName)}</td>
+    <td>₹${formatInvoiceAmount(row.taxable)}</td>
+    <td>₹${formatInvoiceAmount(row.cgst)}</td>
+    <td>₹${formatInvoiceAmount(row.sgst)}</td>
+    <td>₹${formatInvoiceAmount(row.igst)}</td>
+    </tr>`).join("")
+    : `<tr><td colspan="5" class="erp-empty">No tax summary found.</td></tr>`;
+
+    return `
+    <div class="erp-tax-summary-wrap">
+    <div class="erp-tax-summary-title">Tax Summary</div>
+    <table class="erp-tax-summary-table">
+    <thead>
+    <tr>
+    <th>Tax Name</th>
+    <th>Taxable Value</th>
+    <th>CGST</th>
+    <th>SGST</th>
+    <th>IGST</th>
+    </tr>
+    </thead>
+    <tbody>
+    ${body}
+    <tr class="grand-total">
+    <td>Grand Total</td>
+    <td>₹${formatInvoiceAmount(total.taxable)}</td>
+    <td>₹${formatInvoiceAmount(total.cgst)}</td>
+    <td>₹${formatInvoiceAmount(total.sgst)}</td>
+    <td>₹${formatInvoiceAmount(total.igst)}</td>
+    </tr>
+    </tbody>
+    </table>
+    </div>`;
     }
 
     /* render table */
@@ -805,6 +905,7 @@
     <td>₹${totalAmount.toFixed(2)}</td>
     <td></td>
     </tr>`;
+    const taxSummaryRows = buildGstTaxSummary(items);
 
     const el = document.getElementById("details-" + vchNumber);
     if (el) {
@@ -823,7 +924,7 @@
 
     <col class="erp-col-taxrate" />
     <col class="erp-col-taxamount" />
-    <col class="erp-col-selling rate" />
+    <col class="erp-col-mrp" />
     <col class="erp-col-amount" />
     <col class="erp-col-sno" />
     </colgroup>
@@ -843,7 +944,7 @@
     <th class="erp-taxamount">Tax Amount</th>
 
    
-    <th class="erp-mrp">selling rate</th>
+    <th class="erp-mrp">Selling rate</th>
 
     <th class="erp-amount">Amount</th>
     <th class="erp-sno">Serial No</th>
@@ -851,6 +952,7 @@
     </thead>
     <tbody>${bodyRows}</tbody>
     </table>
+    ${taxSummaryRows}
     </div>
     </td>
     </tr>`;

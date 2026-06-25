@@ -320,6 +320,151 @@ WHERE p.object_id = OBJECT_ID(@ProcedureName);",
                 new { FileId = fileId });
         }
 
+        public Task<DocumentHubSaveResultDto> SaveEditedExcelAsync(
+            int fileId,
+            Stream workbookStream,
+            long fileSize,
+            string contentType,
+            int userId,
+            string userName,
+            string? ipAddress = null)
+        {
+            return SaveEditedSpreadsheetAsync(fileId, workbookStream, fileSize, contentType, userId, userName, ipAddress);
+        }
+
+        public async Task<DocumentHubSaveResultDto> SaveEditedSpreadsheetAsync(
+            int fileId,
+            Stream workbookStream,
+            long fileSize,
+            string contentType,
+            int userId,
+            string userName,
+            string? ipAddress = null)
+        {
+            var file = await GetFileAsync(fileId);
+            if (file == null)
+                return new DocumentHubSaveResultDto { Success = false, Message = "File record was not found." };
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!IsSpreadsheetExtension(extension))
+                extension = Path.GetExtension(file.StoredFileName);
+
+            if (!IsSpreadsheetExtension(extension))
+                return new DocumentHubSaveResultDto { Success = false, Message = "Only Excel and CSV files can be edited online." };
+
+            Directory.CreateDirectory(GetUploadRoot());
+
+            var currentPath = Path.Combine(GetUploadRoot(), Path.GetFileName(file.StoredFileName));
+            if (!File.Exists(currentPath))
+                return new DocumentHubSaveResultDto { Success = false, Message = "The stored spreadsheet file is missing." };
+
+            var versionStoredFileName = $"{Guid.NewGuid():N}{extension}";
+            var versionPath = Path.Combine(GetUploadRoot(), versionStoredFileName);
+            var stagedPath = Path.Combine(GetUploadRoot(), $"{Guid.NewGuid():N}.staged{extension}");
+            var rollbackPath = Path.Combine(GetUploadRoot(), $"{Guid.NewGuid():N}.rollback{extension}");
+            var versionCommitted = false;
+
+            try
+            {
+                await using (var stagedStream = new FileStream(stagedPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    await workbookStream.CopyToAsync(stagedStream);
+
+                var savedSize = new FileInfo(stagedPath).Length;
+                if (savedSize <= 0)
+                    return new DocumentHubSaveResultDto { Success = false, Message = "The edited spreadsheet was empty." };
+
+                File.Copy(currentPath, versionPath, overwrite: false);
+                ReplaceCurrentFile(stagedPath, currentPath, rollbackPath);
+
+                using var con = new SqlConnection(_connectionString);
+                await con.OpenAsync();
+                using var tx = con.BeginTransaction();
+
+                try
+                {
+                    var currentVersion = file.VersionNumber > 0 ? file.VersionNumber : 1;
+                    var newVersion = currentVersion + 1;
+                    var versionFileSize = new FileInfo(versionPath).Length;
+                    var versionColumns = await GetTableColumnNamesAsync(con, tx, "DocumentHubFileVersions");
+
+                    await InsertVersionAsync(con, tx, versionColumns, new
+                    {
+                        VersionId = 0,
+                        file.FileId,
+                        VersionNumber = currentVersion,
+                        file.FileName,
+                        StoredFileName = versionStoredFileName,
+                        ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? GetContentType(extension) : file.ContentType,
+                        FileType = extension.TrimStart('.').ToUpperInvariant(),
+                        FileSize = versionFileSize,
+                        UploadedBy = userName,
+                        UploadedByUserId = userId,
+                        UploadedDate = DateTime.UtcNow
+                    }, insertVersionId: false);
+
+                    await con.ExecuteAsync(@"
+UPDATE DocumentHubFiles
+SET FileSize = @FileSize,
+    ContentType = @ContentType,
+    FileType = @FileType,
+    VersionNumber = @VersionNumber
+WHERE FileId = @FileId
+  AND ISNULL(IsDeleted, 0) = 0;",
+                        new
+                        {
+                            FileId = fileId,
+                            FileSize = savedSize,
+                            ContentType = string.IsNullOrWhiteSpace(contentType) ? GetContentType(extension) : contentType,
+                            FileType = extension.TrimStart('.').ToUpperInvariant(),
+                            VersionNumber = newVersion
+                        },
+                        tx);
+
+                    await con.ExecuteAsync(
+                        "DocumentHub_LogActivity",
+                        new
+                        {
+                            FileId = fileId,
+                            FolderId = file.FolderId,
+                            UserId = userId,
+                            UserName = userName,
+                            Action = "Edit Spreadsheet",
+                            Details = $"Saved online spreadsheet edit as v{newVersion}",
+                            IpAddress = ipAddress
+                        },
+                        tx,
+                        commandType: CommandType.StoredProcedure);
+
+                    tx.Commit();
+                    versionCommitted = true;
+                    return new DocumentHubSaveResultDto
+                    {
+                        Success = true,
+                        Message = "Spreadsheet saved.",
+                        VersionNumber = newVersion,
+                        FileSize = savedSize
+                    };
+                }
+                catch
+                {
+                    tx.Rollback();
+                    RestoreRollbackFile(rollbackPath, currentPath, versionPath);
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                return new DocumentHubSaveResultDto { Success = false, Message = $"Unable to save spreadsheet: {ex.Message}" };
+            }
+            finally
+            {
+                TryDeleteFile(stagedPath);
+                TryDeleteFile(rollbackPath);
+                if (!versionCommitted)
+                    TryDeleteFile(versionPath);
+            }
+        }
+
         public async Task<bool> RenameFileAsync(
     int fileId,
     string fileName,
@@ -520,6 +665,57 @@ WHERE FileId = @FileId AND ISNULL(IsDeleted, 0) = 0;",
                 ".csv" => "text/csv",
                 _ => "application/octet-stream"
             };
+        }
+
+        private static bool IsSpreadsheetExtension(string? extension)
+        {
+            return string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(extension, ".xls", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+                // Best-effort cleanup only.
+            }
+        }
+
+        private static void ReplaceCurrentFile(string stagedPath, string currentPath, string rollbackPath)
+        {
+            try
+            {
+                File.Replace(stagedPath, currentPath, rollbackPath, ignoreMetadataErrors: true);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                File.Copy(currentPath, rollbackPath, overwrite: false);
+                File.Copy(stagedPath, currentPath, overwrite: true);
+            }
+            catch (IOException)
+            {
+                if (!File.Exists(rollbackPath))
+                    File.Copy(currentPath, rollbackPath, overwrite: false);
+                File.Copy(stagedPath, currentPath, overwrite: true);
+            }
+        }
+
+        private static void RestoreRollbackFile(string rollbackPath, string currentPath, string versionPath)
+        {
+            if (File.Exists(rollbackPath))
+            {
+                File.Copy(rollbackPath, currentPath, overwrite: true);
+                return;
+            }
+
+            if (File.Exists(versionPath))
+                File.Copy(versionPath, currentPath, overwrite: true);
         }
 
         private async Task<string> GetUserRoleAsync(int userId)

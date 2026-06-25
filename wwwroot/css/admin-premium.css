@@ -3281,8 +3281,8 @@ body {
     .admin-dashboard-shell .erp-detail-table td.erp-product,
     .checker-dashboard-shell .erp-detail-table th.erp-product,
     .admin-dashboard-shell .erp-detail-table th.erp-product {
-        width: 160px !important;
-        max-width: 160px !important;
+        width: 190px !important;
+        max-width: 190px !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -3293,7 +3293,7 @@ body {
 }*/
     .checker-dashboard-shell .erp-detail-table col.erp-col-product,
     .admin-dashboard-shell .erp-detail-table col.erp-col-product {
-        width: 160px;
+        width: 190px;
     }
 
 .checker-dashboard-shell .erp-detail-table col.erp-col-hsn,
@@ -3399,8 +3399,8 @@ body {
 
     .checker-dashboard-shell .erp-detail-table .erp-product,
     .admin-dashboard-shell .erp-detail-table .erp-product {
-        width: 140px;
-        max-width: 140px;
+        width: 190px;
+        max-width: 190px;
         color: #0f2b5b !important;
         font-weight: 700 !important;
         text-align: left;
@@ -3445,6 +3445,110 @@ body {
 .admin-dashboard-shell .erp-detail-table .erp-amount,
 .admin-dashboard-shell .erp-detail-table .erp-taxamount {
     font-weight: 800 !important;
+}
+
+.checker-dashboard-shell .checker-table-card .erp-detail-table th:first-child,
+.checker-dashboard-shell .checker-table-card .erp-detail-table td:first-child {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    background: inherit;
+}
+
+.checker-dashboard-shell .checker-table-card .erp-detail-table th.erp-product,
+.checker-dashboard-shell .checker-table-card .erp-detail-table td.erp-product {
+    min-width: 190px !important;
+    width: 190px !important;
+    max-width: 190px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.checker-dashboard-shell .checker-table-card .erp-detail-table th,
+.checker-dashboard-shell .checker-table-card .erp-detail-table td {
+    height: 24px !important;
+    padding: 2px 5px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+.checker-dashboard-shell .erp-tax-summary-wrap,
+.admin-dashboard-shell .erp-tax-summary-wrap {
+    margin-top: 8px;
+    width: max-content;
+    min-width: min(100%, 620px);
+    max-width: 100%;
+}
+
+.checker-dashboard-shell .erp-tax-summary-title,
+.admin-dashboard-shell .erp-tax-summary-title {
+    padding: 5px 7px;
+    color: #0f172a;
+    background: #f1f5f9;
+    border: 1px solid #b8c2cc;
+    border-bottom: 0;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.checker-dashboard-shell .erp-tax-summary-table,
+.admin-dashboard-shell .erp-tax-summary-table {
+    width: max-content;
+    min-width: 620px;
+    border-collapse: collapse;
+    background: #ffffff;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.checker-dashboard-shell .erp-tax-summary-table th,
+.checker-dashboard-shell .erp-tax-summary-table td,
+.admin-dashboard-shell .erp-tax-summary-table th,
+.admin-dashboard-shell .erp-tax-summary-table td {
+    box-sizing: border-box;
+    height: 24px !important;
+    min-height: 24px;
+    padding: 2px 6px !important;
+    border: 1px solid #b8c2cc;
+    vertical-align: middle;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.checker-dashboard-shell .erp-tax-summary-table th,
+.admin-dashboard-shell .erp-tax-summary-table th {
+    color: #1f2937 !important;
+    background: #e7edf5 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    text-align: right;
+}
+
+.checker-dashboard-shell .erp-tax-summary-table th:first-child,
+.checker-dashboard-shell .erp-tax-summary-table td.tax-name,
+.checker-dashboard-shell .erp-tax-summary-table .grand-total td:first-child,
+.admin-dashboard-shell .erp-tax-summary-table th:first-child,
+.admin-dashboard-shell .erp-tax-summary-table td.tax-name,
+.admin-dashboard-shell .erp-tax-summary-table .grand-total td:first-child {
+    min-width: 220px;
+    max-width: 260px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.checker-dashboard-shell .erp-tax-summary-table .grand-total td,
+.admin-dashboard-shell .erp-tax-summary-table .grand-total td {
+    background: #f8fafc;
+    font-weight: 900 !important;
+    border-top: 2px solid #94a3b8;
 }
 .admin-dashboard-shell .top-scroll {
     display: block;

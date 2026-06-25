@@ -12,6 +12,8 @@ namespace JSAPNEW.Services.Interfaces
         Task<bool> RenameFolderAsync(int folderId, string folderName, int userId, string userName);
         Task<bool> DeleteFolderAsync(int folderId, int userId, string userName);
         Task<DocumentHubUploadResultDto> UploadFilesAsync(DocumentHubUploadRequest request, int userId, string userName);
+        Task<DocumentHubSaveResultDto> SaveEditedSpreadsheetAsync(int fileId, Stream workbookStream, long fileSize, string contentType, int userId, string userName, string? ipAddress = null);
+        Task<DocumentHubSaveResultDto> SaveEditedExcelAsync(int fileId, Stream workbookStream, long fileSize, string contentType, int userId, string userName, string? ipAddress = null);
         Task<DocumentHubFileDto?> GetFileAsync(int fileId);
         Task<bool> RenameFileAsync(int fileId, string fileName, int userId, string userName);
         Task<bool> DeleteFileAsync(int fileId, int userId, string userName);

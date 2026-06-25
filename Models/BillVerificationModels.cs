@@ -171,6 +171,14 @@ namespace JSAPNEW.Models
         public List<string> Conflicts { get; set; } = new();
     }
 
+    public class DocumentHubSaveResultDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public int VersionNumber { get; set; }
+        public long FileSize { get; set; }
+    }
+
     public class DocumentHubVersionDto
     {
         public int VersionId { get; set; }

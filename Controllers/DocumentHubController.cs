@@ -225,6 +225,81 @@ namespace JSAPNEW.Controllers
             return PhysicalFile(path, file.ContentType);
         }
 
+        [HttpGet]
+        [Route("DocumentHub/SpreadsheetEditor/{fileId:int}")]
+        public async Task<IActionResult> SpreadsheetEditor(int fileId, int? folderId, string? filter, string? search)
+        {
+            if (!IsLoggedIn())
+                return RedirectToAction("Index", "Login");
+
+            var permissions = await GetCurrentPermissionsAsync();
+            if (!permissions.CanView)
+                return RedirectToAction("Index", "DashboardWeb");
+
+            var file = await GetAccessibleFileAsync(fileId, "Open Spreadsheet Editor");
+            if (file == null)
+                return Unauthorized();
+
+            if (!IsSpreadsheetFile(file))
+                return BadRequest("Only Excel workbooks and CSV files can be opened in the spreadsheet editor.");
+
+            ViewBag.DocumentHubPermissions = permissions;
+            ViewBag.FileId = fileId;
+            ViewBag.FileName = file.FileName;
+            ViewBag.FileType = file.FileType;
+            ViewBag.FileSize = file.FileSize;
+            ViewBag.VersionNumber = file.VersionNumber;
+            ViewBag.ReturnFolderId = folderId;
+            ViewBag.ReturnFilter = filter ?? string.Empty;
+            ViewBag.ReturnSearch = search ?? string.Empty;
+            return View("~/Views/Documenthub/ExcelEditor.cshtml");
+        }
+
+        [HttpGet]
+        public Task<IActionResult> ExcelEditor(int fileId, int? folderId, string? filter, string? search)
+        {
+            return SpreadsheetEditor(fileId, folderId, filter, search);
+        }
+
+        [HttpPost]
+        [RequestSizeLimit(209_715_200)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 209_715_200)]
+        public async Task<IActionResult> SaveSpreadsheet(int fileId, IFormFile workbook)
+        {
+            if (!await CanUploadAsync())
+                return Forbid();
+
+            var file = await GetAccessibleFileAsync(fileId, "Save Spreadsheet");
+            if (file == null)
+                return Unauthorized();
+
+            if (!IsSpreadsheetFile(file))
+                return Json(new DocumentHubSaveResultDto { Success = false, Message = "Only Excel workbooks and CSV files can be edited online." });
+
+            if (workbook == null || workbook.Length == 0)
+                return Json(new DocumentHubSaveResultDto { Success = false, Message = "No spreadsheet content was received." });
+
+            await using var stream = workbook.OpenReadStream();
+            var result = await _service.SaveEditedSpreadsheetAsync(
+                fileId,
+                stream,
+                workbook.Length,
+                string.IsNullOrWhiteSpace(workbook.ContentType) ? GetPreviewContentType(file) : workbook.ContentType,
+                CurrentUserId(),
+                CurrentUserName(),
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1");
+
+            return Json(result);
+        }
+
+        [HttpPost]
+        [RequestSizeLimit(209_715_200)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 209_715_200)]
+        public Task<IActionResult> SaveExcel(int fileId, IFormFile workbook)
+        {
+            return SaveSpreadsheet(fileId, workbook);
+        }
+
         [HttpPost]
         public async Task<IActionResult> RenameFile(int fileId, string fileName)
         {
@@ -860,6 +935,18 @@ namespace JSAPNEW.Controllers
         {
             var safeName = Path.GetFileName(fileName ?? "document");
             return safeName.Replace("\"", "'");
+        }
+
+        private static bool IsSpreadsheetFile(DocumentHubFileDto file)
+        {
+            var fileType = (file.FileType ?? string.Empty).TrimStart('.');
+            var extension = Path.GetExtension(file.FileName ?? string.Empty).TrimStart('.');
+            return fileType.Equals("xls", StringComparison.OrdinalIgnoreCase)
+                || fileType.Equals("xlsx", StringComparison.OrdinalIgnoreCase)
+                || fileType.Equals("csv", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals("xls", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals("xlsx", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals("csv", StringComparison.OrdinalIgnoreCase);
         }
 
         //private static bool CanPreview(string fileType)

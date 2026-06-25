@@ -95,7 +95,7 @@
         border: 1px solid var(--hub-border);
         border-radius: 12px;
         box-shadow: 0 4px 20px -2px rgba(15,23,42,.04);
-        overflow: hidden;
+        overflow: visible;
     }
 
     /* ── Sidebar ── */
@@ -323,6 +323,97 @@
     .item-title { font-size: 13.5px; font-weight: 700; color: var(--hub-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
     .item-meta { font-size: 11.5px; color: var(--hub-muted); margin-top: 2px; }
 
+    .doc-hub-container #folderGrid,
+    .doc-hub-container #fileGridView {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+        margin: 0;
+        width: 100%;
+    }
+
+    .doc-hub-container #folderGrid > [class*="col-"],
+    .doc-hub-container #fileGridView > [class*="col-"] {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0;
+        flex: none !important;
+        padding: 0 !important;
+    }
+
+    .doc-hub-container .folder-card,
+    .doc-hub-container .file-card {
+        min-width: 220px;
+        height: 148px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 36px 16px;
+    }
+
+    .doc-hub-container .folder-card .card-top,
+    .doc-hub-container .file-card .card-top {
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-align: center;
+    }
+
+    .doc-hub-container .folder-card .item-icon,
+    .doc-hub-container .file-card .item-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+        margin: 0 auto;
+    }
+
+    .doc-hub-container .folder-card .item-info,
+    .doc-hub-container .file-card .item-info {
+        width: 100%;
+        min-width: 0;
+        flex: 0 1 auto;
+        text-align: center;
+    }
+
+    .doc-hub-container .folder-card .item-title,
+    .doc-hub-container .file-card .item-title {
+        display: block;
+        width: 100%;
+        max-width: 100% !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.25;
+    }
+
+    .doc-hub-container .folder-card .item-meta,
+    .doc-hub-container .file-card .item-meta {
+        display: block;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: center;
+        line-height: 1.25;
+    }
+
+    .doc-hub-container .folder-card .dropdown,
+    .doc-hub-container .file-card .dropdown {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .doc-hub-container .folder-card .item-menu-btn,
+    .doc-hub-container .file-card .item-menu-btn {
+        margin-left: 0;
+    }
+
     .item-menu-btn {
         width: 28px;
         height: 28px;
@@ -352,7 +443,7 @@
         border: 1px solid var(--hub-border);
         border-radius: 8px;
         box-shadow: 0 14px 30px rgba(15,23,42,.14);
-        z-index: 1080;
+        z-index: 99999 !important;
     }
     .doc-hub-container .dropdown-menu.show {
         display: block;
@@ -380,10 +471,12 @@
         border: 1px solid var(--hub-border);
         border-radius: 8px;
         box-shadow: 0 14px 30px rgba(15,23,42,.14);
-        z-index: 99999;
+        z-index: 99999 !important;
         background: #fff;
         list-style: none;
         margin: 0;
+        opacity: 1 !important;
+        visibility: visible !important;
     }
     #hubFloatingItemMenu.hub-floating-menu.show {
         display: block;
@@ -448,7 +541,7 @@
         margin-bottom: 12px;
         border: 1px solid var(--hub-border);
     }
-    .detail-filename { font-size: 15px; font-weight: 700; margin: 0; word-break: break-all; }
+    .detail-filename { font-size: 15px; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .detail-table th { font-size: 12px; font-weight: 600; color: var(--hub-muted); padding: 6px 0; width: 40%; }
     .detail-table td { font-size: 12.5px; color: var(--hub-primary); padding: 6px 0; text-align: right; }
     .detail-actions { display: flex; flex-direction: column; gap: 8px; }
@@ -1197,7 +1290,8 @@
         restore:      perms => !!perms.canManageFolders,
         confidential: perms => !!perms.canDelete,
         versionRestore: perms => !!perms.canRename,
-        favorite:     perms => !!perms.canRename
+        favorite:     perms => !!perms.canRename,
+        editExcel:    perms => !!perms.canUpload
     };
 
     const DH_FOLDER_MENU_DEBUG = true;
@@ -1228,6 +1322,13 @@
        INIT
     ───────────────────────────────────────────── */
     $(function () {
+        const initialParams = new URLSearchParams(window.location.search);
+        if (initialParams.has("folderId")) hub.folderId = parseNullInt(initialParams.get("folderId"));
+        if (initialParams.has("filter")) hub.filter = initialParams.get("filter") || "";
+        if (initialParams.has("search")) {
+            hub.search = initialParams.get("search") || "";
+            $("#hubSearch").val(hub.search);
+        }
         requestLoadHub("init");
 
         hubSearchInputHandler = debounce(function (e) {
@@ -1528,7 +1629,7 @@
     }
 
     function closeItemMenus(e) {
-        if (e?.target && $(e.target).closest(".item-menu-host,.folder-menu-btn,#hubFloatingItemMenu").length) {
+        if (e?.target && $(e.target).closest(".item-menu-host,.dropdown,.item-menu-btn,.folder-menu-btn,#hubFloatingItemMenu").length) {
             cancelPendingSearchReload("folder-menu-close");
         }
         debugFolderMenu("closeItemMenus", { target: e?.target?.className || e?.target?.tagName });
@@ -1804,7 +1905,7 @@
         hub.viewMode = mode;
         $("#toggleGridBtn").toggleClass("active-toggle", mode === "grid");
         $("#toggleListBtn").toggleClass("active-toggle", mode === "list");
-        $("#fileGridView").toggle(mode === "grid");
+        $("#fileGridView").css("display", mode === "grid" ? "grid" : "none");
         $("#fileListView").toggle(mode === "list");
         renderFiles();
         applyDocumentHubPermissions("setViewMode");
@@ -1901,7 +2002,9 @@
             </li>
         `;
     }
-        let m = `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'view')"><i class="fa-solid fa-eye text-primary"></i> Preview</a></li>`;
+        let m = `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'view')"><i class="fa-solid ${isSpreadsheetFileMeta(f) ? "fa-table-cells" : "fa-eye"} text-primary"></i> ${isSpreadsheetFileMeta(f) ? "Open Spreadsheet" : "Preview"}</a></li>`;
+        if (hasDocumentHubPermission("favorite"))
+            m += `<li><a class="dropdown-item" onclick="toggleFavorite(${f.fileId})"><i class="fa-solid fa-thumbtack text-warning"></i> ${f.isFavorite ? "Unpin" : "Pin"}</a></li>`;
         if (hasDocumentHubPermission("download"))
             m += `<li><a class="dropdown-item" onclick="openFile(${f.fileId},'download')"><i class="fa-solid fa-download text-success"></i> Download</a></li>`;
         if (hasDocumentHubPermission("move"))
@@ -1974,9 +2077,9 @@
             type,
             id,
             targetClass: e?.target?.className || e?.target?.tagName,
-            fromFolderMenu: !!$(e?.target).closest(".item-menu-host,.folder-menu-btn,#hubFloatingItemMenu").length
+            fromFolderMenu: !!$(e?.target).closest(".item-menu-host,.dropdown,.item-menu-btn,.folder-menu-btn,#hubFloatingItemMenu").length
         });
-        if ($(e?.target).closest(".item-menu-host,.folder-menu-btn,#hubFloatingItemMenu").length) {
+        if ($(e?.target).closest(".item-menu-host,.dropdown,.item-menu-btn,.folder-menu-btn,#hubFloatingItemMenu").length) {
             e.preventDefault();
             e.stopPropagation();
             debugFolderMenu("selectItem:blocked-menu-origin", { type, id });
@@ -2032,7 +2135,7 @@
                     </tbody>
                 </table>
                 <div class="detail-actions">
-                    <button class="btn btn-primary" onclick="openFile(${item.fileId},'view')"><i class="fa-solid fa-eye"></i> Preview</button>
+                    <button class="btn btn-primary" onclick="openFile(${item.fileId},'view')"><i class="fa-solid ${isSpreadsheetFileMeta(item) ? "fa-table-cells" : "fa-eye"}"></i> ${isSpreadsheetFileMeta(item) ? "Open Spreadsheet" : "Preview"}</button>
                     ${hasDocumentHubPermission("download") ? `<button class="btn btn-outline-success" onclick="openFile(${item.fileId},'download')"><i class="fa-solid fa-download"></i> Download</button>` : ""}
                     <button class="btn btn-outline-secondary" onclick="showVersions(${item.fileId})"><i class="fa-solid fa-code-branch"></i> Version History</button>
                 </div>`);
@@ -2452,7 +2555,10 @@ function launchFile(fileId, mode, file) {
                      alt="${escAttr(file.fileName)}" />
             </div>`
         );
-    } else if (["doc","docx","xls","xlsx","csv"].includes(ext)) {
+    } else if (["xls","xlsx","csv"].includes(ext)) {
+        openSpreadsheetEditorTab(fileId);
+        return;
+    } else if (["doc","docx"].includes(ext)) {
 
         if (hub.downloadedFiles.has(fileId)) {
             showToast("Already downloaded earlier. Check your Downloads folder.", "success");
@@ -2469,6 +2575,14 @@ function launchFile(fileId, mode, file) {
     /* ─────────────────────────────────────────────
        FOLDER PIN
     ───────────────────────────────────────────── */
+    function openSpreadsheetEditorTab(fileId) {
+        const url = new URL(`/DocumentHub/SpreadsheetEditor/${fileId}`, window.location.origin);
+        if (hub.folderId != null) url.searchParams.set("folderId", hub.folderId);
+        if (hub.filter) url.searchParams.set("filter", hub.filter);
+        if (hub.search) url.searchParams.set("search", hub.search);
+        window.open(url.toString(), "_blank", "noopener");
+    }
+
     function submitFolderUnlock() {
         const folderId = $("#pinFolderId").val();
         const pin = $("#folderAccessPin").val().trim();
@@ -2750,6 +2864,15 @@ function launchFile(fileId, mode, file) {
         if (["pptx","ppt"].includes(ext))         return "fa-solid fa-file-powerpoint icon-ppt";
         if (["zip","rar","tar"].includes(ext))    return "fa-solid fa-file-zipper icon-zip";
         return "fa-solid fa-file text-secondary";
+    }
+
+    function isSpreadsheetFileMeta(file) {
+        const ext = (file?.fileType || file?.fileName?.split(".").pop() || "").toLowerCase();
+        return ["xls", "xlsx", "csv"].includes(ext);
+    }
+
+    function isExcelFileMeta(file) {
+        return isSpreadsheetFileMeta(file);
     }
 
     function fmtSize(bytes) {
