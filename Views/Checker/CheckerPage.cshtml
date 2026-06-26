@@ -884,7 +884,16 @@
 
     const bodyRows = items.map((item, idx) => `
     <tr class="erp-item-row">
-    <td class="erp-product">${safeText(item.productName ?? "-")}</td>
+    <td class="erp-product">
+    <span class="erp-product-click"
+    role="button"
+    tabindex="0"
+    data-full-product="${safeAttr(item.productName ?? "-")}"
+    title="Click to view full product name"
+    style="display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">
+    ${safeText(item.productName ?? "-")}
+    </span>
+    </td>
     <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
     <td class="erp-rate">₹${safeText(item.purchaseRate ?? 0)}</td>
     <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
@@ -1031,6 +1040,64 @@
     });
     }
     window._syncTopScroll = syncTopScroll;
+
+    function showProductNameOverlay(el) {
+    const text = el.getAttribute("data-full-product") || el.textContent || "";
+    let overlay = document.getElementById("productNameOverlay");
+    if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "productNameOverlay";
+    overlay.style.position = "fixed";
+    overlay.style.zIndex = "999999";
+    overlay.style.maxWidth = "min(420px, calc(100vw - 24px))";
+    overlay.style.padding = "8px 10px";
+    overlay.style.border = "1px solid #CBD5E1";
+    overlay.style.borderRadius = "8px";
+    overlay.style.background = "#fff";
+    overlay.style.color = "#111827";
+    overlay.style.boxShadow = "0 12px 30px rgba(15,23,42,.18)";
+    overlay.style.fontSize = "12px";
+    overlay.style.fontWeight = "600";
+    overlay.style.lineHeight = "1.45";
+    overlay.style.overflowWrap = "anywhere";
+    overlay.style.pointerEvents = "auto";
+    document.body.appendChild(overlay);
+    }
+    overlay.textContent = text;
+    overlay.style.display = "block";
+    const rect = el.getBoundingClientRect();
+    const top = Math.min(rect.bottom + 6, window.innerHeight - overlay.offsetHeight - 8);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - overlay.offsetWidth - 8);
+    overlay.style.top = Math.max(8, top) + "px";
+    overlay.style.left = left + "px";
+    }
+
+    function hideProductNameOverlay() {
+    const overlay = document.getElementById("productNameOverlay");
+    if (overlay) overlay.style.display = "none";
+    }
+
+    $(document).on("click", ".erp-product-click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    showProductNameOverlay(this);
+    });
+
+    $(document).on("keydown", ".erp-product-click", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    showProductNameOverlay(this);
+    }
+    });
+
+    $(document).on("click keydown", function (e) {
+    if (e.type === "keydown" && e.key !== "Escape") return;
+    if ($(e.target).closest(".erp-product-click, #productNameOverlay").length) return;
+    hideProductNameOverlay();
+    });
+
+    window.addEventListener("scroll", hideProductNameOverlay, true);
+    window.addEventListener("resize", hideProductNameOverlay);
 
     /* ═══════════════════════════════════════
     TOAST
