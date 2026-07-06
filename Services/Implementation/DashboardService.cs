@@ -2,6 +2,7 @@
 using JSAPNEW.Models;
 using JSAPNEW.Services.Interfaces;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Caching.Memory;
 using ServiceStack;
 using System.Data;
 using TicketSystem.Models;
@@ -11,9 +12,15 @@ namespace JSAPNEW.Services.Implementation
     public class DashboardService : IDashboardService
     {
         private readonly string _connectionString;
-        public DashboardService(IConfiguration configuration)
+        private readonly IMemoryCache _cache;
+
+        // Phase 1 (Dashboard): server-side cache settings for dropdown lookups only.
+        private static readonly TimeSpan DropdownCacheDuration = TimeSpan.FromMinutes(15);
+
+        public DashboardService(IConfiguration configuration, IMemoryCache cache)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _cache = cache;
         }
 
         public async Task<IEnumerable<ITStandardsModel>> GetITStandardsMasterAsync()
@@ -537,38 +544,18 @@ namespace JSAPNEW.Services.Implementation
                 using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
 
+                // Phase 1 (Dashboard): project only the columns the dashboard UI actually consumes
+                // (branch, acctName, budget, currentMonth, amount). The remaining 25 view columns
+                // were never referenced by AvtarDashboard.js and are dropped to reduce payload size.
+                // ORDER BY CreateDate DESC is retained unchanged (a view column may be used in ORDER BY
+                // even when not projected), so row order is identical to before.
                 var query = @"
-           SELECT 
+           SELECT
                [Branch],
-               [DocEntry],
-               [ObjectName],
-               [ObjType],
-               [LineNum],
-               [VisOrder],
-               [AcctCode],
                [AcctName],
-               [CardCode],
-               [CardName],
-               [EFFECTMONTH],
                [BUDGET],
-               [SUB_BUDGET],
-               [STATE],
-               [DocDate],
-               [CreateDate],
-               [AMOUNT],
                [CURRENTMONTH],
-               [Current_month_Posted_Amount],
-               [Budget_Owner],
-               [OwnerCode],
-               [Approver Name],
-               [Current_month_Budget],
-               [Status],
-               [U_NAME],
-               [CreatedDate],
-               [CreateTime],
-               [LineRemarks],
-               [Comments],
-               [ProcesStat]
+               [AMOUNT]
 
            FROM bud.jsbudgetTable_vg";
 
@@ -594,35 +581,10 @@ namespace JSAPNEW.Services.Implementation
                     budgetList.Add(new AllbudgetDataModel
                     {
                         Branch = reader["Branch"] as string,
-                        DocEntry = reader["DocEntry"] != DBNull.Value ? Convert.ToInt32(reader["DocEntry"]) : 0,
-                        ObjectName = reader["ObjectName"] as string,
-                        ObjType = reader["ObjType"] != DBNull.Value ? Convert.ToInt32(reader["ObjType"]) : 0,
-                        LineNum = reader["LineNum"] != DBNull.Value ? Convert.ToInt32(reader["LineNum"]) : 0,
-                        VisOrder = reader["VisOrder"] != DBNull.Value ? Convert.ToInt32(reader["VisOrder"]) : 0,
-                        AcctCode = reader["AcctCode"] as string,
                         AcctName = reader["AcctName"] as string,
-                        CardCode = reader["CardCode"] as string,
-                        CardName = reader["CardName"] as string,
-                        EffectMonth = reader["EFFECTMONTH"] as string,
                         Budget = reader["BUDGET"] as string,
-                        SubBudget = reader["SUB_BUDGET"] as string,
-                        State = reader["STATE"] as string,
-                        DocDate = reader["DocDate"] != DBNull.Value ? Convert.ToDateTime(reader["DocDate"]) : null,
-                        CreateDate = reader["CreateDate"] != DBNull.Value ? Convert.ToDateTime(reader["CreateDate"]) : null,
-                        Amount = reader["AMOUNT"] != DBNull.Value ? Convert.ToDecimal(reader["AMOUNT"]) : null,
                         CurrentMonth = reader["CURRENTMONTH"] as string,
-                        CurrentMonthPostedAmount = reader["Current_month_Posted_Amount"] != DBNull.Value ? Convert.ToDecimal(reader["Current_month_Posted_Amount"]) : null,
-                        BudgetOwner = reader["Budget_Owner"] as string,
-                        OwnerCode = reader["OwnerCode"] as string,
-                        ApproverName = reader["Approver Name"] as string,
-                        CurrentMonthBudget = reader["Current_month_Budget"] != DBNull.Value ? Convert.ToDecimal(reader["Current_month_Budget"]) : null,
-                        Status = reader["Status"] as string,
-                        UserName = reader["U_NAME"] as string,
-                        CreatedDate = reader["CreatedDate"] != DBNull.Value ? Convert.ToDateTime(reader["CreatedDate"]) : null,
-                        CreateTime = reader["CreateTime"] != DBNull.Value ? Convert.ToInt32(reader["CreateTime"]) : null,
-                        LineRemarks = reader["LineRemarks"] as string,
-                        Comments = reader["Comments"] as string,
-                        ProcessStat = reader["ProcesStat"] as string
+                        Amount = reader["AMOUNT"] != DBNull.Value ? Convert.ToDecimal(reader["AMOUNT"]) : null
                     });
                 }
 
@@ -639,6 +601,13 @@ namespace JSAPNEW.Services.Implementation
         }
         public async Task<IEnumerable<budgetAcctModel>> GetUniqueAccounts(string? branch)
         {
+            // Phase 1 (Dashboard): cache the accounts dropdown per branch for 15 minutes.
+            var cacheKey = $"Dashboard:Accounts:{(string.IsNullOrWhiteSpace(branch) ? "ALL" : branch)}";
+            if (_cache.TryGetValue(cacheKey, out List<budgetAcctModel> cachedAccounts))
+            {
+                return cachedAccounts;
+            }
+
             try
             {
                 using var conn = new SqlConnection(_connectionString);
@@ -671,6 +640,8 @@ namespace JSAPNEW.Services.Implementation
                         AcctName = reader["AcctName"]?.ToString() ?? string.Empty
                     });
                 }
+
+                _cache.Set(cacheKey, accountList, DropdownCacheDuration);
                 return accountList;
             }
             catch (SqlException sqlEx)
@@ -685,6 +656,13 @@ namespace JSAPNEW.Services.Implementation
 
         public async Task<IEnumerable<budgetBudgetModel>> GetUniqueBudgets(string? branch)
         {
+            // Phase 1 (Dashboard): cache the budgets dropdown per branch for 15 minutes.
+            var cacheKey = $"Dashboard:Budgets:{(string.IsNullOrWhiteSpace(branch) ? "ALL" : branch)}";
+            if (_cache.TryGetValue(cacheKey, out List<budgetBudgetModel> cachedBudgets))
+            {
+                return cachedBudgets;
+            }
+
             try
             {
                 using var conn = new SqlConnection(_connectionString);
@@ -717,6 +695,8 @@ namespace JSAPNEW.Services.Implementation
                         Budget = reader["Budget"]?.ToString() ?? string.Empty
                     });
                 }
+
+                _cache.Set(cacheKey, budgetList, DropdownCacheDuration);
                 return budgetList;
             }
             catch (SqlException sqlEx)

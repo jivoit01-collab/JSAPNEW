@@ -11,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddControllersWithViews();
+// Phase 1 (Dashboard): in-memory cache for dashboard dropdown lookups (GetUniqueAccounts / GetUniqueBudgets)
+builder.Services.AddMemoryCache();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddSession(options =>
 {
