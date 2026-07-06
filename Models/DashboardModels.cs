@@ -247,37 +247,16 @@ namespace JSAPNEW.Models
     }
 
 
+    // Phase 1 (Dashboard): trimmed to the only properties consumed by AvtarDashboard.js
+    // (branch, acctName, budget, currentMonth, amount). The remaining 25 properties were
+    // never read by the dashboard and were removed to reduce the getBudgetDataByBranch payload.
+    // This model is used exclusively by DashboardService.GetAllBudgetDataAsync.
     public class AllbudgetDataModel
     {
         public string? Branch { get; set; }
-        public int DocEntry { get; set; }
-        public string? ObjectName { get; set; }
-        public int ObjType { get; set; }
-        public int LineNum { get; set; }
-        public int VisOrder { get; set; }
-        public string? AcctCode { get; set; }
         public string? AcctName { get; set; }
-        public string? CardCode { get; set; }
-        public string? CardName { get; set; }
-        public string? EffectMonth { get; set; }
         public string? Budget { get; set; }
-        public string? SubBudget { get; set; }
-        public string? State { get; set; }
-        public DateTime? DocDate { get; set; }
-        public DateTime? CreateDate { get; set; }
-        public decimal? Amount { get; set; }
         public string? CurrentMonth { get; set; }
-        public decimal? CurrentMonthPostedAmount { get; set; }
-        public string? BudgetOwner { get; set; }
-        public string? OwnerCode { get; set; }
-        public string? ApproverName { get; set; }
-        public decimal? CurrentMonthBudget { get; set; }
-        public string? Status { get; set; }
-        public string? UserName { get; set; }
-        public DateTime? CreatedDate { get; set; }
-        public int? CreateTime { get; set; }
-        public string? LineRemarks { get; set; }
-        public string? Comments { get; set; }
-        public string? ProcessStat { get; set; }
+        public decimal? Amount { get; set; }
     }
 }

@@ -357,6 +357,21 @@ function updateCurrentDate() {
 }
 
 // ========================================
+// PHASE 1: CLIENT-SIDE IN-MEMORY CACHE (memory only, per branch)
+// ========================================
+// Holds accounts, budgets and dashboard data keyed by branch so that re-selecting a
+// previously loaded branch reuses the data instead of re-calling the API.
+const dashboardClientCache = {
+    accounts: {},
+    budgets: {},
+    data: {}
+};
+
+function branchCacheKey(branch) {
+    return (branch && branch.trim() !== '') ? branch : 'ALL';
+}
+
+// ========================================
 // BRANCH CHANGE HANDLER
 // ========================================
 async function branchChange() {
@@ -370,8 +385,13 @@ async function branchChange() {
         }, index * 100);
     });
 
-    await populateLedgers(branch);
-    await populateBudgets(branch);
+    // Phase 1: accounts and budgets are independent (separate globals + separate DOM),
+    // so they load in parallel. getBudgetData stays sequential afterwards because its
+    // filterByCompany() render reads the ledgers/budgets globals loaded here.
+    await Promise.all([
+        populateLedgers(branch),
+        populateBudgets(branch)
+    ]);
     populateMonths();
     await getBudgetData(branch);
     setupTable2(branch);
@@ -382,6 +402,14 @@ async function branchChange() {
 // ========================================
 async function getLedgers(branch) {
     ledgers = [];
+
+    // Phase 1: reuse cached accounts for this branch if available.
+    const cacheKey = branchCacheKey(branch);
+    if (dashboardClientCache.accounts[cacheKey]) {
+        ledgers = [...dashboardClientCache.accounts[cacheKey]];
+        return;
+    }
+
     const url = branch === ''
         ? `/api/Dashboard/GetUniqueAccounts`
         : `/api/Dashboard/GetUniqueAccounts?branch=${branch}`;
@@ -391,6 +419,7 @@ async function getLedgers(branch) {
         if (!response.ok) return;
         const result = await response.json();
         result.forEach(acct => ledgers.push(acct.acctName));
+        dashboardClientCache.accounts[cacheKey] = [...ledgers];
     } catch (err) {
         console.error("Error fetching ledgers:", err);
     }
@@ -398,6 +427,14 @@ async function getLedgers(branch) {
 
 async function getBudgets(branch) {
     budgets = [];
+
+    // Phase 1: reuse cached budgets for this branch if available.
+    const cacheKey = branchCacheKey(branch);
+    if (dashboardClientCache.budgets[cacheKey]) {
+        budgets = [...dashboardClientCache.budgets[cacheKey]];
+        return;
+    }
+
     const url = branch === ''
         ? `/api/Dashboard/GetUniqueBudgets`
         : `/api/Dashboard/GetUniqueBudgets?branch=${branch}`;
@@ -407,12 +444,21 @@ async function getBudgets(branch) {
         if (!response.ok) return;
         const result = await response.json();
         result.forEach(budget => budgets.push(budget.budget));
+        dashboardClientCache.budgets[cacheKey] = [...budgets];
     } catch (err) {
         console.error("Error fetching budgets:", err);
     }
 }
 
 async function getBudgetData(branch) {
+    // Phase 1: reuse cached dashboard data for this branch if available (render immediately, no fetch).
+    const cacheKey = branchCacheKey(branch);
+    if (dashboardClientCache.data[cacheKey]) {
+        budgetData = dashboardClientCache.data[cacheKey];
+        filterByCompany();
+        return;
+    }
+
     showLoader();
     const url = branch === ''
         ? `/api/Dashboard/getBudgetDataByBranch`
@@ -423,6 +469,7 @@ async function getBudgetData(branch) {
         const response = await fetch(url);
         if (!response.ok) return;
         budgetData = await response.json();
+        dashboardClientCache.data[cacheKey] = budgetData;
         filterByCompany();
     } catch (err) {
         console.error("Error fetching budget data:", err);
@@ -1165,7 +1212,9 @@ function getFullYear(start, end) {
 }
 
 async function setupBudgetFilter(branch) {
-    await getBudgets(branch);
+    // Phase 1: duplicate GetUniqueBudgets call removed. `budgets` is already loaded by
+    // populateBudgets() earlier in branchChange (the only path that reaches this function),
+    // so we reuse it instead of re-calling the API.
 
     const budgetSelector = document.querySelector('.budget2-selector');
     budgetSelector.innerHTML = '';
