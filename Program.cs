@@ -10,7 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddRazorRuntimeCompilation();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddSession(options =>
 {
@@ -93,13 +94,11 @@ builder.Services.AddScoped<IAuth2Service, Auth2Service>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ITicketsService, TicketsService>();
-builder.Services.AddScoped<IMakerService, MakerService>();
-builder.Services.AddScoped<ICheckerService, CheckerService>();
 builder.Services.AddScoped<IInvoicePaymentService, InvoicePaymentService>();
-builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddScoped<IPaymentCheckerService, PaymentCheckerService>();
 builder.Services.AddScoped<IHierarchyService, HierarchyService>();
 builder.Services.AddScoped<IDocumentHubService, DocumentHubService>();
+builder.Services.AddScoped<IBillVerificationService, BillVerificationService>();
+builder.Services.AddScoped<IBillVerificationLogService, BillVerificationLogService>();
 
 // Add CORS
 builder.Services.AddCors(options =>

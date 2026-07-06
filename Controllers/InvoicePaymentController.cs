@@ -18,7 +18,7 @@ namespace JSAPNEW.Controllers
         // ============================
         public IActionResult InvoicePaymentPage()
         {
-            return View();
+            return View("~/Views/BillVerification/InvoicePaymentPage.cshtml");
         }
 
         // ============================

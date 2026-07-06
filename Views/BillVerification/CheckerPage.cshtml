@@ -9,6 +9,296 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="~/css/bill-verification.css" />
 <link rel="stylesheet" href="~/css/admin-premium.css" />
+
+<style>
+    /* ===== CHECKER TABLE: show full column names & values (no "..." truncation) ===== */
+    .checker-dashboard-shell .checker-table-card table.dt.checker-workflow-table {
+        table-layout: auto;
+        width: auto;
+        min-width: 0;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* size every column to its text (ignore the forced fixed widths) */
+    .checker-dashboard-shell .checker-workflow-table col {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table thead th,
+    .checker-dashboard-shell .checker-workflow-table tbody td {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt.checker-workflow-table thead th,
+    .checker-dashboard-shell .checker-table-card table.dt.checker-workflow-table tbody td {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .checker-dashboard-shell .checker-table-card table.dt.checker-workflow-table .cell-text {
+        max-width: none;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: nowrap;
+    }
+
+    /* selected row: remove the blue border/line on every column, keep a soft highlight */
+    .checker-dashboard-shell .checker-table-card table.dt.checker-workflow-table tbody tr.row-selected td {
+        box-shadow: none !important;
+        border-left: 0 !important;
+        background: rgba(239, 246, 255, 0.6) !important;
+    }
+
+    /* compact icon-only Approve / Reject action buttons (not big pills) */
+    .checker-dashboard-shell .checker-workflow-table .btn-approve.icon-only,
+    .checker-dashboard-shell .checker-workflow-table .btn-reject.icon-only {
+        width: 32px !important;
+        min-width: 32px !important;
+        height: 32px !important;
+        padding: 0 !important;
+        border-radius: 8px !important;
+        gap: 0 !important;
+        font-size: 14px;
+    }
+
+    /* align action buttons under the ACTION header + reduce side spacing */
+    .checker-dashboard-shell .checker-workflow-table .action-cell {
+        justify-content: flex-start !important;
+        gap: 6px !important;
+    }
+
+    .checker-dashboard-shell .checker-workflow-table td.td-action-cell {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    /* keep the account suggestions dropdown above the table card */
+    .checker-filter-card {
+        position: relative;
+        z-index: 40;
+    }
+
+    .checker-filter-card .suggestion-box {
+        z-index: 3000;
+    }
+
+    /* ===== "Columns" toggle button ===== */
+    .btn-columns {
+        background: #fff;
+        color: var(--primary-color, #0b2c4d);
+        border: 1px solid #CBD5E1;
+        font-weight: 600;
+    }
+
+        .btn-columns:hover {
+            background: #F1F5F9;
+            border-color: var(--primary-color, #0b2c4d);
+        }
+
+    /* ===== Right-side column drawer ===== */
+    .col-drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(11, 44, 77, 0.35);
+        display: none;
+        z-index: 1400;
+    }
+
+        .col-drawer-overlay.open {
+            display: block;
+        }
+
+    .col-drawer {
+        position: fixed;
+        top: var(--header-height, 60px);
+        right: 0;
+        height: calc(100vh - var(--header-height, 60px));
+        width: 320px;
+        max-width: 85vw;
+        background: #fff;
+        box-shadow: -8px 0 30px rgba(11, 44, 77, 0.18);
+        transform: translateX(100%);
+        transition: transform 0.25s ease, visibility 0.25s ease;
+        z-index: 1401;
+        display: flex;
+        flex-direction: column;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+        .col-drawer.open {
+            transform: translateX(0);
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+    .col-drawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 18px;
+        background: linear-gradient(135deg, var(--primary-color, #0b2c4d) 0%, var(--primary-light, #1c3f5d) 100%);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .col-drawer-close {
+        background: none;
+        border: 0;
+        color: #fff;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .col-drawer-note {
+        padding: 12px 18px 4px;
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .col-drawer-tools {
+        display: flex;
+        gap: 8px;
+        padding: 10px 18px 6px;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .col-tool-btn {
+        flex: 1;
+        border: 1px solid var(--primary-color, #0b2c4d);
+        background: #fff;
+        color: var(--primary-color, #0b2c4d);
+        border-radius: 6px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+
+        .col-tool-btn:hover {
+            background: var(--primary-color, #0b2c4d);
+            color: #fff;
+        }
+
+    /* template bar */
+    .col-drawer-tpl {
+        padding: 12px 18px;
+        border-bottom: 1px solid #E2E8F0;
+        background: #F8FBFF;
+    }
+
+    .col-tpl-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--primary-color, #0b2c4d);
+        margin-bottom: 6px;
+    }
+
+    .col-tpl-select {
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px solid #CBD5E1;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #1F2937;
+        background: #fff;
+        margin-bottom: 8px;
+    }
+
+    .col-tpl-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    .col-drawer-body {
+        padding: 6px 18px 18px;
+        overflow-y: auto;
+    }
+
+    /* column row: checkbox + label + move arrows */
+    .col-check {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #1F2937;
+        border-radius: 6px;
+        transition: background 0.15s ease;
+    }
+
+        .col-check:hover {
+            background: #EFF3F8;
+        }
+
+    .col-check-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+        cursor: pointer;
+    }
+
+        .col-check-label span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .col-check-label input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-color, #0b2c4d);
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+
+    .col-move {
+        display: flex;
+        gap: 4px;
+        flex: 0 0 auto;
+    }
+
+    .col-move-btn {
+        border: 1px solid #E2E8F0;
+        background: #fff;
+        color: var(--primary-color, #0b2c4d);
+        border-radius: 5px;
+        width: 26px;
+        height: 26px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.15s ease;
+    }
+
+        .col-move-btn:hover:not(:disabled) {
+            background: var(--primary-color, #0b2c4d);
+            color: #fff;
+        }
+
+        .col-move-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+</style>
+
 <!-- ═══════════════════════════════════
      NAVBAR
 ═══════════════════════════════════ -->
@@ -165,6 +455,9 @@
         <button class="btn btn-dark admin-search-btn" id="searchBtn">
             <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
+        <button class="btn btn-columns" id="columnsBtn" type="button">
+            <i class="fa-solid fa-table-columns"></i> Columns
+        </button>
         <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
             <i class="fa-solid fa-file-excel"></i> Export
         </button>
@@ -179,12 +472,6 @@
                 <i class="fa-solid fa-shield-check"></i> Bill Verification
             </span>
             <span class="t-count" id="checkerCount">0 records</span>
-        </div>
-
-        <div class="table-slide-hint">
-            <span aria-hidden="true">&larr;</span>
-            <span>Slide horizontally to inspect all columns</span>
-            <span aria-hidden="true">&rarr;</span>
         </div>
 
         <!-- TOP HORIZONTAL SCROLLBAR -->
@@ -227,6 +514,13 @@
                 <tbody id="checkerTable"></tbody>
             </table>
         </div>
+
+        <!-- PAGINATION (10 per page) -->
+        <div class="dt-pagination" id="pg-ck">
+            <div class="dt-pg-info">Showing <b id="ck-from">0</b>–<b id="ck-to">0</b> of <b id="ck-total">0</b></div>
+            <div class="dt-pg-btns" id="pg-btns-ck"></div>
+        </div>
+
     </div>
 
     <!-- SCROLL BUTTONS -->
@@ -238,6 +532,32 @@
             <i class="fa-solid fa-chevron-down"></i>
         </button>
     </div>
+
+    <!-- COLUMN TOGGLE DRAWER -->
+    <div class="col-drawer-overlay" id="colDrawerOverlay"></div>
+    <aside class="col-drawer" id="colDrawer" aria-hidden="true">
+        <div class="col-drawer-head">
+            <span><i class="fa-solid fa-table-columns"></i> Columns &amp; Templates</span>
+            <button type="button" class="col-drawer-close" id="colDrawerClose">&times;</button>
+        </div>
+
+        <div class="col-drawer-tpl">
+            <label class="col-tpl-label" for="colTplSelect">Template</label>
+            <select id="colTplSelect" class="col-tpl-select"></select>
+            <div class="col-tpl-actions">
+                <button type="button" class="col-tool-btn" id="colTplSaveAs"><i class="fa-solid fa-plus"></i> Save as</button>
+                <button type="button" class="col-tool-btn" id="colTplUpdate"><i class="fa-solid fa-pen"></i> Update</button>
+                <button type="button" class="col-tool-btn" id="colTplDelete"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>
+        </div>
+
+        <div class="col-drawer-note">Reorder with the arrows, uncheck to hide, then save your view as a template.</div>
+        <div class="col-drawer-tools">
+            <button type="button" class="col-tool-btn" id="colSelectAll"><i class="fa-solid fa-check-double"></i> Select all</button>
+            <button type="button" class="col-tool-btn" id="colClearAll"><i class="fa-regular fa-square"></i> Clear all</button>
+        </div>
+        <div class="col-drawer-body" id="colDrawerBody"></div>
+    </aside>
 
 </div><!-- /.body -->
 <!-- ═══════════════════════════════════
@@ -303,6 +623,11 @@
     let _pendingAction = null;   // function to call on confirm
     let _checkerDataCache = [];
 
+    /* pagination state — 10 rows per page */
+    let ckRows = [];
+    let ckPage = 1;
+    const ckPerPage = 10;
+
     /* ═══════════════════════════════════════
     BOOT
     ═══════════════════════════════════════ */
@@ -310,10 +635,20 @@
 
     $("#searchBtn").on("click", loadData);
 
-    /* autocomplete */
-    $("#accountName").on("keyup", function () {
-    const term = $(this).val().trim();
-    if (term.length < 2) { $("#suggestionBox").empty().hide(); return; }
+    /* default both dates to today, then auto-load today's data */
+    (function () {
+    const t = new Date();
+    const today = t.getFullYear() + "-" +
+    String(t.getMonth() + 1).padStart(2, "0") + "-" +
+    String(t.getDate()).padStart(2, "0");
+    $("#fromDate").val(today);
+    $("#toDate").val(today);
+    })();
+    loadData();
+
+    /* autocomplete — omni search + click-to-open dropdown (combobox) */
+    function loadCheckerAccountSuggestions() {
+    const term = $("#accountName").val().trim();
     $.get("/Checker/GetAccountSuggestions", { term }, function (data) {
     if (!data || !data.length) {
     $("#suggestionBox").html('<div class="suggest-item suggest-empty">No result</div>').show();
@@ -323,7 +658,10 @@
     data.forEach(x => { html += `<div class="suggest-item">${x}</div>`; });
     $("#suggestionBox").html(html).show();
     });
-    });
+    }
+
+    /* open list on focus/click (shows options even before typing) and filter while typing */
+    $("#accountName").on("focus click keyup", loadCheckerAccountSuggestions);
 
     $(document).on("mousedown", ".suggest-item", function (e) {
     e.preventDefault();
@@ -411,10 +749,17 @@
     ).values()
     ];
 
-    /* pending */
+    /* only bills that actually reached the checker (uploaded, not paid) —
+       keeps the KPI cards consistent with what the table shows */
+    const relevant = uniqueRows.filter(x =>
+    x.attachmentPath &&
+    (x.paymentStatus || "").toLowerCase() !== "paid"
+    );
+
+    /* pending (these are exactly the rows shown in the table) */
 
     const pending =
-    uniqueRows.filter(x =>
+    relevant.filter(x =>
     (x.checkerStatus || "Pending")
     .toLowerCase() === "pending"
     ).length;
@@ -422,7 +767,7 @@
     /* approved */
 
     const approved =
-    uniqueRows.filter(x =>
+    relevant.filter(x =>
     (x.checkerStatus || "")
     .toLowerCase() === "approved"
     ).length;
@@ -430,15 +775,15 @@
     /* rejected */
 
     const rejected =
-    uniqueRows.filter(x =>
+    relevant.filter(x =>
     (x.checkerStatus || "")
     .toLowerCase() === "rejected"
     ).length;
 
-    /* total */
+    /* total bills that reached the checker */
 
     const total =
-    uniqueRows.length;
+    relevant.length;
 
     $("#pendingCount").text(pending);
 
@@ -566,8 +911,8 @@
 
     /* render table */
     function renderTable(data) {
-  
-  
+
+
     const seen = new Set();
     const rows = (data || []).filter(item => {
     if (seen.has(item.vchNumber)) return false;
@@ -575,52 +920,31 @@
     return true;
     });
 
-    $("#checkerCount").text(rows.length + " record" + (rows.length !== 1 ? "s" : ""));
-
-    if (!rows.length) {
-    $("#checkerTable").html(
-    `<tr><td colspan="10" class="empty-row">
-    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
-    No data found.
-    </td></tr>`
-    );
-    syncTopScroll();
-    return;
-    }
-
-    let html = "";
-
-    rows.forEach(item => {
-
+    /* apply the same visibility filters as before to build the row list */
+    ckRows = rows.filter(item => {
     /* hide paid entries */
-    if ((item.paymentStatus || "").toLowerCase() === "paid") {
-    return;
-    }
-
+    if ((item.paymentStatus || "").toLowerCase() === "paid") return false;
     /* hide entries without attachment */
-    if (!item.attachmentPath) {
-    return;
-    }
-
+    if (!item.attachmentPath) return false;
     /* hide approved entries */
-    if ((item.checkerStatus || "").toLowerCase() === "approved") {
-    return;
-    }
-    /* hide paid entries */
-    if ((item.paymentStatus || "").toLowerCase() === "paid") {
-    return;
-    }
-
-    /* hide approved entries */
-    if ((item.checkerStatus || "").toLowerCase() === "approved") {
-    return;
-    }
-
+    if ((item.checkerStatus || "").toLowerCase() === "approved") return false;
     /* hide rejected entries */
-    if ((item.checkerStatus || "").toLowerCase() === "rejected") {
-    return;
+    if ((item.checkerStatus || "").toLowerCase() === "rejected") return false;
+    return true;
+    });
+
+    /* count reflects ALL rows that will be shown (not just the current page) */
+    const rendered = ckRows.length;
+    $("#checkerCount").text(rendered + " record" + (rendered !== 1 ? "s" : ""));
+
+    if (rendered === 0) { $("#exportBtn").hide(); }
+    else { $("#exportBtn").show(); }
+
+    ckPage = 1;
+    renderCkPage();
     }
 
+    function ckRowHtml(item) {
     const cs = item.checkerStatus || "Pending";
     const statusBadge =
     cs === "Approved" ? `<span class="status-badge sb-approved"><i class="fa-solid fa-check"></i> Approved</span>` :
@@ -632,17 +956,19 @@
     : cs === "Rejected"
     ? `<span class="status-badge sb-rejected"><i class="fa-solid fa-ban"></i> Rejected</span>`
     : `<div class="action-cell">
-    <button class="btn-approve approveBtn"
+    <button class="btn-approve approveBtn icon-only"
     data-vch="${safeValueAttr(item.vchNumber)}"
     data-account="${safeValueAttr(item.accountName ?? '')}"
-    data-amount="${safeValueAttr(item.billAmount ?? '')}">
-    <i class="fa-solid fa-check"></i> Approve
+    data-amount="${safeValueAttr(item.billAmount ?? '')}"
+    title="Approve">
+    <i class="fa-solid fa-check"></i>
     </button>
-    <button class="btn-reject rejectBtn"
+    <button class="btn-reject rejectBtn icon-only"
     data-vch="${safeValueAttr(item.vchNumber)}"
     data-account="${safeValueAttr(item.accountName ?? '')}"
-    data-amount="${safeValueAttr(item.billAmount ?? '')}">
-    <i class="fa-solid fa-xmark"></i> Reject
+    data-amount="${safeValueAttr(item.billAmount ?? '')}"
+    title="Reject">
+    <i class="fa-solid fa-xmark"></i>
     </button>
     </div>`;
 
@@ -652,7 +978,7 @@
     </a>`
     : `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
 
-    html += `
+    return `
     <tr id="row-${item.vchNumber}" onclick="highlightRow(this)">
     <td class="td-account" title="${safeAttr(item.accountName ?? '')}">
     <a href="javascript:void(0)"
@@ -666,9 +992,9 @@
     <td class="td-date"><span class="cell-text">${safeText(formatDate(item.voucherDate))}</span></td>
     <td class="td-amount"><span class="cell-text">&#8377;${safeText(item.billAmount ?? "")}</span></td>
     <td class="td-supplier" title="${safeAttr(item.supplierRef || "-")}"><span class="cell-text">${safeText(item.supplierRef || "-")}</span></td>
- 
+
     <td class="td-attachment">${attachHtml}</td>
-   
+
     <td class="td-status">${statusBadge}</td>
     <td class="td-checker-remark">
     <input type="text"
@@ -680,14 +1006,77 @@
     <td class="td-action-cell">${actionCell}</td>
     <td class="td-date"><span class="cell-text">${safeText(formatDate(item.dueDate))}</span></td>
     </tr>`;
-    });
+    }
 
+    function renderCkPage() {
+    if (ckRows.length === 0) {
+    $("#checkerTable").html(
+    `<tr><td colspan="10" class="empty-row">
+    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
+    No data found.
+    </td></tr>`
+    );
+    $("#ck-from").text(0);
+    $("#ck-to").text(0);
+    $("#ck-total").text(0);
+    $("#pg-btns-ck").empty();
+    if (window._syncTopScroll) window._syncTopScroll();
+    return;
+    }
+
+    const total = ckRows.length;
+    const start = (ckPage - 1) * ckPerPage;
+    const end = Math.min(start + ckPerPage, total);
+
+    let html = "";
+    ckRows.slice(start, end).forEach(item => { html += ckRowHtml(item); });
     $("#checkerTable").html(html);
-    $("#exportBtn").show();
+
+    $("#ck-from").text(total ? start + 1 : 0);
+    $("#ck-to").text(end);
+    $("#ck-total").text(total);
+
+    renderCkPagination(total);
+
+    /* re-apply saved column visibility/order to the freshly rendered rows */
+    if (window._applyCheckerLayout) window._applyCheckerLayout();
     if (window._syncTopScroll) window._syncTopScroll();
     }
-   
-   
+
+    function renderCkPagination(total) {
+    const pages = Math.ceil(total / ckPerPage);
+    const box = $("#pg-btns-ck");
+    box.empty();
+    if (pages <= 1) return;
+
+    box.append(`<button class="dt-pg-btn"${ckPage === 1 ? ' disabled' : ''} onclick="ckGoPage(${ckPage - 1})"><i class="fa-solid fa-chevron-left fa-xs"></i></button>`);
+
+    ckPageNums(ckPage, pages).forEach(p => {
+    if (p === '...') box.append('<span class="dt-pg-dots">…</span>');
+    else box.append(`<button class="dt-pg-btn${p === ckPage ? ' active' : ''}" onclick="ckGoPage(${p})">${p}</button>`);
+    });
+
+    box.append(`<button class="dt-pg-btn"${ckPage === pages ? ' disabled' : ''} onclick="ckGoPage(${ckPage + 1})"><i class="fa-solid fa-chevron-right fa-xs"></i></button>`);
+    }
+
+    function ckPageNums(current, total) {
+    if (total <= 7) { let a = []; for (let i = 1; i <= total; i++) a.push(i); return a; }
+    let p = [1];
+    if (current > 3) p.push('...');
+    let lo = Math.max(2, current - 1), hi = Math.min(total - 1, current + 1);
+    for (let j = lo; j <= hi; j++) p.push(j);
+    if (current < total - 2) p.push('...');
+    p.push(total);
+    return p;
+    }
+
+    function ckGoPage(p) {
+    ckPage = p;
+    renderCkPage();
+    window.scrollTo({ top: document.querySelector('.checker-table-card')?.offsetTop || 0, behavior: 'smooth' });
+    }
+
+
 
     /* ═══════════════════════════════════════
     ROW HIGHLIGHT
@@ -730,7 +1119,17 @@
     const vch     = btn.data("vch");
     const account = btn.data("account");
     const amount  = btn.data("amount");
-    const remark  = btn.closest("tr").find(".checkerRemark").val() || "—";
+    const remarkInput = btn.closest("tr").find(".checkerRemark");
+    const remark  = (remarkInput.val() || "").trim();
+
+    /* remark is MANDATORY to reject a bill */
+    if (!remark) {
+    showToast("Remark is mandatory to reject a bill.", "error");
+    remarkInput.css({ "border-color": "#EF4444", "box-shadow": "0 0 0 2px rgba(239,68,68,.25)" });
+    setTimeout(() => remarkInput.css({ "border-color": "", "box-shadow": "" }), 2000);
+    remarkInput.focus();
+    return;
+    }
 
     openConfirm({
     type     : "reject",
@@ -900,7 +1299,7 @@
     <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
     <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
     <td class="erp-taxamount">₹${safeText(item.taxAmount ?? 0)}</td>
-    <td class="erp-mrp">₹${safeText(item.mrp ?? 0)}</td>
+    <td class="erp-mrp">₹${safeText(item.mRP ?? item.mrp ?? item.MRP ?? 0)}</td>
     <td class="erp-amount">₹${safeText(item.amount ?? 0)}</td>
     <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
     </tr>
@@ -953,7 +1352,7 @@
     <th class="erp-taxamount">Tax Amount</th>
 
    
-    <th class="erp-mrp">Selling rate</th>
+    <th class="erp-mrp">MRP</th>
 
     <th class="erp-amount">Amount</th>
     <th class="erp-sno">Serial No</th>
@@ -1230,4 +1629,211 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     }
+
+    /* ═══════════════════════════════════
+    COLUMNS + TEMPLATES  (right-side drawer)
+    show / hide, reorder (shift), and saved named templates
+    ═══════════════════════════════════ */
+    (function () {
+        const table     = document.querySelector('.checker-workflow-table');
+        const drawer    = document.getElementById('colDrawer');
+        const overlay   = document.getElementById('colDrawerOverlay');
+        const body      = document.getElementById('colDrawerBody');
+        const btn       = document.getElementById('columnsBtn');
+        const tplSelect = document.getElementById('colTplSelect');
+        if (!table || !drawer || !overlay || !body || !btn || !tplSelect) return;
+
+        const LS_KEY   = 'checkerColumnTemplates_v1';
+        const thead    = table.querySelector('thead tr');
+        const colgroup = table.querySelector('colgroup');
+        const ths      = Array.prototype.slice.call(thead.children);
+        const TOTAL    = ths.length;
+
+        /* remember each column's original position + label; tag persistent cells */
+        const labels = [];
+        ths.forEach(function (th, i) { th.dataset.key = i; labels[i] = th.textContent.trim() || ('Column ' + (i + 1)); });
+        if (colgroup) Array.prototype.slice.call(colgroup.children).forEach(function (col, i) { col.dataset.key = i; });
+
+        function defaultState() { return labels.map(function (_, i) { return { key: i, visible: true }; }); }
+        let columnState = defaultState();
+
+        /* ---------- storage ---------- */
+        function loadStore() {
+            try { return JSON.parse(localStorage.getItem(LS_KEY)) || { templates: {}, active: null }; }
+            catch (e) { return { templates: {}, active: null }; }
+        }
+        function saveStore(s) { localStorage.setItem(LS_KEY, JSON.stringify(s)); }
+
+        function normalizeState(state) {
+            if (!Array.isArray(state)) return defaultState();
+            const seen = {}, result = [];
+            state.forEach(function (c) {
+                if (c && typeof c.key === 'number' && c.key >= 0 && c.key < TOTAL && !seen[c.key]) {
+                    seen[c.key] = true;
+                    result.push({ key: c.key, visible: c.visible !== false });
+                }
+            });
+            for (let i = 0; i < TOTAL; i++) if (!seen[i]) result.push({ key: i, visible: true });
+            return result;
+        }
+        function snapshot() { return columnState.map(function (c) { return { key: c.key, visible: c.visible }; }); }
+
+        /* ---------- apply order + visibility (key-based → idempotent) ---------- */
+        function orderByKey(container) {
+            const map = {};
+            Array.prototype.slice.call(container.children).forEach(function (el) {
+                if (el.dataset && el.dataset.key !== undefined) map[el.dataset.key] = el;
+            });
+            columnState.forEach(function (c) {
+                const el = map[c.key];
+                if (!el) return;
+                el.style.display = c.visible ? '' : 'none';
+                container.appendChild(el);
+            });
+        }
+        /* tag a freshly-rendered row's cells once (rows are rendered in original order) */
+        function ensureRowTagged(row) {
+            if (row.children.length !== TOTAL) return false; // skip detail / colspan rows
+            if (row.dataset.colTagged === '1') return true;
+            Array.prototype.slice.call(row.children).forEach(function (cell, i) { cell.dataset.key = i; });
+            row.dataset.colTagged = '1';
+            return true;
+        }
+        function applyLayout() {
+            orderByKey(thead);
+            if (colgroup) orderByKey(colgroup);
+            const tb = table.querySelector('tbody');
+            if (tb) Array.prototype.slice.call(tb.children).forEach(function (row) {
+                if (ensureRowTagged(row)) orderByKey(row);
+            });
+            if (window._syncTopScroll) window._syncTopScroll();
+        }
+        /* expose so the paginated page renderer can re-apply column layout to fresh rows */
+        window._applyCheckerLayout = applyLayout;
+
+        /* re-apply order/visibility whenever the table body changes (render, detail expand, etc.) */
+        const tbody = table.querySelector('tbody');
+        if (tbody && typeof MutationObserver !== 'undefined') {
+            new MutationObserver(function () { applyLayout(); }).observe(tbody, { childList: true });
+        }
+
+        /* ---------- drawer list ---------- */
+        function renderDrawer() {
+            let html = '';
+            columnState.forEach(function (c, pos) {
+                html += `<div class="col-check" data-key="${c.key}">
+                    <label class="col-check-label">
+                        <input type="checkbox" ${c.visible ? 'checked' : ''}>
+                        <span>${labels[c.key]}</span>
+                    </label>
+                    <span class="col-move">
+                        <button type="button" class="col-move-btn" data-dir="up" ${pos === 0 ? 'disabled' : ''} title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
+                        <button type="button" class="col-move-btn" data-dir="down" ${pos === columnState.length - 1 ? 'disabled' : ''} title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
+                    </span>
+                </div>`;
+            });
+            body.innerHTML = html;
+        }
+        function findIndexByKey(key) { return columnState.findIndex(function (c) { return c.key === key; }); }
+
+        body.addEventListener('change', function (e) {
+            if (!e.target.matches('input[type=checkbox]')) return;
+            const key = parseInt(e.target.closest('.col-check').dataset.key, 10);
+            const item = columnState[findIndexByKey(key)];
+            if (item) { item.visible = e.target.checked; applyLayout(); }
+        });
+
+        body.addEventListener('click', function (e) {
+            const moveBtn = e.target.closest('.col-move-btn');
+            if (!moveBtn) return;
+            const key  = parseInt(moveBtn.closest('.col-check').dataset.key, 10);
+            const idx  = findIndexByKey(key);
+            const swap = moveBtn.getAttribute('data-dir') === 'up' ? idx - 1 : idx + 1;
+            if (swap < 0 || swap >= columnState.length) return;
+            const t = columnState[idx]; columnState[idx] = columnState[swap]; columnState[swap] = t;
+            renderDrawer();
+            applyLayout();
+        });
+
+        function setAllColumns(state) {
+            columnState.forEach(function (c) { c.visible = state; });
+            renderDrawer();
+            applyLayout();
+        }
+        document.getElementById('colSelectAll').addEventListener('click', function () { setAllColumns(true); });
+        document.getElementById('colClearAll').addEventListener('click', function () { setAllColumns(false); });
+
+        /* ---------- templates ---------- */
+        function refreshTemplateOptions(selectedName) {
+            const store = loadStore();
+            let opts = '<option value="">— Default (all columns) —</option>';
+            Object.keys(store.templates).forEach(function (name) {
+                const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                opts += `<option value="${safe}"${name === selectedName ? ' selected' : ''}>${safe}</option>`;
+            });
+            tplSelect.innerHTML = opts;
+            tplSelect.value = selectedName || '';
+        }
+        function applyState(state) { columnState = normalizeState(state); renderDrawer(); applyLayout(); }
+
+        tplSelect.addEventListener('change', function () {
+            const name  = tplSelect.value;
+            const store = loadStore();
+            store.active = name || null;
+            saveStore(store);
+            applyState(name && store.templates[name] ? store.templates[name] : defaultState());
+        });
+
+        document.getElementById('colTplSaveAs').addEventListener('click', function () {
+            const name = (prompt('Save current column layout as template. Enter a name:') || '').trim();
+            if (!name) return;
+            const store = loadStore();
+            store.templates[name] = snapshot();
+            store.active = name;
+            saveStore(store);
+            refreshTemplateOptions(name);
+            showToast('Template "' + name + '" saved.', 'success');
+        });
+
+        document.getElementById('colTplUpdate').addEventListener('click', function () {
+            const name = tplSelect.value;
+            if (!name) { showToast('Select a template first, or use "Save as".', 'error'); return; }
+            const store = loadStore();
+            store.templates[name] = snapshot();
+            store.active = name;
+            saveStore(store);
+            showToast('Template "' + name + '" updated.', 'success');
+        });
+
+        document.getElementById('colTplDelete').addEventListener('click', function () {
+            const name = tplSelect.value;
+            if (!name) { showToast('Select a template to delete.', 'error'); return; }
+            if (!confirm('Delete template "' + name + '"?')) return;
+            const store = loadStore();
+            delete store.templates[name];
+            if (store.active === name) store.active = null;
+            saveStore(store);
+            refreshTemplateOptions('');
+            applyState(defaultState());
+            showToast('Template deleted.', 'success');
+        });
+
+        /* ---------- open / close ---------- */
+        function openDrawer()  { drawer.classList.add('open');    overlay.classList.add('open'); }
+        function closeDrawer() { drawer.classList.remove('open'); overlay.classList.remove('open'); }
+        btn.addEventListener('click', openDrawer);
+        document.getElementById('colDrawerClose').addEventListener('click', closeDrawer);
+        overlay.addEventListener('click', closeDrawer);
+
+        /* ---------- init: auto-apply last used template ---------- */
+        (function init() {
+            const store = loadStore();
+            refreshTemplateOptions(store.active || '');
+            columnState = (store.active && store.templates[store.active])
+                ? normalizeState(store.templates[store.active])
+                : defaultState();
+            renderDrawer();
+            applyLayout();
+        })();
+    })();
 </script>

@@ -10,14 +10,21 @@ namespace JSAPNEW.Controllers
     {
         private readonly IDocumentHubService _service;
         private readonly IWebHostEnvironment _environment;
+        private readonly IBillVerificationLogService _log;
 
         public DocumentHubController(
     IDocumentHubService service,
-    IWebHostEnvironment environment)
+    IWebHostEnvironment environment,
+    IBillVerificationLogService log)
         {
             _service = service;
             _environment = environment;
+            _log = log;
         }
+
+        // writes a "Document Hub" row into the unified bill-verification log
+        private void LogDh(string action, object id, string detail = null)
+            => _log?.Log(HttpContext, "Document Hub", action, id, null, detail);
 
         public IActionResult Index() => RedirectToAction(nameof(DocumentHubPage));
 
@@ -32,7 +39,7 @@ namespace JSAPNEW.Controllers
 
             ViewBag.DocumentHubPermissions = permissions;
             ViewBag.CurrentUserName = CurrentUserName();
-            return View("~/Views/Documenthub/DocumentHubPage.cshtml");
+            return View("~/Views/BillVerification/DocumentHubPage.cshtml");
         }
 
         [HttpGet]
@@ -90,6 +97,7 @@ namespace JSAPNEW.Controllers
                 return Forbid();
 
             var folder = await _service.CreateFolderAsync(request, CurrentUserId(), CurrentUserName());
+            if (folder != null) LogDh("Create Folder", folder.FolderId, folder.FolderName);
             return Json(new { success = folder != null, data = folder, message = folder == null ? "Folder name is required." : "Folder created." });
         }
 
@@ -104,6 +112,7 @@ namespace JSAPNEW.Controllers
                 return Json(new { success = false, message = "Folder name is required." });
 
             var ok = await _service.RenameFolderAsync(folderId, folderName, CurrentUserId(), CurrentUserName());
+            if (ok) LogDh("Rename Folder", folderId, folderName);
             return Json(new { success = ok, message = ok ? "Folder renamed." : "Unable to rename folder." });
         }
 
@@ -118,6 +127,7 @@ namespace JSAPNEW.Controllers
                 return Json(new { success = false, message = "Only empty folders can be deleted. Move or delete files and subfolders first." });
 
             var ok = await _service.DeleteFolderAsync(folderId, CurrentUserId(), CurrentUserName());
+            if (ok) LogDh("Delete Folder", folderId);
             return Json(new { success = ok, message = ok ? "Folder deleted." : "Unable to delete folder." });
         }
 
@@ -128,6 +138,7 @@ namespace JSAPNEW.Controllers
                 return Forbid();
 
             var ok = await _service.MoveFolderAsync(folderId, targetParentFolderId, CurrentUserId(), CurrentUserName());
+            if (ok) LogDh("Move Folder", folderId);
             return Json(new { success = ok, message = ok ? "Folder moved." : "Unable to move folder." });
         }
 
@@ -153,6 +164,7 @@ namespace JSAPNEW.Controllers
                 Tags = tags ?? string.Empty
             }, CurrentUserId(), CurrentUserName());
 
+            LogDh("Upload", folderId, files == null ? null : (files.Count + " file(s)"));
             return Json(result);
         }
 
@@ -252,7 +264,7 @@ namespace JSAPNEW.Controllers
             ViewBag.ReturnFolderId = folderId;
             ViewBag.ReturnFilter = filter ?? string.Empty;
             ViewBag.ReturnSearch = search ?? string.Empty;
-            return View("~/Views/Documenthub/ExcelEditor.cshtml");
+            return View("~/Views/BillVerification/ExcelEditor.cshtml");
         }
 
         [HttpGet]
@@ -311,6 +323,7 @@ namespace JSAPNEW.Controllers
                 return Json(new { success = false, message = "File name is required." });
 
             var ok = await _service.RenameFileAsync(fileId, fileName, CurrentUserId(), CurrentUserName());
+            if (ok) LogDh("Rename File", fileId, fileName);
             return Json(new { success = ok, message = ok ? "File renamed." : "Unable to rename file." });
         }
 
@@ -321,6 +334,7 @@ namespace JSAPNEW.Controllers
                 return Forbid();
 
             var ok = await _service.DeleteFileAsync(fileId, CurrentUserId(), CurrentUserName());
+            if (ok) LogDh("Delete File", fileId);
             return Json(new { success = ok, message = ok ? "File deleted." : "Unable to delete file." });
         }
 
@@ -332,6 +346,7 @@ namespace JSAPNEW.Controllers
                 CurrentUserId(),
                 CurrentUserName());
 
+            if (ok) LogDh("Restore File", fileId);
             return Json(new
             {
                 success = ok,
@@ -347,6 +362,7 @@ namespace JSAPNEW.Controllers
                 CurrentUserId(),
                 CurrentUserName());
 
+            if (ok) LogDh("Restore Folder", folderId);
             return Json(new
             {
                 success = ok,
@@ -362,6 +378,7 @@ namespace JSAPNEW.Controllers
                 CurrentUserId(),
                 CurrentUserName());
 
+            if (ok) LogDh("Permanent Delete File", fileId);
             return Json(new
             {
                 success = ok,
@@ -378,6 +395,7 @@ namespace JSAPNEW.Controllers
                 CurrentUserId(),
                 CurrentUserName());
 
+            if (ok) LogDh("Permanent Delete Folder", folderId);
             return Json(new
             {
                 success = ok,
@@ -395,6 +413,7 @@ namespace JSAPNEW.Controllers
                 return Forbid();
 
             var ok = await _service.MoveFileAsync(fileId, targetFolderId, CurrentUserId(), CurrentUserName());
+            if (ok) LogDh("Move File", fileId);
             return Json(new { success = ok, message = ok ? "File moved." : "Unable to move file." });
         }
 

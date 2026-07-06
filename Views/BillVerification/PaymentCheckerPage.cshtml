@@ -14,6 +14,141 @@
       href="~/css/bill-verification.css" />
 <link rel="stylesheet" href="~/css/admin-premium.css" />
 
+<style>
+    /* ===== PAYMENT CHECKER TABLE: full column values (no "..."), fit-to-text, centered ===== */
+    .payment-checker-shell .payment-checker-table-card table.dt.payment-checker-table {
+        table-layout: auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .payment-checker-shell .payment-checker-table-card table.dt.payment-checker-table thead th,
+    .payment-checker-shell .payment-checker-table-card table.dt.payment-checker-table tbody td {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .payment-checker-shell .payment-checker-table-card table.dt.payment-checker-table .cell-text,
+    .payment-checker-shell .payment-checker-table-card table.dt.payment-checker-table .clamp-text {
+        max-width: none !important;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: nowrap;
+        -webkit-line-clamp: none;
+        display: inline;
+    }
+
+    .payment-checker-shell .payment-checker-table-card .payment-checker-table col {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    /* keep the account suggestions dropdown above the table card */
+    .payment-checker-filter-card {
+        position: relative;
+        z-index: 40;
+    }
+
+    /* the account field is the positioning anchor for its dropdown */
+    .payment-checker-filter-card .autocomplete-group {
+        position: relative;
+    }
+
+    /* ── Account name dropdown (combobox) ── */
+    .payment-checker-filter-card .suggestion-box {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        z-index: 3000;
+        max-height: 320px;
+        overflow-y: auto;
+        background: #ffffff;
+        border: 1px solid #e5e9f2;
+        border-radius: 16px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+        padding: 8px;
+        display: none;
+    }
+
+        .payment-checker-filter-card .suggestion-box:not(:empty) {
+            display: block;
+        }
+
+        .payment-checker-filter-card .suggestion-box .suggest-item {
+            padding: 13px 16px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            transition: background .12s ease, color .12s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+            .payment-checker-filter-card .suggestion-box .suggest-item:hover {
+                background: #eff4ff;
+                color: #1d4ed8;
+            }
+
+            .payment-checker-filter-card .suggestion-box .suggest-item.suggest-empty {
+                color: #94a3b8;
+                font-weight: 500;
+                cursor: default;
+                background: transparent;
+            }
+
+    .payment-checker-filter-card .suggestion-box::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .payment-checker-filter-card .suggestion-box::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 8px;
+    }
+
+    /* ── Action column: icon-only square review button ── */
+    .payment-checker-shell .td-action {
+        text-align: center;
+    }
+
+    .payment-checker-shell .btn-review.pc-review-btn {
+        width: 34px;
+        height: 34px;
+        min-width: 0;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        border: none;
+        border-radius: 9px;
+        cursor: pointer;
+        color: #fff;
+        font-size: 15px;
+        background: linear-gradient(135deg, #16a34a, #22c55e);
+        box-shadow: 0 4px 12px rgba(22, 163, 74, .28);
+        transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+    }
+
+        .payment-checker-shell .btn-review.pc-review-btn:hover {
+            filter: brightness(1.06);
+            transform: translateY(-1px);
+            box-shadow: 0 7px 18px rgba(22, 163, 74, .38);
+        }
+
+        .payment-checker-shell .btn-review.pc-review-btn:active {
+            transform: translateY(0);
+        }
+</style>
+
 <!-- PREMIUM CONTENT -->
 <div class="admin-dashboard-shell payment-checker-shell">
 <nav class="premium-nav">
@@ -280,17 +415,6 @@
         </div>
 
 
-        <!-- TABLE SLIDE HINT -->
-
-        <div class="table-slide-hint">
-
-            <i class="fa-solid fa-arrows-left-right"></i>
-
-            Slide horizontally to inspect all columns
-
-        </div>
-
-
         <!-- TOP SCROLL -->
 
         <div class="top-scroll"
@@ -365,6 +489,12 @@
 
             </table>
 
+        </div>
+
+        <!-- PAGINATION (10 per page) -->
+        <div class="dt-pagination" id="pg-paymentchecker">
+            <div class="dt-pg-info">Showing <b id="pc-from">0</b>–<b id="pc-to">0</b> of <b id="pc-total">0</b></div>
+            <div class="dt-pg-btns" id="pg-btns-paymentchecker"></div>
         </div>
 
     </div>
@@ -577,42 +707,29 @@
     // RENDER TABLE
     // -----------------------------------------------
 
+    /* pagination state — 10 rows per page */
+    let pcRows = [];
+    let pcPage = 1;
+    const pcPerPage = 10;
+
     function renderTable(data) {
+    /* dedup by voucher number */
+    const seen = new Set();
+    pcRows = (data || []).filter(item => {
+    if (seen.has(item.vchNumber)) return false;
+    seen.add(item.vchNumber);
+    return true;
+    });
+
     _paymentCheckerCache = data || [];
+    updateCards(data || []);
+    $("#recordBadge").text(pcRows.length + " records");
 
-    if (!data || data.length === 0) {
-    _paymentCheckerCache = data || [];
-
-    $("#paymentCheckerTable").html(`
-    <tr>
-    <td colspan="13"
-    class="empty-row">
-
-    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
-    No Paid Invoices Found
-
-    </td>
-    </tr>`);
-
-    updateCards([]);
-    $("#recordBadge").text("");
-
-    return;
+    pcPage = 1;
+    renderPcPage();
     }
 
-    updateCards(data);
-
-    $("#recordBadge").text(data.length + " records");
-
-    let html = "";
-    let seenVch = new Set();
-
-    data.forEach(item => {
-
-    if (seenVch.has(item.vchNumber)) return;
-
-    seenVch.add(item.vchNumber);
-
+    function pcRowHtml(item) {
     let attachHtml = item.attachmentPath
     ? `<a href="#"
     onclick="openPdf(${safeJsString(item.attachmentPath)});return false;"
@@ -623,7 +740,7 @@
     </a>`
     : `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
 
-    html += `
+    return `
 
     <tr id="row-${safeAttr(item.vchNumber)}">
 
@@ -653,7 +770,7 @@
     <span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>
     </td>
     <td class="td-action">
-    <button class="btn-review"
+    <button class="btn-review pc-review-btn" title="Review payment"
     onclick="openVerificationModal(
     '${item.vchNumber}',
     '${item.billAmount}',
@@ -661,17 +778,77 @@
     '${item.attachmentPath || ""}',
     '${safeAttr(item.accountName || "")}'
     )">
-    <i class="fa-solid fa-shield-check"></i>
-    View
+    <i class="fa-solid fa-paper-plane"></i>
     </button>
     </td>
     <td class="td-remark" title="${safeAttr(item.checkerRemark || "-")}"><span class="cell-text clamp-text">${safeText(item.checkerRemark || "-")}</span></td>
 
     </tr>`;
-    });
+    }
 
+    function renderPcPage() {
+    if (!pcRows.length) {
+    $("#paymentCheckerTable").html(`
+    <tr>
+    <td colspan="13" class="empty-row">
+    <i class="fa-solid fa-inbox" style="font-size:22px;display:block;margin-bottom:8px;color:#D1D5DB"></i>
+    No Paid Invoices Found
+    </td>
+    </tr>`);
+    $("#pc-from").text(0);
+    $("#pc-to").text(0);
+    $("#pc-total").text(0);
+    $("#pg-btns-paymentchecker").empty();
+    return;
+    }
+
+    const total = pcRows.length;
+    const start = (pcPage - 1) * pcPerPage;
+    const end = Math.min(start + pcPerPage, total);
+
+    let html = "";
+    pcRows.slice(start, end).forEach(item => { html += pcRowHtml(item); });
     $("#paymentCheckerTable").html(html);
 
+    $("#pc-from").text(total ? start + 1 : 0);
+    $("#pc-to").text(end);
+    $("#pc-total").text(total);
+
+    renderPcPagination(total);
+    setTimeout(syncTopScroll, 100);
+    }
+
+    function renderPcPagination(total) {
+    const pages = Math.ceil(total / pcPerPage);
+    const box = $("#pg-btns-paymentchecker");
+    box.empty();
+    if (pages <= 1) return;
+
+    box.append(`<button class="dt-pg-btn"${pcPage === 1 ? ' disabled' : ''} onclick="pcGoPage(${pcPage - 1})"><i class="fa-solid fa-chevron-left fa-xs"></i></button>`);
+
+    pcPageNums(pcPage, pages).forEach(p => {
+    if (p === '...') box.append('<span class="dt-pg-dots">…</span>');
+    else box.append(`<button class="dt-pg-btn${p === pcPage ? ' active' : ''}" onclick="pcGoPage(${p})">${p}</button>`);
+    });
+
+    box.append(`<button class="dt-pg-btn"${pcPage === pages ? ' disabled' : ''} onclick="pcGoPage(${pcPage + 1})"><i class="fa-solid fa-chevron-right fa-xs"></i></button>`);
+    }
+
+    function pcPageNums(current, total) {
+    if (total <= 7) { let a = []; for (let i = 1; i <= total; i++) a.push(i); return a; }
+    let p = [1];
+    if (current > 3) p.push('...');
+    let lo = Math.max(2, current - 1), hi = Math.min(total - 1, current + 1);
+    for (let j = lo; j <= hi; j++) p.push(j);
+    if (current < total - 2) p.push('...');
+    p.push(total);
+    return p;
+    }
+
+    function pcGoPage(p) {
+    pcPage = p;
+    renderPcPage();
+    window.scrollTo({ top: document.querySelector('.payment-checker-table-card')?.offsetTop || 0, behavior: 'smooth' });
     }
 
 
@@ -772,62 +949,56 @@
     // ACCOUNT AUTOCOMPLETE
     // -----------------------------------------------
 
-    $(document).ready(function () {
+    function loadPcAccountSuggestions() {
 
-    $("#searchBtn").click(loadData);
+    let term = $("#accountName").val().trim();
 
-    $("#accountName").on("keyup", function () {
-
-    let term = $(this).val().trim();
-
-    if (term.length < 2) {
-
-    $("#suggestionBox").empty();
-
-    return;
-    }
-
-    $.get("/Maker/GetAccountSuggestions", {
-
-    term: term
-
-    }, function (data) {
+    $.get("/Maker/GetAccountSuggestions", { term: term }, function (data) {
 
     let html = "";
 
     if (!data || data.length === 0) {
-
-    html = `
-    <div class="suggest-item">
-    No result
-    </div>`;
-
+    html = `<div class="suggest-item suggest-empty">No result</div>`;
     } else {
+    data.forEach(x => { html += `<div class="suggest-item">${x}</div>`; });
+    }
 
-    data.forEach(x => {
+    $("#suggestionBox").html(html).show();
 
-    html += `
-    <div class="suggest-item">
-    ${x}
-    </div>`;
     });
     }
 
-    $("#suggestionBox").html(html);
+    $(document).ready(function () {
 
-    });
+    /* default both dates to today */
+    (function () {
+    const t = new Date();
+    const today = t.getFullYear() + "-" +
+    String(t.getMonth() + 1).padStart(2, "0") + "-" +
+    String(t.getDate()).padStart(2, "0");
+    $("#fromDate").val(today);
+    $("#toDate").val(today);
+    })();
 
-    });
+    $("#searchBtn").click(loadData);
 
-    $(document).on("mousedown", ".suggest-item", function (e) {
+    /* open on focus/click (shows options even before typing) + filter while typing */
+    $("#accountName").on("focus click keyup", loadPcAccountSuggestions);
 
+    $(document).on("mousedown", "#suggestionBox .suggest-item", function (e) {
     e.preventDefault();
-
+    if ($(this).hasClass("suggest-empty")) return;
     $("#accountName").val($(this).text().trim());
-
-    $("#suggestionBox").empty();
-
+    $("#suggestionBox").empty().hide();
     });
+
+    $(document).on("click", function (e) {
+    if (!$(e.target).closest("#accountName, #suggestionBox").length)
+    $("#suggestionBox").empty().hide();
+    });
+
+    /* auto-load today's paid invoices */
+    loadData();
 
     });
 

@@ -9,6 +9,302 @@
 <link rel="stylesheet" href="~/css/bill-verification.css" />
 <link rel="stylesheet" href="~/css/admin-premium.css" />
 
+<style>
+    /* ===== INVOICE PAYMENT TABLE: full column values (no "..."), fit-to-text, centered ===== */
+    .invoice-payment-shell .invoice-table-card table.dt.invoice-payment-table {
+        table-layout: auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .invoice-payment-shell .invoice-table-card table.dt.invoice-payment-table thead th,
+    .invoice-payment-shell .invoice-table-card table.dt.invoice-payment-table tbody td {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .invoice-payment-shell .invoice-table-card table.dt.invoice-payment-table .cell-text,
+    .invoice-payment-shell .invoice-table-card table.dt.invoice-payment-table .clamp-text {
+        max-width: none !important;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: nowrap;
+        -webkit-line-clamp: none;
+        display: inline;
+    }
+
+    .invoice-payment-shell .invoice-table-card .invoice-payment-table col {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    /* keep the account suggestions dropdown above the table card */
+    .invoice-filter-card {
+        position: relative;
+        z-index: 40;
+    }
+
+    /* the account field is the positioning anchor for its dropdown */
+    .invoice-filter-card .autocomplete-group {
+        position: relative;
+    }
+
+    /* ── Account name dropdown (combobox) ── */
+    .invoice-filter-card .suggestion-box {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        z-index: 3000;
+        max-height: 320px;
+        overflow-y: auto;
+        background: #ffffff;
+        border: 1px solid #e5e9f2;
+        border-radius: 16px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+        padding: 8px;
+        display: none;
+    }
+
+        .invoice-filter-card .suggestion-box .suggest-item {
+            padding: 13px 16px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            transition: background .12s ease, color .12s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+            .invoice-filter-card .suggestion-box .suggest-item:hover {
+                background: #eff4ff;
+                color: #1d4ed8;
+            }
+
+            .invoice-filter-card .suggestion-box .suggest-item.suggest-empty {
+                color: #94a3b8;
+                font-weight: 500;
+                cursor: default;
+                background: transparent;
+            }
+
+    /* nice thin scrollbar for the dropdown */
+    .invoice-filter-card .suggestion-box::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .invoice-filter-card .suggestion-box::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 8px;
+    }
+
+    /* ── Action column: Reject button ── */
+    .invoice-payment-shell .td-action {
+        text-align: center;
+    }
+
+    .invoice-payment-shell .ip-reject-btn {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: 9px;
+        cursor: pointer;
+        color: #fff;
+        font-size: 15px;
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, .28);
+        transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+    }
+
+        .invoice-payment-shell .ip-reject-btn:hover {
+            filter: brightness(1.06);
+            transform: translateY(-1px);
+            box-shadow: 0 7px 18px rgba(220, 38, 38, .38);
+        }
+
+        .invoice-payment-shell .ip-reject-btn:active {
+            transform: translateY(0);
+        }
+
+    /* ── Reject modal (centered) ── */
+    .ip-reject-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, .55);
+        backdrop-filter: blur(3px);
+    }
+
+        .ip-reject-overlay.open {
+            display: flex;
+        }
+
+    .ip-reject-card {
+        width: 460px;
+        max-width: calc(100vw - 40px);
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, .35);
+        overflow: hidden;
+        animation: ipPop .16s ease;
+    }
+
+    @@keyframes ipPop {
+        from {
+            transform: scale(.94);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .ip-reject-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 22px;
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: #fff;
+    }
+
+        .ip-reject-head h3 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+    .ip-reject-close {
+        background: rgba(255,255,255,.18);
+        border: none;
+        color: #fff;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+        .ip-reject-close:hover {
+            background: rgba(255,255,255,.30);
+        }
+
+    .ip-reject-body {
+        padding: 20px 22px 8px;
+    }
+
+        .ip-reject-body .ip-acct {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 14px;
+        }
+
+            .ip-reject-body .ip-acct b {
+                color: #1e293b;
+            }
+
+        .ip-reject-body label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+            .ip-reject-body label .req {
+                color: #dc2626;
+            }
+
+        .ip-reject-body textarea {
+            width: 100%;
+            min-height: 96px;
+            resize: vertical;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color .15s ease;
+        }
+
+            .ip-reject-body textarea:focus {
+                border-color: #ef4444;
+            }
+
+            .ip-reject-body textarea.err {
+                border-color: #dc2626;
+                background: #fef2f2;
+            }
+
+    .ip-reject-warn {
+        color: #dc2626;
+        font-size: 12.5px;
+        margin-top: 6px;
+        min-height: 16px;
+    }
+
+    .ip-reject-foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 12px 22px 20px;
+    }
+
+    .ip-btn-cancel {
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: 1.5px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .ip-btn-cancel:hover {
+            background: #f8fafc;
+        }
+
+    .ip-btn-confirm {
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: none;
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(220,38,38,.3);
+    }
+
+        .ip-btn-confirm:hover {
+            filter: brightness(1.06);
+        }
+
+        .ip-btn-confirm:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+</style>
+
 <!-- ═══════════════════════════════════
      PREMIUM CONTENT
 ═══════════════════════════════════ -->
@@ -52,6 +348,31 @@
         <img id="modalProductImage"
              class="modal-product-image" />
 
+    </div>
+
+    <!-- REJECT MODAL (Payment Maker) -->
+    <div class="ip-reject-overlay" id="ipRejectOverlay">
+        <div class="ip-reject-card">
+            <div class="ip-reject-head">
+                <h3><i class="fa-solid fa-ban"></i> Reject Entry</h3>
+                <button type="button" class="ip-reject-close" onclick="closeRejectModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="ip-reject-body">
+                <div class="ip-acct">Account: <b id="ipRejectAccount">-</b></div>
+                <label>Reject Remark <span class="req">*</span></label>
+                <textarea id="ipRejectRemark"
+                          placeholder="Enter reason for rejecting this entry (mandatory)"></textarea>
+                <div class="ip-reject-warn" id="ipRejectWarn"></div>
+            </div>
+            <div class="ip-reject-foot">
+                <button type="button" class="ip-btn-cancel" onclick="closeRejectModal()">Cancel</button>
+                <button type="button" class="ip-btn-confirm" id="ipRejectConfirm" onclick="submitReject()">
+                    <i class="fa-solid fa-ban"></i> Reject
+                </button>
+            </div>
+        </div>
     </div>
 
     <div class="body admin-dashboard-body">
@@ -184,7 +505,7 @@
 
             </div>
 
-            <div class="f-group grow">
+            <div class="f-group grow autocomplete-group">
 
                 <span class="f-label">
                     Account Name
@@ -193,7 +514,10 @@
                 <input type="text"
                        id="accountName"
                        class="f-input"
-                       placeholder="Search account..." />
+                       placeholder="Search account..."
+                       autocomplete="off" />
+
+                <div id="suggestionBox" class="suggestion-box"></div>
 
             </div>
 
@@ -237,15 +561,6 @@
 
             </div>
 
-            <!-- HINT -->
-            <div class="table-slide-hint">
-
-                <i class="fa-solid fa-arrows-left-right"></i>
-
-                Slide horizontally to inspect all columns
-
-            </div>
-
             <!-- TOP SCROLL -->
             <div class="top-scroll"
                  id="topScroll">
@@ -276,6 +591,7 @@
                         <col class="col-payment-status" />
                       
                         <col class="col-checker-remark" />
+                        <col class="col-action" />
                     </colgroup>
 
                     <thead>
@@ -295,6 +611,7 @@
                             <th>Payment Status</th>
                            
                             <th>Checker Remark</th>
+                            <th>Action</th>
 
                         </tr>
 
@@ -304,7 +621,7 @@
 
                         <tr>
 
-                            <td colspan="11"
+                            <td colspan="12"
                                 class="empty-row">
 
                                 <i class="fa-solid fa-spinner fa-spin"></i>
@@ -319,6 +636,12 @@
 
             </div>
 
+            <!-- PAGINATION (10 per page) -->
+            <div class="dt-pagination" id="pg-ip">
+                <div class="dt-pg-info">Showing <b id="ip-from">0</b>–<b id="ip-to">0</b> of <b id="ip-total">0</b></div>
+                <div class="dt-pg-btns" id="pg-btns-ip"></div>
+            </div>
+
         </div>
 
     </div>
@@ -331,6 +654,11 @@
     PRODUCT IMAGE MODAL
     ═══════════════════════════════════════ */
     let _invoiceDataCache = [];
+
+    /* pagination state — 10 rows per page */
+    let ipRows = [];
+    let ipPage = 1;
+    const ipPerPage = 10;
 
     $(document).on("click", ".clickable-product", function () {
 
@@ -462,7 +790,7 @@
 
     $("#PaymentTable").html(`
     <tr>
-    <td colspan="11"
+    <td colspan="12"
     class="empty-row">
 
     <i class="fa-solid fa-spinner fa-spin"></i>
@@ -489,7 +817,7 @@
 
     $("#PaymentTable").html(`
     <tr>
-    <td colspan="11"
+    <td colspan="12"
     class="empty-row"
     style="color:#EF4444">
 
@@ -546,29 +874,9 @@
 
     function renderTable(data) {
 
-    if (!data || data.length === 0) {
-
-
-    $("#rowCount").text("0 records");
-
-    $("#PaymentTable").html(`
-    <tr>
-    <td colspan="11"
-    class="empty-row">
-
-    No Data Found
-
-    </td>
-    </tr>
-    `);
-
-    syncTopScroll();
-
-    return;
-    }
     _invoiceDataCache = data || [];
 
-    let approvedData = data.filter(item =>
+    let approvedData = (data || []).filter(item =>
 
     item.checkerStatus === "Approved"
     &&
@@ -576,33 +884,17 @@
 
     );
 
-    if (approvedData.length === 0) {
-
-    $("#rowCount").text("0 records");
-
-    $("#PaymentTable").html(`
-    <tr>
-    <td colspan="11"
-    class="empty-row">
-
-    No Approved Records
-
-    </td>
-    </tr>
-    `);
-
-    syncTopScroll();
-
-    return;
-    }
-
     $("#rowCount").text(
     approvedData.length + " records"
     );
 
-    let html = "";
+    ipRows = approvedData;
+    ipPage = 1;
+    renderIpPage();
 
-    approvedData.forEach(item => {
+    }
+
+    function ipRowHtml(item) {
 
     let checkerBadge =
     `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Approved</span>`;
@@ -629,7 +921,7 @@
     :
     `<span class="muted-pill"><i class="fa-regular fa-file"></i>No File</span>`;
 
-    html += `
+    return `
 
     <tr>
 
@@ -678,14 +970,86 @@
     <span class="cell-text clamp-text">${safeText(item.checkerRemark ?? "-")}</span>
     </td>
 
+    <td class="td-action">
+    <button type="button" class="ip-reject-btn"
+    title="Reject this entry"
+    onclick="openRejectModal(${safeJsString(item.vchNumber)}, ${safeJsString(item.accountName ?? '')})">
+    <i class="fa-solid fa-xmark"></i>
+    </button>
+    </td>
+
     </tr>
     `;
-    });
+    }
 
+    /* ═══════════════════════════════════════
+    PAGINATION — 10 rows per page
+    ═══════════════════════════════════════ */
+
+    function renderIpPage() {
+    if (ipRows.length === 0) {
+    $("#PaymentTable").html(`
+    <tr>
+    <td colspan="12" class="empty-row">
+    No Approved Records
+    </td>
+    </tr>
+    `);
+    $("#ip-from").text(0);
+    $("#ip-to").text(0);
+    $("#ip-total").text(0);
+    $("#pg-btns-ip").empty();
+    syncTopScroll();
+    return;
+    }
+
+    const total = ipRows.length;
+    const start = (ipPage - 1) * ipPerPage;
+    const end = Math.min(start + ipPerPage, total);
+
+    let html = "";
+    ipRows.slice(start, end).forEach(item => { html += ipRowHtml(item); });
     $("#PaymentTable").html(html);
 
-    syncTopScroll();
+    $("#ip-from").text(total ? start + 1 : 0);
+    $("#ip-to").text(end);
+    $("#ip-total").text(total);
 
+    renderIpPagination(total);
+    syncTopScroll();
+    }
+
+    function renderIpPagination(total) {
+    const pages = Math.ceil(total / ipPerPage);
+    const box = $("#pg-btns-ip");
+    box.empty();
+    if (pages <= 1) return;
+
+    box.append(`<button class="dt-pg-btn"${ipPage === 1 ? ' disabled' : ''} onclick="ipGoPage(${ipPage - 1})"><i class="fa-solid fa-chevron-left fa-xs"></i></button>`);
+
+    ipPageNums(ipPage, pages).forEach(p => {
+    if (p === '...') box.append('<span class="dt-pg-dots">…</span>');
+    else box.append(`<button class="dt-pg-btn${p === ipPage ? ' active' : ''}" onclick="ipGoPage(${p})">${p}</button>`);
+    });
+
+    box.append(`<button class="dt-pg-btn"${ipPage === pages ? ' disabled' : ''} onclick="ipGoPage(${ipPage + 1})"><i class="fa-solid fa-chevron-right fa-xs"></i></button>`);
+    }
+
+    function ipPageNums(current, total) {
+    if (total <= 7) { let a = []; for (let i = 1; i <= total; i++) a.push(i); return a; }
+    let p = [1];
+    if (current > 3) p.push('...');
+    let lo = Math.max(2, current - 1), hi = Math.min(total - 1, current + 1);
+    for (let j = lo; j <= hi; j++) p.push(j);
+    if (current < total - 2) p.push('...');
+    p.push(total);
+    return p;
+    }
+
+    function ipGoPage(p) {
+    ipPage = p;
+    renderIpPage();
+    window.scrollTo({ top: document.querySelector('.invoice-table-card')?.offsetTop || 0, behavior: 'smooth' });
     }
 
     /* ═══════════════════════════════════════
@@ -815,10 +1179,117 @@
 
     $(document).ready(function () {
 
-    initScrollSync();
+    /* default both dates to today */
+    (function () {
+    const t = new Date();
+    const today = t.getFullYear() + "-" +
+    String(t.getMonth() + 1).padStart(2, "0") + "-" +
+    String(t.getDate()).padStart(2, "0");
+    $("#fromDate").val(today);
+    $("#toDate").val(today);
+    })();
 
+    initScrollSync();
+    initAccountSuggestions();
     loadData();
 
+    });
+
+    /* ═══════════════════════════════════════
+    ACCOUNT NAME — omni search + click-to-open dropdown (combobox)
+    ═══════════════════════════════════════ */
+    function loadInvoiceAccountSuggestions() {
+    const term = $("#accountName").val().trim();
+    $.get("/Maker/GetAccountSuggestions", { term }, function (data) {
+    let html = "";
+    if (!data || !data.length) {
+    html = `<div class="suggest-item suggest-empty">No result</div>`;
+    } else {
+    data.forEach(x => { html += `<div class="suggest-item">${x}</div>`; });
+    }
+    $("#suggestionBox").html(html).show();
+    });
+    }
+
+    function initAccountSuggestions() {
+    /* open on focus/click (shows options even before typing) and filter while typing */
+    $("#accountName").on("focus click keyup", loadInvoiceAccountSuggestions);
+
+    $(document).on("mousedown", "#suggestionBox .suggest-item", function (e) {
+    e.preventDefault();
+    if ($(this).hasClass("suggest-empty")) return;
+    $("#accountName").val($(this).text().trim());
+    $("#suggestionBox").empty().hide();
+    });
+
+    $(document).on("click", function (e) {
+    if (!$(e.target).closest("#accountName, #suggestionBox").length)
+    $("#suggestionBox").empty().hide();
+    });
+    }
+
+    /* ═══════════════════════════════════════
+    REJECT ENTRY (Payment Maker) — mandatory remark
+    ═══════════════════════════════════════ */
+    let ipRejectVch = null;
+
+    function openRejectModal(vchNumber, accountName) {
+    ipRejectVch = vchNumber;
+    $("#ipRejectAccount").text(accountName || "-");
+    $("#ipRejectRemark").val("").removeClass("err");
+    $("#ipRejectWarn").text("");
+    $("#ipRejectConfirm").prop("disabled", false)
+    .html('<i class="fa-solid fa-ban"></i> Reject');
+    $("#ipRejectOverlay").addClass("open");
+    setTimeout(() => $("#ipRejectRemark").focus(), 60);
+    }
+
+    function closeRejectModal() {
+    $("#ipRejectOverlay").removeClass("open");
+    ipRejectVch = null;
+    }
+
+    function submitReject() {
+    const remark = $("#ipRejectRemark").val().trim();
+
+    /* remark is MANDATORY */
+    if (!remark) {
+    $("#ipRejectRemark").addClass("err").focus();
+    $("#ipRejectWarn").text("Remark is required to reject an entry.");
+    return;
+    }
+
+    const btn = $("#ipRejectConfirm");
+    btn.prop("disabled", true)
+    .html('<i class="fa-solid fa-spinner fa-spin"></i> Rejecting...');
+
+    $.ajax({
+    url: "/InvoicePayment/Reject",
+    type: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({ vchNumber: ipRejectVch, remark: remark }),
+    success: function (res) {
+    if (res && res.success) {
+    closeRejectModal();
+    loadData();
+    } else {
+    $("#ipRejectWarn").text((res && res.message) || "Unable to reject entry.");
+    btn.prop("disabled", false).html('<i class="fa-solid fa-ban"></i> Reject');
+    }
+    },
+    error: function () {
+    $("#ipRejectWarn").text("Something went wrong. Please try again.");
+    btn.prop("disabled", false).html('<i class="fa-solid fa-ban"></i> Reject');
+    }
+    });
+    }
+
+    /* close on backdrop click + Esc */
+    $(document).on("mousedown", "#ipRejectOverlay", function (e) {
+    if (e.target === this) closeRejectModal();
+    });
+    $(document).on("keydown", function (e) {
+    if (e.key === "Escape" && $("#ipRejectOverlay").hasClass("open")) closeRejectModal();
     });
     function exportToExcel() {
 

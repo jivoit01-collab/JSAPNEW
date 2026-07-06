@@ -19,6 +19,9 @@ namespace JSAPNEW.Models
         public string MakerRemark { get; set; }
         public string CheckerRemark { get; set; }
         public string CheckerStatus { get; set; }
+        public string CheckerDate { get; set; }   // when the checker acted (if the SP returns it)
+        public string CheckerBy { get; set; }      // checker user id (if the SP returns it)
+        public string CheckerName { get; set; }    // checker user name (if the SP returns it)
         public string MakerStatus { get; set; }
         public string PaymentStatus { get; set; }
         public string SerialNumber { get; set; }
@@ -289,8 +292,9 @@ namespace JSAPNEW.Models
         public long FileSize { get; set; }
         public bool Exists { get; set; }
     }
+    public class AdminCheckerRejectRequest
+    {
+        public int VchNumber { get; set; }
+        public string Remark { get; set; }
+    }
 }
-
-
-
-   

@@ -160,6 +160,9 @@
                 setStatus("Loading...");
                 const res = await fetch(`/DocumentHub/Preview?fileId=${editor.fileId}`, { cache: "no-store" });
                 if (!res.ok) throw new Error("Unable to load spreadsheet.");
+                // The server returns an HTML page (not the file) when the physical file is missing from storage.
+                if ((res.headers.get("content-type") || "").toLowerCase().includes("text/html"))
+                    throw new Error("This file is not available in server storage. The record exists but the uploaded file is missing on this environment — restore it from a Document Hub backup or re-upload it.");
                 const buffer = await res.arrayBuffer();
                 if (isCsvFile()) {
                     const csvText = decodeCsv(buffer);
@@ -213,9 +216,9 @@
                 html += `<tr style="height:${height}px"><th class="row-head">${r + 1}<span class="row-resizer" onmousedown="startRowResize(event,${r})"></span></th>`;
                 for (let c = editor.colStart; c <= colEnd; c++) {
                     const address = XLSX.utils.encode_cell({ r, c });
-                    const cls = cellClass(r, c, getCellText(sheet[address]));
+                    const cls = cellClass(r, c, getCellDisplay(sheet[address], r, c));
                     const width = editor.colWidths[c] || 120;
-                    html += `<td><div class="xl-cell ${cls}" style="width:${width}px;min-width:${width}px;height:${height - 1}px" contenteditable="true" data-r="${r}" data-c="${c}" onfocus="activateCell(this)" onmousedown="selectCellMouse(event,this)" oninput="cellInput(this)" onkeydown="cellKeydown(event,this)">${escapeHtml(getCellText(sheet[address]))}</div></td>`;
+                    html += `<td><div class="xl-cell ${cls}" style="width:${width}px;min-width:${width}px;height:${height - 1}px" contenteditable="true" data-r="${r}" data-c="${c}" onfocus="activateCell(this)" onblur="commitCell(this)" onmousedown="selectCellMouse(event,this)" oninput="cellInput(this)" onkeydown="cellKeydown(event,this)">${escapeHtml(getCellDisplay(sheet[address], r, c))}</div></td>`;
                 }
                 html += `</tr>`;
             }
@@ -233,6 +236,280 @@
             return range;
         }
         function getCellText(cell) { if (!cell) return ""; if (cell.f) return `=${cell.f}`; return cell.v == null ? "" : String(cell.v); }
+
+        // Value shown in the grid: formulas are evaluated; plain cells show their value.
+        // Falls back to the file's cached value if a formula uses an unsupported function.
+        function getCellDisplay(cell, r, c) {
+            if (!cell) return "";
+            if (cell.f != null) {
+                const val = evalOnSheet(activeSheet(), cell.f, r, c);
+                if (isErr(val) && cell.v != null && cell.v !== "") return String(cell.v);
+                return formatValue(val);
+            }
+            return cell.v == null ? "" : String(cell.v);
+        }
+
+        // ---------- Formula evaluation engine ----------
+        function evalOnSheet(sheet, formula, selfR, selfC) {
+            try {
+                const p = { tokens: tokenizeFormula(formula), i: 0, sheet, path: new Set([selfR + "," + selfC]) };
+                return parseExpr(p);
+            } catch (e) { return "#ERROR!"; }
+        }
+
+        function cellRawValueOn(sheet, r, c, path) {
+            const key = r + "," + c;
+            const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+            if (!cell) return null;
+            if (cell.f == null) return cell.v == null ? null : cell.v;
+            if (path.has(key)) return "#CIRC!";
+            path.add(key);
+            let v;
+            try { v = parseExpr({ tokens: tokenizeFormula(cell.f), i: 0, sheet, path }); }
+            catch (e) { v = "#ERROR!"; }
+            path.delete(key);
+            return v;
+        }
+
+        function tokenizeFormula(str) {
+            const tokens = [];
+            let i = 0;
+            const n = str.length;
+            const isDigit = ch => ch >= "0" && ch <= "9";
+            while (i < n) {
+                const ch = str[i];
+                if (ch === " " || ch === "\t") { i++; continue; }
+                if (ch === '"') {
+                    let j = i + 1, s = "";
+                    while (j < n) { if (str[j] === '"') { if (str[j + 1] === '"') { s += '"'; j += 2; continue; } break; } s += str[j++]; }
+                    tokens.push({ t: "str", v: s }); i = j + 1; continue;
+                }
+                if (isDigit(ch) || (ch === "." && isDigit(str[i + 1]))) {
+                    let j = i, s = "";
+                    while (j < n && (isDigit(str[j]) || str[j] === ".")) s += str[j++];
+                    if (str[j] === "e" || str[j] === "E") { s += str[j++]; if (str[j] === "+" || str[j] === "-") s += str[j++]; while (j < n && isDigit(str[j])) s += str[j++]; }
+                    tokens.push({ t: "num", v: parseFloat(s) }); i = j; continue;
+                }
+                const two = str.substr(i, 2);
+                if (two === "<=" || two === ">=" || two === "<>") { tokens.push({ t: "op", v: two }); i += 2; continue; }
+                if ("+-*/^&%=<>".includes(ch)) { tokens.push({ t: "op", v: ch }); i++; continue; }
+                if (ch === "(") { tokens.push({ t: "lp" }); i++; continue; }
+                if (ch === ")") { tokens.push({ t: "rp" }); i++; continue; }
+                if (ch === ",") { tokens.push({ t: "comma" }); i++; continue; }
+                if (ch === ":") { tokens.push({ t: "colon" }); i++; continue; }
+                if (/[A-Za-z_$]/.test(ch)) {
+                    let j = i, s = "";
+                    while (j < n && /[A-Za-z0-9_$.]/.test(str[j])) s += str[j++];
+                    tokens.push({ t: "id", v: s }); i = j; continue;
+                }
+                i++;
+            }
+            return tokens;
+        }
+
+        function peekTok(p) { return p.tokens[p.i]; }
+        function nextTok(p) { return p.tokens[p.i++]; }
+
+        function parseExpr(p) { return parseCompare(p); }
+        function parseCompare(p) {
+            let left = parseConcat(p);
+            while (peekTok(p) && peekTok(p).t === "op" && ["=", "<>", "<", ">", "<=", ">="].includes(peekTok(p).v)) {
+                const op = nextTok(p).v; left = applyCompare(op, left, parseConcat(p));
+            }
+            return left;
+        }
+        function parseConcat(p) {
+            let left = parseAddSub(p);
+            while (peekTok(p) && peekTok(p).t === "op" && peekTok(p).v === "&") { nextTok(p); left = toStr(left) + toStr(parseAddSub(p)); }
+            return left;
+        }
+        function parseAddSub(p) {
+            let left = parseMulDiv(p);
+            while (peekTok(p) && peekTok(p).t === "op" && (peekTok(p).v === "+" || peekTok(p).v === "-")) {
+                const op = nextTok(p).v; const right = parseMulDiv(p);
+                left = op === "+" ? toNum(left) + toNum(right) : toNum(left) - toNum(right);
+            }
+            return left;
+        }
+        function parseMulDiv(p) {
+            let left = parsePower(p);
+            while (peekTok(p) && peekTok(p).t === "op" && (peekTok(p).v === "*" || peekTok(p).v === "/")) {
+                const op = nextTok(p).v; const right = parsePower(p);
+                left = op === "*" ? toNum(left) * toNum(right) : toNum(left) / toNum(right);
+            }
+            return left;
+        }
+        function parsePower(p) {
+            let left = parseUnary(p);
+            while (peekTok(p) && peekTok(p).t === "op" && peekTok(p).v === "^") { nextTok(p); left = Math.pow(toNum(left), toNum(parseUnary(p))); }
+            return left;
+        }
+        function parseUnary(p) {
+            const tk = peekTok(p);
+            if (tk && tk.t === "op" && (tk.v === "-" || tk.v === "+")) { nextTok(p); const v = parseUnary(p); return tk.v === "-" ? -toNum(v) : toNum(v); }
+            return parsePrimary(p);
+        }
+        function parsePrimary(p) {
+            const tk = nextTok(p);
+            if (!tk) throw new Error("unexpected end");
+            if (tk.t === "num") return tk.v;
+            if (tk.t === "str") return tk.v;
+            if (tk.t === "lp") { const v = parseExpr(p); if (peekTok(p) && peekTok(p).t === "rp") nextTok(p); return v; }
+            if (tk.t === "id") {
+                const up = tk.v.toUpperCase();
+                if (peekTok(p) && peekTok(p).t === "lp") {
+                    nextTok(p);
+                    const args = [];
+                    if (!(peekTok(p) && peekTok(p).t === "rp")) {
+                        args.push(parseExpr(p));
+                        while (peekTok(p) && peekTok(p).t === "comma") { nextTok(p); args.push(parseExpr(p)); }
+                    }
+                    if (peekTok(p) && peekTok(p).t === "rp") nextTok(p);
+                    return callFunction(up, args);
+                }
+                if (up === "TRUE") return true;
+                if (up === "FALSE") return false;
+                if (peekTok(p) && peekTok(p).t === "colon") { nextTok(p); const end = nextTok(p); return rangeValues(p.sheet, tk.v, end ? end.v : "", p.path); }
+                return refValue(p.sheet, tk.v, p.path);
+            }
+            throw new Error("unexpected token");
+        }
+
+        const REF_RE = /^\$?([A-Za-z]+)\$?(\d+)$/;
+        function refValue(sheet, ref, path) {
+            const m = REF_RE.exec(ref);
+            if (!m) return "#REF!";
+            return cellRawValueOn(sheet, parseInt(m[2], 10) - 1, XLSX.utils.decode_col(m[1].toUpperCase()), path);
+        }
+        function rangeValues(sheet, a, b, path) {
+            const ma = REF_RE.exec(a), mb = REF_RE.exec(b);
+            if (!ma || !mb) return "#REF!";
+            let r1 = parseInt(ma[2], 10) - 1, c1 = XLSX.utils.decode_col(ma[1].toUpperCase());
+            let r2 = parseInt(mb[2], 10) - 1, c2 = XLSX.utils.decode_col(mb[1].toUpperCase());
+            if (r1 > r2) { const t = r1; r1 = r2; r2 = t; }
+            if (c1 > c2) { const t = c1; c1 = c2; c2 = t; }
+            const out = [];
+            for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) out.push(cellRawValueOn(sheet, r, c, path));
+            return out;
+        }
+
+        function toNum(v) {
+            if (v === true) return 1;
+            if (v === false || v == null || v === "") return 0;
+            if (typeof v === "number") return v;
+            if (typeof v === "string") { if (isErr(v)) throw new Error(v); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; }
+            return 0;
+        }
+        function toStr(v) { if (v == null) return ""; if (v === true) return "TRUE"; if (v === false) return "FALSE"; return String(v); }
+        function isErr(v) { return typeof v === "string" && v[0] === "#"; }
+        function truthy(v) { if (v === true) return true; if (v === false || v == null || v === "") return false; if (typeof v === "number") return v !== 0; if (typeof v === "string") return v.toUpperCase() === "TRUE"; return !!v; }
+        function flattenArgs(args) { const out = []; args.forEach(a => { if (Array.isArray(a)) a.forEach(x => out.push(x)); else out.push(a); }); return out; }
+        function numbersOf(args) {
+            const out = [];
+            flattenArgs(args).forEach(v => {
+                if (typeof v === "number") out.push(v);
+                else if (typeof v === "boolean") out.push(v ? 1 : 0);
+                else if (typeof v === "string" && v.trim() !== "" && !isErr(v)) { const n = Number(v); if (!Number.isNaN(n)) out.push(n); }
+            });
+            return out;
+        }
+        function applyCompare(op, l, r) {
+            let a, b;
+            if (typeof l === "number" || typeof r === "number") { a = toNum(l); b = toNum(r); }
+            else { a = toStr(l).toUpperCase(); b = toStr(r).toUpperCase(); }
+            switch (op) { case "=": return a === b; case "<>": return a !== b; case "<": return a < b; case ">": return a > b; case "<=": return a <= b; case ">=": return a >= b; }
+            return false;
+        }
+        function matchCriteria(val, crit) {
+            const m = /^(<=|>=|<>|<|>|=)?([\s\S]*)$/.exec(toStr(crit));
+            const op = m[1] || "=", target = m[2], tn = Number(target);
+            if (target !== "" && !Number.isNaN(tn) && typeof val === "number") return applyCompare(op, val, tn);
+            return applyCompare(op, toStr(val), target);
+        }
+
+        function callFunction(name, args) {
+            const flat = flattenArgs(args);
+            const firstErr = flat.find(isErr);
+            switch (name) {
+                case "SUM": return firstErr || numbersOf(args).reduce((a, b) => a + b, 0);
+                case "PRODUCT": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? ns.reduce((a, b) => a * b, 1) : 0; }
+                case "AVERAGE": case "AVG": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : "#DIV/0!"; }
+                case "MIN": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? Math.min(...ns) : 0; }
+                case "MAX": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? Math.max(...ns) : 0; }
+                case "COUNT": return numbersOf(args).length;
+                case "COUNTA": return flat.filter(v => v != null && v !== "").length;
+                case "ROUND": { const f = Math.pow(10, toNum(args[1] || 0)); return Math.round(toNum(args[0]) * f) / f; }
+                case "ROUNDUP": { const d = toNum(args[1] || 0), f = Math.pow(10, d), x = toNum(args[0]); return (x < 0 ? -1 : 1) * Math.ceil(Math.abs(x) * f) / f; }
+                case "ROUNDDOWN": { const d = toNum(args[1] || 0), f = Math.pow(10, d), x = toNum(args[0]); return (x < 0 ? -1 : 1) * Math.floor(Math.abs(x) * f) / f; }
+                case "ABS": return Math.abs(toNum(args[0]));
+                case "SQRT": return Math.sqrt(toNum(args[0]));
+                case "POWER": return Math.pow(toNum(args[0]), toNum(args[1]));
+                case "MOD": { const a = toNum(args[0]), b = toNum(args[1]); return b === 0 ? "#DIV/0!" : a - b * Math.floor(a / b); }
+                case "INT": return Math.floor(toNum(args[0]));
+                case "CEILING": return Math.ceil(toNum(args[0]));
+                case "FLOOR": return Math.floor(toNum(args[0]));
+                case "IF": return truthy(args[0]) ? (args[1] == null ? true : args[1]) : (args[2] == null ? false : args[2]);
+                case "IFERROR": return isErr(args[0]) || args[0] == null ? (args[1] == null ? "" : args[1]) : args[0];
+                case "ISERROR": return isErr(args[0]);
+                case "AND": return flat.every(truthy);
+                case "OR": return flat.some(truthy);
+                case "NOT": return !truthy(args[0]);
+                case "CONCAT": case "CONCATENATE": return flat.map(toStr).join("");
+                case "LEN": return toStr(args[0]).length;
+                case "UPPER": return toStr(args[0]).toUpperCase();
+                case "LOWER": return toStr(args[0]).toLowerCase();
+                case "TRIM": return toStr(args[0]).trim();
+                case "LEFT": return toStr(args[0]).slice(0, args[1] == null ? 1 : toNum(args[1]));
+                case "RIGHT": { const s = toStr(args[0]), k = args[1] == null ? 1 : toNum(args[1]); return s.slice(s.length - k); }
+                case "MID": return toStr(args[0]).substr(toNum(args[1]) - 1, toNum(args[2]));
+                case "COUNTIF": { const range = Array.isArray(args[0]) ? args[0] : [args[0]]; return range.filter(v => matchCriteria(v, args[1])).length; }
+                case "SUMIF": {
+                    const range = Array.isArray(args[0]) ? args[0] : [args[0]];
+                    const sumRange = Array.isArray(args[2]) ? args[2] : range;
+                    let s = 0;
+                    range.forEach((v, idx) => { if (matchCriteria(v, args[1])) { const sv = sumRange[idx]; const n = typeof sv === "number" ? sv : Number(sv); if (!Number.isNaN(n)) s += n; } });
+                    return s;
+                }
+                default: return "#NAME?";
+            }
+        }
+
+        function formatValue(v) {
+            if (v == null) return "";
+            if (v === true) return "TRUE";
+            if (v === false) return "FALSE";
+            if (typeof v === "number") { if (!isFinite(v)) return "#DIV/0!"; return String(Number.isInteger(v) ? v : Math.round((v + Number.EPSILON) * 1e10) / 1e10); }
+            return String(v);
+        }
+
+        // Refresh evaluated results of every rendered formula cell (except the one being edited).
+        function refreshComputedCells() {
+            const sheet = activeSheet();
+            const activeEl = document.activeElement;
+            document.querySelectorAll(".xl-cell").forEach(el => {
+                if (el === activeEl) return;
+                const cell = sheet[XLSX.utils.encode_cell({ r: +el.dataset.r, c: +el.dataset.c })];
+                if (cell && cell.f != null) el.textContent = getCellDisplay(cell, +el.dataset.r, +el.dataset.c);
+            });
+        }
+
+        // Populate cached values on every formula cell so the saved file shows results without recalculation.
+        function recalcAllForSave() {
+            Object.keys(editor.workbook.Sheets).forEach(name => {
+                const sheet = editor.workbook.Sheets[name];
+                Object.keys(sheet).forEach(addr => {
+                    if (addr[0] === "!") return;
+                    const cell = sheet[addr];
+                    if (!cell || cell.f == null) return;
+                    const pos = XLSX.utils.decode_cell(addr);
+                    const val = evalOnSheet(sheet, cell.f, pos.r, pos.c);
+                    if (isErr(val)) return; // keep existing cached value for unsupported formulas
+                    if (typeof val === "number" && isFinite(val)) { cell.v = val; cell.t = "n"; }
+                    else if (typeof val === "boolean") { cell.v = val; cell.t = "b"; }
+                    else { cell.v = val == null ? "" : String(val); cell.t = "s"; }
+                });
+            });
+        }
 
         function isCsvFile() {
             const ext = (editor.fileType || editor.fileName.split(".").pop() || "").toLowerCase().replace(".", "");
@@ -313,9 +590,18 @@
             editor.active = { r: +el.dataset.r, c: +el.dataset.c };
             editor.selection = editor.selection || { start: editor.active, end: editor.active };
             nameBox.value = XLSX.utils.encode_cell(editor.active);
-            formulaBar.value = el.textContent;
+            const formula = getCellText(activeSheet()[XLSX.utils.encode_cell(editor.active)]);
+            formulaBar.value = formula;
+            if (el.textContent !== formula) el.textContent = formula; // reveal the formula for editing
             document.querySelectorAll(".xl-cell.active").forEach(x => x.classList.remove("active"));
             el.classList.add("active");
+        }
+
+        // When a cell loses focus, swap the edited formula back to its computed result and refresh dependents.
+        function commitCell(el) {
+            const r = +el.dataset.r, c = +el.dataset.c;
+            el.textContent = getCellDisplay(activeSheet()[XLSX.utils.encode_cell({ r, c })], r, c);
+            refreshComputedCells();
         }
 
         function selectCellMouse(event, el) {
@@ -525,6 +811,7 @@
                 return { content: text, contentType: "text/csv;charset=utf-8" };
             }
 
+            recalcAllForSave();
             return {
                 content: XLSX.write(editor.workbook, { bookType: "xlsx", type: "array", cellStyles: true }),
                 contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
