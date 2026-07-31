@@ -2016,7 +2016,8 @@ namespace JSAPNEW.Services.Implementation
                 foreach (var attachment in attachments)
                 {
                     //attachment.DownloadUrl = $"http://files.jivocanola.com/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
-                    attachment.DownloadUrl = $"http://files.jivo.in:8000/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
+                    //attachment.DownloadUrl = $"http://files.jivo.in:8000/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
+                    attachment.DownloadUrl = $"http:103.89.45.75:8012/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
 
                 }
 
