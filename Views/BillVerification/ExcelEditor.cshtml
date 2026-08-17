@@ -21,89 +21,63 @@
     <title>@fileName - Document Hub</title>
     <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
+
+    <!-- SheetJS: reads/writes the real .xlsx/.csv so Univer stays in sync with the stored file -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Univer (full Excel-like engine) — pinned to 0.25.1 -->
+    <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/rxjs@7.8.1/dist/bundles/rxjs.umd.min.js"></script>
+    <script src="https://unpkg.com/echarts@5.6.0/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@@univerjs/preset-sheets-core@0.25.1/lib/index.css" />
+    <script src="https://unpkg.com/@@univerjs/presets@0.25.1/lib/umd/index.js"></script>
+    <script src="https://unpkg.com/@@univerjs/preset-sheets-core@0.25.1/lib/umd/index.js"></script>
+    <script src="https://unpkg.com/@@univerjs/preset-sheets-core@0.25.1/lib/umd/locales/en-US.js"></script>
+
     <style>
-        .excel-editor-container {
-            --xl-border: #d9e2ec;
-            --xl-head: #f3f6fa;
-            --xl-green: #107c41;
-            --xl-blue: #2563eb;
-            --xl-text: #111827;
-            --xl-muted: #64748b;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-            font-family: "Segoe UI", Arial, sans-serif;
-            color: var(--xl-text);
+        html, body { height: 100%; margin: 0; }
+        .xl-shell { height: 100vh; display: flex; flex-direction: column; font-family: "Segoe UI", Arial, sans-serif; }
+        .xl-topbar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            padding: 8px 12px; border-bottom: 1px solid #d9e2ec; background: #fff;
         }
-        .excel-editor-container .xl-app { height: 100vh; display: grid; grid-template-rows: auto auto minmax(0,1fr) auto; background: #fff; }
-        .excel-editor-container .xl-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--xl-border); flex-wrap: wrap; }
-        .excel-editor-container .xl-toolbar .btn { border-radius: 4px; font-size: 13px; font-weight: 600; }
-        .excel-editor-container .xl-title { font-weight: 700; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-        .excel-editor-container .xl-status { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--xl-muted); }
-        .excel-editor-container .xl-status-badge { border: 1px solid var(--xl-border); border-radius: 999px; padding: 4px 10px; background: #f8fafc; color: var(--xl-text); font-weight: 700; }
-        .excel-editor-container .xl-formula { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--xl-border); background: #f8fafc; }
-        .excel-editor-container .xl-name-box,
-        .excel-editor-container .xl-formula-input,
-        .excel-editor-container .xl-search-input { border: 1px solid var(--xl-border); border-radius: 4px; height: 32px; padding: 4px 8px; font-size: 13px; background: #fff; }
-        .excel-editor-container .xl-grid-wrap { overflow: auto; min-height: 0; position: relative; background: #fff; }
-        .excel-editor-container .xl-grid { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: max-content; min-width: 100%; font-size: 13px; }
-        .excel-editor-container .xl-grid th,
-        .excel-editor-container .xl-grid td { border-right: 1px solid var(--xl-border); border-bottom: 1px solid var(--xl-border); padding: 0; background: #fff; position: relative; }
-        .excel-editor-container .xl-grid th { height: 28px; background: var(--xl-head); color: #475569; text-align: center; font-weight: 700; user-select: none; position: sticky; top: 0; z-index: 4; }
-        .excel-editor-container .xl-grid .corner { left: 0; z-index: 6; width: 56px; min-width: 56px; }
-        .excel-editor-container .xl-grid .row-head { width: 56px; min-width: 56px; text-align: center; position: sticky; left: 0; z-index: 3; background: var(--xl-head); color: #475569; font-weight: 700; user-select: none; }
-        .excel-editor-container .xl-cell { width: 120px; min-width: 120px; height: 28px; padding: 4px 6px; outline: none; white-space: nowrap; overflow: hidden; }
-        .excel-editor-container .xl-cell.active { box-shadow: inset 0 0 0 2px var(--xl-green); background: #ecfdf5; }
-        .excel-editor-container .xl-cell.selected { background: #dbeafe; }
-        .excel-editor-container .xl-cell.cut-source { outline: 2px dashed #ef4444; outline-offset: -2px; }
-        .excel-editor-container .xl-cell.search-hit { background: #fef3c7; }
-        .excel-editor-container .col-resizer { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 8; }
-        .excel-editor-container .row-resizer { position: absolute; right: 0; bottom: -3px; width: 100%; height: 6px; cursor: row-resize; z-index: 8; }
-        .excel-editor-container .xl-tabs { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #f8fafc; border-top: 1px solid var(--xl-border); overflow-x: auto; }
-        .excel-editor-container .xl-tab { border: 1px solid var(--xl-border); background: #fff; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-        .excel-editor-container .xl-tab.active { color: #fff; background: var(--xl-green); border-color: var(--xl-green); }
-        .excel-editor-container .xl-nav { display: inline-flex; align-items: center; gap: 4px; }
-        .excel-editor-container .xl-version-panel { position: fixed; right: 14px; top: 58px; width: 360px; max-height: 70vh; overflow: auto; z-index: 30; background: #fff; border: 1px solid var(--xl-border); box-shadow: 0 18px 40px rgba(15,23,42,.16); display: none; }
-        .excel-editor-container .xl-version-panel.show { display: block; }
-        .excel-editor-container .toast-lite { position: fixed; right: 18px; bottom: 18px; z-index: 40; display: none; padding: 10px 14px; border-radius: 6px; color: #fff; font-weight: 700; background: var(--xl-green); }
+        .xl-topbar .btn { border-radius: 6px; font-size: 13px; font-weight: 600; }
+        .xl-title { font-weight: 700; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .xl-status { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+        .xl-status-badge { border: 1px solid #d9e2ec; border-radius: 999px; padding: 4px 10px; background: #f8fafc; color: #111827; font-weight: 700; }
+        #univerContainer { flex: 1 1 auto; min-height: 0; width: 100%; }
+        .xl-version-panel { position: fixed; right: 14px; top: 56px; width: 340px; max-height: 72vh; overflow: auto; z-index: 1200; background: #fff; border: 1px solid #d9e2ec; border-radius: 8px; box-shadow: 0 18px 40px rgba(15,23,42,.16); display: none; }
+        .xl-version-panel.show { display: block; }
+        .toast-lite { position: fixed; right: 18px; bottom: 18px; z-index: 1300; display: none; padding: 10px 14px; border-radius: 6px; color: #fff; font-weight: 700; background: #107c41; }
+        .xl-loading { position: fixed; inset: 0; background: rgba(255,255,255,.9); z-index: 1400; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: #475569; font-weight: 600; }
     </style>
 </head>
-<body class="excel-editor-container">
-    <div class="xl-app">
-        <div class="xl-toolbar">
+<body>
+    <div class="xl-shell">
+        <div class="xl-topbar">
             <button class="btn btn-outline-secondary btn-sm" onclick="backToHub()"><i class="fa-solid fa-arrow-left"></i> Back to Document Hub</button>
             <span class="xl-title" title="@fileName"><i class="fa-solid fa-file-excel text-success"></i> @fileName</span>
             <button class="btn btn-success btn-sm" id="saveBtn" onclick="saveWorkbook(false)"><i class="fa-solid fa-floppy-disk"></i> Save</button>
-            <button class="btn btn-outline-success btn-sm" onclick="saveAndReturn()"><i class="fa-solid fa-check"></i> Save & Return</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="undoChange()"><i class="fa-solid fa-rotate-left"></i> Undo</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="redoChange()"><i class="fa-solid fa-rotate-right"></i> Redo</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="addRow()"><i class="fa-solid fa-plus"></i> Row</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="deleteRow()"><i class="fa-solid fa-minus"></i> Row</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="addColumn()"><i class="fa-solid fa-plus"></i> Column</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="deleteColumn()"><i class="fa-solid fa-minus"></i> Column</button>
-            <input class="xl-search-input" id="searchInput" placeholder="Search" oninput="applySearch()" />
-            <button class="btn btn-outline-secondary btn-sm" onclick="toggleFilter()"><i class="fa-solid fa-filter"></i> Filter</button>
+            <button class="btn btn-outline-success btn-sm" onclick="saveAndReturn()"><i class="fa-solid fa-check"></i> Save &amp; Return</button>
             <button class="btn btn-outline-secondary btn-sm" onclick="downloadWorkbook()"><i class="fa-solid fa-download"></i> Download</button>
             <button class="btn btn-outline-secondary btn-sm" onclick="refreshWorkbook()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
             <button class="btn btn-outline-secondary btn-sm" onclick="toggleVersions()"><i class="fa-solid fa-code-branch"></i> Versions</button>
-            <span class="xl-status"><span id="windowLabel">-</span><span class="xl-status-badge" id="saveStatus">Loading...</span></span>
+            <span class="xl-status"><span class="xl-status-badge" id="saveStatus">Loading…</span></span>
         </div>
-        <div class="xl-formula">
-            <input class="xl-name-box" id="nameBox" readonly value="A1" />
-            <input class="xl-formula-input" id="formulaBar" placeholder="Formula bar" onkeydown="formulaKeydown(event)" />
-        </div>
-        <div class="xl-grid-wrap" id="gridWrap"></div>
-        <div class="xl-tabs" id="sheetTabs"></div>
+        <div id="univerContainer"></div>
     </div>
-    <div class="xl-version-panel rounded" id="versionPanel">
+
+    <div class="xl-version-panel" id="versionPanel">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
             <strong>Version History</strong>
             <button class="btn btn-sm btn-light" onclick="toggleVersions(false)"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div id="versionRows" class="p-2 small text-muted">Loading...</div>
+        <div id="versionRows" class="p-2 small text-muted">Loading…</div>
     </div>
+
     <div class="toast-lite" id="toastLite"></div>
+    <div class="xl-loading" id="loadingOverlay"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><span>Loading spreadsheet…</span></div>
 
     <script>
         const editor = {
@@ -116,399 +90,61 @@
             returnFolderId: @returnFolderIdJson,
             returnFilter: @returnFilterJson,
             returnSearch: @returnSearchJson,
-            workbook: null,
-            sheetName: "",
-            rowStart: 0,
-            colStart: 0,
-            rowWindow: 240,
-            colWindow: 60,
+            univer: null,
+            univerAPI: null,
+            ready: false,
             dirty: false,
             saving: false,
             autosaveTimer: null,
-            active: { r: 0, c: 0 },
-            selection: null,
-            clipboardCut: null,
-            undo: [],
-            redo: [],
-            filterOn: false,
-            search: "",
             csvDelimiter: ",",
-            csvHasBom: false,
-            colWidths: {},
-            rowHeights: {}
+            csvHasBom: false
         };
+
+        // ---- Univer globals (defensive: names/locations vary slightly across releases) ----
+        const Presets = window.UniverPresets || {};
+        const UCore = window.UniverCore || window.UniverPresets || {};
+        const SheetsCore = window.UniverPresetSheetsCore || {};
+        const createUniver = Presets.createUniver;
+        const LocaleType = (UCore.LocaleType || Presets.LocaleType || {});
+        const mergeLocales = UCore.mergeLocales || Presets.mergeLocales || function (x) { return x; };
+        const UniverSheetsCorePreset = SheetsCore.UniverSheetsCorePreset;
+        const EnUS = window.UniverPresetSheetsCoreEnUS || {};
 
         window.addEventListener("beforeunload", e => {
             if (!editor.dirty) return;
+            flushSaveBeacon();
             e.preventDefault();
             e.returnValue = "";
         });
-
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden" && editor.dirty) flushSaveBeacon();
+        });
         document.addEventListener("keydown", e => {
             if (e.ctrlKey && e.key.toLowerCase() === "s") { e.preventDefault(); saveWorkbook(false); }
-            if (e.ctrlKey && e.key.toLowerCase() === "z") { e.preventDefault(); undoChange(); }
-            if (e.ctrlKey && e.key.toLowerCase() === "y") { e.preventDefault(); redoChange(); }
-            if (e.ctrlKey && e.key.toLowerCase() === "c") copySelection(false);
-            if (e.ctrlKey && e.key.toLowerCase() === "x") copySelection(true);
-            if (e.ctrlKey && e.key.toLowerCase() === "v") pasteFromClipboard(e);
         });
 
-        loadWorkbook();
+        boot();
 
-        async function loadWorkbook() {
+        async function boot() {
+            if (!createUniver || !UniverSheetsCorePreset) {
+                setStatus("Editor failed to load");
+                overlay(false);
+                toast("Spreadsheet engine failed to load (network/CDN blocked).", true);
+                return;
+            }
             try {
-                setStatus("Loading...");
-                const res = await fetch(`/DocumentHub/Preview?fileId=${editor.fileId}`, { cache: "no-store" });
-                if (!res.ok) throw new Error("Unable to load spreadsheet.");
-                // The server returns an HTML page (not the file) when the physical file is missing from storage.
-                if ((res.headers.get("content-type") || "").toLowerCase().includes("text/html"))
-                    throw new Error("This file is not available in server storage. The record exists but the uploaded file is missing on this environment — restore it from a Document Hub backup or re-upload it.");
-                const buffer = await res.arrayBuffer();
-                if (isCsvFile()) {
-                    const csvText = decodeCsv(buffer);
-                    editor.csvDelimiter = detectCsvDelimiter(csvText);
-                    editor.workbook = XLSX.read(csvText, { type: "string", raw: false, FS: editor.csvDelimiter });
-                } else {
-                    editor.workbook = XLSX.read(buffer, { type: "array", cellDates: true, cellFormula: true, cellStyles: true });
-                }
-                editor.sheetName = editor.workbook.SheetNames[0] || "";
-                renderTabs();
-                renderGrid();
-                setStatus("Saved ✓");
-                setInterval(() => { if (editor.dirty) saveWorkbook(true); }, 10000);
+                const data = await loadFileAsUniverData();
+                mountUniver(data);
+                setStatus("Ready — auto-save on");
+                overlay(false);
+                editor.ready = true;
+                // Fallback autosave sweep
+                setInterval(() => { if (editor.dirty) saveWorkbook(true); }, 12000);
             } catch (err) {
-                gridWrap.innerHTML = `<div class="p-4 text-danger">${escapeHtml(err.message || "Spreadsheet failed to load.")}</div>`;
+                overlay(false);
                 setStatus("Load failed");
+                toast(err.message || "Spreadsheet failed to load.", true);
             }
-        }
-
-        function renderTabs() {
-            sheetTabs.innerHTML = editor.workbook.SheetNames.map((name, index) =>
-                `<button class="xl-tab ${name === editor.sheetName ? "active" : ""}" onclick="selectSheet(${index})">${escapeHtml(name)}</button>`
-            ).join("");
-        }
-
-        function selectSheet(index) {
-            if (editor.dirty && !confirm("Switch sheets with unsaved changes? Auto-save will keep trying every 10 seconds.")) return;
-            editor.sheetName = editor.workbook.SheetNames[index];
-            editor.rowStart = 0;
-            editor.colStart = 0;
-            editor.active = { r: 0, c: 0 };
-            editor.selection = null;
-            renderTabs();
-            renderGrid();
-        }
-
-        function renderGrid() {
-            const sheet = activeSheet();
-            const range = getRange(sheet);
-            const rowEnd = Math.min(range.e.r, editor.rowStart + editor.rowWindow - 1);
-            const colEnd = Math.min(range.e.c, editor.colStart + editor.colWindow - 1);
-            let html = `<table class="xl-grid"><thead><tr><th class="corner"></th>`;
-            for (let c = editor.colStart; c <= colEnd; c++) {
-                const width = editor.colWidths[c] || 120;
-                html += `<th style="width:${width}px;min-width:${width}px">${XLSX.utils.encode_col(c)}<span class="col-resizer" onmousedown="startColResize(event,${c})"></span></th>`;
-            }
-            html += `</tr></thead><tbody>`;
-            for (let r = editor.rowStart; r <= rowEnd; r++) {
-                if (editor.filterOn && editor.search && !rowMatches(sheet, r, range.e.c)) continue;
-                const height = editor.rowHeights[r] || 28;
-                html += `<tr style="height:${height}px"><th class="row-head">${r + 1}<span class="row-resizer" onmousedown="startRowResize(event,${r})"></span></th>`;
-                for (let c = editor.colStart; c <= colEnd; c++) {
-                    const address = XLSX.utils.encode_cell({ r, c });
-                    const cls = cellClass(r, c, getCellDisplay(sheet[address], r, c));
-                    const width = editor.colWidths[c] || 120;
-                    html += `<td><div class="xl-cell ${cls}" style="width:${width}px;min-width:${width}px;height:${height - 1}px" contenteditable="true" data-r="${r}" data-c="${c}" onfocus="activateCell(this)" onblur="commitCell(this)" onmousedown="selectCellMouse(event,this)" oninput="cellInput(this)" onkeydown="cellKeydown(event,this)">${escapeHtml(getCellDisplay(sheet[address], r, c))}</div></td>`;
-                }
-                html += `</tr>`;
-            }
-            html += `</tbody></table>`;
-            gridWrap.innerHTML = html;
-            windowLabel.textContent = `Rows ${editor.rowStart + 1}-${rowEnd + 1}, Columns ${XLSX.utils.encode_col(editor.colStart)}-${XLSX.utils.encode_col(colEnd)}`;
-        }
-
-        function activeSheet() { return editor.workbook.Sheets[editor.sheetName]; }
-        function getRange(sheet) {
-            if (!sheet["!ref"]) return { s: { r: 0, c: 0 }, e: { r: 999, c: 25 } };
-            const range = XLSX.utils.decode_range(sheet["!ref"]);
-            range.e.r = Math.max(range.e.r, editor.rowStart + editor.rowWindow - 1, 99);
-            range.e.c = Math.max(range.e.c, editor.colStart + editor.colWindow - 1, 25);
-            return range;
-        }
-        function getCellText(cell) { if (!cell) return ""; if (cell.f) return `=${cell.f}`; return cell.v == null ? "" : String(cell.v); }
-
-        // Value shown in the grid: formulas are evaluated; plain cells show their value.
-        // Falls back to the file's cached value if a formula uses an unsupported function.
-        function getCellDisplay(cell, r, c) {
-            if (!cell) return "";
-            if (cell.f != null) {
-                const val = evalOnSheet(activeSheet(), cell.f, r, c);
-                if (isErr(val) && cell.v != null && cell.v !== "") return String(cell.v);
-                return formatValue(val);
-            }
-            return cell.v == null ? "" : String(cell.v);
-        }
-
-        // ---------- Formula evaluation engine ----------
-        function evalOnSheet(sheet, formula, selfR, selfC) {
-            try {
-                const p = { tokens: tokenizeFormula(formula), i: 0, sheet, path: new Set([selfR + "," + selfC]) };
-                return parseExpr(p);
-            } catch (e) { return "#ERROR!"; }
-        }
-
-        function cellRawValueOn(sheet, r, c, path) {
-            const key = r + "," + c;
-            const cell = sheet[XLSX.utils.encode_cell({ r, c })];
-            if (!cell) return null;
-            if (cell.f == null) return cell.v == null ? null : cell.v;
-            if (path.has(key)) return "#CIRC!";
-            path.add(key);
-            let v;
-            try { v = parseExpr({ tokens: tokenizeFormula(cell.f), i: 0, sheet, path }); }
-            catch (e) { v = "#ERROR!"; }
-            path.delete(key);
-            return v;
-        }
-
-        function tokenizeFormula(str) {
-            const tokens = [];
-            let i = 0;
-            const n = str.length;
-            const isDigit = ch => ch >= "0" && ch <= "9";
-            while (i < n) {
-                const ch = str[i];
-                if (ch === " " || ch === "\t") { i++; continue; }
-                if (ch === '"') {
-                    let j = i + 1, s = "";
-                    while (j < n) { if (str[j] === '"') { if (str[j + 1] === '"') { s += '"'; j += 2; continue; } break; } s += str[j++]; }
-                    tokens.push({ t: "str", v: s }); i = j + 1; continue;
-                }
-                if (isDigit(ch) || (ch === "." && isDigit(str[i + 1]))) {
-                    let j = i, s = "";
-                    while (j < n && (isDigit(str[j]) || str[j] === ".")) s += str[j++];
-                    if (str[j] === "e" || str[j] === "E") { s += str[j++]; if (str[j] === "+" || str[j] === "-") s += str[j++]; while (j < n && isDigit(str[j])) s += str[j++]; }
-                    tokens.push({ t: "num", v: parseFloat(s) }); i = j; continue;
-                }
-                const two = str.substr(i, 2);
-                if (two === "<=" || two === ">=" || two === "<>") { tokens.push({ t: "op", v: two }); i += 2; continue; }
-                if ("+-*/^&%=<>".includes(ch)) { tokens.push({ t: "op", v: ch }); i++; continue; }
-                if (ch === "(") { tokens.push({ t: "lp" }); i++; continue; }
-                if (ch === ")") { tokens.push({ t: "rp" }); i++; continue; }
-                if (ch === ",") { tokens.push({ t: "comma" }); i++; continue; }
-                if (ch === ":") { tokens.push({ t: "colon" }); i++; continue; }
-                if (/[A-Za-z_$]/.test(ch)) {
-                    let j = i, s = "";
-                    while (j < n && /[A-Za-z0-9_$.]/.test(str[j])) s += str[j++];
-                    tokens.push({ t: "id", v: s }); i = j; continue;
-                }
-                i++;
-            }
-            return tokens;
-        }
-
-        function peekTok(p) { return p.tokens[p.i]; }
-        function nextTok(p) { return p.tokens[p.i++]; }
-
-        function parseExpr(p) { return parseCompare(p); }
-        function parseCompare(p) {
-            let left = parseConcat(p);
-            while (peekTok(p) && peekTok(p).t === "op" && ["=", "<>", "<", ">", "<=", ">="].includes(peekTok(p).v)) {
-                const op = nextTok(p).v; left = applyCompare(op, left, parseConcat(p));
-            }
-            return left;
-        }
-        function parseConcat(p) {
-            let left = parseAddSub(p);
-            while (peekTok(p) && peekTok(p).t === "op" && peekTok(p).v === "&") { nextTok(p); left = toStr(left) + toStr(parseAddSub(p)); }
-            return left;
-        }
-        function parseAddSub(p) {
-            let left = parseMulDiv(p);
-            while (peekTok(p) && peekTok(p).t === "op" && (peekTok(p).v === "+" || peekTok(p).v === "-")) {
-                const op = nextTok(p).v; const right = parseMulDiv(p);
-                left = op === "+" ? toNum(left) + toNum(right) : toNum(left) - toNum(right);
-            }
-            return left;
-        }
-        function parseMulDiv(p) {
-            let left = parsePower(p);
-            while (peekTok(p) && peekTok(p).t === "op" && (peekTok(p).v === "*" || peekTok(p).v === "/")) {
-                const op = nextTok(p).v; const right = parsePower(p);
-                left = op === "*" ? toNum(left) * toNum(right) : toNum(left) / toNum(right);
-            }
-            return left;
-        }
-        function parsePower(p) {
-            let left = parseUnary(p);
-            while (peekTok(p) && peekTok(p).t === "op" && peekTok(p).v === "^") { nextTok(p); left = Math.pow(toNum(left), toNum(parseUnary(p))); }
-            return left;
-        }
-        function parseUnary(p) {
-            const tk = peekTok(p);
-            if (tk && tk.t === "op" && (tk.v === "-" || tk.v === "+")) { nextTok(p); const v = parseUnary(p); return tk.v === "-" ? -toNum(v) : toNum(v); }
-            return parsePrimary(p);
-        }
-        function parsePrimary(p) {
-            const tk = nextTok(p);
-            if (!tk) throw new Error("unexpected end");
-            if (tk.t === "num") return tk.v;
-            if (tk.t === "str") return tk.v;
-            if (tk.t === "lp") { const v = parseExpr(p); if (peekTok(p) && peekTok(p).t === "rp") nextTok(p); return v; }
-            if (tk.t === "id") {
-                const up = tk.v.toUpperCase();
-                if (peekTok(p) && peekTok(p).t === "lp") {
-                    nextTok(p);
-                    const args = [];
-                    if (!(peekTok(p) && peekTok(p).t === "rp")) {
-                        args.push(parseExpr(p));
-                        while (peekTok(p) && peekTok(p).t === "comma") { nextTok(p); args.push(parseExpr(p)); }
-                    }
-                    if (peekTok(p) && peekTok(p).t === "rp") nextTok(p);
-                    return callFunction(up, args);
-                }
-                if (up === "TRUE") return true;
-                if (up === "FALSE") return false;
-                if (peekTok(p) && peekTok(p).t === "colon") { nextTok(p); const end = nextTok(p); return rangeValues(p.sheet, tk.v, end ? end.v : "", p.path); }
-                return refValue(p.sheet, tk.v, p.path);
-            }
-            throw new Error("unexpected token");
-        }
-
-        const REF_RE = /^\$?([A-Za-z]+)\$?(\d+)$/;
-        function refValue(sheet, ref, path) {
-            const m = REF_RE.exec(ref);
-            if (!m) return "#REF!";
-            return cellRawValueOn(sheet, parseInt(m[2], 10) - 1, XLSX.utils.decode_col(m[1].toUpperCase()), path);
-        }
-        function rangeValues(sheet, a, b, path) {
-            const ma = REF_RE.exec(a), mb = REF_RE.exec(b);
-            if (!ma || !mb) return "#REF!";
-            let r1 = parseInt(ma[2], 10) - 1, c1 = XLSX.utils.decode_col(ma[1].toUpperCase());
-            let r2 = parseInt(mb[2], 10) - 1, c2 = XLSX.utils.decode_col(mb[1].toUpperCase());
-            if (r1 > r2) { const t = r1; r1 = r2; r2 = t; }
-            if (c1 > c2) { const t = c1; c1 = c2; c2 = t; }
-            const out = [];
-            for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) out.push(cellRawValueOn(sheet, r, c, path));
-            return out;
-        }
-
-        function toNum(v) {
-            if (v === true) return 1;
-            if (v === false || v == null || v === "") return 0;
-            if (typeof v === "number") return v;
-            if (typeof v === "string") { if (isErr(v)) throw new Error(v); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; }
-            return 0;
-        }
-        function toStr(v) { if (v == null) return ""; if (v === true) return "TRUE"; if (v === false) return "FALSE"; return String(v); }
-        function isErr(v) { return typeof v === "string" && v[0] === "#"; }
-        function truthy(v) { if (v === true) return true; if (v === false || v == null || v === "") return false; if (typeof v === "number") return v !== 0; if (typeof v === "string") return v.toUpperCase() === "TRUE"; return !!v; }
-        function flattenArgs(args) { const out = []; args.forEach(a => { if (Array.isArray(a)) a.forEach(x => out.push(x)); else out.push(a); }); return out; }
-        function numbersOf(args) {
-            const out = [];
-            flattenArgs(args).forEach(v => {
-                if (typeof v === "number") out.push(v);
-                else if (typeof v === "boolean") out.push(v ? 1 : 0);
-                else if (typeof v === "string" && v.trim() !== "" && !isErr(v)) { const n = Number(v); if (!Number.isNaN(n)) out.push(n); }
-            });
-            return out;
-        }
-        function applyCompare(op, l, r) {
-            let a, b;
-            if (typeof l === "number" || typeof r === "number") { a = toNum(l); b = toNum(r); }
-            else { a = toStr(l).toUpperCase(); b = toStr(r).toUpperCase(); }
-            switch (op) { case "=": return a === b; case "<>": return a !== b; case "<": return a < b; case ">": return a > b; case "<=": return a <= b; case ">=": return a >= b; }
-            return false;
-        }
-        function matchCriteria(val, crit) {
-            const m = /^(<=|>=|<>|<|>|=)?([\s\S]*)$/.exec(toStr(crit));
-            const op = m[1] || "=", target = m[2], tn = Number(target);
-            if (target !== "" && !Number.isNaN(tn) && typeof val === "number") return applyCompare(op, val, tn);
-            return applyCompare(op, toStr(val), target);
-        }
-
-        function callFunction(name, args) {
-            const flat = flattenArgs(args);
-            const firstErr = flat.find(isErr);
-            switch (name) {
-                case "SUM": return firstErr || numbersOf(args).reduce((a, b) => a + b, 0);
-                case "PRODUCT": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? ns.reduce((a, b) => a * b, 1) : 0; }
-                case "AVERAGE": case "AVG": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : "#DIV/0!"; }
-                case "MIN": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? Math.min(...ns) : 0; }
-                case "MAX": { if (firstErr) return firstErr; const ns = numbersOf(args); return ns.length ? Math.max(...ns) : 0; }
-                case "COUNT": return numbersOf(args).length;
-                case "COUNTA": return flat.filter(v => v != null && v !== "").length;
-                case "ROUND": { const f = Math.pow(10, toNum(args[1] || 0)); return Math.round(toNum(args[0]) * f) / f; }
-                case "ROUNDUP": { const d = toNum(args[1] || 0), f = Math.pow(10, d), x = toNum(args[0]); return (x < 0 ? -1 : 1) * Math.ceil(Math.abs(x) * f) / f; }
-                case "ROUNDDOWN": { const d = toNum(args[1] || 0), f = Math.pow(10, d), x = toNum(args[0]); return (x < 0 ? -1 : 1) * Math.floor(Math.abs(x) * f) / f; }
-                case "ABS": return Math.abs(toNum(args[0]));
-                case "SQRT": return Math.sqrt(toNum(args[0]));
-                case "POWER": return Math.pow(toNum(args[0]), toNum(args[1]));
-                case "MOD": { const a = toNum(args[0]), b = toNum(args[1]); return b === 0 ? "#DIV/0!" : a - b * Math.floor(a / b); }
-                case "INT": return Math.floor(toNum(args[0]));
-                case "CEILING": return Math.ceil(toNum(args[0]));
-                case "FLOOR": return Math.floor(toNum(args[0]));
-                case "IF": return truthy(args[0]) ? (args[1] == null ? true : args[1]) : (args[2] == null ? false : args[2]);
-                case "IFERROR": return isErr(args[0]) || args[0] == null ? (args[1] == null ? "" : args[1]) : args[0];
-                case "ISERROR": return isErr(args[0]);
-                case "AND": return flat.every(truthy);
-                case "OR": return flat.some(truthy);
-                case "NOT": return !truthy(args[0]);
-                case "CONCAT": case "CONCATENATE": return flat.map(toStr).join("");
-                case "LEN": return toStr(args[0]).length;
-                case "UPPER": return toStr(args[0]).toUpperCase();
-                case "LOWER": return toStr(args[0]).toLowerCase();
-                case "TRIM": return toStr(args[0]).trim();
-                case "LEFT": return toStr(args[0]).slice(0, args[1] == null ? 1 : toNum(args[1]));
-                case "RIGHT": { const s = toStr(args[0]), k = args[1] == null ? 1 : toNum(args[1]); return s.slice(s.length - k); }
-                case "MID": return toStr(args[0]).substr(toNum(args[1]) - 1, toNum(args[2]));
-                case "COUNTIF": { const range = Array.isArray(args[0]) ? args[0] : [args[0]]; return range.filter(v => matchCriteria(v, args[1])).length; }
-                case "SUMIF": {
-                    const range = Array.isArray(args[0]) ? args[0] : [args[0]];
-                    const sumRange = Array.isArray(args[2]) ? args[2] : range;
-                    let s = 0;
-                    range.forEach((v, idx) => { if (matchCriteria(v, args[1])) { const sv = sumRange[idx]; const n = typeof sv === "number" ? sv : Number(sv); if (!Number.isNaN(n)) s += n; } });
-                    return s;
-                }
-                default: return "#NAME?";
-            }
-        }
-
-        function formatValue(v) {
-            if (v == null) return "";
-            if (v === true) return "TRUE";
-            if (v === false) return "FALSE";
-            if (typeof v === "number") { if (!isFinite(v)) return "#DIV/0!"; return String(Number.isInteger(v) ? v : Math.round((v + Number.EPSILON) * 1e10) / 1e10); }
-            return String(v);
-        }
-
-        // Refresh evaluated results of every rendered formula cell (except the one being edited).
-        function refreshComputedCells() {
-            const sheet = activeSheet();
-            const activeEl = document.activeElement;
-            document.querySelectorAll(".xl-cell").forEach(el => {
-                if (el === activeEl) return;
-                const cell = sheet[XLSX.utils.encode_cell({ r: +el.dataset.r, c: +el.dataset.c })];
-                if (cell && cell.f != null) el.textContent = getCellDisplay(cell, +el.dataset.r, +el.dataset.c);
-            });
-        }
-
-        // Populate cached values on every formula cell so the saved file shows results without recalculation.
-        function recalcAllForSave() {
-            Object.keys(editor.workbook.Sheets).forEach(name => {
-                const sheet = editor.workbook.Sheets[name];
-                Object.keys(sheet).forEach(addr => {
-                    if (addr[0] === "!") return;
-                    const cell = sheet[addr];
-                    if (!cell || cell.f == null) return;
-                    const pos = XLSX.utils.decode_cell(addr);
-                    const val = evalOnSheet(sheet, cell.f, pos.r, pos.c);
-                    if (isErr(val)) return; // keep existing cached value for unsupported formulas
-                    if (typeof val === "number" && isFinite(val)) { cell.v = val; cell.t = "n"; }
-                    else if (typeof val === "boolean") { cell.v = val; cell.t = "b"; }
-                    else { cell.v = val == null ? "" : String(val); cell.t = "s"; }
-                });
-            });
         }
 
         function isCsvFile() {
@@ -516,273 +152,147 @@
             return ext === "csv";
         }
 
-        function decodeCsv(buffer) {
-            const bytes = new Uint8Array(buffer);
-            editor.csvHasBom = bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
-            if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder("utf-16le").decode(bytes);
-            if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder("utf-16be").decode(bytes);
-            return new TextDecoder("utf-8").decode(bytes);
-        }
+        // ---- Load the stored file and convert it into Univer's IWorkbookData ----
+        async function loadFileAsUniverData() {
+            const res = await fetch(`/DocumentHub/Preview?fileId=${editor.fileId}`, { cache: "no-store" });
+            if (!res.ok) throw new Error("Unable to load spreadsheet.");
+            if ((res.headers.get("content-type") || "").toLowerCase().includes("text/html"))
+                throw new Error("This file is not available in server storage. Restore it from a backup or re-upload it.");
 
-        function detectCsvDelimiter(text) {
-            const sample = text.split(/\r?\n/).slice(0, 20).join("\n");
-            const candidates = [",", ";", "\t", "|"];
-            let best = ",";
-            let bestScore = -1;
-            candidates.forEach(delimiter => {
-                const score = sample.split(/\r?\n/).reduce((sum, line) => sum + countDelimiterOutsideQuotes(line, delimiter), 0);
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = delimiter;
-                }
-            });
-            return best;
-        }
-
-        function countDelimiterOutsideQuotes(line, delimiter) {
-            let count = 0;
-            let quoted = false;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '"' && line[i + 1] === '"') { i++; continue; }
-                if (ch === '"') quoted = !quoted;
-                else if (!quoted && ch === delimiter) count++;
+            const buffer = await res.arrayBuffer();
+            let wb;
+            if (isCsvFile()) {
+                const csvText = decodeCsv(buffer);
+                editor.csvDelimiter = detectCsvDelimiter(csvText);
+                wb = XLSX.read(csvText, { type: "string", raw: false, FS: editor.csvDelimiter });
+            } else {
+                wb = XLSX.read(buffer, { type: "array", cellDates: false, cellFormula: true });
             }
-            return count;
+            return xlsxToUniverData(wb, editor.fileName);
         }
 
-        function sheetToDelimitedText(sheet, delimiter) {
-            const range = findUsedRange(sheet);
-            const rows = [];
-            for (let r = range.s.r; r <= range.e.r; r++) {
-                const cols = [];
-                for (let c = range.s.c; c <= range.e.c; c++) {
-                    cols.push(escapeDelimitedValue(getCellText(sheet[XLSX.utils.encode_cell({ r, c })]), delimiter));
-                }
-                rows.push(cols.join(delimiter));
-            }
-            return rows.join("\r\n");
-        }
-
-        function escapeDelimitedValue(value, delimiter) {
-            const text = String(value ?? "");
-            return (text.includes('"') || text.includes("\n") || text.includes("\r") || text.includes(delimiter))
-                ? `"${text.replace(/"/g, '""')}"`
-                : text;
-        }
-
-        function findUsedRange(sheet) {
-            let maxR = 0, maxC = 0, seen = false;
-            Object.keys(sheet).forEach(address => {
-                if (address[0] === "!") return;
-                const cell = sheet[address];
-                if (!cell || getCellText(cell) === "") return;
-                const pos = XLSX.utils.decode_cell(address);
-                maxR = Math.max(maxR, pos.r);
-                maxC = Math.max(maxC, pos.c);
-                seen = true;
+        function xlsxToUniverData(wb, name) {
+            const sheets = {};
+            const sheetOrder = [];
+            (wb.SheetNames.length ? wb.SheetNames : ["Sheet1"]).forEach((sn, i) => {
+                const ws = wb.Sheets[sn] || {};
+                const ref = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : { s: { r: 0, c: 0 }, e: { r: 99, c: 25 } };
+                const cellData = {};
+                Object.keys(ws).forEach(addr => {
+                    if (addr[0] === "!") return;
+                    const cell = ws[addr];
+                    if (cell == null) return;
+                    const pos = XLSX.utils.decode_cell(addr);
+                    const uCell = {};
+                    if (cell.f) uCell.f = "=" + String(cell.f).replace(/^=/, "");
+                    if (cell.v != null) uCell.v = cell.v;
+                    if (Object.keys(uCell).length === 0) return;
+                    (cellData[pos.r] = cellData[pos.r] || {})[pos.c] = uCell;
+                });
+                const sid = "sheet-" + i;
+                sheetOrder.push(sid);
+                sheets[sid] = {
+                    id: sid,
+                    name: (sn || ("Sheet" + (i + 1))).substring(0, 31),
+                    rowCount: Math.max(1000, ref.e.r + 100),
+                    columnCount: Math.max(60, ref.e.c + 26),
+                    cellData
+                };
             });
-            if (!seen && sheet["!ref"]) return XLSX.utils.decode_range(sheet["!ref"]);
-            return { s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } };
+            return { id: "wb-" + editor.fileId + "-" + Date.now(), name: name, appVersion: "0.25.1", locale: "enUS", sheetOrder, sheets, styles: {}, resources: [] };
         }
 
-        function activateCell(el) {
-            editor.active = { r: +el.dataset.r, c: +el.dataset.c };
-            editor.selection = editor.selection || { start: editor.active, end: editor.active };
-            nameBox.value = XLSX.utils.encode_cell(editor.active);
-            const formula = getCellText(activeSheet()[XLSX.utils.encode_cell(editor.active)]);
-            formulaBar.value = formula;
-            if (el.textContent !== formula) el.textContent = formula; // reveal the formula for editing
-            document.querySelectorAll(".xl-cell.active").forEach(x => x.classList.remove("active"));
-            el.classList.add("active");
-        }
+        function mountUniver(workbookData) {
+            disposeUniver();
+            const { univer, univerAPI } = createUniver({
+                locale: LocaleType.EN_US,
+                locales: { [LocaleType.EN_US]: mergeLocales(EnUS) },
+                presets: [UniverSheetsCorePreset({ container: "univerContainer" })]
+            });
+            editor.univer = univer;
+            editor.univerAPI = univerAPI;
+            univerAPI.createWorkbook(workbookData);
 
-        // When a cell loses focus, swap the edited formula back to its computed result and refresh dependents.
-        function commitCell(el) {
-            const r = +el.dataset.r, c = +el.dataset.c;
-            el.textContent = getCellDisplay(activeSheet()[XLSX.utils.encode_cell({ r, c })], r, c);
-            refreshComputedCells();
-        }
-
-        function selectCellMouse(event, el) {
-            const pos = { r: +el.dataset.r, c: +el.dataset.c };
-            if (event.shiftKey && editor.selection) editor.selection.end = pos;
-            else editor.selection = { start: pos, end: pos };
-            setTimeout(renderSelection, 0);
-        }
-
-        function renderSelection() {
-            document.querySelectorAll(".xl-cell.selected").forEach(x => x.classList.remove("selected"));
-            if (!editor.selection) return;
-            const s = normalizeSelection();
-            document.querySelectorAll(".xl-cell").forEach(el => {
-                const r = +el.dataset.r, c = +el.dataset.c;
-                if (r >= s.r1 && r <= s.r2 && c >= s.c1 && c <= s.c2) el.classList.add("selected");
+            // Mark dirty when the document actually mutates (ignore selection/scroll operations).
+            univerAPI.onCommandExecuted((command) => {
+                if (!editor.ready) return;
+                if (command && command.type === 2) markDirty(); // 2 = MUTATION
             });
         }
 
-        function cellInput(el) {
-            const r = +el.dataset.r, c = +el.dataset.c;
-            setCellValue(r, c, el.textContent, true);
-            formulaBar.value = el.textContent;
+        function disposeUniver() {
+            try { if (editor.univer && editor.univer.dispose) editor.univer.dispose(); } catch (e) { }
+            editor.univer = null; editor.univerAPI = null;
+            const c = document.getElementById("univerContainer");
+            if (c) c.innerHTML = "";
         }
 
-        function setCellValue(r, c, value, track) {
-            const sheet = activeSheet();
-            const address = XLSX.utils.encode_cell({ r, c });
-            const before = getCellText(sheet[address]);
-            if (before === value) return;
-            if (track) pushUndo([{ r, c, before, after: value }]);
-            if (value === "") delete sheet[address];
-            else if (value.startsWith("=")) sheet[address] = { f: value.slice(1), t: "n" };
-            else {
-                const numberValue = Number(value);
-                const isNumber = value.trim() !== "" && !Number.isNaN(numberValue) && /^-?\d+(\.\d+)?$/.test(value.trim());
-                sheet[address] = { v: isNumber ? numberValue : value, t: isNumber ? "n" : "s" };
+        // ---- Read Univer's current state back into a real .xlsx/.csv for saving ----
+        function currentSnapshot() {
+            const wb = editor.univerAPI && editor.univerAPI.getActiveWorkbook();
+            if (!wb) return null;
+            if (typeof wb.save === "function") return wb.save();
+            if (typeof wb.getSnapshot === "function") return wb.getSnapshot();
+            return null;
+        }
+
+        function serializeSpreadsheet() {
+            const snap = currentSnapshot();
+            if (!snap) throw new Error("Nothing to save yet.");
+            const wb = univerSnapshotToXlsxWorkbook(snap);
+            if (isCsvFile()) {
+                const firstSheet = wb.Sheets[wb.SheetNames[0]];
+                const csv = XLSX.utils.sheet_to_csv(firstSheet, { FS: editor.csvDelimiter });
+                const text = (editor.csvHasBom ? "﻿" : "") + csv;
+                return { content: text, contentType: "text/csv;charset=utf-8" };
             }
-            expandRef(sheet, r, c);
-            markDirty();
+            return {
+                content: XLSX.write(wb, { bookType: "xlsx", type: "array" }),
+                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            };
         }
 
-        function formulaKeydown(e) {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            setCellValue(editor.active.r, editor.active.c, formulaBar.value, true);
-            renderGrid();
-        }
-
-        function cellKeydown(e, el) {
-            const r = +el.dataset.r, c = +el.dataset.c;
-            const moves = { ArrowUp: [-1,0], ArrowDown: [1,0], ArrowLeft: [0,-1], ArrowRight: [0,1], Enter: [1,0], Tab: [0,1] };
-            if (!moves[e.key]) return;
-            e.preventDefault();
-            const [dr, dc] = moves[e.key];
-            focusCell(Math.max(0, r + dr), Math.max(0, c + dc));
-        }
-
-        function focusCell(r, c) {
-            if (r < editor.rowStart || r >= editor.rowStart + editor.rowWindow) editor.rowStart = Math.max(0, r - 10);
-            if (c < editor.colStart || c >= editor.colStart + editor.colWindow) editor.colStart = Math.max(0, c - 5);
-            renderGrid();
-            const el = document.querySelector(`.xl-cell[data-r="${r}"][data-c="${c}"]`);
-            if (el) el.focus();
-        }
-
-        function copySelection(cut) {
-            const s = normalizeSelection();
-            const sheet = activeSheet();
-            const rows = [];
-            for (let r = s.r1; r <= s.r2; r++) {
-                const cols = [];
-                for (let c = s.c1; c <= s.c2; c++) cols.push(getCellText(sheet[XLSX.utils.encode_cell({ r, c })]));
-                rows.push(cols.join("\t"));
-            }
-            navigator.clipboard?.writeText(rows.join("\n"));
-            editor.clipboardCut = cut ? s : null;
-        }
-
-        async function pasteFromClipboard(e) {
-            e.preventDefault();
-            const text = await navigator.clipboard.readText();
-            if (!text) return;
-            const start = editor.active;
-            const changes = [];
-            text.split(/\r?\n/).forEach((row, ri) => row.split("\t").forEach((value, ci) => {
-                const r = start.r + ri, c = start.c + ci;
-                const before = getCellText(activeSheet()[XLSX.utils.encode_cell({ r, c })]);
-                changes.push({ r, c, before, after: value });
-                setCellValue(r, c, value, false);
-            }));
-            if (editor.clipboardCut) {
-                for (let r = editor.clipboardCut.r1; r <= editor.clipboardCut.r2; r++)
-                    for (let c = editor.clipboardCut.c1; c <= editor.clipboardCut.c2; c++)
-                        setCellValue(r, c, "", false);
-                editor.clipboardCut = null;
-            }
-            pushUndo(changes);
-            renderGrid();
-        }
-
-        function pushUndo(changes) { editor.undo.push(changes); editor.redo = []; if (editor.undo.length > 100) editor.undo.shift(); }
-        function undoChange() { const changes = editor.undo.pop(); if (!changes) return; changes.forEach(x => setCellValue(x.r, x.c, x.before, false)); editor.redo.push(changes); markDirty(); renderGrid(); }
-        function redoChange() { const changes = editor.redo.pop(); if (!changes) return; changes.forEach(x => setCellValue(x.r, x.c, x.after, false)); editor.undo.push(changes); markDirty(); renderGrid(); }
-
-        function addRow() {
-            const sheet = activeSheet();
-            const range = findUsedRange(sheet);
-            const insertAt = editor.active.r + 1;
-            for (let r = range.e.r; r >= insertAt; r--) moveRow(sheet, r, r + 1, range.e.c);
-            for (let c = 0; c <= range.e.c; c++) delete sheet[XLSX.utils.encode_cell({ r: insertAt, c })];
-            sheet["!ref"] = XLSX.utils.encode_range({ s: range.s, e: { r: range.e.r + 1, c: range.e.c } });
-            markDirty();
-            renderGrid();
-        }
-
-        function deleteRow() {
-            const sheet = activeSheet();
-            const range = findUsedRange(sheet);
-            const deleteAt = editor.active.r;
-            for (let r = deleteAt + 1; r <= range.e.r; r++) moveRow(sheet, r, r - 1, range.e.c);
-            for (let c = 0; c <= range.e.c; c++) delete sheet[XLSX.utils.encode_cell({ r: range.e.r, c })];
-            sheet["!ref"] = XLSX.utils.encode_range({ s: range.s, e: { r: Math.max(0, range.e.r - 1), c: range.e.c } });
-            editor.active.r = Math.min(editor.active.r, Math.max(0, range.e.r - 1));
-            markDirty();
-            renderGrid();
-        }
-
-        function addColumn() {
-            const sheet = activeSheet();
-            const range = findUsedRange(sheet);
-            const insertAt = editor.active.c + 1;
-            for (let c = range.e.c; c >= insertAt; c--) moveColumn(sheet, c, c + 1, range.e.r);
-            for (let r = 0; r <= range.e.r; r++) delete sheet[XLSX.utils.encode_cell({ r, c: insertAt })];
-            sheet["!ref"] = XLSX.utils.encode_range({ s: range.s, e: { r: range.e.r, c: range.e.c + 1 } });
-            markDirty();
-            renderGrid();
-        }
-
-        function deleteColumn() {
-            const sheet = activeSheet();
-            const range = findUsedRange(sheet);
-            const deleteAt = editor.active.c;
-            for (let c = deleteAt + 1; c <= range.e.c; c++) moveColumn(sheet, c, c - 1, range.e.r);
-            for (let r = 0; r <= range.e.r; r++) delete sheet[XLSX.utils.encode_cell({ r, c: range.e.c })];
-            sheet["!ref"] = XLSX.utils.encode_range({ s: range.s, e: { r: range.e.r, c: Math.max(0, range.e.c - 1) } });
-            editor.active.c = Math.min(editor.active.c, Math.max(0, range.e.c - 1));
-            markDirty();
-            renderGrid();
-        }
-
-        function moveRow(sheet, fromR, toR, maxC) {
-            for (let c = 0; c <= maxC; c++) moveCell(sheet, fromR, c, toR, c);
-        }
-
-        function moveColumn(sheet, fromC, toC, maxR) {
-            for (let r = 0; r <= maxR; r++) moveCell(sheet, r, fromC, r, toC);
-        }
-
-        function moveCell(sheet, fromR, fromC, toR, toC) {
-            const from = XLSX.utils.encode_cell({ r: fromR, c: fromC });
-            const to = XLSX.utils.encode_cell({ r: toR, c: toC });
-            if (sheet[from]) sheet[to] = { ...sheet[from] };
-            else delete sheet[to];
-        }
-
-        function applySearch() { editor.search = searchInput.value.toLowerCase(); renderGrid(); }
-        function toggleFilter() { editor.filterOn = !editor.filterOn; renderGrid(); toast(editor.filterOn ? "Filter on" : "Filter off"); }
-        function rowMatches(sheet, r, maxCol) { for (let c = 0; c <= maxCol; c++) if (getCellText(sheet[XLSX.utils.encode_cell({ r, c })]).toLowerCase().includes(editor.search)) return true; return false; }
-        function cellClass(r, c, text) {
-            const classes = [];
-            if (editor.active.r === r && editor.active.c === c) classes.push("active");
-            if (editor.search && text.toLowerCase().includes(editor.search)) classes.push("search-hit");
-            return classes.join(" ");
+        function univerSnapshotToXlsxWorkbook(snap) {
+            const out = XLSX.utils.book_new();
+            const order = (snap.sheetOrder && snap.sheetOrder.length) ? snap.sheetOrder : Object.keys(snap.sheets || {});
+            order.forEach((sid, idx) => {
+                const sh = snap.sheets[sid];
+                if (!sh) return;
+                const ws = {};
+                let maxR = 0, maxC = 0, any = false;
+                const cd = sh.cellData || {};
+                Object.keys(cd).forEach(rk => {
+                    const row = cd[rk]; const r = +rk;
+                    Object.keys(row).forEach(ck => {
+                        const cell = row[ck]; const c = +ck;
+                        if (cell == null) return;
+                        let out2 = null;
+                        const f = cell.f ? String(cell.f).replace(/^=/, "") : null;
+                        const v = cell.v;
+                        if (f) {
+                            out2 = { t: typeof v === "number" ? "n" : "s", f };
+                            if (v != null) out2.v = v;
+                        } else if (v != null && v !== "") {
+                            if (typeof v === "number") out2 = { t: "n", v };
+                            else if (typeof v === "boolean") out2 = { t: "b", v };
+                            else out2 = { t: "s", v: String(v) };
+                        }
+                        if (out2) { ws[XLSX.utils.encode_cell({ r, c })] = out2; maxR = Math.max(maxR, r); maxC = Math.max(maxC, c); any = true; }
+                    });
+                });
+                ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: any ? maxR : 0, c: any ? maxC : 0 } });
+                const name = (sh.name || ("Sheet" + (idx + 1))).substring(0, 31);
+                XLSX.utils.book_append_sheet(out, ws, name);
+            });
+            if (!out.SheetNames.length) XLSX.utils.book_append_sheet(out, XLSX.utils.aoa_to_sheet([[]]), "Sheet1");
+            return out;
         }
 
         async function saveWorkbook(auto) {
             if (!editor.canSave) return toast("You do not have permission to save this spreadsheet.", true);
             if (editor.saving || (auto && !editor.dirty)) return;
             editor.saving = true;
-            setStatus("Saving...");
+            setStatus("Saving…");
             try {
                 const output = serializeSpreadsheet();
                 const fd = new FormData();
@@ -792,37 +302,27 @@
                 if (!res.ok) throw new Error("Save failed.");
                 const data = await res.json();
                 if (!data.success) throw new Error(data.message || "Save failed.");
-                await validateSavedWorkbook();
                 editor.dirty = false;
-                setStatus("Saved ✓");
+                setStatus(`All changes saved ✓ · ${nowTime()}`);
                 if (!auto) toast("Spreadsheet saved.");
             } catch (err) {
-                setStatus("Unsaved Changes");
+                setStatus("Unsaved changes");
                 toast(err.message || "Unable to save spreadsheet.", true);
             } finally {
                 editor.saving = false;
             }
         }
 
-        function serializeSpreadsheet() {
-            if (isCsvFile()) {
-                const csv = sheetToDelimitedText(activeSheet(), editor.csvDelimiter);
-                const text = (editor.csvHasBom ? "\uFEFF" : "") + csv;
-                return { content: text, contentType: "text/csv;charset=utf-8" };
-            }
-
-            recalcAllForSave();
-            return {
-                content: XLSX.write(editor.workbook, { bookType: "xlsx", type: "array", cellStyles: true }),
-                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            };
-        }
-
-        async function validateSavedWorkbook() {
-            const res = await fetch(`/DocumentHub/Preview?fileId=${editor.fileId}&_=${Date.now()}`, { cache: "no-store" });
-            if (!res.ok) throw new Error("Save validation failed.");
-            const buffer = await res.arrayBuffer();
-            if (buffer.byteLength <= 0) throw new Error("Save validation failed.");
+        // Fire-and-forget save when the tab is hidden/closed so edits are never lost.
+        function flushSaveBeacon() {
+            if (!editor.canSave || !editor.dirty || editor.saving) return;
+            try {
+                const output = serializeSpreadsheet();
+                const fd = new FormData();
+                fd.append("fileId", editor.fileId);
+                fd.append("workbook", new Blob([output.content], { type: output.contentType }), editor.fileName);
+                navigator.sendBeacon("/DocumentHub/SaveSpreadsheet", fd);
+            } catch (e) { /* best effort */ }
         }
 
         async function saveAndReturn() { await saveWorkbook(false); if (!editor.dirty) location.href = returnUrl(); }
@@ -835,7 +335,16 @@
             return url.toString();
         }
         function downloadWorkbook() { if (!editor.canDownload) return toast("You do not have permission to download.", true); location.href = `/DocumentHub/Download?fileId=${editor.fileId}`; }
-        function refreshWorkbook() { if (editor.dirty && !confirm("Refresh will discard unsaved changes. Continue?")) return; loadWorkbook(); }
+        async function refreshWorkbook() {
+            if (editor.dirty && !confirm("Refresh will discard unsaved changes. Continue?")) return;
+            overlay(true); setStatus("Loading…"); editor.ready = false; editor.dirty = false;
+            try {
+                const data = await loadFileAsUniverData();
+                mountUniver(data);
+                setStatus("Ready — auto-save on"); editor.ready = true;
+            } catch (err) { toast(err.message || "Reload failed.", true); setStatus("Load failed"); }
+            overlay(false);
+        }
 
         async function toggleVersions(force) {
             const panel = versionPanel;
@@ -845,7 +354,7 @@
             const res = await fetch(`/DocumentHub/VersionHistory?fileId=${editor.fileId}`);
             const json = await res.json();
             versionRows.innerHTML = (json.data || []).map(v => `
-                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2 px-1">
                     <span><strong>v${v.versionNumber}</strong><br><span class="text-muted">${new Date(v.uploadedDate).toLocaleString()}</span></span>
                     ${editor.canRestore ? `<button class="btn btn-sm btn-warning" onclick="restoreVersion(${v.versionNumber})">Restore</button>` : ""}
                 </div>`).join("") || "No versions found.";
@@ -859,31 +368,46 @@
             const json = await res.json();
             if (!json.success) return toast(json.message || "Restore failed.", true);
             editor.dirty = false;
-            await loadWorkbook();
+            toggleVersions(false);
+            await refreshWorkbook();
             toast("Version restored.");
         }
 
-        function startColResize(e, c) {
-            e.preventDefault();
-            const startX = e.clientX, startW = editor.colWidths[c] || 120;
-            document.onmousemove = ev => { editor.colWidths[c] = Math.max(60, startW + ev.clientX - startX); renderGrid(); };
-            document.onmouseup = () => { document.onmousemove = null; document.onmouseup = null; };
+        // ---- CSV helpers ----
+        function decodeCsv(buffer) {
+            const bytes = new Uint8Array(buffer);
+            editor.csvHasBom = bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+            if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder("utf-16le").decode(bytes);
+            if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder("utf-16be").decode(bytes);
+            return new TextDecoder("utf-8").decode(bytes);
         }
-        function startRowResize(e, r) {
-            e.preventDefault();
-            const startY = e.clientY, startH = editor.rowHeights[r] || 28;
-            document.onmousemove = ev => { editor.rowHeights[r] = Math.max(22, startH + ev.clientY - startY); renderGrid(); };
-            document.onmouseup = () => { document.onmousemove = null; document.onmouseup = null; };
+        function detectCsvDelimiter(text) {
+            const sample = text.split(/\r?\n/).slice(0, 20).join("\n");
+            const candidates = [",", ";", "\t", "|"];
+            let best = ",", bestScore = -1;
+            candidates.forEach(delimiter => {
+                const score = sample.split(/\r?\n/).reduce((sum, line) => sum + countDelimiterOutsideQuotes(line, delimiter), 0);
+                if (score > bestScore) { bestScore = score; best = delimiter; }
+            });
+            return best;
         }
-        function normalizeSelection() {
-            const s = editor.selection || { start: editor.active, end: editor.active };
-            return { r1: Math.min(s.start.r, s.end.r), r2: Math.max(s.start.r, s.end.r), c1: Math.min(s.start.c, s.end.c), c2: Math.max(s.start.c, s.end.c) };
+        function countDelimiterOutsideQuotes(line, delimiter) {
+            let count = 0, quoted = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"' && line[i + 1] === '"') { i++; continue; }
+                if (ch === '"') quoted = !quoted;
+                else if (!quoted && ch === delimiter) count++;
+            }
+            return count;
         }
-        function expandRef(sheet, r, c) { const range = getRange(sheet); range.e.r = Math.max(range.e.r, r); range.e.c = Math.max(range.e.c, c); sheet["!ref"] = XLSX.utils.encode_range(range); }
-        function markDirty() { editor.dirty = true; setStatus("Unsaved Changes"); clearTimeout(editor.autosaveTimer); editor.autosaveTimer = setTimeout(() => saveWorkbook(true), 10000); }
-        function setStatus(text) { saveStatus.textContent = text; }
-        function toast(message, error) { toastLite.textContent = message; toastLite.style.background = error ? "#dc2626" : "var(--xl-green)"; toastLite.style.display = "block"; setTimeout(() => toastLite.style.display = "none", 2600); }
-        function escapeHtml(v) { return String(v ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch])); }
+
+        // ---- misc UI ----
+        function markDirty() { editor.dirty = true; setStatus("Editing… auto-save pending"); clearTimeout(editor.autosaveTimer); editor.autosaveTimer = setTimeout(() => saveWorkbook(true), 2500); }
+        function nowTime() { return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+        function setStatus(text) { document.getElementById("saveStatus").textContent = text; }
+        function overlay(show) { document.getElementById("loadingOverlay").style.display = show ? "flex" : "none"; }
+        function toast(message, error) { const t = document.getElementById("toastLite"); t.textContent = message; t.style.background = error ? "#dc2626" : "#107c41"; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3000); }
     </script>
 </body>
 </html>

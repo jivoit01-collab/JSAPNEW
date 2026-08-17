@@ -1,12 +1,16 @@
 ﻿ @{
    ViewData["Title"] = "Admin Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var isReadOnly = ViewBag.IsReadOnly == true;
 }
+
+<!-- Read-only flag: set by the AdminViewPage action for the view-only role -->
+<script>window.IS_READONLY = @(isReadOnly ? "true" : "false");</script>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="~/css/bill-verification.css" />
-<link rel="stylesheet" href="~/css/admin-premium.css" />
+<link rel="stylesheet" href="~/css/bill-verification.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-premium.css" asp-append-version="true" />
 
 <style>
     /* ===== COMBINED BILLS TABLE: full column values (no "..."), fit-to-text ===== */
@@ -100,6 +104,29 @@
         background: #cbd5e1;
         border-radius: 8px;
     }
+
+    /* ── Advance Payment button (payment status column) ── */
+    .admin-dashboard-shell .btn-advance-payment {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 8px;
+        padding: 5px 11px;
+        border: none;
+        border-radius: 8px;
+        background: #f59e0b;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .12s ease, box-shadow .12s ease;
+    }
+
+        .admin-dashboard-shell .btn-advance-payment:hover {
+            background: #d97706;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, .28);
+        }
 
     /* ── Admin "Attach file" button (rows with no attachment) ── */
     .admin-dashboard-shell .btn-attach-admin {
@@ -219,7 +246,7 @@
         <div class="module-box">
             <span class="module-dot"></span>
             <i class="fa-solid fa-shield-halved"></i>
-            <span>Admin Dashboard</span>
+            <span>@(isReadOnly ? "Admin Dashboard (View Only)" : "Admin Dashboard")</span>
         </div>
     </div>
 </nav>
@@ -361,7 +388,11 @@
         <input type="file" id="adminAttachInput" style="display:none"
                accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx" />
 
-        <div class="filter-card table-filter-card">
+        <div class="filter-card table-filter-card column-filter-card">
+            <div class="f-group">
+                <span class="f-label">MRN</span>
+                <input type="text" class="f-input" id="dd-mrn-combined" placeholder="Search MRN..." oninput="filterCombinedTable()" />
+            </div>
             <div class="f-group">
                 <span class="f-label">Checker Status</span>
                 <select class="f-input" id="dd-status-combined" onchange="filterCombinedTable()">
@@ -417,6 +448,7 @@
                         <col class="col-status" />
                         <col class="col-status" />
                         <col class="col-status" />
+                        <col class="col-date" />
                         <col class="col-checker-remark" />
                         <col class="col-attachment" />
                         <col class="col-delete" />
@@ -432,6 +464,7 @@
                             <th>Maker Status</th>
                             <th>Checker Status</th>
                             <th>Payment Status</th>
+                            <th>Payment Date</th>
                             <th>Checker Remark</th>
                             <th>Attachment</th>
                             <th>Delete</th>
@@ -650,11 +683,13 @@
 
     /* client-side Status / Payment / Attachment filters */
     function applyCombinedFilters() {
+    const mrn = ($('#dd-mrn-combined').val() || '').trim().toLowerCase();
     const st = ($('#dd-status-combined').val()  || '');
     const pay = ($('#dd-payment-combined').val() || '');
     const at  = ($('#dd-attach-combined').val()  || '');
 
     const filtered = combinedDataCache.filter(function (x) {
+    if (mrn && String(x.vchNumber || '').toLowerCase().indexOf(mrn) === -1) return false;
     if (st  && (x.checkerStatus || 'Pending') !== st) return false;
     if (pay && (x.paymentStatus  || 'UnPaid')  !== pay) return false;
     if (at === 'yes' && !x.attachmentPath) return false;
@@ -676,6 +711,7 @@
     }
 
     function resetCombinedFilters() {
+    $('#dd-mrn-combined').val('');
     $('#dd-status-combined').val('');
     $('#dd-payment-combined').val('');
     $('#dd-attach-combined').val('');
@@ -688,6 +724,10 @@
     function adminAttachmentCell(x) {
     if (x.attachmentPath) {
     return attachmentLink(x.attachmentPath);
+    }
+    /* read-only role: no Attach button, just show there's no file */
+    if (window.IS_READONLY) {
+    return '<span class="muted-pill"><i class="fa-regular fa-file"></i> No File</span>';
     }
     return `
     <button class="btn-attach-admin" type="button"
@@ -853,8 +893,15 @@
     {
     rowsData.forEach(x => {
     rows += `
-    <tr>
-    <td class="td-account" title="${safeAttr(x.accountName)}"><span class="cell-text">${safeText(x.accountName)}</span></td>
+    <tr id="combined-row-${safeValueAttr(x.vchNumber)}" onclick="highlightAdminCombinedRow(this)">
+    <td class="td-account" title="${safeAttr(x.accountName)}">
+    <a href="javascript:void(0)"
+    onclick="loadCombinedDetails('${safeValueAttr(x.vchNumber)}','${safeValueAttr(x.serialNumber)}');event.stopPropagation();"
+    class="account-drill-link">
+    <span class="cell-text">${safeText(x.accountName)}</span>
+    <i class="fa-solid fa-chevron-down"></i>
+    </a>
+    </td>
     <td class="td-voucher"><span class="cell-text">${safeText(x.vchNumber)}</span></td>
     <td class="td-date"><span class="cell-text">${safeText(x.voucherDate)}</span></td>
     <td class="td-amount"><span class="cell-text">₹${safeText(x.billAmount)}</span></td>
@@ -862,7 +909,8 @@
     <td class="td-date"><span class="cell-text">${safeText(x.dueDate ?? '-')}</span></td>
     <td class="td-status">${statusBadge(x.makerStatus ?? 'Pending')}</td>
     <td class="td-status">${statusBadge(x.checkerStatus ?? 'Pending')}</td>
-    <td class="td-status">${statusBadge(x.paymentStatus ?? 'UnPaid')}</td>
+    <td class="td-status">${combinedPaymentStatusCell(x)}</td>
+    <td class="td-date"><span class="cell-text">${safeText(x.paymentDate ?? '-')}</span></td>
     <td class="td-remark" title="${safeAttr(x.checkerRemark ?? '-')}"><span class="cell-text clamp-text">${safeText(x.checkerRemark ?? '-')}</span></td>
     <td class="td-attachment">${adminAttachmentCell(x)}</td>
     <td class="td-action-cell">${deleteAttachmentButton(x)}</td>
@@ -870,7 +918,7 @@
     `;
     });
 
-    $('#combinedBody').html(rows || emptyRow(12));
+    $('#combinedBody').html(rows || emptyRow(13));
     }
 
     if(tab === 'maker')
@@ -1036,6 +1084,8 @@
     Paid
     </span>
     `
+    : (window.IS_READONLY
+    ? `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> UnPaid</span>`
     : `
     <button class="btn-mark-paid"
     type="button"
@@ -1051,7 +1101,7 @@
     Mark Paid
 
     </button>
-    `}
+    `)}
 
     </td>
 
@@ -1210,7 +1260,7 @@
     let cls = 'sb-neutral';
     let icon = 'fa-minus';
 
-    if (normalized.includes('approved') || normalized === 'paid') {
+    if (normalized.includes('approved') || normalized === 'paid' || normalized.includes('advance')) {
     cls = 'sb-approved';
     icon = 'fa-check';
     } else if (normalized.includes('pending') || normalized.includes('unpaid')) {
@@ -1237,6 +1287,10 @@
     function checkerRejectButton(x, status) {
     if (String(status || '').toLowerCase() === 'rejected') {
     return '<span class="status-badge sb-rejected"><i class="fa-solid fa-ban"></i> Rejected</span>';
+    }
+    /* read-only role: no Reject action, just show the current status */
+    if (window.IS_READONLY) {
+    return `<span class="status-badge sb-pending"><i class="fa-solid fa-clock"></i> ${safeText(status || 'Pending')}</span>`;
     }
 
     return `
@@ -1392,7 +1446,192 @@
     });
     }
 
+    /* ══════════════════════════════════════════
+    COMBINED (All Bills) — account name drill-down: expands an item detail row
+    ══════════════════════════════════════════ */
+    function highlightAdminCombinedRow(tr) {
+    document.querySelectorAll('#combinedBody tr.row-selected')
+    .forEach(r => r.classList.remove('row-selected'));
+    tr.classList.add('row-selected');
+    }
+
+    function loadCombinedDetails(vchNumber, serialNumber) {
+    const existing = document.getElementById("combined-details-" + vchNumber);
+    if (existing) {
+    existing.remove();
+    return;
+    }
+
+    document.querySelectorAll("[id^='combined-details-']").forEach(el => el.remove());
+
+    const row = document.getElementById("combined-row-" + vchNumber);
+    if (!row) return;
+
+    row.insertAdjacentHTML("afterend", `
+    <tr id="combined-details-${safeValueAttr(vchNumber)}" class="detail-row">
+    <td colspan="13">
+    <div class="detail-inner">
+    <i class="fa-solid fa-spinner fa-spin" style="color:#9CA3AF"></i>
+    Loading items...
+    </div>
+    </td>
+    </tr>`);
+
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 15000);
+
+    fetch("/Checker/GetInvoiceItems?serialNumber=" + encodeURIComponent(serialNumber), { signal: ctrl.signal })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+    clearTimeout(timeout);
+
+    const items = Array.isArray(data) ? data : [];
+    let totalQty = 0;
+    let totalTax = 0;
+    let totalAmount = 0;
+
+    items.forEach(item => {
+    totalQty += Number(item.quantity) || 0;
+    totalTax += Number(item.taxAmount) || 0;
+    totalAmount += Number(item.amount) || 0;
+    });
+
+    const bodyRows = items.length
+    ? items.map((item, idx) => `
+    <tr class="erp-item-row">
+    <td class="erp-product">
+    <span class="erp-product-click"
+    role="button"
+    tabindex="0"
+    data-full-product="${safeAttr(item.productName ?? "-")}"
+    title="Click to view full product name"
+    style="display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">
+    ${safeText(item.productName ?? "-")}
+    </span>
+    </td>
+    <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
+    <td class="erp-rate">₹${safeText(item.purchaseRate ?? 0)}</td>
+    <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
+    <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
+    <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
+    <td class="erp-taxamount">₹${safeText(item.taxAmount ?? 0)}</td>
+    <td class="erp-mrp">₹${safeText(item.mrp ?? 0)}</td>
+    <td class="erp-amount">₹${safeText(item.amount ?? 0)}</td>
+    <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
+    </tr>
+    `).join("") + `
+    <tr style="background:#f8fafc;font-weight:700;border-top:2px solid #ccc;">
+    <td>TOTAL</td>
+    <td>${totalQty.toFixed(2)}</td>
+    <td colspan="4"></td>
+    <td>₹${totalTax.toFixed(2)}</td>
+    <td></td>
+    <td>₹${totalAmount.toFixed(2)}</td>
+    <td></td>
+    </tr>`
+    : `
+    <tr class="erp-item-row">
+    <td colspan="10" class="erp-empty">No items found.</td>
+    </tr>`;
+    const taxSummaryRows = buildGstTaxSummary(items);
+
+    const el = document.getElementById("combined-details-" + vchNumber);
+    if (el) {
+    el.outerHTML = `
+    <tr id="combined-details-${safeValueAttr(vchNumber)}" class="detail-row">
+    <td colspan="13" class="erp-detail-cell">
+    <div class="erp-detail-wrap">
+    <table class="erp-detail-table">
+    <colgroup>
+    <col class="erp-col-product" />
+    <col class="erp-col-qty" />
+    <col class="erp-col-rate" />
+    <col class="erp-col-disc" />
+    <col class="erp-col-margin" />
+    <col class="erp-col-taxrate" />
+    <col class="erp-col-taxamount" />
+    <col class="erp-col-mrp" />
+    <col class="erp-col-amount" />
+    <col class="erp-col-sno" />
+    </colgroup>
+    <thead>
+    <tr>
+    <th class="erp-product">Product Name</th>
+    <th class="erp-qty">Qty</th>
+    <th class="erp-rate">Pur. Rate</th>
+    <th class="erp-disc">Disc %</th>
+    <th class="erp-margin">Margin %</th>
+    <th class="erp-taxrate">Tax Rate</th>
+    <th class="erp-taxamount">Tax Amount</th>
+    <th class="erp-mrp">Selling rate</th>
+    <th class="erp-amount">Amount</th>
+    <th class="erp-sno">Serial No</th>
+    </tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>
+    </table>
+    ${taxSummaryRows}
+    </div>
+    </td>
+    </tr>`;
+    }
+    })
+    .catch(err => {
+    clearTimeout(timeout);
+    const el = document.getElementById("combined-details-" + vchNumber);
+    if (el) {
+    el.innerHTML = `<td colspan="13" class="empty-row" style="color:#EF4444">
+    ${err.name === "AbortError" ? "Request timed out" : "Error loading items"}
+    </td>`;
+    }
+    });
+    }
+
+    /* Payment status cell for the combined table:
+       shows the status badge, plus an "Advance Payment" button when the bill
+       is still UnPaid (not already Paid or Advance Payment OK). */
+    function combinedPaymentStatusCell(x) {
+    const status = x.paymentStatus || 'UnPaid';
+    const normalized = String(status).toLowerCase();
+    const badge = statusBadge(status);
+
+    /* already paid / already advance-payment-ok, or read-only role → badge only */
+    if (window.IS_READONLY || normalized === 'paid' || normalized.includes('advance')) {
+    return badge;
+    }
+
+    return `${badge}
+    <button class="btn-mark-paid btn-advance-payment"
+    type="button"
+    onclick="markAdvancePayment('${safeValueAttr(x.vchNumber)}');event.stopPropagation();"
+    title="Mark as Advance Payment OK">
+    <i class="fa-solid fa-indian-rupee-sign"></i> Advance Payment
+    </button>`;
+    }
+
+    function markAdvancePayment(vchNumber) {
+    if (!confirm('Mark this bill as Advance Payment OK?')) return;
+
+    $.ajax({
+    url: '/Admin/MarkAdvancePayment',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ vchNumber: vchNumber }),
+    success: function (res) {
+    if (res && res.success) {
+    loadCombined();
+    loadSummary();
+    } else {
+    alert((res && res.message) || 'Unable to mark advance payment.');
+    }
+    },
+    error: function () { alert('Unable to mark advance payment.'); }
+    });
+    }
+
     function deleteAttachmentButton(x) {
+    /* read-only role: never show the delete action */
+    if (window.IS_READONLY) return '<span class="action-placeholder">-</span>';
     if (!x.attachmentPath) return '<span class="action-placeholder">-</span>';
 
     return `

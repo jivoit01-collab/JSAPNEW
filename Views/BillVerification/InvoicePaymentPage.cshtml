@@ -6,8 +6,8 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="~/css/bill-verification.css" />
-<link rel="stylesheet" href="~/css/admin-premium.css" />
+<link rel="stylesheet" href="~/css/bill-verification.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-premium.css" asp-append-version="true" />
 
 <style>
     /* ===== INVOICE PAYMENT TABLE: full column values (no "..."), fit-to-text, centered ===== */
@@ -539,6 +539,42 @@
             </button>
         </div>
 
+        <!-- COLUMN-BASED FILTERS (below the main filters, like the Admin page) -->
+        <div class="filter-card column-filter-card">
+            <div class="f-group">
+                <span class="f-label">MRN</span>
+                <input type="text" id="mrnFilter" class="f-input" placeholder="Search MRN..." oninput="renderTable()" />
+            </div>
+            <div class="f-group">
+                <span class="f-label">Checker Status</span>
+                <select id="checkerStatusFilter" class="f-input" onchange="renderTable()">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="f-group">
+                <span class="f-label">Payment</span>
+                <select id="paymentFilter" class="f-input" onchange="renderTable()">
+                    <option value="">All</option>
+                    <option value="Paid">Paid</option>
+                    <option value="UnPaid">UnPaid</option>
+                </select>
+            </div>
+            <div class="f-group">
+                <span class="f-label">Attachment</span>
+                <select id="attachFilter" class="f-input" onchange="renderTable()">
+                    <option value="">All</option>
+                    <option value="yes">Uploaded</option>
+                    <option value="no">No File</option>
+                </select>
+            </div>
+            <button class="btn btn-reset" onclick="resetColumnFilters()">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+        </div>
+
         <!-- TABLE -->
         <div class="t-card invoice-table-card">
 
@@ -874,13 +910,32 @@
 
     function renderTable(data) {
 
+    /* dropdown onchange calls renderTable() with no args — reuse the cache */
+    if (data === undefined) data = _invoiceDataCache;
+
     _invoiceDataCache = data || [];
+
+    /* column-based filters */
+    const mrnFilter           = ($("#mrnFilter").val() || "").trim().toLowerCase();
+    const checkerStatusFilter = ($("#checkerStatusFilter").val() || "");
+    const paymentFilter       = ($("#paymentFilter").val() || "");
+    const attachFilter        = ($("#attachFilter").val() || "");
 
     let approvedData = (data || []).filter(item =>
 
     item.checkerStatus === "Approved"
     &&
-    item.paymentStatus === "UnPaid"
+    (item.paymentStatus === "UnPaid" || /advance/i.test(item.paymentStatus || ""))
+    &&
+    (!mrnFilter || String(item.vchNumber || "").toLowerCase().includes(mrnFilter))
+    &&
+    (!checkerStatusFilter || (item.checkerStatus || "Approved") === checkerStatusFilter)
+    &&
+    (!paymentFilter || (item.paymentStatus || "UnPaid") === paymentFilter)
+    &&
+    (attachFilter !== "yes" || item.attachmentPath)
+    &&
+    (attachFilter !== "no"  || !item.attachmentPath)
 
     );
 
@@ -894,6 +949,15 @@
 
     }
 
+    /* reset the column-based dropdowns and re-render */
+    function resetColumnFilters() {
+    $("#mrnFilter").val("");
+    $("#checkerStatusFilter").val("");
+    $("#paymentFilter").val("");
+    $("#attachFilter").val("");
+    renderTable();
+    }
+
     function ipRowHtml(item) {
 
     let checkerBadge =
@@ -903,6 +967,9 @@
     item.paymentStatus === "Paid"
     ?
     `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
+    : /advance/i.test(item.paymentStatus || "")
+    ?
+    `<span class="status-badge sb-approved"><i class="fa-solid fa-indian-rupee-sign"></i> Advance Payment OK</span>`
     :
     `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> UnPaid</span>`;
 

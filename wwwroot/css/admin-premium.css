@@ -235,6 +235,47 @@ body {
     padding: 16px;
 }
 
+/* secondary column filter bar — force the SAME compact flex row used on the
+   other Bill Verification pages (overrides the admin grid above via specificity) */
+.admin-dashboard-shell .filter-card.column-filter-card {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-start;
+    align-items: flex-end;
+    gap: 14px;
+}
+
+    .admin-dashboard-shell .filter-card.column-filter-card .f-group {
+        flex: 0 0 auto;
+        min-width: 0;
+    }
+
+    .admin-dashboard-shell .filter-card.column-filter-card .f-input {
+        width: 160px;
+    }
+
+    .admin-dashboard-shell .filter-card.column-filter-card #dd-mrn-combined {
+        width: 180px;
+    }
+
+    .admin-dashboard-shell .filter-card.column-filter-card #dd-status-combined {
+        width: 150px;
+    }
+
+    .admin-dashboard-shell .filter-card.column-filter-card #dd-payment-combined {
+        width: 110px;
+    }
+
+    .admin-dashboard-shell .filter-card.column-filter-card #dd-attach-combined {
+        width: 130px;
+    }
+
+    .admin-dashboard-shell .filter-card.column-filter-card .reset-filter {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        margin-left: 4px;
+    }
+
 .admin-dashboard-shell .f-group {
     display: flex;
     flex-direction: column;
@@ -3392,15 +3433,17 @@ body {
 }
 
 .checker-dashboard-shell .erp-detail-table .erp-sno,
-.admin-dashboard-shell .erp-detail-table .erp-sno {
+.admin-dashboard-shell .erp-detail-table .erp-sno,
+.checker-dashboard-shell .erp-detail-table .erp-srl,
+.admin-dashboard-shell .erp-detail-table .erp-srl {
     text-align: center;
     color: #64748b !important;
 }
 
     .checker-dashboard-shell .erp-detail-table .erp-product,
     .admin-dashboard-shell .erp-detail-table .erp-product {
-        width: 190px;
-        max-width: 190px;
+        width: 150px;
+        max-width: 150px;
         color: #0f2b5b !important;
         font-weight: 700 !important;
         text-align: left;
@@ -3476,6 +3519,96 @@ body {
     white-space: nowrap !important;
 }
 
+/* =========================================
+   Checker expand-row: full-width detail table
+   (Product ID / HSN / Sale Rate + wrapping product name)
+   Scoped to .erp-detail-full so AdminPage keeps its old layout.
+========================================= */
+
+.checker-dashboard-shell .erp-detail-table.erp-detail-full {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+}
+
+/* Non-product columns are fixed and total ~70%, so the auto-width Product
+   Name column fills the remaining ~30% and stays clearly the widest. */
+.checker-dashboard-shell .erp-detail-full col.erp-col-srl { width: 3.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-pid { width: 4.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-product { width: 20%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-hsn { width: 5.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-qty { width: 3.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-rate { width: 6%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-disc { width: 3.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-minusprcnt { width: 3.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-plusprcnt { width: 3.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-margin { width: 5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-taxrate { width: 4%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-taxamount { width: 6.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-SellingRate { width: 6%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-mrp { width: 4.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-amount { width: 6.5%; }
+.checker-dashboard-shell .erp-detail-full col.erp-col-sno { width: 4%; }
+
+/* rows grow with the wrapped product name instead of clipping to 24px */
+.checker-dashboard-shell .checker-table-card .erp-detail-full th,
+.checker-dashboard-shell .checker-table-card .erp-detail-full td,
+.checker-dashboard-shell .erp-detail-full th,
+.checker-dashboard-shell .erp-detail-full td {
+    height: auto !important;
+    min-height: 24px;
+    padding: 4px 5px !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere;
+}
+
+/* full product name — no ellipsis, wraps to as many lines as it needs */
+.checker-dashboard-shell .checker-table-card .erp-detail-full th.erp-product,
+.checker-dashboard-shell .checker-table-card .erp-detail-full td.erp-product,
+.checker-dashboard-shell .erp-detail-full th.erp-product,
+.checker-dashboard-shell .erp-detail-full td.erp-product {
+    width: 20% !important;
+    min-width: 200px !important;
+    max-width: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    text-align: left;
+}
+
+.checker-dashboard-shell .erp-detail-full td.erp-product .erp-product-click {
+    display: block;
+    width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    cursor: default;
+}
+
+.checker-dashboard-shell .erp-detail-full td.erp-pid,
+.checker-dashboard-shell .erp-detail-full td.erp-hsn {
+    color: #334155 !important;
+    font-weight: 600 !important;
+    text-align: center;
+}
+
+.checker-dashboard-shell .erp-detail-full td.erp-salerate {
+    text-align: center;
+    font-weight: 800 !important;
+}
+
+.checker-dashboard-shell .erp-detail-full .erp-total-row td {
+    background: #f8fafc !important;
+    font-weight: 800 !important;
+    border-top: 2px solid #94a3b8;
+    text-align: center;
+}
+
+.checker-dashboard-shell .erp-detail-full .erp-total-row td:first-child {
+    text-align: left;
+}
+
 .checker-dashboard-shell .erp-tax-summary-wrap,
 .admin-dashboard-shell .erp-tax-summary-wrap {
     margin-top: 8px;
@@ -3549,6 +3682,22 @@ body {
     background: #f8fafc;
     font-weight: 900 !important;
     border-top: 2px solid #94a3b8;
+}
+
+/* checker tax summary carries an extra row-wise total column */
+.checker-dashboard-shell .erp-tax-summary-wrap {
+    min-width: min(100%, 740px);
+}
+
+.checker-dashboard-shell .erp-tax-summary-table {
+    min-width: 740px;
+}
+
+.checker-dashboard-shell .erp-tax-summary-table td.tax-row-total,
+.checker-dashboard-shell .erp-tax-summary-table th:last-child {
+    background: #f1f5f9;
+    font-weight: 900 !important;
+    border-left: 2px solid #94a3b8;
 }
 .admin-dashboard-shell .top-scroll {
     display: block;

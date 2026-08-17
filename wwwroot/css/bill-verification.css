@@ -394,6 +394,71 @@ body {
     }
 
 /* =========================================
+   SECONDARY COLUMN-BASED FILTER BAR
+   (sits directly under the main filter card)
+========================================= */
+/* high specificity (.filter-card.column-filter-card) + explicit display:flex
+   so this bar always overrides the grid-based main filter-card styling and
+   never inherits space-between / auto-fit grids from the page shells */
+.filter-card.column-filter-card {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;              /* keep every control on a single row */
+    justify-content: flex-start;    /* pack left, no big gaps */
+    align-items: flex-end;
+    gap: 14px;
+    margin-top: -8px;
+}
+
+    .filter-card.column-filter-card .f-label {
+        color: #4B5563;
+    }
+
+    /* compact, fixed widths so the whole bar (incl. Reset) fits one row */
+    .filter-card.column-filter-card .f-group {
+        flex: 0 0 auto;
+        min-width: 0;
+    }
+
+    .filter-card.column-filter-card .f-input {
+        width: 160px;
+    }
+
+    /* MRN needs a little more room for typing */
+    .filter-card.column-filter-card #mrnFilter {
+        width: 180px;
+    }
+
+    .filter-card.column-filter-card #checkerStatusFilter {
+        width: 150px;
+    }
+
+    /* Payment is a short 3-option list — make it narrow */
+    .filter-card.column-filter-card #paymentFilter {
+        width: 110px;
+    }
+
+    .filter-card.column-filter-card #attachFilter {
+        width: 130px;
+    }
+
+    .filter-card.column-filter-card .btn-reset {
+        flex: 0 0 auto;             /* never shrink / wrap the Reset button */
+        white-space: nowrap;
+        margin-left: 4px;
+    }
+
+.btn-reset {
+    background: #F3F4F6;
+    color: #374151;
+    border: 1px solid #E5E7EB;
+}
+
+    .btn-reset:hover {
+        background: #E5E7EB;
+    }
+
+/* =========================================
    SUGGESTION BOX (autocomplete)
 ========================================= */
 .suggestion-box {

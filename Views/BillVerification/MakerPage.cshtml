@@ -5,8 +5,8 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="~/css/bill-verification.css" />
-<link rel="stylesheet" href="~/css/admin-premium.css" />
+<link rel="stylesheet" href="~/css/bill-verification.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-premium.css" asp-append-version="true" />
 
 <style>
     /* ===== MAKER TABLE: show full column names & values (no "..." truncation) ===== */
@@ -613,6 +613,41 @@
             </button>
         </div>
 
+        <!-- COLUMN-BASED FILTERS (below the main filters, like the Admin page) -->
+        <div class="filter-card column-filter-card">
+            <div class="f-group">
+                <span class="f-label">MRN</span>
+                <input type="text" id="mrnFilter" class="f-input" placeholder="Search MRN..." oninput="renderTable()" />
+            </div>
+            <div class="f-group">
+                <span class="f-label">Checker Status</span>
+                <select id="checkerStatusFilter" class="f-input" onchange="renderTable()">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="f-group">
+                <span class="f-label">Payment</span>
+                <select id="paymentFilter" class="f-input" onchange="renderTable()">
+                    <option value="">All</option>
+                    <option value="Paid">Paid</option>
+                    <option value="UnPaid">UnPaid</option>
+                </select>
+            </div>
+            <div class="f-group">
+                <span class="f-label">Attachment</span>
+                <select id="attachFilter" class="f-input" onchange="renderTable()">
+                    <option value="">All</option>
+                    <option value="yes">Uploaded</option>
+                    <option value="no">No File</option>
+                </select>
+            </div>
+            <button class="btn btn-reset" onclick="resetColumnFilters()">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+        </div>
+
 
         <!-- TABLE CARD -->
         <div class="t-card maker-table-card">
@@ -743,6 +778,10 @@
     ═══════════════════════════════════ */
     let makerDataCache = [];
 
+    /* stable copy of the last-loaded rows, so the client-side dropdowns
+       (Checker Status / Attachment) can re-filter without a server round-trip */
+    let mkSourceData = [];
+
     /* pagination state — 10 rows per page */
     let mkRows = [];
     let mkPage = 1;
@@ -860,6 +899,11 @@
     ═══════════════════════════════════ */
     function renderTable(data) {
 
+        /* dropdown onchange calls renderTable() with no args — reuse the cache */
+        if (data === undefined) data = mkSourceData;
+        /* remember the source rows so the client-side dropdowns can re-filter */
+        mkSourceData = data || [];
+
         if (!data || data.length === 0) {
             $("#exportBtn").hide();
         } else {
@@ -871,6 +915,14 @@
             $("#entryFilter").val();
         let dueFilter =
             $("#dueFilter").val();
+        let mrnFilter =
+            ($("#mrnFilter").val() || "").trim().toLowerCase();
+        let checkerStatusFilter =
+            ($("#checkerStatusFilter").val() || "");
+        let paymentFilter =
+            ($("#paymentFilter").val() || "");
+        let attachFilter =
+            ($("#attachFilter").val() || "");
 
         let today =
             new Date();
@@ -949,6 +1001,25 @@
                     }
                 }
 
+                /* MRN FILTER (column-based) */
+                if (mrnFilter && !String(item.vchNumber || "").toLowerCase().includes(mrnFilter)) return;
+
+                /* CHECKER STATUS FILTER (column-based) */
+                if (checkerStatusFilter) {
+                    let cs = item.checkerStatus || "Pending";
+                    if (cs !== checkerStatusFilter) return;
+                }
+
+                /* PAYMENT FILTER (column-based) */
+                if (paymentFilter) {
+                    let ps = item.paymentStatus || "UnPaid";
+                    if (ps !== paymentFilter) return;
+                }
+
+                /* ATTACHMENT FILTER (column-based) */
+                if (attachFilter === "yes" && !item.attachmentPath) return;
+                if (attachFilter === "no"  &&  item.attachmentPath) return;
+
                 rows.push(item);
             });
 
@@ -957,6 +1028,15 @@
         /* count badge = records actually shown in the table (after filters) */
         $("#maker-count").text(mkRows.length + " record" + (mkRows.length !== 1 ? "s" : ""));
         renderMkPage();
+    }
+
+    /* reset the column-based dropdowns and re-render */
+    function resetColumnFilters() {
+        $("#mrnFilter").val("");
+        $("#checkerStatusFilter").val("");
+        $("#paymentFilter").val("");
+        $("#attachFilter").val("");
+        renderTable();
     }
 
     function mkRowHtml(item) {
@@ -972,7 +1052,9 @@
         /* payment badge — pill with text */
         let payBadge = item.paymentStatus === "Paid"
             ? `<span class="status-badge sb-approved"><i class="fa-solid fa-circle-check"></i> Paid</span>`
-            : `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> Unpaid</span>`;
+            : /advance/i.test(item.paymentStatus || "")
+                ? `<span class="status-badge sb-approved"><i class="fa-solid fa-indian-rupee-sign"></i> Advance Payment OK</span>`
+                : `<span class="status-badge sb-pending"><i class="fa-regular fa-clock"></i> Unpaid</span>`;
 
         /* attachment cell — View / Upload buttons (like the checker page) */
         let attachCell =

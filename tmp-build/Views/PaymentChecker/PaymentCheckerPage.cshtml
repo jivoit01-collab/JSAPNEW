@@ -338,10 +338,8 @@
                             <th>Due Date</th>
                             <th>Payment Date</th>
                             <th>Attachment</th>
-
                             <th>Checker Status</th>
                             <th>Payment Status</th>
-
                             <th>Checker Remark</th>
 
                         </tr>
@@ -369,11 +367,9 @@
 
         </div>
 
-
-
         <!-- =====================================================
          PDF VIEWER
-    ====================================================== -->
+        ====================================================== -->
 
         <div id="pdfContainer"
              class="pdf-modal">
@@ -672,7 +668,7 @@
     <tr class="erp-item-row">
     <td class="erp-sno">${item.serialNumber ?? idx + 1}</td>
     <td class="erp-product">${item.productName ?? "-"}</td>
-    <td class="erp-hsn">${item.hsnsacid ?? "-"}</td>
+    <td class="erp-hsn">${item.HSNCode ?? "-"}</td>
     <td class="erp-qty">${item.quantity ?? 0}</td>
     <td class="erp-rate">₹${item.itemValue ?? 0}</td>
     <td class="erp-tax">${item.tax ?? 0}%</td>

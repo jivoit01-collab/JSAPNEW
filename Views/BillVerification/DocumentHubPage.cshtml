@@ -646,6 +646,75 @@
     }
     .hub-user-name { font-size: 13px; font-weight: 700; color: var(--hub-primary); }
 
+    /* ── Brand header (toolbar) ── */
+    .hub-brand { display: inline-flex; align-items: center; gap: 12px; }
+    .hub-brand-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 11px;
+        background: linear-gradient(135deg, var(--hub-accent) 0%, #7c3aed 100%);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        box-shadow: 0 6px 16px rgba(79,70,229,.32);
+        flex-shrink: 0;
+    }
+    .hub-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .hub-brand-title { font-size: 17px; font-weight: 800; color: var(--hub-primary); letter-spacing: -.01em; }
+    .hub-brand-sub { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--hub-muted); }
+    .hub-brand-divider { width: 1px; align-self: stretch; background: var(--hub-border); margin: 4px 6px; }
+
+    /* Give the toolbar a subtle premium gradient + accent line */
+    .hub-toolbar {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+        border-top: 3px solid var(--hub-accent);
+        box-shadow: 0 6px 24px -6px rgba(79,70,229,.14);
+    }
+
+    /* ── Elevated stat cards ── */
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: var(--hub-accent);
+        opacity: .85;
+    }
+    .stat-card:nth-child(2)::before { background: var(--hub-success); }
+    .stat-card:nth-child(3)::before { background: var(--hub-warning); }
+    .stat-card:nth-child(4)::before { background: var(--hub-danger); }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(15,23,42,.16); }
+    .stat-icon { box-shadow: inset 0 0 0 1px rgba(15,23,42,.04); }
+
+    /* ── Richer folder cards ── */
+    .doc-hub-container .folder-card .item-icon {
+        background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
+        color: #92400e;
+        box-shadow: 0 6px 14px -4px rgba(217,119,6,.4);
+    }
+    .doc-hub-container .folder-card {
+        background: linear-gradient(180deg, #fffdf7 0%, #ffffff 60%);
+    }
+    .doc-hub-container .folder-card:hover { border-color: #fbbf24; }
+
+    /* ── Section title accent ── */
+    .section-title { display: inline-flex; align-items: center; gap: 9px; }
+    .section-title::before {
+        content: "";
+        width: 4px;
+        height: 18px;
+        border-radius: 3px;
+        background: linear-gradient(180deg, var(--hub-accent), #7c3aed);
+        display: inline-block;
+    }
+
     /* ── Responsive ── */
 
     /* Large tablets / small laptops: shrink side columns */
@@ -672,6 +741,7 @@
         .doc-hub-container { padding: 14px; margin: -15px -15px 0; }
         .hub-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
         .toolbar-group { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+        .hub-brand-divider { display: none; }
         .search-breadcrumb-row { flex-direction: column; align-items: stretch; gap: 10px; }
         .search-box { min-width: 0; max-width: 100%; width: 100%; }
         .stats-grid { grid-template-columns: repeat(2,minmax(140px,1fr)); }
@@ -716,6 +786,14 @@
     <!-- Toolbar -->
     <header class="hub-toolbar mb-2">
         <div class="toolbar-group">
+            <span class="hub-brand">
+                <span class="hub-brand-icon"><i class="fa-solid fa-folder-tree"></i></span>
+                <span class="hub-brand-text">
+                    <span class="hub-brand-title">Document Hub</span>
+                    <span class="hub-brand-sub">Organize • Secure • Retrieve</span>
+                </span>
+            </span>
+            <span class="hub-brand-divider"></span>
             <button class="btn btn-primary d-none dh-permission-action" data-dh-permission="upload" id="hdrUploadBtn"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
             <button class="btn btn-outline-primary d-none dh-permission-action" data-dh-permission="createFolder" id="hdrNewFolderBtn"><i class="fa-solid fa-folder-plus"></i> New Folder</button>
         </div>
@@ -776,8 +854,13 @@
                 <!-- Main content -->
                 <main class="doc-main">
                     <div class="search-breadcrumb-row">
-                        <div class="hub-breadcrumb" id="breadcrumb">
-                            <a onclick="goFolder(null)">Home</a>
+                        <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                            <button class="btn btn-outline-secondary btn-sm hub-back-btn" id="hubBackBtn" onclick="goBack()" style="display:none;white-space:nowrap;">
+                                <i class="fa-solid fa-arrow-left"></i> Back
+                            </button>
+                            <div class="hub-breadcrumb" id="breadcrumb">
+                                <a onclick="goFolder(null)">Home</a>
+                            </div>
                         </div>
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
@@ -1726,11 +1809,22 @@
        RENDER — Breadcrumb
     ───────────────────────────────────────────── */
     function renderBreadcrumb(items) {
+        hub.breadcrumb = items || [];
         const html = items.map((item, i) => {
             const sep = i ? ` <i class="fa-solid fa-chevron-right mx-1 small text-muted"></i> ` : "";
             return `${sep}<a onclick="goFolder(${item.folderId || 'null'})">${escHtml(item.folderName || "Home")}</a>`;
         }).join("");
         $("#breadcrumb").html(html || `<a onclick="goFolder(null)">Home</a>`);
+        // Show the Back button only when we're inside a folder (i.e. not at Home).
+        $("#hubBackBtn").css("display", hub.folderId ? "inline-flex" : "none");
+    }
+
+    // Go up one level: to the parent folder if any, otherwise back to Home.
+    function goBack() {
+        const trail = hub.breadcrumb || [];
+        // trail = [Home, ..., parent, current]; the parent is the second-to-last entry.
+        const parent = trail.length >= 2 ? trail[trail.length - 2] : null;
+        goFolder(parent && parent.folderId ? parent.folderId : null);
     }
 
     /* ─────────────────────────────────────────────
@@ -1912,6 +2006,19 @@
     }
 
     function renderFiles() {
+        // At the root/Home ("All Documents") view we intentionally show ONLY folders.
+        // Files are revealed when a folder is opened (or via Search / Recent / Trash).
+        const atRoot = !hub.folderId && !hub.search && (hub.filter || "") === "";
+        if (atRoot) {
+            const hint = `<div class="col-12 text-center text-muted py-5">
+                <i class="fa-regular fa-folder-open fa-2x mb-2 opacity-50"></i>
+                <p class="small mb-0">Open a folder to view its files</p>
+            </div>`;
+            $("#fileGridView").html(hint);
+            $("#fileListBody").html(`<tr><td colspan="8" class="text-center text-muted py-4 small">Open a folder to view its files</td></tr>`);
+            return;
+        }
+
         if (!hub.currentFiles.length) {
             const empty = `<div class="col-12 text-center text-muted py-5"><i class="fa-regular fa-folder-open fa-2x mb-2 opacity-50"></i><p class="small">No files in this directory</p></div>`;
             $("#fileGridView").html(empty);
@@ -2541,36 +2648,14 @@ function launchFile(fileId, mode, file) {
         return;
     }
 
-    $("#viewerTitle").text(file.fileName);
-
-    if (ext === "pdf") {
-        $("#viewerBody").html(
-            `<iframe class="viewer-frame" src="/DocumentHub/Preview?fileId=${fileId}"></iframe>`
-        );
-    } else if (["png","jpg","jpeg","gif"].includes(ext)) {
-        $("#viewerBody").html(
-            `<div class="viewer-img-container">
-                <img class="viewer-img"
-                     src="/DocumentHub/Preview?fileId=${fileId}"
-                     alt="${escAttr(file.fileName)}" />
-            </div>`
-        );
-    } else if (["xls","xlsx","csv"].includes(ext)) {
+    // Excel / CSV → open in the online spreadsheet editor (new tab)
+    if (["xls", "xlsx", "csv"].includes(ext)) {
         openSpreadsheetEditorTab(fileId);
-        return;
-    } else if (["doc","docx"].includes(ext)) {
-
-        if (hub.downloadedFiles.has(fileId)) {
-            showToast("Already downloaded earlier. Check your Downloads folder.", "success");
-            return;
-        }
-
-        hub.downloadedFiles.add(fileId);
-        window.open(`/DocumentHub/Download?fileId=${fileId}`, "_blank");
         return;
     }
 
-    $("#viewerModal").modal("show");
+    // Every other file type (PDF, image, Word, etc.) → open in a new browser tab
+    window.open(`/DocumentHub/Preview?fileId=${fileId}`, "_blank", "noopener");
 }
     /* ─────────────────────────────────────────────
        FOLDER PIN

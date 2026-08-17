@@ -74,7 +74,7 @@ namespace JSAPNEW.Services.Implementation
 
             using (SqlConnection conn = new SqlConnection(connStr))
             {
-                using (SqlCommand cmd = new SqlCommand("GetInvoice", conn))
+                using (SqlCommand cmd = new SqlCommand("GetInvoice2", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 120;
@@ -99,7 +99,7 @@ namespace JSAPNEW.Services.Implementation
 
                                 ProductName = reader["ProductName"]?.ToString(),
 
-                                HSNSACID = reader["HSNSACID"]?.ToString(),
+                                HSNCode = reader["HSNCode"]?.ToString(),
 
                                 Quantity = reader["Quantity"],
 

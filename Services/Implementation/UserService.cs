@@ -2015,8 +2015,12 @@ namespace JSAPNEW.Services.Implementation
 
                 foreach (var attachment in attachments)
                 {
-                    //attachment.DownloadUrl = $"http://files.jivocanola.com/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
-                    attachment.DownloadUrl = $"http://files.jivo.in:8000/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
+                    // File-server base URL is configured in appsettings.json (FileServer:DownloadBaseUrl)
+                    // so it can be changed on the server without a redeploy. Falls back to the old value.
+                    //attachment.DownloadUrl = $"http://103.89.45.75:8012/files/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
+
+                    var fileServerBaseUrl = (_configuration["FileServer:DownloadBaseUrl"] ?? "http://103.89.45.75:8012/files/").TrimEnd('/');
+                    attachment.DownloadUrl = $"{fileServerBaseUrl}/{Uri.EscapeDataString(attachment.FileName)}.{Uri.EscapeDataString(attachment.FileExt)}?company={company}";
 
                 }
 

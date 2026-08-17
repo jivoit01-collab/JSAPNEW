@@ -127,6 +127,33 @@ namespace JSAPNEW.Controllers
 
             ViewBag.UserId = userId.Value;
             ViewBag.CompanyId = selectedCompanyId;
+            ViewBag.IsReadOnly = false;
+            return View("~/Views/BillVerification/AdminPage.cshtml", users);
+        }
+
+        // ============================
+        // ADMIN (VIEW ONLY) — same dashboard as AdminPage but read-only:
+        // no Attach / Delete / any mutating action. Gated by the
+        // 'AdminView' permission of the 'Bill Verification' module.
+        // ============================
+        public async Task<IActionResult> AdminViewPage()
+        {
+            var userId = HttpContext.Session.GetInt32("userId");
+            var selectedCompanyId = HttpContext.Session.GetInt32("selectedCompanyId");
+
+            if (selectedCompanyId == null)
+            {
+                return RedirectToAction("Index", "Dashboard");
+            }
+
+            ViewBag.CompanyId = selectedCompanyId;
+            int company = selectedCompanyId.Value;
+
+            var users = await _userService.GetAllUserAsync(company);
+
+            ViewBag.UserId = userId.Value;
+            ViewBag.CompanyId = selectedCompanyId;
+            ViewBag.IsReadOnly = true;   // <- drives the read-only rendering in the view
             return View("~/Views/BillVerification/AdminPage.cshtml", users);
         }
 

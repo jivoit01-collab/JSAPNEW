@@ -110,7 +110,7 @@ namespace JSAPNEW.Services.Implementation
             var items = new List<InvoiceItemDto>();
             using (SqlConnection conn = new SqlConnection(_connStr))
             {
-                using (SqlCommand cmd = new SqlCommand("GetInvoice", conn))
+                using (SqlCommand cmd = new SqlCommand("GetInvoice2", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 120;
@@ -135,7 +135,7 @@ namespace JSAPNEW.Services.Implementation
 
                                 ProductName = reader["ProductName"]?.ToString(),
 
-                                HSNSACID = reader["HSNSACID"]?.ToString(),
+                                HSNCode = reader["HSNCode"]?.ToString(),
 
                                 Quantity = reader["Quantity"],
 
@@ -145,9 +145,14 @@ namespace JSAPNEW.Services.Implementation
 
                                 DiscountAmount = reader["DiscountAmount"],
 
+                                MinusPercent = reader["MinusPercent"],
+                                PlusPercent = reader["PlusPercent"],
+
                                 Margin = reader["Margin"],
 
-                                MRP = reader["SellingRate"],
+                                MRP = reader["MRP"],
+
+                                SellingRate= reader["SellingRate"],
 
                                 Tax = reader["TaxRate"],
 
@@ -260,7 +265,7 @@ namespace JSAPNEW.Services.Implementation
             var items = new List<InvoiceItemDto>();
             using (SqlConnection conn = new SqlConnection(_connStr))
             {
-                using (SqlCommand cmd = new SqlCommand("GetInvoice", conn))
+                using (SqlCommand cmd = new SqlCommand("GetInvoice2", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 120;
@@ -279,15 +284,22 @@ namespace JSAPNEW.Services.Implementation
                     {
                         reader.NextResult(); // skip header result set
 
+                        // columns the SP actually returns (so optional fields don't crash if the SP wasn't updated yet)
+                        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < reader.FieldCount; i++)
+                            cols.Add(reader.GetName(i));
+
                         while (reader.Read())
                         {
                             items.Add(new InvoiceItemDto
                             {
                                 SerialNumber = reader["SerialNumber"]?.ToString(),
 
+                                ProductID = cols.Contains("ProductID") && reader["ProductID"] != DBNull.Value ? reader["ProductID"].ToString() : null,
+
                                 ProductName = reader["ProductName"]?.ToString(),
 
-                                HSNSACID = reader["HSNSACID"]?.ToString(),
+                                HSNCode = reader["HSNCode"]?.ToString(),
 
                                 Quantity = reader["Quantity"],
 
@@ -296,10 +308,14 @@ namespace JSAPNEW.Services.Implementation
                                 DiscountPercent = reader["DiscountPercent"],
 
                                 DiscountAmount = reader["DiscountAmount"],
+                                MinusPercent = reader["MinusPercent"],
+                                PlusPercent = reader["PlusPercent"],
 
                                 Margin = reader["Margin"],
 
-                                MRP = reader["SellingRate"],
+                                SellingRate = cols.Contains("SellingRate") && reader["SellingRate"] != DBNull.Value ? reader["SellingRate"] : null,
+
+                                MRP = reader["MRP"],
 
                                 TaxRate = reader["TaxRate"] == DBNull.Value ? 0 : reader["TaxRate"],
 
@@ -380,7 +396,7 @@ namespace JSAPNEW.Services.Implementation
             var items = new List<InvoiceItemDto>();
             using (SqlConnection conn = new SqlConnection(_connStr))
             {
-                using (SqlCommand cmd = new SqlCommand("GetInvoice", conn))
+                using (SqlCommand cmd = new SqlCommand("GetInvoice2", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 120;
@@ -405,7 +421,7 @@ namespace JSAPNEW.Services.Implementation
 
                                 ProductName = reader["ProductName"]?.ToString(),
 
-                                HSNSACID = reader["HSNSACID"]?.ToString(),
+                                HSNCode = reader["HSNCode"]?.ToString(),
 
                                 Quantity = reader["Quantity"],
 
@@ -414,10 +430,13 @@ namespace JSAPNEW.Services.Implementation
                                 DiscountPercent = reader["DiscountPercent"],
 
                                 DiscountAmount = reader["DiscountAmount"],
+                                MinusPercent = reader["MinusPercent"],
+                                PlusPercent = reader["PlusPercent"],
 
                                 Margin = reader["Margin"],
 
-                                MRP = reader["SellingRate"],
+                                SellingRate = reader["SellingRate"],
+                                MRP = reader["MRP"],
 
                                 Tax = reader["TaxRate"],
 
@@ -586,7 +605,7 @@ namespace JSAPNEW.Services.Implementation
             var items = new List<InvoiceItemDto>();
             using (SqlConnection conn = new SqlConnection(_connStr))
             {
-                using (SqlCommand cmd = new SqlCommand("GetInvoice", conn))
+                using (SqlCommand cmd = new SqlCommand("GetInvoice2", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 120;
@@ -609,7 +628,7 @@ namespace JSAPNEW.Services.Implementation
                             {
                                 ProductName = reader["ProductName"]?.ToString(),
 
-                                HSNSACID = reader["HSNSACID"]?.ToString(),
+                                HSNCode = reader["HSNCode"]?.ToString(),
 
                                 Quantity = reader["Quantity"],
 

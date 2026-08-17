@@ -7,8 +7,8 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="~/css/bill-verification.css" />
-<link rel="stylesheet" href="~/css/admin-premium.css" />
+<link rel="stylesheet" href="~/css/bill-verification.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-premium.css" asp-append-version="true" />
 
 <style>
     /* ===== CHECKER TABLE: show full column names & values (no "..." truncation) ===== */
@@ -443,15 +443,6 @@
                    placeholder="Search account..." autocomplete="off" />
             <div id="suggestionBox" class="suggestion-box"></div>
         </div>
-        <div class="f-group">
-            <span class="f-label">Status</span>
-            <select id="statusFilter" class="f-input">
-                <option value="">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-            </select>
-        </div>
         <button class="btn btn-dark admin-search-btn" id="searchBtn">
             <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
@@ -460,6 +451,42 @@
         </button>
         <button class="btn btn-export" onclick="exportToExcel()" id="exportBtn" style="display:none">
             <i class="fa-solid fa-file-excel"></i> Export
+        </button>
+    </div>
+
+    <!-- COLUMN-BASED FILTERS (below the main filters, like the Admin page) -->
+    <div class="filter-card column-filter-card">
+        <div class="f-group">
+            <span class="f-label">MRN</span>
+            <input type="text" id="mrnFilter" class="f-input" placeholder="Search MRN..." oninput="renderTable()" />
+        </div>
+        <div class="f-group">
+            <span class="f-label">Checker Status</span>
+            <select id="checkerStatusFilter" class="f-input" onchange="renderTable()">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+        </div>
+        <div class="f-group">
+            <span class="f-label">Payment</span>
+            <select id="paymentFilter" class="f-input" onchange="renderTable()">
+                <option value="">All</option>
+                <option value="Paid">Paid</option>
+                <option value="UnPaid">UnPaid</option>
+            </select>
+        </div>
+        <div class="f-group">
+            <span class="f-label">Attachment</span>
+            <select id="attachFilter" class="f-input" onchange="renderTable()">
+                <option value="">All</option>
+                <option value="yes">Uploaded</option>
+                <option value="no">No File</option>
+            </select>
+        </div>
+        <button class="btn btn-reset" onclick="resetColumnFilters()">
+            <i class="fa-solid fa-rotate-left"></i> Reset
         </button>
     </div>
 
@@ -702,7 +729,8 @@
     const fromDate    = $("#fromDate").val();
     const toDate      = $("#toDate").val();
     const accountName = $("#accountName").val().trim() || null;
-    const status      = $("#statusFilter").val();
+    /* checker-status is now a client-side column filter (secondary bar) */
+    const status      = ($("#checkerStatusFilter").val() || null);
 
     $("#checkerTable").html(
     `<tr><td colspan="10" class="empty-row">
@@ -809,6 +837,15 @@
     return $("<div>").text(value).html().replace(/"/g, "&quot;");
     }
 
+    /* JSON key casing varies per serializer (ProductID -> productID/productId), so try each spelling */
+    function pickField(item, keys) {
+    for (const key of keys) {
+    const value = item?.[key];
+    if (value !== null && value !== undefined && value !== "") return value;
+    }
+    return null;
+    }
+
     function toInvoiceNumber(value) {
     if (value === null || value === undefined || value === "") return 0;
     const normalized = String(value).replace(/[₹,\s%]/g, "");
@@ -871,6 +908,8 @@
     igst: sum.igst + row.igst
     }), { taxable: 0, cgst: 0, sgst: 0, igst: 0 });
 
+    const rowTotal = row => row.taxable + row.cgst + row.sgst + row.igst;
+
     const body = rows.length
     ? rows.map(row => `
     <tr>
@@ -879,8 +918,9 @@
     <td>₹${formatInvoiceAmount(row.cgst)}</td>
     <td>₹${formatInvoiceAmount(row.sgst)}</td>
     <td>₹${formatInvoiceAmount(row.igst)}</td>
+    <td class="tax-row-total">₹${formatInvoiceAmount(rowTotal(row))}</td>
     </tr>`).join("")
-    : `<tr><td colspan="5" class="erp-empty">No tax summary found.</td></tr>`;
+    : `<tr><td colspan="6" class="erp-empty">No tax summary found.</td></tr>`;
 
     return `
     <div class="erp-tax-summary-wrap">
@@ -893,6 +933,7 @@
     <th>CGST</th>
     <th>SGST</th>
     <th>IGST</th>
+    <th>Row Total</th>
     </tr>
     </thead>
     <tbody>
@@ -903,6 +944,7 @@
     <td>₹${formatInvoiceAmount(total.cgst)}</td>
     <td>₹${formatInvoiceAmount(total.sgst)}</td>
     <td>₹${formatInvoiceAmount(total.igst)}</td>
+    <td class="tax-row-total">₹${formatInvoiceAmount(total.taxable + total.cgst + total.sgst + total.igst)}</td>
     </tr>
     </tbody>
     </table>
@@ -912,6 +954,14 @@
     /* render table */
     function renderTable(data) {
 
+    /* dropdown onchange calls renderTable() with no args — reuse the cache */
+    if (data === undefined) data = _checkerDataCache;
+
+    /* column-based filters (secondary bar) */
+    const mrnFilter           = ($("#mrnFilter").val() || "").trim().toLowerCase();
+    const checkerStatusFilter = ($("#checkerStatusFilter").val() || "");
+    const paymentFilter       = ($("#paymentFilter").val() || "");
+    const attachFilter        = ($("#attachFilter").val() || "");
 
     const seen = new Set();
     const rows = (data || []).filter(item => {
@@ -930,6 +980,12 @@
     if ((item.checkerStatus || "").toLowerCase() === "approved") return false;
     /* hide rejected entries */
     if ((item.checkerStatus || "").toLowerCase() === "rejected") return false;
+    /* column-based filters */
+    if (mrnFilter && !String(item.vchNumber || "").toLowerCase().includes(mrnFilter)) return false;
+    if (checkerStatusFilter && (item.checkerStatus || "Pending") !== checkerStatusFilter) return false;
+    if (paymentFilter       && (item.paymentStatus || "UnPaid")  !== paymentFilter) return false;
+    if (attachFilter === "yes" && !item.attachmentPath) return false;
+    if (attachFilter === "no"  &&  item.attachmentPath) return false;
     return true;
     });
 
@@ -942,6 +998,15 @@
 
     ckPage = 1;
     renderCkPage();
+    }
+
+    /* reset the column-based dropdowns and re-render */
+    function resetColumnFilters() {
+    $("#mrnFilter").val("");
+    $("#checkerStatusFilter").val("");
+    $("#paymentFilter").val("");
+    $("#attachFilter").val("");
+    renderTable();
     }
 
     function ckRowHtml(item) {
@@ -1283,33 +1348,30 @@
 
     const bodyRows = items.map((item, idx) => `
     <tr class="erp-item-row">
-    <td class="erp-product">
-    <span class="erp-product-click"
-    role="button"
-    tabindex="0"
-    data-full-product="${safeAttr(item.productName ?? "-")}"
-    title="Click to view full product name"
-    style="display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">
-    ${safeText(item.productName ?? "-")}
-    </span>
-    </td>
+    <td class="erp-srl erp-sno">${idx + 1}</td>
+    <td class="erp-pid">${safeText(pickField(item, ["productID", "productId", "ProductID"]) ?? "-")}</td>
+    <td class="erp-product" title="${safeAttr(item.productName ?? "-")}">${safeText(item.productName ?? "-")}</td>
+    <td class="erp-hsn">${safeText(pickField(item, ["hSNCode", "HSNCode", "hsnCode"]) ?? "-")}</td>
     <td class="erp-qty">${safeText(item.quantity ?? 0)}</td>
     <td class="erp-rate">₹${safeText(item.purchaseRate ?? 0)}</td>
     <td class="erp-disc">${safeText(item.discountPercent ?? 0)}%</td>
+    <td class="erp-disc">${safeText(item.minusPercent ?? item.MinusPercent ?? 0)}%</td>
+    <td class="erp-disc">${safeText(item.plusPercent ?? item.PlusPercent ?? 0)}%</td>
     <td class="erp-margin">${safeText(item.margin ?? 0)}%</td>
     <td class="erp-taxrate">${safeText(item.taxRate ?? 0)}%</td>
     <td class="erp-taxamount">₹${safeText(item.taxAmount ?? 0)}</td>
+    <td class="erp-salerate">₹${safeText(pickField(item, ["sellingRate", "SellingRate"]) ?? 0)}</td>
     <td class="erp-mrp">₹${safeText(item.mRP ?? item.mrp ?? item.MRP ?? 0)}</td>
     <td class="erp-amount">₹${safeText(item.amount ?? 0)}</td>
     <td class="erp-sno">${safeText(item.serialNumber ?? idx + 1)}</td>
     </tr>
     `).join("") + `
-    <tr style="background:#f8fafc;font-weight:700;border-top:2px solid #ccc;">
-    <td>TOTAL</td>
+    <tr class="erp-total-row">
+    <td colspan="4">TOTAL</td>
     <td>${totalQty.toFixed(2)}</td>
-    <td colspan="4"></td>
+    <td colspan="6"></td>
     <td>₹${totalTax.toFixed(2)}</td>
-    <td></td>
+    <td colspan="2"></td>
     <td>₹${totalAmount.toFixed(2)}</td>
     <td></td>
     </tr>`;
@@ -1321,39 +1383,41 @@
     <tr id="details-${vchNumber}" class="detail-row">
     <td colspan="10" class="erp-detail-cell">
     <div class="erp-detail-wrap">
-    <table class="erp-detail-table">
+    <table class="erp-detail-table erp-detail-full">
     <colgroup>
+    <col class="erp-col-srl" />
+    <col class="erp-col-pid" />
     <col class="erp-col-product" />
-
+    <col class="erp-col-hsn" />
     <col class="erp-col-qty" />
     <col class="erp-col-rate" />
     <col class="erp-col-disc" />
+    <col class="erp-col-minusprcnt" />
+    <col class="erp-col-plusprcnt" />
     <col class="erp-col-margin" />
-
     <col class="erp-col-taxrate" />
     <col class="erp-col-taxamount" />
+    <col class="erp-col-SellingRate" />
     <col class="erp-col-mrp" />
     <col class="erp-col-amount" />
     <col class="erp-col-sno" />
     </colgroup>
     <thead>
     <tr>
+    <th class="erp-srl">Srl No</th>
+    <th class="erp-pid">Product ID</th>
     <th class="erp-product">Product Name</th>
- 
+    <th class="erp-hsn">HSN Code</th>
     <th class="erp-qty">Qty</th>
     <th class="erp-rate">Pur. Rate</th>
     <th class="erp-disc">Disc %</th>
-
+    <th class="erp-minusprcnt">-%</th>
+    <th class="erp-plusprcnt">+%</th>
     <th class="erp-margin">Margin %</th>
-
-
     <th class="erp-taxrate">Tax Rate</th>
-
     <th class="erp-taxamount">Tax Amount</th>
-
-   
+    <th class="erp-SellingRate">Selling Rate</th>
     <th class="erp-mrp">MRP</th>
-
     <th class="erp-amount">Amount</th>
     <th class="erp-sno">Serial No</th>
     </tr>

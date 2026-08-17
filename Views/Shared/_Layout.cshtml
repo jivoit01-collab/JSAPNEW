@@ -1730,14 +1730,18 @@
                         displayName: 'Payment Checker',
                         url:'@Url.Action("PaymentCheckerPage", "BillVerificationWeb")'
                     },
+                    'DocumentHub': {
+                        displayName: 'Document Hub',
+                        url: '/DocumentHub/DocumentHubPage'
+                    },
                     'Admin': {
                         displayName: 'Admin',
                         url:'@Url.Action("AdminPage", "BillVerificationWeb")'
                     },
 
-                    'DocumentHub': {
-                        displayName: 'Document Hub',
-                        url: '/DocumentHub/DocumentHubPage'
+                    'AdminView': {
+                        displayName: 'Admin (View Only)',
+                        url:'@Url.Action("AdminViewPage", "BillVerificationWeb")'
                     }
                 }
             }
@@ -2030,6 +2034,15 @@
         </div>
         <div class="submenu">
         `;
+
+                // Order the submenu items to follow the menuConfig key order
+                // (the API may return permissions in any order).
+                const permOrder = Object.keys(config.permissions).map(k => k.toLowerCase().trim());
+                const orderIndex = pt => {
+                    const idx = permOrder.indexOf(String(pt || '').toLowerCase().trim());
+                    return idx === -1 ? permOrder.length : idx;
+                };
+                modulePermissions.sort((a, b) => orderIndex(a.permissionType) - orderIndex(b.permissionType));
 
                 // Create submenu items based on permissions
                 modulePermissions.forEach(perm => {

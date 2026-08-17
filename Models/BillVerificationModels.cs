@@ -46,9 +46,13 @@ namespace JSAPNEW.Models
     {
         public string SerialNumber { get; set; }
 
+        public string ProductID { get; set; }
+
         public string ProductName { get; set; }
 
-        public string HSNSACID { get; set; }
+        public string HSNCode { get; set; }
+
+        public object SellingRate { get; set; }
 
         public object Quantity { get; set; }
 
@@ -57,6 +61,8 @@ namespace JSAPNEW.Models
         public object DiscountPercent { get; set; }
 
         public object DiscountAmount { get; set; }
+        public object MinusPercent { get; set; }
+        public object PlusPercent { get; set; }
 
         public object Margin { get; set; }
 

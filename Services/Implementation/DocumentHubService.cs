@@ -792,7 +792,9 @@ FROM DocumentHubFiles f
 LEFT JOIN DocumentHubFolders d ON d.FolderId = f.FolderId
 WHERE ISNULL(f.IsDeleted, 0) = CASE WHEN @Filter = 'trash' THEN 1 ELSE 0 END
   AND (@Filter <> 'recent' OR f.UploadedDate >= DATEADD(DAY, -30, GETDATE()))
-  AND (@Search IS NOT NULL OR @Filter IN ('recent', 'trash') OR @FolderId IS NULL OR f.FolderId = @FolderId)
+  AND (@Search IS NOT NULL OR @Filter IN ('recent', 'trash')
+       OR (@FolderId IS NULL AND f.FolderId IS NULL)
+       OR (@FolderId IS NOT NULL AND f.FolderId = @FolderId))
   AND (@Search IS NULL OR f.FileName LIKE @Search OR ISNULL(f.UploadedBy, '') LIKE @Search OR ISNULL(f.Tags, '') LIKE @Search)
 ORDER BY f.UploadedDate DESC;",
                 new { FolderId = folderId, Filter = normalizedFilter, Search = normalizedSearch });

@@ -794,7 +794,7 @@
     <tr class="erp-item-row">
     <td class="erp-sno">${item.serialNumber ?? idx + 1}</td>
     <td class="erp-product">${item.productName ?? "-"}</td>
-    <td class="erp-hsn">${item.hsnsacid ?? "-"}</td>
+    <td class="erp-hsn">${item.HSNCode ?? "-"}</td>
     <td class="erp-qty">${item.quantity ?? 0}</td>
     <td class="erp-rate">₹${item.purchaseRate ?? 0}</td>
     <td class="erp-disc">${item.discountPercent ?? 0}%</td>
@@ -970,7 +970,7 @@
     row.push(
     d.productName    || "",
     d.serialNumber   || "",
-    d.hsnsacid       || "",
+    d.HSNCode       || "",
     d.purchaseRate   || "",
     d.quantity       || "",
     d.discountPercent|| "",

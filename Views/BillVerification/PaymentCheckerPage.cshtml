@@ -11,8 +11,8 @@
       rel="stylesheet" />
 
 <link rel="stylesheet"
-      href="~/css/bill-verification.css" />
-<link rel="stylesheet" href="~/css/admin-premium.css" />
+      href="~/css/bill-verification.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-premium.css" asp-append-version="true" />
 
 <style>
     /* ===== PAYMENT CHECKER TABLE: full column values (no "..."), fit-to-text, centered ===== */
@@ -386,7 +386,43 @@
             </button>
 
     </div>
-    
+
+    <!-- COLUMN-BASED FILTERS (below the main filters, like the Admin page) -->
+    <div class="filter-card column-filter-card">
+        <div class="f-group">
+            <span class="f-label">MRN</span>
+            <input type="text" id="mrnFilter" class="f-input" placeholder="Search MRN..." oninput="renderTable()" />
+        </div>
+        <div class="f-group">
+            <span class="f-label">Checker Status</span>
+            <select id="checkerStatusFilter" class="f-input" onchange="renderTable()">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+        </div>
+        <div class="f-group">
+            <span class="f-label">Payment</span>
+            <select id="paymentFilter" class="f-input" onchange="renderTable()">
+                <option value="">All</option>
+                <option value="Paid">Paid</option>
+                <option value="UnPaid">UnPaid</option>
+            </select>
+        </div>
+        <div class="f-group">
+            <span class="f-label">Attachment</span>
+            <select id="attachFilter" class="f-input" onchange="renderTable()">
+                <option value="">All</option>
+                <option value="yes">Uploaded</option>
+                <option value="no">No File</option>
+            </select>
+        </div>
+        <button class="btn btn-reset" onclick="resetColumnFilters()">
+            <i class="fa-solid fa-rotate-left"></i> Reset
+        </button>
+    </div>
+
 
 
     <!-- =====================================================
@@ -713,11 +749,25 @@
     const pcPerPage = 10;
 
     function renderTable(data) {
+    /* dropdown onchange calls renderTable() with no args — reuse the cache */
+    if (data === undefined) data = _paymentCheckerCache;
+
+    /* column-based filters */
+    const mrnFilter           = ($("#mrnFilter").val() || "").trim().toLowerCase();
+    const checkerStatusFilter = ($("#checkerStatusFilter").val() || "");
+    const paymentFilter       = ($("#paymentFilter").val() || "");
+    const attachFilter        = ($("#attachFilter").val() || "");
+
     /* dedup by voucher number */
     const seen = new Set();
     pcRows = (data || []).filter(item => {
     if (seen.has(item.vchNumber)) return false;
     seen.add(item.vchNumber);
+    if (mrnFilter && !String(item.vchNumber || "").toLowerCase().includes(mrnFilter)) return false;
+    if (checkerStatusFilter && (item.checkerStatus || "Approved") !== checkerStatusFilter) return false;
+    if (paymentFilter       && (item.paymentStatus || "Paid")     !== paymentFilter) return false;
+    if (attachFilter === "yes" && !item.attachmentPath) return false;
+    if (attachFilter === "no"  &&  item.attachmentPath) return false;
     return true;
     });
 
@@ -727,6 +777,15 @@
 
     pcPage = 1;
     renderPcPage();
+    }
+
+    /* reset the column-based dropdowns and re-render */
+    function resetColumnFilters() {
+    $("#mrnFilter").val("");
+    $("#checkerStatusFilter").val("");
+    $("#paymentFilter").val("");
+    $("#attachFilter").val("");
+    renderTable();
     }
 
     function pcRowHtml(item) {

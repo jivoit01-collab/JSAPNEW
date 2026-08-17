@@ -598,6 +598,42 @@ namespace JSAPNEW.Controllers
             _log.Log(HttpContext, "Admin", "Delete Attachment", req.VchNumber, null, path);
             return Json(new { success = true, message = "Attachment deleted successfully" });
         }
+
+        // ✅ Mark Advance Payment — Admin Only
+        [HttpPost("/Admin/MarkAdvancePayment")]
+        public IActionResult MarkAdvancePayment([FromBody] MarkAdvancePaymentRequest req)
+        {
+            if (req == null || req.VchNumber <= 0)
+                return Json(new { success = false, message = "Invalid voucher number." });
+
+            using var conn = new SqlConnection(_connStr);
+            conn.Open();
+
+            var cmd = new SqlCommand(@"
+                UPDATE AttachmentUpload
+                SET PaymentStatus = 'Advance Payment OK',
+                    PaymentDate   = GETDATE(),
+                    PaidBy        = @UserId,
+                    PaidByName    = @UserName
+                WHERE VchNumber = @VchNumber", conn);
+
+            cmd.Parameters.AddWithValue("@VchNumber", req.VchNumber);
+            cmd.Parameters.AddWithValue("@UserId", (object)CurrentUserId() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@UserName",
+                string.IsNullOrWhiteSpace(CurrentUserName()) ? DBNull.Value : CurrentUserName());
+
+            var affected = cmd.ExecuteNonQuery();
+            if (affected == 0)
+                return Json(new { success = false, message = "No uploaded attachment record found for this voucher." });
+
+            _log.Log(HttpContext, "Admin", "Mark Advance Payment", req.VchNumber);
+            return Json(new { success = true, message = "Marked as Advance Payment OK." });
+        }
+
+        public class MarkAdvancePaymentRequest
+        {
+            public decimal VchNumber { get; set; }
+        }
     }
 
 }
