@@ -1,0 +1,14 @@
+/*
+ * [bud].[jsGetBudgetAllocationRequestDetail] — LIVE definition, supplied 2026-09-24.
+ * Created 2025-12-23 11:46:29.433 · Modified 2025-12-23 11:46:29.433
+ * Source: sys.sql_modules.definition, copied from an SSMS results grid.
+ *
+ * The grid collapsed every line break into spaces, so the definition below is
+ * the original text on ONE line, otherwise verbatim. Read it; do not run it —
+ * the first `--` comment would comment out everything after it. For a runnable
+ * copy use SSMS Tasks > Generate Scripts.
+ *
+ * Not one of the 18 audited objects: called by C# for the allocation request
+ * detail (Auth2Service.GetBudgetAllocationRequestDetail).
+ */
+  CREATE PROCEDURE [bud].[jsGetBudgetAllocationRequestDetail]      @requestId  INT = 26  AS  BEGIN      SET NOCOUNT ON;            SELECT          bar.id                      AS id,          b.company                   AS companyId,          b.budgetId                  AS budgetId,          b.budgetName                AS budgetName,          bma.allocationId            AS allocationId,          bma.allocationMonth         AS allocationMonth,          bma.allocatedAmount         AS currentAmount,          bar.newAmount               AS requestedAmount,          (bar.newAmount - bma.allocatedAmount) AS amountDifference,          bar.createdBy               AS createdById,          u.loginUser                 AS createdBy,          bar.createdOn               AS requestCreatedOn,          f.id                        AS flowId,          f.status                    AS flowStatus,          f.currentStage              AS currentStage,          f.totalStage                AS totalStage,          f.createdOn                 AS flowCreatedOn      FROM bud.BudgetAllocationRequest bar      INNER JOIN bud.jsFlow f           ON f.budgetAllocationRequestId = bar.id      INNER JOIN bud.BudgetMonthlyAllocations bma          ON bar.budgetAllocationId = bma.allocationId      INNER JOIN bud.Budgets b          ON bma.budgetId = b.budgetId      LEFT JOIN dbo.jsUser u          ON bar.createdBy = u.userId      WHERE bar.id = @requestId;            -- Get approval history for this request      SELECT          fs.id                       AS statusId,          fs.flowId                   AS flowId,          fs.userId                   AS userId,          u.loginUser                 AS userName,          fs.status                   AS status,          CASE fs.status              WHEN 'P' THEN 'Pending'              WHEN 'A' THEN 'Approved'              WHEN 'R' THEN 'Rejected'              ELSE 'Unknown'          END                         AS statusText,          fs.description              AS remarks,          fs.createdOn                AS actionDate      FROM bud.jsFlowStatus fs      INNER JOIN bud.jsFlow f          ON fs.flowId = f.id      LEFT JOIN dbo.jsUser u          ON fs.userId = u.userId      WHERE f.budgetAllocationRequestId = @requestId      ORDER BY fs.createdOn ASC;        END;

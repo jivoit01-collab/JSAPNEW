@@ -1,0 +1,13 @@
+/*
+ * [bud].[jsGetRejectedBudgets] — LIVE definition, supplied 2026-09-24.
+ * Created 2025-04-02 12:38:45.370 · Modified 2026-09-14 17:55:53.523
+ * Source: sys.sql_modules.definition, copied from an SSMS results grid.
+ *
+ * The grid collapsed every line break into spaces, so the definition below is
+ * the original text on ONE line, otherwise verbatim. Read it; do not run it —
+ * the leading `--` comment comments out everything after it. For a runnable
+ * copy use SSMS Tasks > Generate Scripts.
+ *
+ * Since 2026-09-14 it reads bud.jsBudgetTable_Dedup instead of bud.jsBudgetTable.
+ */
+-- ---------------------------------------------------------------  CREATE PROCEDURE [bud].[jsGetRejectedBudgets]      @userId INT = 72,      @company INT = 1,   @month VARCHAR(MAX) = '05-2025'  AS  BEGIN      SET NOCOUNT ON;        -- Step 1: Get all stages assigned to this user for budget approval      DECLARE @stageTable TABLE (stageId INT);      INSERT INTO @stageTable      SELECT us.stageId       FROM jsUserStage us      INNER JOIN jsStageTemplate st ON us.stageId = st.stageId      INNER JOIN jsTemplate t ON st.templateId = t.id      INNER JOIN jsTemplateApproval ta ON t.id = ta.templateId      WHERE us.userId = @userId        AND t.company = @company        AND ta.approvalId = 5;        -- Step 2: Get rejected budgets by this user from workflow      SELECT DISTINCT           wf.docId AS BudgetId,          d.objType,          CAST(d.company AS NVARCHAR(100)) AS company,    bt.DocEntry,          bt.ObjectName,          bt.CardCode,          bt.CardName,          bt.DocDate,          SUM(          CASE               WHEN d.objType = 19 THEN bt.AMOUNT * -1              ELSE bt.AMOUNT          END    ) AS TotalAmount,          wf.status AS RejectionStatus,          wf.createdOn AS RejectedOn,          wf.description,    bt.CURRENTMONTH      FROM bud.jsBudgetStatusWorkflow wf      INNER JOIN @stageTable st ON wf.stageId = st.stageId      INNER JOIN bud.jsDocEnrtyDetail d ON wf.docId = d.docId      INNER JOIN bud.jsDocEntry de ON de.id = wf.docId      INNER JOIN bud.jsBudgetTable_Dedup bt           ON bt.docEntry = de.docEntry          AND bt.ObjType = d.objType          AND bt.Branch = CAST(d.company AS NVARCHAR(100))          AND bt.LineNum = d.lineNum          AND bt.VisOrder = d.visOrder      WHERE wf.userId = @userId        AND wf.status = 'R'      GROUP BY           wf.docId, d.objType, bt.DocEntry,d.company,          bt.ObjectName, bt.CardCode, bt.CardName, bt.DocDate,          wf.status, wf.createdOn, wf.description,bt.CURRENTMONTH   HAVING bt.CURRENTMONTH = @month  END;
